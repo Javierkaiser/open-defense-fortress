@@ -18,8 +18,9 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test tests/",
+    "test": "node --test \"tests/**/*.mjs\"",
     "serve": "node scripts/serve.mjs 8080",
+    "check": "node .github/scripts/ci-checks.mjs",
     "balance": "node scripts/balance-sim.mjs",
     "probe": "node scripts/probe-waves.mjs"
   },

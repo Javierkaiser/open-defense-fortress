@@ -1,0 +1,129 @@
+name: Reportar un bug
+description: Algo del juego no funciona como debería (o la suite de tests falla).
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por tomarte el tiempo de reportar. Antes de seguir:
+
+        - **¿Es un problema de seguridad?** No abras un issue público: seguí
+          [SECURITY.md](https://github.com/Javierkaiser/open-defense-fortress/blob/main/SECURITY.md).
+        - Buscá primero en los issues existentes para no duplicar.
+        - Un reporte reproducible se arregla mucho más rápido: idealmente, la
+          semilla de la run, la etapa y el modo.
+
+  - type: textarea
+    id: que-pasa
+    attributes:
+      label: Qué pasa
+      description: Describí el comportamiento real, con el detalle justo.
+      placeholder: "Ej.: en la etapa 27, al activar el Ultimate con el HUD en modo compacto, el juego queda en pausa y no responde."
+    validations:
+      required: true
+
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Qué esperabas que pase
+    validations:
+      required: true
+
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Pasos para reproducirlo
+      description: Lista numerada, desde el arranque del juego.
+      placeholder: |
+        1. Abrir el juego y elegir "Campaña"
+        2. Etapa 27
+        3. ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: modo
+    attributes:
+      label: Modo de juego
+      options:
+        - Campaña (1-50)
+        - Infinito (51+)
+        - Supervivencia
+        - Desafío diario
+        - Protocolo / Heat
+        - No aplica (menú, récords, progreso)
+    validations:
+      required: true
+
+  - type: input
+    id: etapa
+    attributes:
+      label: Etapa / oleada (si aplica)
+      placeholder: "Ej.: etapa 27, oleada 4"
+    validations:
+      required: false
+
+  - type: input
+    id: semilla
+    attributes:
+      label: Semilla de la run (si aplica)
+      description: Aparece en el HUD/menú de pausa, o en el récord al terminar.
+      placeholder: "Ej.: 184623"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: calidad
+    attributes:
+      label: Calidad gráfica
+      options:
+        - Alta
+        - Baja
+        - No sé / no aplica
+    validations:
+      required: true
+
+  - type: textarea
+    id: entorno
+    attributes:
+      label: Entorno
+      description: Sistema operativo, navegador y versión, y si es la demo web o un checkout local.
+      placeholder: |
+        - OS: Windows 11 24H2
+        - Navegador: Chrome 141
+        - Origen: demo web (faint-desert-zjv5.here.now) / local (node scripts/serve.mjs)
+        - Versión o commit: 1.0.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: consola
+    attributes:
+      label: Errores de consola o logs
+      description: |
+        Pegá lo que aparezca en la consola del navegador (F12 → Console).
+        Si el problema es de la suite de tests, pegá la salida de `node --test "tests/**/*.mjs"`.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: captura
+    attributes:
+      label: Capturas o video
+      description: Arrastrá imágenes o un GIF/MP4 acá. Para bugs visuales es lo que más ayuda.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: chequeos
+    attributes:
+      label: Antes de enviar
+      options:
+        - label: Busqué en los issues existentes y no encontré uno igual.
+          required: true
+        - label: Esto no es una vulnerabilidad de seguridad (esas van por SECURITY.md).
+          required: true
+        - label: El juego está actualizado (recargué la demo o hice pull del último main).
+          required: false

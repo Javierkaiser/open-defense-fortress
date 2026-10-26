@@ -1,0 +1,66 @@
+# CI — Open Defense Fortress
+#
+# Matriz de SO × versión de Node: el proyecto es JavaScript puro sin dependencias
+# ni build step, así que lo que hay que probar es que la suite corra igual en
+# Linux, macOS y Windows y en las dos LTS soportadas (22 y 24).
+#
+# Jobs (los nombres son el contexto exacto de la branch protection):
+#   - test (ubuntu-latest, 22) ... test (windows-latest, 24)
+#   - static-checks
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (${{ matrix.os }}, ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [22, 24]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node ${{ matrix.node }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Versiones
+        run: |
+          node --version
+          npm --version
+
+      - name: Tests (node --test)
+        run: node --test "tests/**/*.mjs"
+
+  static-checks:
+    name: static-checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Checks estáticos (sintaxis, zero-dep, referencias)
+        run: node .github/scripts/ci-checks.mjs

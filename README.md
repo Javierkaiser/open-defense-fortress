@@ -2,11 +2,12 @@
 
 **Tower defense roguelike de torres fijas, 100% offline y sin dependencias de runtime.**
 
+[![CI](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml/badge.svg)](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml)
 [![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-3FD4FF.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-6DA55F.svg)](package.json)
 [![Tests](https://img.shields.io/badge/tests-837-3FD4FF.svg)](tests/)
 
-[Demo web](https://faint-desert-zjv5.here.now/) · [English summary](README.en.md) · [Diseño técnico](docs/DESIGN.md) · [Balance](docs/BALANCE.md) · [Testing](docs/TESTING.md) · [Créditos](docs/CREDITS.md)
+[Demo web](https://faint-desert-zjv5.here.now/) · [English summary](README.en.md) · [Diseño técnico](docs/DESIGN.md) · [Balance](docs/BALANCE.md) · [Testing](docs/TESTING.md) · [Créditos](docs/CREDITS.md) · [Cómo contribuir](CONTRIBUTING.md) · [Código de conducta](CODE_OF_CONDUCT.md)
 
 ![Menú principal](docs/screenshots/menu.webp)
 
@@ -21,6 +22,32 @@ cambian.
 El juego corre entero en el navegador: Canvas 2D para el mundo, DOM/CSS para el
 HUD y los overlays, módulos ES y `localStorage` para el progreso. No hay build
 step, no hay servidor y no hay llamadas de red.
+
+## Jugar / correr
+
+La forma más rápida es la [demo web](https://faint-desert-zjv5.here.now/): no
+requiere instalación y funciona offline después de la primera carga.
+
+Para correrlo desde el código hace falta un servidor estático, porque los módulos
+ES no cargan desde `file://`:
+
+```bash
+git clone https://github.com/Javierkaiser/open-defense-fortress.git
+cd open-defense-fortress
+node scripts/serve.mjs 8080
+# abrir http://localhost:8080
+```
+
+Requisitos: **Node 22+** (solo para servir y para los tests; el juego no tiene
+dependencias ni build step). Alternativas de servidor:
+
+```bash
+python3 -m http.server 8080
+npx serve .
+```
+
+La demo se publica sola: cada push a `main` corre el workflow de deploy
+(`.github/workflows/deploy-herenow.yml`).
 
 ## Capturas
 
@@ -55,30 +82,21 @@ step, no hay servidor y no hay llamadas de red.
 
 El disparo es automático: no hay apuntado ni joystick.
 
-## Cómo correr
-
-Hace falta un servidor estático porque los módulos ES no cargan desde `file://`.
-
-```bash
-# Node 22+
-node scripts/serve.mjs 8080
-# abrir http://localhost:8080
-
-# alternativas
-python3 -m http.server 8080
-npx serve .
-```
-
 ## Tests
 
 ```bash
-node --test tests/
+node --test "tests/**/*.mjs"            # 837 tests (832 pass, 5 skip, 0 fail)
+node .github/scripts/ci-checks.mjs   # checks estáticos (sintaxis, zero-dep, refs)
 ```
 
 La suite corre sobre los módulos reales en Node, sin canvas, DOM, audio ni
 jsdom. Cubre fórmulas, economía, cartas, oleadas, etapas, enemigos, torres,
 meta-juego, HUD (markup puro), progreso, heat, infinito, supervivencia y un
 smoke de integración del motor. Ver [docs/TESTING.md](docs/TESTING.md).
+
+La CI corre la suite en **Linux, macOS y Windows** con **Node 22 y 24**
+(`.github/workflows/ci.yml`), más un job de checks estáticos. Cualquier PR tiene
+que pasar esa matriz para mergearse.
 
 ## Estructura
 
@@ -92,8 +110,8 @@ smoke de integración del motor. Ver [docs/TESTING.md](docs/TESTING.md).
 ├─ scripts/              # serve, balance-sim, probe-waves, probes
 ├─ tools/tower-sheet.html# hoja de contactos del arte de torres
 ├─ docs/                 # diseño, balance, testing, créditos, screenshots
-├─ openspec/specs/        # specs de comportamiento
-└─ .github/              # deploy web a here.now
+├─ openspec/specs/       # specs de comportamiento
+└─ .github/              # CI, deploy a here.now, templates de issues/PR, dependabot
 ```
 
 ## Arquitectura
@@ -134,10 +152,12 @@ keep-awake. Cuando esté publicada, el link de Play va acá.
 
 ## Licencia
 
-El **código** está bajo [MIT](LICENSE). Los **assets** tienen sus propias
-licencias (CC0, CC BY 3.0 y OFL 1.1); ver [docs/CREDITS.md](docs/CREDITS.md) y
-[docs/ASSETS.md](docs/ASSETS.md). En particular, el icono del Ultimate es de
-**Lorc** (game-icons.net), CC BY 3.0, recoloreado.
+El **código** está bajo [MIT](LICENSE): ese archivo contiene solo el texto
+canónico de la licencia. Los **assets** tienen sus propias licencias (CC0, CC BY
+3.0 y OFL 1.1); el detalle está en [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md),
+[docs/CREDITS.md](docs/CREDITS.md) y [docs/ASSETS.md](docs/ASSETS.md). En
+particular, el icono del Ultimate es de **Lorc** (game-icons.net), CC BY 3.0,
+recoloreado.
 
 ## Créditos
 
@@ -150,12 +170,18 @@ Ver [docs/CREDITS.md](docs/CREDITS.md).
 
 ## Contribuir
 
-Leé [CONTRIBUTING.md](CONTRIBUTING.md). El proyecto es deliberadamente
+Leé [CONTRIBUTING.md](CONTRIBUTING.md) y el
+[código de conducta](CODE_OF_CONDUCT.md). El proyecto es deliberadamente
 zero-dependency: no se agregan paquetes npm al runtime. Los cambios de UI
 necesitan captura; los de lógica, tests.
 
+Bugs y propuestas van por los [issue forms](.github/ISSUE_TEMPLATE/); los PRs
+pasan por la matriz de CI (Linux/macOS/Windows × Node 22/24). Se aceptan
+contribuciones en **español o inglés**.
+
 ## Seguridad y privacidad
 
-No se recolectan datos. Para reportar una vulnerabilidad, escribí a
-`contacto@javierlust.net.ar`; ver [SECURITY.md](SECURITY.md) y la
+No se recolectan datos. Para reportar una vulnerabilidad, usá el
+[reporte privado de GitHub](https://github.com/Javierkaiser/open-defense-fortress/security/advisories/new)
+o escribí a `contacto@javierlust.net.ar`; ver [SECURITY.md](SECURITY.md) y la
 [política de privacidad](https://faint-desert-zjv5.here.now/privacy.html).

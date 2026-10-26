@@ -2,7 +2,9 @@
 
 **A fixed-tower tower-defense roguelike. 100% offline, zero runtime dependencies.**
 
-[Español](README.md) · [Web demo](https://faint-desert-zjv5.here.now/) · [Design](docs/DESIGN.md) · [Credits](docs/CREDITS.md)
+[Español](README.md) · [Web demo](https://faint-desert-zjv5.here.now/) · [Design](docs/DESIGN.md) · [Credits](docs/CREDITS.md) · [Contributing (ES)](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md)
+
+[![CI](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml/badge.svg)](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml)
 
 Defend a volcanic base from falling meteors, spores, crystals and blobs.
 Towers fire automatically: you manage the run economy, time speed, the Ultimate
@@ -24,9 +26,13 @@ and the upgrade cards offered on level-up. Every run is a roguelike.
 node scripts/serve.mjs 8080
 # open http://localhost:8080
 
-# tests
-node --test tests/
+# tests (837) + static checks
+node --test "tests/**/*.mjs"
+node .github/scripts/ci-checks.mjs
 ```
+
+CI runs the suite on Linux, macOS and Windows with Node 22 and 24
+(`.github/workflows/ci.yml`); every PR must pass that matrix.
 
 ## Controls
 
@@ -47,6 +53,19 @@ offline and will keep the same web codebase. Play Store link pending.
 
 ## License
 
-Code: [MIT](LICENSE). Assets keep their own licenses (CC0, CC BY 3.0, OFL 1.1);
-see [docs/CREDITS.md](docs/CREDITS.md). The Ultimate icon is by **Lorc**
+Code: [MIT](LICENSE) — the `LICENSE` file contains only the canonical MIT text.
+Assets keep their own licenses (CC0, CC BY 3.0, OFL 1.1); see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and
+[docs/CREDITS.md](docs/CREDITS.md). The Ultimate icon is by **Lorc**
 (game-icons.net), CC BY 3.0, recolored.
+
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) (Spanish) and the
+[Code of Conduct](CODE_OF_CONDUCT.md). Issues and PRs are welcome **in English
+or Spanish**. The project is deliberately zero-dependency: no npm packages in the
+runtime, no build step. UI changes need a screenshot; logic changes need tests.
+
+Security issues: please use GitHub's private advisory reporting
+(<https://github.com/Javierkaiser/open-defense-fortress/security/advisories/new>),
+not a public issue.

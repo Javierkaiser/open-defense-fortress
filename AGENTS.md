@@ -7,8 +7,8 @@ Documentación y comentarios en **español**.
 ## Comandos
 
 ```bash
-node --test tests/                         # suite completa (837 tests)
-node --test tests/test-stages.mjs          # un archivo
+node --test "tests/**/*.mjs"                         # suite completa (837 tests)
+node --test "tests/**/*.mjs"test-stages.mjs          # un archivo
 node --check js/main.js                    # sintaxis de un módulo
 node scripts/serve.mjs 8080                # servidor estático local
 node scripts/balance-sim.mjs --mode=inteligente --seeds=5

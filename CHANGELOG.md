@@ -1,5 +1,37 @@
 # Changelog
 
+Todas las versiones notables de este proyecto se documentan acá. El formato sigue
+[Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
+[SemVer](https://semver.org/lang/es/).
+
+## [Unreleased]
+
+### Añadido
+
+- CI en GitHub Actions con matriz Linux/macOS/Windows × Node 22/24 y un job de
+  checks estáticos (sintaxis, zero-dependency, referencias rotas).
+- Dependabot semanal para las GitHub Actions.
+- Issue forms (`bug_report`, `feature_request`), plantilla de pull request y
+  `config.yml` con links de seguridad y conducta.
+- `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1) y `THIRD_PARTY_NOTICES.md`.
+- `.editorconfig` y `.gitattributes` (LF en el repo, binarios sin conversión).
+
+### Cambiado
+
+- `README.md`: la sección de cómo correr/jugar quedó arriba, junto al TL;DR, y el
+  badge de estado ahora es el de CI.
+- `SECURITY.md`: el reporte privado por GitHub Advisories es el canal preferido.
+- El comando de la suite pasa a `node --test "tests/**/*.mjs"`.
+
+### Corregido
+
+- `node --test tests/` no funcionaba en Linux ni macOS con Node 22+: el runner
+  trata el argumento posicional como glob y un directorio no matchea nada
+  (`Error: Cannot find module '.../tests'`). Funcionaba solo en Windows, donde el
+  path se resolvía como directorio. Con el glob explícito corre igual en Linux,
+  macOS y Windows. Detectado por la matriz de CI antes de abrir el repo.
+- `package.json`: se agregó el script `npm run check` para los checks estáticos.
+
 ## [1.0.0] — 2026-10-26
 
 Primera versión pública.

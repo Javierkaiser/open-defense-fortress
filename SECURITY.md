@@ -8,7 +8,12 @@
 
 ## Reportar una vulnerabilidad
 
-Escribí a **contacto@javierlust.net.ar** con:
+**Preferido:** usá el reporte privado de GitHub en
+<https://github.com/Javierkaiser/open-defense-fortress/security/advisories/new>
+(Draft a new security advisory). Queda registrado, es privado y permite coordinar
+la corrección y la divulgación.
+
+**Alternativa:** escribí a **contacto@javierlust.net.ar** con:
 
 - descripción del problema,
 - pasos para reproducirlo,
@@ -16,7 +21,8 @@ Escribí a **contacto@javierlust.net.ar** con:
 - impacto estimado.
 
 No abras un issue público para vulnerabilidades sin corregir. Respondemos con
-la mejor disposición posible; no hay programa de recompensas.
+la mejor disposición posible; no hay programa de recompensas. Se aceptan reportes
+en español o en inglés.
 
 ## Alcance
 

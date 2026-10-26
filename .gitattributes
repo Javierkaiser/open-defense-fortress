@@ -1,0 +1,30 @@
+# Normaliza fin de línea a LF en el repo (el runtime es multiplataforma).
+* text=auto eol=lf
+
+# Scripts y configuración: siempre LF, aunque se editen en Windows.
+*.sh            text eol=lf
+*.mjs           text eol=lf
+*.js            text eol=lf
+*.css           text eol=lf
+*.html          text eol=lf
+*.json          text eol=lf
+*.yml           text eol=lf
+*.yaml          text eol=lf
+*.md            text eol=lf
+
+# Binarios: sin diffs de texto ni conversión.
+*.png           binary
+*.webp          binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.ogg           binary
+*.wav           binary
+*.mp3           binary
+*.ttf           binary
+*.woff          binary
+*.woff2         binary
+
+# El lockfile no existe (proyecto zero-dependency), pero si aparece, que no
+# genere ruido en los diffs de los PRs.
+package-lock.json linguist-generated=true

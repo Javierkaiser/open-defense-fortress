@@ -3,7 +3,7 @@
 ## Correr la suite
 
 ```bash
-node --test tests/
+node --test "tests/**/*.mjs"
 ```
 
 Estado actual: **837 tests** (832 pass, 5 skip, 0 fail) en **23 archivos**.
@@ -12,7 +12,7 @@ Node 22 o superior.
 Para un archivo:
 
 ```bash
-node --test tests/test-stages.mjs
+node --test "tests/**/*.mjs"test-stages.mjs
 ```
 
 ## Qué cubre

@@ -1,0 +1,37 @@
+# Dependabot — Open Defense Fortress
+#
+# El proyecto es zero-dependency en runtime: NO hay dependencias npm, así que el
+# único ecosistema que hay que vigilar son las GitHub Actions de los workflows.
+# (Si alguna vez se agregan dependencias npm, descomentá el bloque "npm".)
+
+version: 2
+
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/Argentina/Cordoba"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "dependencies"
+      - "ci"
+    groups:
+      # Las actions menores y de parche se agrupan: no se contradicen entre sí
+      # porque no hay dependencias npm que pinen versiones exactas.
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # - package-ecosystem: "npm"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #   open-pull-requests-limit: 5

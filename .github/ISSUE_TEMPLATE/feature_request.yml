@@ -1,0 +1,74 @@
+name: Proponer una mejora
+description: Una idea de gameplay, balance, accesibilidad, rendimiento o tooling.
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Antes de abrir el issue, chequeá que la idea entre en el alcance del
+        proyecto: el juego es **estático, offline y zero-dependency** (sin
+        paquetes npm en runtime, sin build step y sin backend). Si tu propuesta
+        necesita un servidor, una cuenta o una dependencia de runtime, contalo
+        explícitamente en "Impacto técnico".
+
+  - type: textarea
+    id: problema
+    attributes:
+      label: Qué problema resuelve
+      description: Describí la situación actual y por qué molesta. Si es una idea de balance, sumá números.
+      placeholder: "Ej.: a partir de la etapa 35 el Láser queda inútil porque los enemigos élite tienen demasiada armadura."
+    validations:
+      required: true
+
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: Propuesta concreta
+      description: Cómo lo resolverías, en lo posible con reglas verificables.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: Alternativas consideradas
+      description: Otras formas de resolver lo mismo y por qué no las preferís.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      options:
+        - Gameplay / mecánicas
+        - Balance / números
+        - Torres, enemigos o cartas
+        - UI / HUD / accesibilidad
+        - Rendimiento / calidad gráfica
+        - Documentación
+        - Tooling / tests / CI
+        - Otro
+    validations:
+      required: true
+
+  - type: textarea
+    id: impacto
+    attributes:
+      label: Impacto técnico
+      description: |
+        Módulos que tocaría, si rompe specs de `openspec/specs/`, si necesita
+        assets nuevos (y con qué licencia libre) o si afecta los tests.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: chequeos
+    attributes:
+      label: Antes de enviar
+      options:
+        - label: La idea no requiere dependencias npm en runtime ni un backend.
+          required: true
+        - label: Si propongo assets nuevos, son de licencia libre (CC0 / CC BY / OFL).
+          required: false

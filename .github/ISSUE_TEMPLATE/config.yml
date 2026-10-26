@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Reportar una vulnerabilidad (privado)
+    url: https://github.com/Javierkaiser/open-defense-fortress/security/advisories/new
+    about: No abras un issue público para problemas de seguridad. Usá el reporte privado de GitHub o el mail de SECURITY.md.
+  - name: Cómo contribuir
+    url: https://github.com/Javierkaiser/open-defense-fortress/blob/main/CONTRIBUTING.md
+    about: Requisitos, estilo, tests y flujo de pull requests.
+  - name: Código de conducta
+    url: https://github.com/Javierkaiser/open-defense-fortress/blob/main/CODE_OF_CONDUCT.md
+    about: Reglas de convivencia del proyecto y cómo reportar conductas inaceptables.

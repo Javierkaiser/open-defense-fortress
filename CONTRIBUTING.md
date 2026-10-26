@@ -4,6 +4,15 @@ Gracias por el interés. El proyecto es un juego estático, offline y
 **zero-dependency** en runtime: se mantiene a propósito sin paquetes npm, sin
 build step y sin servidor.
 
+Se aceptan contribuciones, issues y reportes **en español o en inglés**. La
+documentación está en español; si escribís en inglés te respondemos igual.
+
+## Código de conducta
+
+Este proyecto adopta el [código de conducta](CODE_OF_CONDUCT.md) (Contributor
+Covenant 2.1). Participando —issues, PRs, discusiones— aceptás respetarlo. Para
+reportar una conducta inaceptable, escribí a **contacto@javierlust.net.ar**.
+
 ## Requisitos
 
 - Node.js 22 o superior.
@@ -21,11 +30,16 @@ node scripts/serve.mjs 8080
 
 Los módulos ES no cargan desde `file://`; hace falta el servidor estático.
 
-## Tests
+## Tests y checks
 
 ```bash
-node --test tests/
+node --test "tests/**/*.mjs"                    # 837 tests
+node .github/scripts/ci-checks.mjs    # sintaxis, zero-dep, referencias
 ```
+
+La CI (`.github/workflows/ci.yml`) corre la suite en **Linux, macOS y Windows**
+con **Node 22 y 24**. Antes de abrir un PR, corré la suite localmente: la matriz
+tarda unos minutos y un fallo de plataforma se detecta mejor temprano.
 
 La suite corre en Node puro: **no hay DOM, canvas, audio ni jsdom**. Si tu cambio
 toca un módulo que se evalúa al importarse, respetá los guards
@@ -59,7 +73,7 @@ toca un módulo que se evalúa al importarse, respetá los guards
    `perf:`).
 2. Tests nuevos o actualizados si tocás lógica.
 3. Captura antes/después si tocás UI (`docs/screenshots/` o el PR).
-4. `node --check` de los archivos tocados y `node --test tests/` en verde.
+4. `node --check` de los archivos tocados y `node --test "tests/**/*.mjs"` en verde.
 5. Si el cambio modifica comportamiento, actualizá la spec de
    `openspec/specs/` correspondiente y la documentación.
 
