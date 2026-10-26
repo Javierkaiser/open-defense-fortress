@@ -1,0 +1,1549 @@
+// ============================================================
+// cards.js — CATÁLOGO DE CARTAS roguelike + rollOffer + efectos
+// (v3 correcciones 1/7 — BUG-001/D7, DESIGN §2.2/§2.3/§2.7/§5 dev-4)
+//
+// El nivel del jugador SOLO dispara la oferta de cartas (§2.7):
+// kills → XP → LEVEL UP → CARD_CHOICE (3 cartas) → applyCard().
+// Sin estado propio: las cartas mutan Fortress/Tower vía game.
+// Módulo de datos+lógica pura testeable desde Node (rng inyectable).
+// Nadie importa este archivo salvo main.js (regla §1.1: las torres/
+// enemigos comunican hacia afuera vía engine.emit).
+// ============================================================
+
+import { clamp } from './engine.js';
+import { MAX_DRONES, WASPS, TOWERS, DRONES } from './towers.js';
+// dev-7 fase 31: `perkMods` para saber si el jugador tiene el perk de
+// espinas del Campo de Fuerza (sin él la carta "Burbuja Reforzada" sería
+// inerte: multiplica por 1.6 un daño que es 0).
+import { perkMods } from './meta.js';
+// dev-7 fase 51: `addCardMods` — el CANAL de cartas: por aquí una carta
+// puede dar MECÁNICAS (el vocabulario de los perks) a una unidad, no sólo
+// multiplicadores. Los mods se acumulan en `unit.cardMods` y los lee
+// `unitMods()` (js/towers.js), que los fusiona con los perks de meta.
+import { addCardMods, cardApps } from './perks.js';
+
+// dev-7 fase 49: los TIPOS DE DAÑO (js/damagetypes.js). Las cartas que
+// suben el daño de una unidad toman SU tipo (TOWERS/DRONES) y su
+// descripción dice cómo queda contra cada familia de enemigo, con los
+// números REALES de la matriz (multiplicador de la carta × matriz).
+import { DAMAGE_TYPES, ENEMY_FAMILIES, ENEMY_FAMILY_IDS, dmgMultiplier } from './damagetypes.js';
+
+/**
+ * Tope de enjambre del Dron Avispas (fase 30). Mismo valor que
+ * `WASPS.maxSwarm` en js/towers.js — aquí se replica porque cards.js no
+ * puede importar el dron sin crear un ciclo (towers.js → meta.js →
+ * ... y cards.js → towers.js ya existe).
+ */
+const MAX_SWARM = WASPS.maxSwarm;
+
+/** Cartas por oferta (§4.4: fila de 3 con reveal flip escalonado). */
+export const CARD_OFFER_COUNT = 3;
+
+/**
+ * Cartas por oferta de ESTA run. fase 69 — condición Censura: el Protocolo
+ * recorta la oferta (3 → 2 → 1) vía `game.runMods.offerCount`. Sin runMods
+ * (tests, balance-sim) el default sigue siendo 3.
+ *
+ * @param {object} [game]
+ * @returns {number} 1..CARD_OFFER_COUNT
+ */
+function offerCountFor(game) {
+  const n = Number(game?.runMods?.offerCount ?? CARD_OFFER_COUNT);
+  if (!Number.isFinite(n)) return CARD_OFFER_COUNT;
+  return Math.max(1, Math.min(CARD_OFFER_COUNT, Math.trunc(n)));
+}
+
+// Capas de aplicación por carta repetible (anti-stack infinito; §2.2).
+// Una repetible NUNCA puede aparecer más de `CAPS[id]` veces por partida:
+// su contador vive en la unidad (o en la fortaleza) y `appsOf()` lo lee
+// para sacarla del pool en cuanto se alcanza el tope.
+//   · daño genérico    → dmg_all 2, dmg_guard 2
+//   · daño exclusivo   → 10 cartas (6 torres clásicas + Láser + 3 drones), 2 c/u
+//   · cadencia/detección→ cadence_up 3, rapid_bullets 2, detect_up 2
+//   · puntería         → pierce_up 3
+//   · economía/defensa → xp_boost 2, score_gain 2, streak_shield 2,
+//                         ult_charge 1, ult_power 2, repair_500 3,
+//                         armor_plate 1
+// dev-7 fase 30: swarm_grow 2 (+1 avispa del Dron Avispas).
+export const CAPS = {
+  dmg_all: 2,        // Munición Reforzada ×2 como máximo
+  dmg_guard: 2,      // Cañones Potenciados ×2
+  // dev-7 fase 12: cartas exclusivas por torre (una por cada torre
+  // además de Guardian) — mismo tope ×2 que dmg_guard, mismo patrón.
+  dmg_missile: 2,
+  dmg_beam: 2,
+  dmg_thunder: 2,
+  dmg_tesla: 2,
+  dmg_mortar: 2,
+  dmg_gauss: 2,
+  // dev-7: el arsenal extendido (Láser + los 3 drones) se quedó SIN carta
+  // de daño propia — invertir en el Láser rendía 25% menos que en el
+  // Gauss. Estas 4 lo igualan: mismo ×1.6, mismo tope ×2, mismo patrón.
+  dmg_laser: 2,
+  dmg_firewheel: 2,
+  dmg_wasps: 2,
+  dmg_forcefield: 2,
+  // dev-7 fase 30: "Nido Ampliado" (+1 avispa del enjambre del Dron
+  // Avispas). Tope 2: el enjambre base son 3 avispas y el tope de diseño
+  // son 5 (+ el +1/+2 del perk de meta, que va por otro lado).
+  swarm_grow: 2,
+  cadence_up: 3,     // Servos Acelerados ×3 (×0.9³ ≈ 0.73 cadencia)
+  rapid_bullets: 2,  // Balas Hipersónicas ×2 (×1.5625 velocidad de bala Guardian)
+  detect_up: 2,      // Sensores Ampliados ×2 (±60 → ±118 px)
+  // dev-7: `pierce_up` NO tenía tope → apilado infinito de atravesamientos
+  // por enemigo. Tope 3 (3 extras es el techo de diseño).
+  pierce_up: 3,      // Núcleos Perforantes ×3
+  xp_boost: 2,       // ×1.25² = ×1.56 XP máximo
+  score_gain: 2,     // ×1.2² = ×1.44 score máximo
+  streak_shield: 2,  // hasta 2 cargas de escudo de racha
+  // dev-7: `ult_charge` NO tenía tope → se ofrecía en CADA level-up de
+  // toda la run. Tope 1: una sola recarga extra del ultimate por partida.
+  ult_charge: 1,     // una sola carga extra del ORBITAL STRIKE
+  ult_power: 2,      // Impacto Orbital+ ×2 (×2.25 daño ultimate)
+  // dev-7 fase 26: estas dos NO tenían tope. `armor_plate` sumaba +800 de
+  // HP máximo por cada aparición (una run larga podía llevar la base de
+  // 3 000 a 15 000 de HP) y, con el daño de leak topado a 50 (player.js
+  // LEAK_DMG_CAP), una base tan grande quedaba PRÁCTICAMENTE inmatable por
+  // leaks — lo que anulaba el cambio de balance v7 que hizo que los leaks
+  // dolieran de verdad. Ahora tienen tope explícito.
+  // dev-7 (recalibración): `armor_plate` baja a +600 y UNA sola vez
+  // (+20% de la base de 3 000). Antes eran +800 ×2 = +1 600 (+53%), que
+  // toleraban 32 leaks extra (50 de daño por leak): la base era
+  // literalmente inmatable. Ahora el blindaje es real pero no rompe el
+  // balance v7.
+  repair_500: 3,     // hasta 3 reparaciones (+1500 de cura)
+  armor_plate: 1,    // un blindaje (+600 de HP máximo)
+  // dev-7 fase 51: CARTAS DE TÉCNICA — por primera vez una carta puede
+  // dar MECÁNICAS (el vocabulario de los perks: rebote, perforación,
+  // explosión al morir, ralentizar, crítico, robo de vida, aturdir,
+  // remate), no sólo multiplicadores. Tope ×2 cada una: la 2ª
+  // aplicación ACUMULA el efecto (2 rebotes, 60 % de detonar, 40 % de
+  // crítico…), la 3ª ya no entra al pool (appsOf → isCardEligible).
+  tech_pierce: 2,
+  tech_bounce: 2,
+  tech_explode: 2,
+  tech_slow: 2,
+  tech_crit: 2,
+  tech_lifesteal: 2,
+  tech_stun_missile: 2,
+  tech_exec_missile: 2,
+  // dev-7 fase 50: la caza de familia se aplica UNA vez (si se
+  // aplicara dos, el multiplicador pasaria de x1,8 a x3,24).
+  hunt_rock: 1,
+  hunt_crystal: 1,
+  hunt_spore: 1,
+  hunt_virus: 1,
+};
+
+/** Torres canónicas desbloqueables SOLO por cartas (§6 decisión 3). */
+const UNLOCKABLE_TOWERS = [
+  'missile', 'thunderstroke', 'tesla', 'beam',
+];
+
+// ------------------------------------------------------------
+// dev-7 fase 49 — LAS CARTAS HABLAN: tipo de daño y SINONERGIA
+//
+// Antes la carta decía QUÉ hace ("×1.6 de daño") pero no DE QUÉ TIPO:
+// once cartas del catálogo eran casi gemelas ("×1.6 a la torre X") y el
+// jugador no tenía forma de saber si la que tenía delante pegaba contra
+// la roca o contra el virus. Ahora:
+//
+//   1) cada carta de daño declara su `dmgType` (el de la unidad que
+//      mejora, sacado de la MISMA tabla que usa el combate: TOWERS/DRONES),
+//   2) su descripción dice el tipo y cómo QUEDA contra cada familia,
+//      con los números REALES: multiplicador de la carta × matriz.
+//
+// El balance NO cambia: esto es información, no efectos.
+// ------------------------------------------------------------
+
+/**
+ * Multiplicador en formato español: 2.4 → "2,4".
+ * @param {number} v
+ * @returns {string}
+ */
+export function fmtDmgMul(v) {
+  const r = Math.round((typeof v === 'number' && Number.isFinite(v) ? v : 1) * 100) / 100;
+  return String(r).replace('.', ',');
+}
+
+/**
+ * La SINONERGIA de una carta de daño: el multiplicador de la carta
+ * contra CADA familia de enemigo (multiplicador de la carta × matriz de
+ * js/damagetypes.js). Los números NO están escritos a mano: se calculan.
+ *
+ * El ▲/▼ es el mismo lenguaje que la leyenda de tipos: ▲ fortaleza
+ * (×1,5 de la matriz), ▼ debilidad (×0,5). Las familias neutras (las
+ * que comparten multiplicador) van agrupadas para que la línea quepa en
+ * una card de móvil.
+ *
+ * @param {string} dmgType id del tipo de daño
+ * @param {number} mul multiplicador de la carta (1.6, 1.3, 1.5…)
+ * @returns {string} "▲roca ×2,4 · ▼cristal ×0,8 · espora/virus ×1,6"
+ */
+export function dmgSynergyText(dmgType, mul = 1) {
+  const grupos = [];
+  for (const f of ENEMY_FAMILY_IDS) {
+    const total = mul * dmgMultiplier(dmgType, f);
+    const mark = total > mul ? '▲' : total < mul ? '▼' : '';
+    const nombre = ENEMY_FAMILIES[f].name.toLowerCase();
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo && ultimo.total === total) ultimo.nombres.push(nombre);
+    else grupos.push({ total, mark, nombres: [nombre] });
+  }
+  return grupos
+    .map((g) => `${g.mark}${g.nombres.join('/')} ×${fmtDmgMul(g.total)}`)
+    .join(' · ');
+}
+
+/**
+ * Descripción de una carta de daño EXCLUSIVA: el TIPO que inflige y
+ * cómo queda contra cada familia (segunda línea: la sinonergia).
+ *
+ * @param {string} unitName nombre de la unidad (Guardian, Missile, …)
+ * @param {string} dmgType id del tipo de daño
+ * @param {number} mul multiplicador de la carta
+ * @param {number} times cuántas veces se puede apilar
+ * @param {string} per detalle de en qué se aplica (" por ráfaga")
+ * @returns {string}
+ */
+function exclusiveDmgDesc(unitName, dmgType, mul, times, per = '') {
+  const tipo = DAMAGE_TYPES[dmgType]?.name?.toUpperCase() ?? '—';
+  return `${unitName}: ×${fmtDmgMul(mul)} de daño ${tipo}${per} (hasta ${times} veces).`
+    + `\n${dmgSynergyText(dmgType, mul)}`;
+}
+
+// ------------------------------------------------------------
+// Helpers sobre la partida (duck-typed: toleran games de test)
+// ------------------------------------------------------------
+
+/** Torre colocada de un tipo dado (o null). */
+export function findTower(game, type) {
+  return game?.fortress?.slots?.find((t) => t && t.type === type) ?? null;
+}
+
+/**
+ * Dron colocado de un tipo dado (o null). Los drones del arsenal extendido
+ * (§2.3) viven en `fortress.drones`, NO en `fortress.slots` (a diferencia
+ * de las torres) — por eso las cartas exclusivas de dron usan este helper.
+ */
+export function findDrone(game, type) {
+  return game?.fortress?.drones?.find((d) => d && d.type === type) ?? null;
+}
+
+/** Tipos de torre poseídos (para exclusión de cartas de desbloqueo). */
+function ownedTypes(game) {
+  const out = new Set();
+  for (const t of game?.fortress?.slots ?? []) {
+    if (t) out.add(t.type);
+  }
+  return out;
+}
+
+/** Aplicaciones previas de una carta repetible (cap por torre o global). */
+function appsOf(cardId, game) {
+  const f = game?.fortress;
+  if (!f) return 0;
+  switch (cardId) {
+    case 'dmg_all': return Math.max(0, ...f.slots.filter(Boolean).map((t) => t.dmgAllApps ?? 0));
+    // dev-7 fase 50: la caza de familia se aplica a TODAS las unidades,
+    // asi que su conteo es el maximo de las que hay en el campo.
+    case 'hunt_rock':
+    case 'hunt_crystal':
+    case 'hunt_spore':
+    case 'hunt_virus':
+      return Math.max(0, ...[
+        ...f.slots.filter(Boolean).map((t) => cardApps(t, cardId)),
+        ...(f.drones ?? []).map((d) => cardApps(d, cardId)),
+      ]);
+    case 'dmg_guard': return findTower(game, 'guardian')?.guardDmgApps ?? 0;
+    // dev-7 fase 26 (bug corregido): las 6 cartas EXCLUSIVAS por torre se
+    // auto-limitan dentro de su `apply` (comparan `exclusiveDmgApps` contra
+    // su CAP), pero `appsOf` no las contaba. Resultado: seguían siendo
+    // ELEGIBLES con el tope ya alcanzado, entraban al pool de oferta y al
+    // elegirlas no hacían NADA (una carta inútil en la oferta, justo lo que
+    // la regla de elegibilidad de arriba dice que no debe pasar). Ahora se
+    // cuentan como las demás repetibles.
+    case 'dmg_missile': return findTower(game, 'missile')?.exclusiveDmgApps ?? 0;
+    case 'dmg_beam': return findTower(game, 'beam')?.exclusiveDmgApps ?? 0;
+    case 'dmg_thunder': return findTower(game, 'thunderstroke')?.exclusiveDmgApps ?? 0;
+    case 'dmg_tesla': return findTower(game, 'tesla')?.exclusiveDmgApps ?? 0;
+    case 'dmg_mortar': return findTower(game, 'mortar')?.exclusiveDmgApps ?? 0;
+    case 'dmg_gauss': return findTower(game, 'gauss')?.exclusiveDmgApps ?? 0;
+    // dev-7: las 4 cartas del arsenal extendido (Láser + 3 drones) siguen
+    // el mismo patrón (contador `exclusiveDmgApps` de la unidad).
+    case 'dmg_laser': return findTower(game, 'laser')?.exclusiveDmgApps ?? 0;
+    case 'dmg_firewheel': return findDrone(game, 'firewheel')?.exclusiveDmgApps ?? 0;
+    case 'dmg_wasps': return findDrone(game, 'wasps')?.exclusiveDmgApps ?? 0;
+    case 'dmg_forcefield': return findDrone(game, 'forcefield')?.exclusiveDmgApps ?? 0;
+    // dev-7 fase 30: el contador de "Nido Ampliado" es del propio dron.
+    case 'swarm_grow': return findDrone(game, 'wasps')?.swarmApps ?? 0;
+    case 'rapid_bullets': return findTower(game, 'guardian')?.rapidApps ?? 0;
+    // dev-7 fase 30: `cadence_up` también la aplica el Dron Avispas (su
+    // cooldown de picadura), así que el tope se cuenta sobre torres Y
+    // drones: si sólo mirara las torres, la carta se seguiría ofreciendo
+    // después de 3 usos (con un dron presente) sin efecto real.
+    case 'cadence_up': return Math.max(0,
+      ...f.slots.filter(Boolean).map((t) => t.cadApps ?? 0),
+      ...(f.drones ?? []).filter(Boolean).map((d) => d.cadApps ?? 0));
+    case 'detect_up': return f.detectApps ?? 0;
+    // dev-7: `pierce_up` y `ult_charge` no tenían tope (contadores nuevos).
+    case 'pierce_up': return f.pierceApps ?? 0;
+    case 'xp_boost': return f.xpBoostApps ?? 0;
+    case 'score_gain': return f.scoreGainApps ?? 0;
+    case 'streak_shield': return f.streakShieldApps ?? 0;
+    case 'ult_charge': return f.ultChargeApps ?? 0;
+    case 'ult_power': return f.orbitalPowerApps ?? 0;
+    // dev-7 fase 26: contadores de las dos cartas de defensa (ver CAPS).
+    case 'repair_500': return f.repairApps ?? 0;
+    case 'armor_plate': return f.armorApps ?? 0;
+    // dev-7 fase 51: las CARTAS DE TÉCNICA cuentan sus aplicaciones en la
+    // propia unidad (el contador vive en `unit.cardApps`, igual que
+    // `exclusiveDmgApps`): sin esto la carta se seguiría ofreciendo con
+    // el tope alcanzado y al elegirla no haría NADA.
+    default: {
+      const type = TECH_UNIT[cardId];
+      if (type) return cardApps(findTower(game, type), cardId);
+      return 0;
+    }
+  }
+}
+
+/**
+ * dev-7 fase 51 — Aplica una carta de TÉCNICA: acumula sus MECÁNICAS en
+ * la unidad destino por el CANAL (js/perks.js: addCardMods), respetando
+ * el TOPE de CAPS.
+ *
+ * @param {object} game
+ * @param {object} tech ficha de la carta (id, unit, mods)
+ * @returns {boolean} true si la carta se aplicó
+ */
+function applyTechCard(game, tech) {
+  const unit = findTower(game, tech.unit);
+  if (!unit) return false;
+  if (appsOf(tech.id, game) >= (CAPS[tech.id] ?? Infinity)) return false;
+  return addCardMods(unit, tech.mods, tech.id);
+}
+
+// ------------------------------------------------------------
+// dev-7 fase 64 — RELEVANCIA ≠ TOPE (dos preguntas distintas)
+// ------------------------------------------------------------
+// Hasta acá una sola función (`isCardEligible`) mezclaba dos preguntas:
+// "¿elegir esta carta AHORA hace algo útil?" y "¿ya gastó sus
+// aplicaciones?" (CAPS). El bug del reporte del S50 sale de ahí: el
+// RELLENO de la oferta (`fillOffer`) no podía preguntar por la primera
+// —sólo miraba `minStage`—, así que en una run larga (pool elegible
+// corto) rellenaba con una carta de una unidad que el jugador NO tiene;
+// y si esa carta era un desbloqueo ya gastado, con slots libres
+// `addTower` volvía a colocarla: el jugador terminó con 2 torres misiles.
+//
+// Ahora son dos funciones, cada una con su pregunta:
+//   · `isRelevant(card, game)` → ¿sirve AHORA? (unidad presente, estado
+//     situacional y etapa). Es la mitad que también usa el relleno: una
+//     carta de una unidad AUSENTE no debe ofrecerse NI como último
+//     recurso (no haría nada, o duplicaría la torre).
+//   · `isCardEligible(card, game)` → relevante Y sin alcanzar su tope.
+// ------------------------------------------------------------
+
+/** dev-7 fase 12: cartas de daño exclusivas por TORRE (ver isRelevant). */
+const EXCLUSIVE_DMG_TOWER = {
+  dmg_missile: 'missile', dmg_beam: 'beam', dmg_thunder: 'thunderstroke',
+  dmg_tesla: 'tesla', dmg_mortar: 'mortar', dmg_gauss: 'gauss',
+  dmg_laser: 'laser',
+};
+
+/** dev-7: cartas de daño exclusivas de DRON (ver isRelevant). */
+const EXCLUSIVE_DMG_DRONE = {
+  dmg_firewheel: 'firewheel', dmg_wasps: 'wasps', dmg_forcefield: 'forcefield',
+};
+
+/**
+ * Condiciones de exclusión dinámica de RELEVANCIA (una carta inútil NUNCA
+ * entra al pool: §7 QA "20+ selecciones sin efecto roto"):
+ * - desbloqueo de torre ya poseída (§6 decisión 3, 1 copia cada una)
+ * - desbloqueo sin ningún slot libre donde colocar la unidad
+ * - arsenal extendido solo entra desde Stage 2 (§2.3, minStage 2)
+ * - reparación con HP lleno / carga de ultimate SOLO con el medidor a medias
+ * El TOPE de aplicaciones de las repetibles NO está acá: es la otra mitad
+ * (ver isCardEligible), porque una carta topada de una unidad presente
+ * sigue siendo relevante — y el relleno de la oferta necesita saberlo.
+ */
+export function isRelevant(card, game) {
+  const stage = game?.stageId ?? 1;
+  if ((card.minStage ?? 1) > stage) return false;
+
+  const f = game?.fortress;
+  if (card.tower) {
+    if (ownedTypes(game).has(card.tower)) return false;
+    if (f && !f.slots.some((s) => !s)) return false; // sin slot libre
+  }
+  // Arsenal §2.3: drones con cupo lleno y Black Hole con medidor lleno
+  // (v4 4b/5) no entran — la carta es recarga INSTANTÁNEA, inútil a 100%.
+  if (card.drone && f && (f.drones?.length ?? 0) >= MAX_DRONES) return false;
+  if (card.id === 'black_hole' && f && f.blackHoleCharge >= 1) return false;
+  if (card.id === 'repair_500' && f && f.hp >= f.maxHp) return false;
+  // dev-7: la condición de `ult_charge` estaba INVERTIDA. Antes se
+  // ofrecía solo con `f.ultReady` (medidor LLENO) — pero `chargeUltimate()`
+  // no hace nada si `ultCharge >= 1` (que es justo cuando `ultReady` es
+  // true), así que la carta se ofrecía exactamente cuando no podía hacer
+  // NADA. Ahora se ofrece con el medidor a medias, donde +35% de carga sí
+  // sirve (y con tope 1: una sola recarga extra por partida).
+  if (card.id === 'ult_charge' && f && (f.ultCharge ?? 0) >= 1) return false;
+  // Mejora de Guardian inútil si no existe o ya está a máximo nivel (§2.2)
+  if (card.id === 'bullets_5') {
+    const gw = findTower(game, 'guardian');
+    if (!gw || gw.level >= 5) return false;
+  }
+  // dev-7 (docs/BALANCE.md): Sensores Ampliados (detect_up) NO
+  // hace nada en Guardian/Missile/Mortar/Gauss/Láser — todas quedaron con
+  // detectHalfWidth: Infinity en rebalances posteriores (v4 4a en
+  // adelante) y detectWidthNow() ignora el multiplicador cuando el ancho
+  // no es finito. Solo Beam (range, fase 34), Thunderstroke y Tesla
+  // (range) siguen siendo finitas. Sin este chequeo, la carta podía
+  // ofrecerse con CERO efecto si el jugador no tiene ninguna de esas 3 —
+  // viola la regla propia del catálogo (línea ~75: "una carta inútil
+  // NUNCA entra al pool").
+  if (card.id === 'detect_up') {
+    const hasFiniteRangeTower = ['beam', 'thunderstroke', 'tesla']
+      .some((type) => ownedTypes(game).has(type));
+    if (!hasFiniteRangeTower) return false;
+  }
+  // dev-7 fase 12: cartas de daño exclusivas por torre — no entran al
+  // pool si el jugador no tiene esa torre puesta (mismo criterio que
+  // bullets_5 con Guardian arriba).
+  if (card.id in EXCLUSIVE_DMG_TOWER) {
+    if (!findTower(game, EXCLUSIVE_DMG_TOWER[card.id])) return false;
+  }
+  // dev-7: las cartas de daño exclusivas de DRON (arsenal extendido) —
+  // mismo criterio, pero el dron vive en `fortress.drones`, no en los slots.
+  if (card.id in EXCLUSIVE_DMG_DRONE) {
+    if (!findDrone(game, EXCLUSIVE_DMG_DRONE[card.id])) return false;
+  }
+  // dev-7 fase 51: las CARTAS DE TÉCNICA exigen POSEER su unidad (el
+  // Guardian o el Misil). Sin ella la carta no da NINGUNA mecánica
+  // (mismo criterio que `pierce_up` con el Guardian): sería una carta
+  // inútil en el pool, justo lo que el catálogo prohíbe.
+  const techType = TECH_UNIT[card.id];
+  if (techType && !findTower(game, techType)) return false;
+  // dev-7 fase 30: "Nido Ampliado" sólo si el jugador tiene el dron
+  // Avispas y su enjambre no está al tope.
+  if (card.id === 'swarm_grow') {
+    const d = findDrone(game, 'wasps');
+    if (!d) return false;
+    // El tope de aplicaciones (CAPS.swarm_grow) lo cuenta `appsOf` en
+    // `isCardEligible`: acá sólo queda el tope REAL del enjambre.
+    if ((d.waspCount?.() ?? 0) >= MAX_SWARM) return false;
+  }
+  // dev-7 fase 31: "Burbuja Reforzada" sólo si el Campo de Fuerza tiene
+  // ALGO de daño. El dron no tiene daño base: su único daño son las
+  // espinas del perk de meta ("Campo de espinas", tier 1 A). Sin ese
+  // perk la carta multiplicaba 0 × 1.6 = 0: era INERTE (y el jugador
+  // pagaba una carta por nada). Mismo criterio que `detect_up` (que se
+  // gatea si no tienes ninguna unidad de rango finito).
+  if (card.id === 'dmg_forcefield') {
+    if (!findDrone(game, 'forcefield')) return false;
+    if ((perkMods('forcefield').thornDps ?? 0) <= 0) return false;
+  }  // dev-7 fase 12: la carta de desbloqueo del Black Hole no debe volver
+  // a ofrecerse una vez ya elegida (mismo criterio que unlock_* arriba).
+  if (card.id === 'black_hole' && game.fortress?.blackHoleUnlocked) return false;
+  return true;
+}
+
+/**
+ * ¿La carta puede entrar al pool de la oferta? (§5 dev-4)
+ *
+ * fase 64: es RELEVANTE y además no alcanzó su tope de aplicaciones
+ * (`CAPS`, anti-stack infinito). Las cartas de un solo uso (desbloqueos,
+ * Black Hole) no están en CAPS → su único tope es la relevancia.
+ */
+export function isCardEligible(card, game) {
+  if (!isRelevant(card, game)) return false;
+  return appsOf(card.id, game) < (CAPS[card.id] ?? Infinity);
+}
+
+/**
+ * fase 64 — ¿La carta está ATADA a una unidad concreta del arsenal?
+ *
+ * Es el filtro del ÚLTIMO RECURSO de `fillOffer`: si el pool elegible se
+ * agota, la oferta se rellena, pero una carta de una unidad que el
+ * jugador NO tiene no entra NI con el pool vacío. Su `apply` no haría
+ * nada y, si fuera un desbloqueo ya gastado, `addTower` —que no deduplica
+ * por tipo, sólo busca el primer slot libre— podría colocar una torre
+ * DUPLICADA (el reporte del S50: 2 torres misiles).
+ *
+ * Son las cartas que este archivo ya gatea por unidad: las que OTORGAN
+ * una unidad (`unlock_*` y el Black Hole) o la EXIGEN (exclusivas de
+ * torre/dron, cartas de técnica, `swarm_grow`, `bullets_5`, `detect_up`).
+ */
+function needsUnit(card) {
+  return !!(card.tower || card.drone || card.id === 'black_hole'
+    || EXCLUSIVE_DMG_TOWER[card.id] || EXCLUSIVE_DMG_DRONE[card.id]
+    || TECH_UNIT[card.id] || card.id === 'swarm_grow'
+    || card.id === 'bullets_5' || card.id === 'detect_up');
+}
+
+// ------------------------------------------------------------
+// dev-7 fase 51 — CARTAS DE TÉCNICA (mecánicas en una partida)
+// ------------------------------------------------------------
+//
+// Hasta aquí las CARTAS sólo tocaban multiplicadores y contadores
+// sueltos (`dmgMul`, `cadMul`, `fortress.pierce`…): NO podían dar
+// MECÁNICAS. Los PERKS de meta (js/meta.js) sí: son el vocabulario
+// completo (remate, rebote, perforación, explosión al morir,
+// ralentizar, crítico, robo de vida, aturdir).
+//
+// Estas cartas usan EXACTAMENTE ese vocabulario: `mods` es el mismo
+// formato que los perks, y el efecto lo aplica el MISMO código
+// (`unitMods()` en js/towers.js → perks.js). No hay una segunda
+// implementación de "rebote" ni de "explosión al morir": una carta de
+// técnica y el perk equivalente se comportan IGUAL.
+//
+// Cada carta va a UNA unidad (`unit`): sin esa torre no entra al pool
+// (isCardEligible), igual que las cartas de daño exclusivo. Los mods
+// se ACUMULAN en la unidad (canal de js/perks.js) y el tope es el de
+// CAPS (×2): la 2ª aplicación dobla el efecto, la 3ª no se ofrece.
+//
+// OJO — `executeThreshold` es un UMBRAL y la política de perks lo
+// compone por "el mejor" (meta.js MOD_POLICY): si el jugador ya tiene
+// el perk de remate del Misil (0.12–0.15), la 1ª Cabeza Nuclear puede
+// no mover el umbral (la 2ª sí: 24 %).
+const TECH_CARDS = [
+  {
+    id: 'tech_pierce',
+    rarity: 'uncommon',
+    name: 'Núcleos Perforantes II',
+    desc: 'Las balas del Guardian atraviesan +1 enemigo (hasta 2 veces).',
+    weight: 6,
+    unit: 'guardian',
+    mods: { pierceCount: 1 },
+  },
+  {
+    id: 'tech_bounce',
+    rarity: 'rare',
+    name: 'Rebote Magnético',
+    desc: 'Las balas del Guardian rebotan a un enemigo cercano al impactar (hasta 2 veces).',
+    weight: 6,
+    unit: 'guardian',
+    mods: { bounceCount: 1 },
+  },
+  {
+    id: 'tech_explode',
+    rarity: 'rare',
+    name: 'Bala Explosiva',
+    // OJO: el radio NO se da en la carta a propósito — el radio lo
+    // pone el perk (70 por defecto) y si la carta lo sumara, la 2ª
+    // aplicación dejaría la explosión en r=140 (casi toda la
+    // pantalla). La carta sube la PROBABILIDAD y el DAÑO.
+    desc: 'Las balas del Guardian detonan al morir (30 de daño en un radio de 70). Hasta 2 veces.',
+    weight: 6,
+    unit: 'guardian',
+    mods: { explodeOnKillChance: 0.3, explodeOnKillDmg: 30 },
+  },
+  {
+    id: 'tech_slow',
+    rarity: 'uncommon',
+    name: 'Balas Gélidas',
+    desc: 'Las balas del Guardian ralentizan un 20 % al impactar (hasta 2 veces).',
+    weight: 6,
+    unit: 'guardian',
+    mods: { slowOnHit: 0.2 },
+  },
+  {
+    id: 'tech_crit',
+    rarity: 'uncommon',
+    name: 'Ojo de Halcón',
+    desc: 'El Guardian hace un 20 % de crítico (hasta 2 veces).',
+    weight: 6,
+    unit: 'guardian',
+    mods: { critChanceAdd: 0.2 },
+  },
+  {
+    id: 'tech_lifesteal',
+    rarity: 'rare',
+    name: 'Balas Vampíricas',
+    desc: 'Cada impacto del Guardian cura al escudo el 1 % del daño hecho (hasta 2 veces).',
+    weight: 6,
+    unit: 'guardian',
+    mods: { lifesteal: 0.01 },
+  },
+  {
+    id: 'tech_stun_missile',
+    rarity: 'uncommon',
+    name: 'Cabeza Aturdidora',
+    desc: 'Los misiles del Misil aturden un 20 % al impactar (hasta 2 veces).',
+    weight: 5,
+    minStage: 2,
+    unit: 'missile',
+    mods: { stunChance: 0.2 },
+  },
+  {
+    id: 'tech_exec_missile',
+    rarity: 'rare',
+    name: 'Cabeza Nuclear',
+    desc: 'Los misiles del Misil rematen a los que quedan bajo el 12 % de vida (hasta 2 veces).',
+    weight: 5,
+    minStage: 2,
+    unit: 'missile',
+    mods: { executeThreshold: 0.12 },
+  },
+];
+
+/** Carta de técnica → tipo de unidad que la lleva (tope y elegibilidad). */
+const TECH_UNIT = Object.fromEntries(TECH_CARDS.map((c) => [c.id, c.unit]));
+
+// ------------------------------------------------------------
+// ------------------------------------------------------------
+// dev-7 fase 50 - CARTAS DE CAZA (multiplicador contra una familia)
+// ------------------------------------------------------------
+//
+// El sistema de tipos (fase 32) hace que el DAÑo dependa de la familia
+// del enemigo. Estas cartas añaden un multiplicador EXTRA contra una
+// familia concreta: solo rinden si esa familia aparece, asi que el
+// jugador tiene que mirar el bestiario del stage antes de elegir. Se
+// aplican a TODAS las unidades (torres y drones).
+const HUNT_CARDS = [
+  {
+    id: 'hunt_rock', name: 'Caza de Rocas', family: 'rock', mul: 1.8,
+    rarity: 'rare', weight: 6, minStage: 2,
+    desc: 'Todas las torres hacen ×1,8 contra la ROCA (meteoritos, fragmentos y blindados).',
+  },
+  {
+    id: 'hunt_crystal', name: 'Caza de Cristales', family: 'crystal', mul: 1.8,
+    rarity: 'rare', weight: 6, minStage: 2,
+    desc: 'Todas las torres hacen ×1,8 contra el CRISTAL (los cristales rojos).',
+  },
+  {
+    id: 'hunt_spore', name: 'Caza de Esporas', family: 'spore', mul: 1.8,
+    rarity: 'rare', weight: 6, minStage: 2,
+    desc: 'Todas las torres hacen ×1,8 contra la ESPORA (las esporas y los blobs).',
+  },
+  {
+    id: 'hunt_virus', name: 'Caza de Virus', family: 'virus', mul: 1.8,
+    rarity: 'rare', weight: 6, minStage: 2,
+    desc: 'Todas las torres hacen ×1,8 contra el VIRUS (los blobs y sus jefes).',
+  },
+];
+
+/** Aplica una carta de caza a todas las unidades del campo. */
+function applyHuntCard(game, hunt) {
+  const f = game?.fortress;
+  if (!f) return false;
+  if (appsOf(hunt.id, game) >= (CAPS[hunt.id] ?? Infinity)) return false;
+  const key = `fam${hunt.family[0].toUpperCase()}${hunt.family.slice(1)}Mul`;
+  const mods = { [key]: hunt.mul };
+  let ok = false;
+  for (const t of f.slots ?? []) {
+    if (!t) continue;
+    if (addCardMods(t, mods, hunt.id)) ok = true;
+  }
+  for (const d of f.drones ?? []) {
+    if (!d) continue;
+    if (addCardMods(d, mods, hunt.id)) ok = true;
+  }
+  return ok;
+}
+// CATÁLOGO (48 cartas, schema §5 dev-4)
+// {id, name, desc, weight, rarity, dmgType?, minStage?, tower?, apply(game)}
+// dev-7 fase 49 - `dmgType` lo declara la carta que MEJORA EL DAÑO de una
+// unidad (sale de TOWERS/DRONES, la tabla que usa el combate). El HUD lo
+// pinta como glifo junto al nombre y la descripción dice la SINONERGIA con
+// cada familia (multiplicador de la carta × matriz de js/damagetypes.js).
+// Las cartas que no suben el daño (ni una unidad concreta) NO tienen tipo.
+// weight entero positivo (sorteo ponderado estable/testeable).
+//
+// dev-7 fase 39 — `rarity` la DECLARA cada carta y mide su POTENCIA
+// ("Legendario" = una unidad o una habilidad nueva; "Raro" = un buff general
+// muy potente; "Poco común" = un buff sólido; "Común" = un ajuste puntual).
+// Antes la rareza se DERIVABA del `weight` (la probabilidad de sorteo), así
+// que el jugador leía "LEGENDARIO" en cartas que no eran tan fuertes (y al
+// revés): la etiqueta no decía nada. `weight` = qué tan seguido sale;
+// `rarity` = cuánto vale.
+// Las cartas repetibles tienen tope en CAPS (anti-stack infinito);
+// las demas son de un solo uso (desbloqueos + Black Hole) o están
+// limitadas por su propio estado (Cañón de Ráfaga → Lv.5).
+// las 12 restantes son de un solo uso (desbloqueos + Black Hole) o
+// están limitadas por su propio estado (Cañón de Ráfaga → Lv.5).
+// ============================================================
+export const CATALOG = [
+
+  // ---------- Mejoras de torres (§2.2: cada carta suma +1 nivel) ----------
+  {
+    id: 'bullets_5',
+    rarity: 'uncommon',
+    name: 'Cañón de Ráfaga',
+    // dev-7 fase 49: la carta sube el daño del Guardian → declara su
+    // TIPO de daño (el de la torre, no el de la carta).
+    dmgType: TOWERS.guardian.dmgType,
+    desc: 'Guardian +1 nivel: +1 bala en la ráfaga (tope de 3), +25% daño, -8% recarga. Desde Lv.4 las 3 balas van a 3 enemigos distintos; en Lv.5 atraviesan +1.',
+    weight: 10,
+    apply: (g) => { findTower(g, 'guardian')?.upgrade(); },
+  },
+  {
+    id: 'dmg_all',
+    rarity: 'rare',
+    name: 'Munición Reforzada',
+    // dev-7 fase 12 (pedido del usuario: "suavizar los efectos que
+    // mejoran todas las torres"): antes ×1.5 por stack (×2.25 al tope).
+    // Ahora ×1.3 (×1.69 al tope) — sigue siendo la mejora ofensiva más
+    // genérica del catálogo, pero ya no compite tan de cerca con las
+    // nuevas cartas exclusivas por torre (ver más abajo).
+    // dev-7 fase 49: esta carta NO tiene tipo de daño: sube el de TODAS
+    // las unidades, sea cual sea (por eso no lleva glifo en el modal).
+    desc: '+30% de daño en TODAS las torres y drones, del tipo que sea (acumulable hasta 2 veces).',
+    weight: 12,
+    apply: (g) => {
+      for (const t of g.fortress.slots) {
+        if (!t) continue;
+        if ((t.dmgAllApps ?? 0) < CAPS.dmg_all) {
+          t.dmgAllApps = (t.dmgAllApps ?? 0) + 1;
+          t.dmgMul = (t.dmgMul ?? 1) * 1.3;
+        }
+      }
+      // dev-7 fase 30: los DRONES también son torres del arsenal (tienen
+      // nivel de meta, perks y fragmentos) y la carta lo decía "TODAS".
+      // Antes sólo recorría `fortress.slots`: la carta más valiosa del
+      // catálogo no llegaba a las 3 unidades del arsenal extendido.
+      for (const d of g.fortress.drones ?? []) {
+        if (!d) continue;
+        if ((d.dmgAllApps ?? 0) < CAPS.dmg_all) {
+          d.dmgAllApps = (d.dmgAllApps ?? 0) + 1;
+          d.dmgMul = (d.dmgMul ?? 1) * 1.3;
+        }
+      }
+    },
+  },
+  {
+    id: 'dmg_guard',
+    rarity: 'uncommon',
+    name: 'Cañones Potenciados',
+    // dev-7 fase 49: el tipo sale de la MISMA tabla que usa el combate
+    // (TOWERS.guardian.dmgType) y la descripción dice cómo queda contra
+    // cada familia, con los números calculados.
+    dmgType: TOWERS.guardian.dmgType,
+    desc: exclusiveDmgDesc(TOWERS.guardian.name, TOWERS.guardian.dmgType, 1.6, 2, ' por ráfaga'),
+    weight: 9,
+    apply: (g) => {
+      const gw = findTower(g, 'guardian');
+      if (gw && (gw.guardDmgApps ?? 0) < CAPS.dmg_guard) {
+        gw.guardDmgApps = (gw.guardDmgApps ?? 0) + 1;
+        gw.dmgMul = (gw.dmgMul ?? 1) * 1.6;
+      }
+    },
+  },
+  // dev-7 fase 12 (pedido del usuario: "incluir cartas para torres
+  // específicas") — mismo patrón que Cañones Potenciados (arriba) pero
+  // una por cada torre además de Guardian. Cada una exige POSEER esa
+  // torre (isCardEligible más abajo) — si no, no entra al pool, igual
+  // que bullets_5 con Guardian.
+  {
+    id: 'dmg_missile',
+    rarity: 'uncommon',
+    name: 'Ojivas Perforantes',
+    dmgType: TOWERS.missile.dmgType,
+    desc: exclusiveDmgDesc(TOWERS.missile.name, TOWERS.missile.dmgType, 1.6, 2, ' por impacto'),
+    weight: 9,
+    apply: (g) => {
+      const t = findTower(g, 'missile');
+      if (t && (t.exclusiveDmgApps ?? 0) < CAPS.dmg_missile) {
+        t.exclusiveDmgApps = (t.exclusiveDmgApps ?? 0) + 1;
+        t.dmgMul = (t.dmgMul ?? 1) * 1.6;
+      }
+    },
+  },
+  {
+    id: 'dmg_beam',
+    rarity: 'uncommon',
+    name: 'Foco Intensificado',
+    dmgType: TOWERS.beam.dmgType,
+    desc: exclusiveDmgDesc(TOWERS.beam.name, TOWERS.beam.dmgType, 1.6, 2, ' por segundo'),
+    weight: 9,
+    apply: (g) => {
+      const t = findTower(g, 'beam');
+      if (t && (t.exclusiveDmgApps ?? 0) < CAPS.dmg_beam) {
+        t.exclusiveDmgApps = (t.exclusiveDmgApps ?? 0) + 1;
+        t.dmgMul = (t.dmgMul ?? 1) * 1.6;
+      }
+    },
+  },
+  {
+    id: 'dmg_thunder',
+    rarity: 'uncommon',
+    name: 'Descarga Sobrecargada',
+    dmgType: TOWERS.thunderstroke.dmgType,
+    desc: exclusiveDmgDesc(TOWERS.thunderstroke.name, TOWERS.thunderstroke.dmgType, 1.6, 2, ' por golpe'),
+    weight: 9,
+    apply: (g) => {
+      const t = findTower(g, 'thunderstroke');
+      if (t && (t.exclusiveDmgApps ?? 0) < CAPS.dmg_thunder) {
+        t.exclusiveDmgApps = (t.exclusiveDmgApps ?? 0) + 1;
+        t.dmgMul = (t.dmgMul ?? 1) * 1.6;
+      }
+    },
+  },
+  {
+    id: 'dmg_tesla',
+    rarity: 'uncommon',
+    name: 'Bobina Amplificada',
+    dmgType: TOWERS.tesla.dmgType,
+    desc: exclusiveDmgDesc(TOWERS.tesla.name, TOWERS.tesla.dmgType, 1.6, 2, ' por salto de cadena'),
+    weight: 9,
+    apply: (g) => {
+      const t = findTower(g, 'tesla');
+      if (t && (t.exclusiveDmgApps ?? 0) < CAPS.dmg_tesla) {
+        t.exclusiveDmgApps = (t.exclusiveDmgApps ?? 0) + 1;
+        t.dmgMul = (t.dmgMul ?? 1) * 1.6;
+      }
+    },
+  },
+  {
+    id: 'dmg_mortar',
+    rarity: 'uncommon',
+    name: 'Ojiva Pesada',
+    dmgType: TOWERS.mortar.dmgType,
+    desc: exclusiveDmgDesc(TOWERS.mortar.name, TOWERS.mortar.dmgType, 1.6, 2, ' por impacto'),
+    weight: 9,
+    apply: (g) => {
+      const t = findTower(g, 'mortar');
+      if (t && (t.exclusiveDmgApps ?? 0) < CAPS.dmg_mortar) {
+        t.exclusiveDmgApps = (t.exclusiveDmgApps ?? 0) + 1;
+        t.dmgMul = (t.dmgMul ?? 1) * 1.6;
+      }
+    },
+  },
+  {
+    id: 'dmg_gauss',
+    rarity: 'uncommon',
+    name: 'Riel Sobrecargado',
+    dmgType: TOWERS.gauss.dmgType,
+    desc: exclusiveDmgDesc(TOWERS.gauss.name, TOWERS.gauss.dmgType, 1.6, 2, ' por disparo'),
+    weight: 9,
+    apply: (g) => {
+      const t = findTower(g, 'gauss');
+      if (t && (t.exclusiveDmgApps ?? 0) < CAPS.dmg_gauss) {
+        t.exclusiveDmgApps = (t.exclusiveDmgApps ?? 0) + 1;
+        t.dmgMul = (t.dmgMul ?? 1) * 1.6;
+      }
+    },
+  },
+  // dev-7: el arsenal extendido (Láser + los 3 drones) NO tenía carta de
+  // daño exclusiva — invertir en el Láser rendía 25% menos que en el
+  // Gauss. Estas 4 cartas igualan el catálogo: mismo ×1.6, mismo tope ×2,
+  // mismo contador (`exclusiveDmgApps`) y la MISMA exigencia de POSEER la
+  // unidad (isCardEligible) que las 6 exclusivas de torre.
+  // TODO (dev-7): el multiplicador se guarda en `dmgMul` de la unidad. La
+  // torre Láser ya lo lee (`Tower.damage`), pero los DRONES todavía no:
+  // su daño sale de `data.dps` (Rueda de Fuego) / `data.stingDamage`
+  // (Avispas) / las espinas del perk (Campo de Fuerza) en towers.js. Hasta
+  // que esas rutas multipliquen por `this.dmgMul`, las 3 cartas de dron no
+  // tienen efecto numérico (las de torre sí).
+  {
+    id: 'dmg_laser',
+    rarity: 'uncommon',
+    name: 'Haz Concentrado',
+    dmgType: TOWERS.laser.dmgType,
+    desc: exclusiveDmgDesc(TOWERS.laser.name, TOWERS.laser.dmgType, 1.6, 2, ' por segundo'),
+    weight: 9,
+    apply: (g) => {
+      const t = findTower(g, 'laser');
+      if (t && (t.exclusiveDmgApps ?? 0) < CAPS.dmg_laser) {
+        t.exclusiveDmgApps = (t.exclusiveDmgApps ?? 0) + 1;
+        t.dmgMul = (t.dmgMul ?? 1) * 1.6;
+      }
+    },
+  },
+  {
+    id: 'dmg_firewheel',
+    rarity: 'uncommon',
+    name: 'Rueda Incandescente',
+    dmgType: DRONES.firewheel.dmgType,
+    desc: exclusiveDmgDesc(DRONES.firewheel.name, DRONES.firewheel.dmgType, 1.6, 2, ' por segundo'),
+    weight: 9,
+    apply: (g) => {
+      const d = findDrone(g, 'firewheel');
+      if (d && (d.exclusiveDmgApps ?? 0) < CAPS.dmg_firewheel) {
+        d.exclusiveDmgApps = (d.exclusiveDmgApps ?? 0) + 1;
+        d.dmgMul = (d.dmgMul ?? 1) * 1.6;
+      }
+    },
+  },
+  {
+    id: 'dmg_wasps',
+    rarity: 'uncommon',
+    name: 'Aguijón Afilado',
+    dmgType: DRONES.wasps.dmgType,
+    desc: exclusiveDmgDesc(DRONES.wasps.name, DRONES.wasps.dmgType, 1.6, 2, ' por picadura'),
+    weight: 9,
+    apply: (g) => {
+      const d = findDrone(g, 'wasps');
+      if (d && (d.exclusiveDmgApps ?? 0) < CAPS.dmg_wasps) {
+        d.exclusiveDmgApps = (d.exclusiveDmgApps ?? 0) + 1;
+        d.dmgMul = (d.dmgMul ?? 1) * 1.6;
+      }
+    },
+  },
+  {
+    // dev-7 fase 30 (rework del Dron Avispas): con el enjambre continuo,
+    // más avispas = más picaduras = más DPS. Es la palanca de carta
+    // natural del dron (el equivalente de su perk de meta "+1 avispa"),
+    // y antes el dron NO tenía ninguna carta de crecimiento de cantidad.
+    id: 'swarm_grow',
+    rarity: 'common',
+    name: 'Nido Ampliado',
+    desc: 'Dron Avispas: +1 avispa en el enjambre (hasta 2 veces).',
+    weight: 8,
+    apply: (g) => {
+      const d = findDrone(g, 'wasps');
+      if (d && (d.swarmApps ?? 0) < CAPS.swarm_grow) {
+        d.swarmApps = (d.swarmApps ?? 0) + 1;
+        d.extraWasps = (d.extraWasps ?? 0) + 1;
+        d.rebuildSwarm?.();
+      }
+    },
+  },
+  {
+    id: 'dmg_forcefield',
+    rarity: 'uncommon',
+    name: 'Burbuja Reforzada',
+    // dev-7 fase 31: el Campo de Fuerza NO tiene daño base: su daño son
+    // las espinas del perk de meta ("Campo de espinas", tier 1 A). Antes
+    // esta carta se ofrecía siempre y multiplicaba 0 × 1.6 = 0 (inerte)
+    // si el jugador no tenía ese perk (22 860 fragmentos de distancia).
+    // Ahora se gatea (ver isCardEligible) y el texto lo dice.
+    // dev-7 fase 49: tipo de daño DRON (el de las espinas) + sinonergia.
+    dmgType: DRONES.forcefield.dmgType,
+    desc: exclusiveDmgDesc(DRONES.forcefield.name, DRONES.forcefield.dmgType, 1.6, 2, ' de las espinas')
+      + '\nRequiere el perk "Campo de espinas".',
+    weight: 9,
+    apply: (g) => {
+      const d = findDrone(g, 'forcefield');
+      if (d && (d.exclusiveDmgApps ?? 0) < CAPS.dmg_forcefield) {
+        d.exclusiveDmgApps = (d.exclusiveDmgApps ?? 0) + 1;
+        d.dmgMul = (d.dmgMul ?? 1) * 1.6;
+      }
+    },
+  },
+  {
+    id: 'cadence_up',
+    rarity: 'uncommon',
+    // dev-7 fase 49: el nombre viejo ("Servomecanismos") no decía qué
+    // hacía: son los servos que ACELERAN la recarga.
+    name: 'Servos Acelerados',
+    // dev-7 fase 12: antes −15%/stack (×0.85³≈0.614, −38.6% al tope).
+    // Ahora −10%/stack (×0.9³≈0.729, −27.1% al tope) — más suave.
+    desc: '-10% de tiempo de recarga en todas las torres y en el Dron Avispas (hasta 3 veces).',
+    weight: 10,
+    apply: (g) => {
+      for (const t of g.fortress.slots) {
+        if (!t) continue;
+        if ((t.cadApps ?? 0) < CAPS.cadence_up) {
+          t.cadApps = (t.cadApps ?? 0) + 1;
+          t.cadMul = (t.cadMul ?? 1) * 0.9;
+        }
+      }
+      // dev-7 fase 30: el Dron Avispas tiene cooldown (el de la picadura) y
+      // es la ÚNICA unidad del arsenal extendido con cadencia: la Rueda
+      // quema por contacto y el Campo de Fuerza no tiene ciclo.
+      for (const d of g.fortress.drones ?? []) {
+        if (!d || d.type !== 'wasps') continue;
+        if ((d.cadApps ?? 0) < CAPS.cadence_up) {
+          d.cadApps = (d.cadApps ?? 0) + 1;
+          d.cadMul = (d.cadMul ?? 1) * 0.9;
+        }
+      }
+    },
+  },
+  {
+    id: 'pierce_up',
+    rarity: 'uncommon',
+    name: 'Núcleos Perforantes',
+    // dev-7: sin tope esta carta se ofrecía en cada level-up y el
+    // Guardian atravesaba enemigos sin límite. Tope 3 (CAPS.pierce_up).
+    desc: 'Las balas del Guardian atraviesan +1 enemigo antes de disiparse (hasta 3 veces).',
+    weight: 7,
+    apply: (g) => {
+      const f = g.fortress;
+      if ((f.pierceApps ?? 0) >= CAPS.pierce_up) return;
+      f.pierceApps = (f.pierceApps ?? 0) + 1;
+      f.pierce += 1;
+    },
+  },
+  {
+    // v5 5c/5 (corrección canónica JK 27-08): carta de PUNTERÍA — balas
+    // más rápidas = menos tiempo para esquivarlas (el lead del disparo se
+    // recalcula con la velocidad efectiva, así que gana coherencia).
+    id: 'rapid_bullets',
+    rarity: 'common',
+    name: 'Balas Hipersónicas',
+    desc: 'Las balas del Guardian vuelan +25% más rápido (mejora la puntería: menos tiempo para esquivarlas). Hasta 2 veces.',
+    weight: 8,
+    apply: (g) => {
+      const gw = findTower(g, 'guardian');
+      if (gw && (gw.rapidApps ?? 0) < CAPS.rapid_bullets) {
+        gw.rapidApps = (gw.rapidApps ?? 0) + 1;
+        gw.bulletSpeedMul = (gw.bulletSpeedMul ?? 1) * 1.25;
+      }
+    },
+  },
+  {
+    id: 'detect_up',
+    rarity: 'uncommon',
+    name: 'Sensores Ampliados',
+    desc: 'Ancho de detección de las torres ×1.4 (más blancos en el abanico/rango) (hasta 2 veces).',
+    weight: 4,
+    apply: (g) => {
+      const f = g.fortress;
+      if ((f.detectApps ?? 0) < CAPS.detect_up) {
+        f.detectApps = (f.detectApps ?? 0) + 1;
+        f.detectMul *= 1.4;
+      }
+    },
+  },
+
+  // ---------- Desbloqueo de TORRES (§2.2/§6 decisión 3: 1 copia) ----------
+  {
+    id: 'unlock_missile',
+    rarity: 'legendary',
+    name: 'Torre MISSILE',
+    desc: 'Misil homing con explosión en área. Entra en el slot izquierdo (S1).',
+    // dev-7 fase 59.3: peso SUBIDO (9 → 13) — las torres son la mitad del
+    // DPS del jugador y sólo entran por carta: con el peso viejo (5-9) el
+    // sorteo las enterraba y en las etapas tardías el jugador peleaba con
+    // 1-2 torres (medido: 5 unidades al final del S35, 9 en el S50).
+    // dev-7 fase 64: la BASE vuelve a 10 (los desbloqueos eran las cartas
+    // más comunes del catálogo y el usuario los siente "demasiado
+    // comunes"), pero la urgencia la pone el PESO EFECTIVO del sorteo
+    // (`unlockWeightMul`): ×1.5 con el Guardian solo, ×0.7 con el arsenal
+    // armado. Lo que la 59.3 arregló (el arsenal entra temprano) sigue en
+    // pie, y además la oferta GARANTIZA 1 desbloqueo con el Guardian solo.
+    // Ver el bloque de comentario de la carta "unlock_beam".
+    weight: 10,
+    tower: 'missile',
+    apply: (g) => { g.fortress.addTower('missile'); },
+  },
+  {
+    id: 'unlock_thunderstroke',
+    rarity: 'legendary',
+    name: 'Torre THUNDERSTROKE',
+    desc: 'Descarga instantánea al enemigo con MÁS HP en rango, con stun. Slot S2.',
+    weight: 10,
+    tower: 'thunderstroke',
+    apply: (g) => { g.fortress.addTower('thunderstroke'); },
+  },
+  {
+    id: 'unlock_tesla',
+    rarity: 'legendary',
+    name: 'Torre TESLA',
+    desc: 'Cadena eléctrica púrpura entre varios enemigos. Anti-enjambre. Slot S4.',
+    weight: 10,
+    tower: 'tesla',
+    apply: (g) => { g.fortress.addTower('tesla'); },
+  },
+  {
+    id: 'unlock_beam',
+    rarity: 'legendary',
+    name: 'Torre BEAM',
+    // dev-7 fase 34: el haz ya no es una columna: alcanza 260 px a cada
+    // lado y a toda altura, y se clava en el enemigo más duro de su
+    // alcance, en cualquier dirección.
+    desc: 'Láser verde CONTINUO: alcanza 260 px a cada lado, a toda altura, y se clava en el enemigo más duro de su alcance, en cualquier dirección. Slot derecho (S5).',
+    // dev-7 fase 59.3 — POR QUÉ LAS TORRES PESAN MÁS QUE ANTES.
+    //
+    // El Arsenal es la mitad del DPS del jugador y sólo entra POR CARTA
+    // (§6 decisión 3: la run arranca con el Guardian solo). Medido en la
+    // fase 59: con los pesos viejos el sorteo enterraba las cartas de
+    // desbloqueo (leyenda, peso 5-9) y el jugador llegaba al S35 con UNA
+    // torre en el campo y al S50 con nueve — y con la curva de daño del
+    // meta (que sólo multiplica las torres QUE ESTÁN en el campo) el
+    // nivel meta invertido se queda a medias.
+    //
+    // Subir el peso de las 10 cartas de desbloqueo + el Black Hole
+    // (5-9 → 8-13) hace que aparezcan en la oferta con más frecuencia:
+    // el jugador monta su arsenal en las primeras ofertas en vez de
+    // gastarse 20 niveles en cartas de daño sobre una sola torre.
+    // NO se tocan los topes (CAPS): una torre sigue siendo de una vez.
+    //
+    // dev-7 fase 64 — EL PESO ADAPTATIVO. Aquella subida dejó a los
+    // desbloqueos como las cartas MÁS COMUNES del catálogo (12-13, por
+    // encima de dmg_all) y el usuario lo reporta al revés: "las cartas de
+    // torre deberían ser un poco más raras". El problema de la 59.3 no era
+    // el peso, era CUÁNDO llegan, así que ahora son dos piezas:
+    //   · la BASE vuelve a 10 (una torre sigue siendo de lo más pesado:
+    //     sólo dmg_all (12) y las exclusivas (9) se le acercan),
+    //   · y el sorteo multiplica el peso por `unlockWeightMul(game)`:
+    //     ×1.5 con ≤1 torre, ×1.25 con 2, ×1.0 con 3 y ×0.7 con 4-5
+    //     (arsenal armado: una torre más interesa menos que invertir en
+    //     lo que ya hay). Con el Guardian solo la oferta además GARANTIZA
+    //     1 carta de desbloqueo y nunca trae 2 (fase 64, `rollOffer`).
+    weight: 10,
+    tower: 'beam',
+    apply: (g) => { g.fortress.addTower('beam'); },
+  },
+
+  // ---------- ARSENAL EXTENDIDO (§2.3: SOLO desde Stage 2) ----------
+  {
+    id: 'unlock_mortar',
+    rarity: 'legendary',
+    name: 'ARSENAL: Mortero',
+    desc: 'Obús en arco que estalla dañando TODA el área (r=150). Ocupa uno de los 5 slots de la plataforma.',
+    weight: 10,
+    minStage: 2,
+    tower: 'mortar',
+    apply: (g) => { g.fortress.addTower('mortar'); },
+  },
+  {
+    id: 'unlock_gauss',
+    rarity: 'legendary',
+    name: 'ARSENAL: Cañón Gauss',
+    desc: 'Perdigón hiper-rápido perforante: atraviesa TODO lo que encuentra en su línea. Ocupa uno de los 5 slots.',
+    weight: 10,
+    minStage: 2,
+    tower: 'gauss',
+    apply: (g) => { g.fortress.addTower('gauss'); },
+  },
+  {
+    id: 'unlock_laser',
+    rarity: 'legendary',
+    name: 'ARSENAL: Torre Láser',
+    desc: 'Apunta al enemigo y dispara un láser recto que dura unos segundos: estático y penetrante, daña todo lo que toca. Ocupa uno de los 5 slots.',
+    weight: 10,
+    minStage: 2,
+    tower: 'laser',
+    apply: (g) => { g.fortress.addTower('laser'); },
+  },
+  {
+    id: 'unlock_drone_firewheel',
+    rarity: 'legendary',
+    name: 'ARSENAL: Dron Rueda de Fuego',
+    desc: 'Rueda incandescente que orbita la base (r=120) quemando 25/s todo lo que toca. Un dron por partida.',
+    weight: 10,
+    minStage: 2,
+    drone: 'firewheel',
+    apply: (g) => { g.fortress.addDrone('firewheel'); },
+  },
+  {
+    id: 'unlock_drone_wasps',
+    rarity: 'legendary',
+    name: 'ARSENAL: Dron Avispas',
+    desc: '3 avispas que persiguen enemigos y pican con 12 de daño; regeneran su enjambre cada 4 s. Un dron por partida.',
+    weight: 10,
+    minStage: 2,
+    drone: 'wasps',
+    apply: (g) => { g.fortress.addDrone('wasps'); },
+  },
+  {
+    id: 'unlock_drone_forcefield',
+    rarity: 'legendary',
+    name: 'ARSENAL: Dron Campo de Fuerza',
+    desc: 'Burbuja r=140 que frena los enemigos dentro: −30% de velocidad de caída. Un dron por partida.',
+    weight: 10,
+    minStage: 2,
+    drone: 'forcefield',
+    apply: (g) => { g.fortress.addDrone('forcefield'); },
+  },
+  {
+    id: 'black_hole',
+    rarity: 'legendary',
+    name: 'DESBLOQUEA: Black Hole',
+    // dev-7 fase 12 (pedido del usuario: "no tiene que estar disponible
+    // siempre, solo cuando uno elige la carta, ahí queda disponible para
+    // toda la partida"): antes el medidor cargaba solo desde el arranque
+    // sin que el jugador pidiera nada; ahora esta carta lo DESBLOQUEA
+    // (y de regalo lo deja listo al instante) — antes de elegirla el
+    // botón [B] ni siquiera se ve en el HUD (ver hud.js).
+    desc: 'Desbloquea el vórtice Black Hole para el resto de la partida y arranca con el medidor LISTO. El vórtice succiona 4 s desintegrando a 10/s.',
+    // dev-7 fase 64: 7 → 6 (mismo ajuste que los desbloqueos de unidad: el
+    // arsenal pesaba demasiado en el sorteo). Con el peso adaptativo queda
+    // en ×1.5·6 = 9 con el Guardian solo.
+    weight: 6,
+    minStage: 2,
+    apply: (g) => {
+      g.fortress.blackHoleUnlocked = true;
+      g.fortress.blackHoleCharge = 1; // regalo de bienvenida: listo al instante
+      g.fortress.bhReady = true;
+    },
+  },
+
+  // ---------- Defensa y economía (§5 dev-4) ----------
+  {
+    id: 'repair_500',
+    rarity: 'common',
+    name: 'Reparación de Campo',
+    desc: 'Restaura +500 de HP del escudo de la base al instante (hasta 3 veces).',
+    weight: 5,
+    apply: (g) => {
+      const f = g.fortress;
+      // dev-7 fase 26: tope explícito (antes era ilimitada).
+      if ((f.repairApps ?? 0) >= CAPS.repair_500) return;
+      f.repairApps = (f.repairApps ?? 0) + 1;
+      f.hp = Math.min(f.maxHp, f.hp + 500);
+    },
+  },
+  {
+    id: 'armor_plate',
+    rarity: 'rare',
+    name: 'Blindaje de Base',
+    // dev-7 (recalibración): era +800 de HP máximo con tope 2 → +1 600
+    // sobre una base de 3 000 (+53%). Con LEAK_DMG_CAP = 50 por leak eso
+    // toleraba 32 leaks extra: la base quedaba prácticamente inmatable y
+    // se anulaba el cambio de balance v7 (los leaks tienen que doler).
+    // Ahora: +600 y UNA sola vez (+20% de la base) — un empujón real sin
+    // volver la base imposible de matar.
+    desc: '+600 de HP máximo del escudo (y lo repara de inmediato). Solo se puede elegir una vez.',
+    weight: 4,
+    apply: (g) => {
+      const f = g.fortress;
+      // dev-7 fase 26: tope explícito (antes era ilimitada y hacía la base
+      // prácticamente inmatable por leaks).
+      if ((f.armorApps ?? 0) >= CAPS.armor_plate) return;
+      f.armorApps = (f.armorApps ?? 0) + 1;
+      f.maxHp += 600;
+      f.hp += 600;
+    },
+  },
+  {
+    id: 'xp_boost',
+    rarity: 'rare',
+    name: 'Acelerador de Energía',
+    // dev-7 (recalibración): el peso sube de 9 a 12. No es "otra mejora de
+    // daño": el XP se convierte en NIVELES y cada nivel abre una oferta de
+    // 3 cartas → es un multiplicador COMPUESTO sobre cuántas cartas ve el
+    // jugador en TODA la run (×1.25 de XP ≈ +25% de ofertas, en cadena),
+    // no solo sobre su daño. Con peso 9 competía por debajo de `dmg_all`
+    // (12) y de las exclusivas (9) pese a valer más que todas ellas.
+    // 12 = "tan valiosa como la mejora de daño genérica".
+    desc: '+25% de energía (XP) por kill: niveles más frecuentes (hasta 2 veces).',
+    weight: 10,
+    apply: (g) => {
+      const f = g.fortress;
+      if ((f.xpBoostApps ?? 0) < CAPS.xp_boost) {
+        f.xpBoostApps = (f.xpBoostApps ?? 0) + 1;
+        f.xpMul *= 1.25;
+      }
+    },
+  },
+  {
+    id: 'score_gain',
+    rarity: 'common',
+    name: 'Prima de Combate',
+    // TODO (dev-7): el multiplicador SÍ se aplica (`f.scoreMul`), pero el
+    // score nunca se ve porque main.js lee `progressData.best` en vez de
+    // `progressData.bestScore` (bug de la pantalla de récords, que se
+    // corrige en otro archivo). Cuando ese bug esté arreglado, el efecto
+    // de esta carta se vuelve visible — no tocar el comportamiento antes.
+    desc: '+20% de SCORE por kill (hasta 2 veces).',
+    weight: 4,
+    apply: (g) => {
+      const f = g.fortress;
+      if ((f.scoreGainApps ?? 0) < CAPS.score_gain) {
+        f.scoreGainApps = (f.scoreGainApps ?? 0) + 1;
+        f.scoreMul *= 1.2;
+      }
+    },
+  },
+  {
+    id: 'streak_shield',
+    rarity: 'uncommon',
+    name: 'Escudo de Racha',
+    desc: 'Bloquea el próximo golpe que recibiría la base (máx 2 cargas). La racha NO se rompe.',
+    weight: 4,
+    apply: (g) => {
+      const f = g.fortress;
+      if ((f.streakShieldApps ?? 0) < CAPS.streak_shield) {
+        f.streakShieldApps = (f.streakShieldApps ?? 0) + 1;
+        f.streakShields = Math.min(CAPS.streak_shield, f.streakShields + 1);
+      }
+    },
+  },
+  {
+    id: 'ult_charge',
+    rarity: 'uncommon',
+    name: 'Carga Orbital',
+    // dev-7: sin tope esta carta se ofrecía en CADA level-up de la run.
+    // Tope 1 (CAPS.ult_charge): una sola recarga extra del ultimate.
+    desc: 'Suma 35% de carga del ORBITAL STRIKE al instante (una sola vez).',
+    weight: 5,
+    apply: (g) => {
+      const f = g.fortress;
+      if ((f.ultChargeApps ?? 0) >= CAPS.ult_charge) return;
+      f.ultChargeApps = (f.ultChargeApps ?? 0) + 1;
+      f.chargeUltimate?.(14); // 14/40 ≈ 35%
+    },
+  },
+  {
+    id: 'ult_power',
+    rarity: 'uncommon',
+    name: 'Impacto Orbital+',
+    // dev-7 fase 49: el ORBITAL STRIKE es un impacto en ÁREA (el
+    // proyectil va con splashR → el combate lo resuelve como 'blast'),
+    // así que la carta declara ese tipo de daño.
+    dmgType: 'blast',
+    desc: 'Los impactos del ORBITAL STRIKE hacen +50% de daño de EXPLOSIÓN (hasta 2 veces).',
+    weight: 8,
+    apply: (g) => {
+      const f = g.fortress;
+      if ((f.orbitalPowerApps ?? 0) < CAPS.ult_power) {
+        f.orbitalPowerApps = (f.orbitalPowerApps ?? 0) + 1;
+        f.orbitalDmgMul *= 1.5;
+      }
+    },
+  },
+
+  // ---------- CARTAS DE TÉCNICA (dev-7 fase 51) ----------
+  // Mecánicas de verdad, no multiplicadores: cada una da a su unidad
+  // los MISMOS mods que usa el perk equivalente (ver TECH_CARDS) y los
+  // aplica el mismo código (unitMods → perks.js).
+  // dev-7 fase 50 - LA CAZA DE FAMILIA.
+  ...HUNT_CARDS.map((hunt) => ({
+    ...hunt,
+    apply: (g) => { applyHuntCard(g, hunt); },
+  })),
+  ...TECH_CARDS.map((tech) => ({
+    ...tech,
+    apply: (g) => { applyTechCard(g, tech); },
+  })),
+];
+
+const CARD_BY_ID = new Map(CATALOG.map((c) => [c.id, c]));
+
+
+
+// ------------------------------------------------------------
+// rollOffer (§5 dev-4): 3 cartas SIN repetir, respetando minStage,
+// pesos y exclusiones dinámicas. rng inyectable = testeable.
+// ------------------------------------------------------------
+
+/**
+ * Sorteo ponderado clásico sobre los ítems aún disponibles. `weightOf`
+ * permite que el peso EFECTIVO dependa de la partida (fase 64) sin tocar
+ * el `weight` de la ficha del catálogo (el dato que leen los tests de
+ * invariantes: el HUD pinta `rarity`, no el peso).
+ */
+function weightedPick(items, rnd, weightOf = (c) => c.weight) {
+  const total = items.reduce((s, c) => s + weightOf(c), 0);
+  let r = rnd() * total;
+  for (const it of items) {
+    r -= weightOf(it);
+    if (r <= 0) return it;
+  }
+  return items[items.length - 1];
+}
+
+/**
+ * Carta de DESBLOQUEO: otorga una unidad nueva (torre o dron) o el Black
+ * Hole. Es el grupo que la fase 64 limita a UNA por oferta (dos
+ * desbloqueos juntos = media docena de "torres" que el usuario ve como
+ * demasiado comunes) y el que acelera el peso con el arsenal vacío.
+ */
+function isUnlockCard(c) {
+  return !!(c.tower || c.drone || c.id === 'black_hole');
+}
+
+/**
+ * fase 64 — PESO ADAPTATIVO de las cartas de desbloqueo: cuánto pesa un
+ * desbloqueo depende de cuántas torres ya tenés.
+ *
+ * POR QUÉ: la fase 59.3 les subió el peso BASE (5-9 → 8-13) porque con
+ * los pesos viejos el jugador llegaba al S35 con UNA torre (§6 decisión 3:
+ * el arsenal entra sólo por carta, ver el bloque de "unlock_beam"). Eso
+ * los dejó como las cartas más comunes del catálogo y el usuario lo
+ * reporta: "las cartas de torre deberían ser un poco más raras". El
+ * problema real de la 59.3 era CUÁNDO llegan (ver docs/BALANCE.md), no el
+ * peso, así que ahora la base baja a 10 y la urgencia la pone este
+ * multiplicador:
+ *
+ *   · ≤1 torre (sólo el Guardian) → ×1.5: hay que montar el arsenal YA
+ *     (ese era el error de la 59.3: el jugador terminaba el S35 con una
+ *     sola torre),
+ *   · 2 torres → ×1.25 · 3 torres → ×1.0 (peso base),
+ *   · 4-5 torres → ×0.7: el arsenal ya está armado (y con 5 no hay slot),
+ *     así que una torre más interesa menos que invertir en lo que hay.
+ *
+ * @param {object} game
+ * @returns {number} multiplicador (1 = peso base del catálogo)
+ */
+export function unlockWeightMul(game) {
+  const torres = ownedTypes(game).size;
+  if (torres <= 1) return 1.5;
+  if (torres === 2) return 1.25;
+  if (torres === 3) return 1;
+  return 0.7;
+}
+
+/** Peso EFECTIVO de una carta en el sorteo (fase 64). */
+function weightOf(card, game) {
+  if (!isUnlockCard(card)) return card.weight;
+  let mul = unlockWeightMul(game);
+  // El cupo de drones es 1 (fase 61) y un dron nunca "sobra": mientras el
+  // jugador no tenga ninguno, su carta no pierde peso aunque el arsenal
+  // de torres ya esté armado.
+  if (card.drone && !(game?.fortress?.drones?.length ?? 0)) mul = Math.max(mul, 1);
+  return card.weight * mul;
+}
+
+/**
+ * Carta de un solo uso ya consumida: la torre que desbloquea ya está
+ * puesta, el dron no tiene cupo o el Black Hole ya fue desbloqueado.
+ * (Una carta así volvería a ofrecerse sin efecto real.)
+ */
+function isSpentOneShot(card, game) {
+  const f = game?.fortress;
+  // fase 61: una torre está "gastada" si ya la tenés O si no queda ningún
+  // slot donde ponerla. Sin la segunda mitad, `fillOffer` podía re-ofrecer
+  // una torre con el arsenal lleno: el jugador la elegía y no pasaba nada
+  // (la colocación falla), que es exactamente el soft-look silencioso que
+  // esta red de seguridad debe evitar.
+  if (card.tower) return ownedTypes(game).has(card.tower) || !f?.slots?.some((s) => !s);
+  if (card.drone) return (f?.drones?.length ?? 0) >= MAX_DRONES;
+  if (card.id === 'black_hole') return !!f?.blackHoleUnlocked;
+  return false;
+}
+
+/**
+ * Rellena la oferta cuando el pool elegible no alcanza para 3 cartas.
+ *
+ * POR QUÉ hace falta: el modal de cartas no se puede cerrar sin elegir
+ * (hud.js) → una oferta de 0 o 1 cartas deja la run TRABADA en
+ * CARD_CHOICE (soft-lock). Con los topes de CAPS el pool elegible se
+ * puede quedar corto (run larga: todas las repetibles agotadas + todas
+ * las unidades ya compradas), así que la oferta se completa con:
+ *   1) las repetibles YA AGOTADAS pero RELEVANTES — elegirlas es inocuo
+ *      (su `apply` respeta el tope y no hace nada),
+ *   2) los desbloqueos que el jugador todavía no usó (dan una unidad o
+ *      el Black Hole: siempre otorgan algo),
+ *   3) cualquier carta RELEVANTE del catálogo (su tope ya no importa),
+ *   4) último recurso para no dejar el modal vacío: cualquier carta
+ *      GENÉRICA (sin unidad).
+ *
+ * ⚠ REGLA DE LA FASE 64: una carta de una UNIDAD AUSENTE no entra a la
+ * oferta NI como último recurso. Antes el relleno miraba sólo `minStage`,
+ * así que en una run larga podía re-ofrecer un desbloqueo YA GASTADO: con
+ * slots libres `addTower` lo colocaba de nuevo y el jugador quedaba con
+ * dos torres del mismo tipo (el reporte del S50: 2 torres misiles).
+ * En los estados normales (pool ≥ 3) esta función no hace nada.
+ */
+function fillOffer(game, picks) {
+  const stage = game?.stageId ?? 1;
+  const count = offerCountFor(game);
+  const out = [...picks];
+  const push = (c) => {
+    if (out.length >= count) return;
+    if (out.includes(c)) return;
+    out.push(c);
+  };
+  // 1) repetibles agotadas (y relevantes: de una unidad que el jugador
+  //    tiene — su carta sigue sirviendo "en teoría", sólo la topó).
+  for (const c of CATALOG) {
+    if (CAPS[c.id] === undefined) continue;
+    if (isRelevant(c, game)) push(c);
+  }
+  // 2) desbloqueos pendientes (torre/dron/Black Hole que aún no se usó).
+  for (const c of CATALOG) {
+    if (!isUnlockCard(c)) continue;
+    if (!isRelevant(c, game)) continue;
+    if (!isSpentOneShot(c, game)) push(c);
+  }
+  // 3) cualquier carta relevante del catálogo.
+  for (const c of CATALOG) {
+    if (isRelevant(c, game)) push(c);
+  }
+  // 4) último recurso: una carta GENÉRICA (sin unidad) del catálogo,
+  //    aunque su tope esté gastado. Nunca una de una unidad que el
+  //    jugador NO tiene (ver el aviso de arriba).
+  for (const c of CATALOG) {
+    if ((c.minStage ?? 1) > stage) continue;
+    if (needsUnit(c)) continue;
+    push(c);
+  }
+  return out;
+}
+
+/**
+ * Oferta de LEVEL UP: [card, card, card].
+ *
+ * fase 64 — DOS REGLAS NUEVAS sobre el sorteo ponderado de siempre:
+ *   · como MÁXIMO 1 carta de desbloqueo por oferta (dos juntas son la
+ *     mitad de las "torres demasiado comunes" del reporte: el jugador
+ *     elegía el Misil en la 1ª oferta y le volvía a salir en la 2ª),
+ *   · y con el Guardian SOLO (≤1 torre) la oferta GARANTIZA exactamente
+ *     1 desbloqueo: sin arsenal el jugador pelea con una sola torre
+ *     hasta el final de la run (ver `unlockWeightMul`).
+ * Si al restringir el pool no queda ninguna carta no-desbloqueo, la regla
+ * cede: antes una oferta corta que el modal que no se puede cerrar.
+ *
+ * @param {object} game — usa game.stageId y game.fortress
+ * @param {()=>number} rng — generador [0,1) inyectable (tests)
+ */
+export function rollOffer(game, rng = Math.random) {
+  const pool = CATALOG.filter((c) => isCardEligible(c, game));
+  const weigh = (c) => weightOf(c, game);
+  // fase 69: la oferta puede venir RECORTADA por el Protocolo (Censura).
+  const count = offerCountFor(game);
+  const picks = [];
+  let allowUnlock = true;
+  const forceUnlock = ownedTypes(game).size <= 1 && pool.some(isUnlockCard);
+  while (pool.length > 0 && picks.length < count) {
+    let candidatos = allowUnlock ? pool : pool.filter((c) => !isUnlockCard(c));
+    if (forceUnlock && picks.length === 0) candidatos = pool.filter(isUnlockCard);
+    if (candidatos.length === 0) candidatos = pool; // resto sólo de desbloqueos
+    const pick = weightedPick(candidatos, rng, weigh);
+    pool.splice(pool.indexOf(pick), 1);
+    picks.push(pick);
+    if (isUnlockCard(pick)) allowUnlock = false;
+  }
+  // dev-7: la oferta NUNCA puede quedar corta (soft-lock en CARD_CHOICE).
+  if (picks.length < count) return fillOffer(game, picks);
+  return picks;
+}
+
+// ------------------------------------------------------------
+// applyCard (§5 dev-4): aplica efectos REALES sobre game.
+// Devuelve la carta aplicada (null si id desconocido).
+// ------------------------------------------------------------
+export function applyCard(card, game) {
+  const c = typeof card === 'string' ? CARD_BY_ID.get(card) : card;
+  if (!c || typeof c.apply !== 'function') return null;
+  c.apply(game);
+  return c;
+}
+
+// ------------------------------------------------------------
+// comboSummary (BUG-005): datos reales para el panel 🃏 del HUD
+// (torres poseídas + niveles + modificadores activos, §1.5/§4.4).
+// Puro: sin DOM — hud.js lo formatea.
+// ------------------------------------------------------------
+export function comboSummary(game) {
+  const f = game?.fortress;
+  const towers = (f?.slots ?? [])
+    .filter(Boolean)
+    .map((t) => ({
+      type: t.type,
+      name: t.data?.name ?? t.type,
+      level: t.level,
+      slot: t.slotIndex,
+      dmgMul: t.dmgMul ?? 1,
+      cadMul: t.cadMul ?? 1,
+      // dev-7 fase 32: el TIPO de daño de la unidad (balístico / luz /
+      // explosión / eléctrico / dron). El panel de combos lo muestra para
+      // que el jugador sepa contra qué familia de enemigos rinde cada una.
+      dmgType: t.data?.dmgType ?? null,
+      // dev-7 fase 30: sin `pips` - el dato estaba muerto (el HUD pintaba
+      // las estrellas desde `t.level`, no desde aquí) y además mentía:
+      // el nivel de torre sólo lo sube la carta "Abanico Ampliado" del
+      // Guardian, así que las demás mostraban siempre "★☆☆☆☆".
+    }));
+  return {
+    towers,
+    drones: (f?.drones ?? []).map((d) => ({
+      type: d.type,
+      name: d.data?.name ?? d.type,
+      dmgType: d.data?.dmgType ?? null,
+    })),
+    blackHoleCharge: f?.blackHoleCharge ?? 0, // 0..1 — medidor por kills (v4 4b/5)
+    pierce: f?.pierce ?? 0,
+    xpMul: f?.xpMul ?? 1,
+    scoreMul: f?.scoreMul ?? 1,
+    streakShields: f?.streakShields ?? 0,
+    orbitalDmgMul: f?.orbitalDmgMul ?? 1,
+    lv: game?.lv ?? 1,
+    kills: game?.kills ?? 0,
+  };
+}

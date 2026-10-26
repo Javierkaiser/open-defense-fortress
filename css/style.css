@@ -1,0 +1,4137 @@
+/* ============================================================
+   style.css — Open Defense Fortress
+   Reset + paleta §4.1 (:root) + marco portrait + HUD §4.4.
+   Look final (glows completos, flip de cartas) en dev-4/dev-6.
+
+   dev-7 fase 42 — el TEMA reskinea toda la UI: los colores de acento
+   que estaban escritos a mano (#35E0C8, #FFD24A, #FF5555, …) ahora son
+   tokens (--hud-teal, --crit-gold, --boss-red y sus TRIPLETS
+   --*-rgb para las variantes con alfa). Cada bloque [data-theme]
+   define sus triplets, así que cambiar de tema cambia TODO.
+   Además: tokens de forma (--space-*, --radius-*, --shadow-*),
+   foco visible global y fin de las animaciones infinitas.
+
+   dev-7 fase 45 — UN COLOR, UN SIGNIFICADO: la barra de progreso del
+   STAGE deja de ser teal (era el mismo degradado que la barra de XP y
+   no se distinguían); ahora es neutra y el teal es SÓLO el acento de
+   la UI (mi nivel). ESCALA TIPOGRÁFICA: 21 tamaños en px → 6 tokens
+   (--text-xs..--text-2xl) con piso de 11 px. LOS BOTONES SON CSS: el
+   PNG button_rect_gloss_teal.png era el único resto del tema que no
+   se reskineaba. Y un VELO COMPARTIDO (.overlay-veil) para los
+   overlays (modal de cartas y panel de combos).
+   ============================================================ */
+
+/* ---------- Reset ---------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ---------- Fuentes locales (dev-7 fase 1) ----------
+   Orbitron/Rajdhani ya se pedían por <link> a Google Fonts; ahora además
+   quedan embebidas desde assets/fonts/ para que el juego se vea igual
+   100% offline (el README lo prometía pero faltaba el @font-face). */
+@font-face {
+  font-family: 'Orbitron';
+  src: url('../assets/fonts/Orbitron.ttf') format('truetype');
+  font-weight: 500 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Rajdhani';
+  src: url('../assets/fonts/Rajdhani-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-display: swap;
+}
+/* Fuentes TECHNO locales para los números y las etiquetas pequeñas:
+   'Share Tech Mono' no se puede embebir (licencia) y la monoespaciada
+   del sistema desentonaba con el resto de la UI. ChakraPetch es la
+   techno angulosa; Exo2 es la geométrica y trae CIFRAS TABULARES
+   (tnum/lnum) → las columnas de dígitos no bailan al cambiar. */
+@font-face {
+  font-family: 'ChakraPetch';
+  src: url('../assets/fonts/ChakraPetch-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Exo2';
+  src: url('../assets/fonts/Exo2.ttf') format('truetype');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+/* ---------- Paleta oficial §4.1 ---------- */
+:root {
+  /* Fondo y escena */
+  --space-top: #1C1F26;
+  --space-deep: #14161C;
+
+  /* ---------- dev-7 fase 54: EL TINTE DE ESCENA ----------
+     El tema de UI tambien tiñe el MUNDO (cielo, nebulosa, planeta,
+     plataforma y niebla). Las ENTIDADES (base, torres, enemigos,
+     proyectiles) NO se tiñen: sus colores son SEMÁNTICOS (la matriz
+     de tipos de daño, el color de firma de cada torre) y tienen que
+     leerse igual en los 5 temas.
+     El modo de fusión es `soft-light`: conserva la luminancia (las
+     grietas del montañon siguen brillando) y desplaza solo el tono, así que
+     la IDENTIDAD del stage (volcanico / cementerio / ciudad / nucleo) se
+     conserva. Un `source-atop` plano la aplastaba y la deja un color.
+     `--scene-tint-alpha: 0` = el tema no tiñe (volcanico: es el
+     base y no se toca). */
+  --scene-tint: #35E0C8;
+  --scene-tint-alpha: 0;
+
+  /* ---------- dev-7 fase 56: LA CÁSCARA ----------
+     Lo que rodea al marco (la "banda" de espacio con la lluvia de
+     estrellas) estaba HARDCODEADO: era idéntica en los 5 temas, así que
+     el tema se acababa en el borde del marco y la pantalla se leía
+     como dos cosas pegadas. Estos tokens lo hacen seguir al tema.
+     --void-deep: el color del espacio (el fondo del degradado).
+     --void-glow: el degradado radial que da profundidad.
+     --void-star: la lluvia de estrellas frías.
+     --void-star-warm: las estrellas cálidas (unas pocas, rompen la
+     monotonía). */
+  --void-deep: #0B2129;
+  --void-glow: radial-gradient(170% 130% at 50% 52%, #0B2129 0%, #07131A 42%, #04070E 76%, #020308 100%);
+  --void-star: 214 238 255;
+  --void-star-warm: 255 240 214;
+  --volcano-core: #E8641F;
+  --volcano-edge: #F7A824;
+  --volcano-crack: #FFDD55;
+  --platform: #2B2F36;
+  --platform-light: #9FB4C8;
+  --fog: #3A4148;
+
+  /* Torres y disparos */
+  --guardian-body: #0E1216;
+  --bullet-blue: #35C8FF;
+  --bullet-blue-soft: #7FDFFF;
+  --beam-green: #39FF6A;
+  --beam-core: #E8FFE8;
+  --missile-trail: #FFB36A;
+  --thunder-violet: #B48CFF;
+  --tesla-purple: #9A6CFF;
+
+  /* Enemigos */
+  --meteor: #0A0A0A;
+  --meteor-crater: #FFFFFF;
+  --fire-trail-1: #FF9A3D;
+  --fire-trail-2: #FFD24A;
+  --crystal-red: #E01818;
+  --crystal-shine: #FFD0D0;
+  --blob-red: #C81E1E;
+
+  /* UI */
+  --hp-green: #35E08A;
+  --hp-green-rgb: 53 224 138;
+  --boss-red: #FF5555;
+  --boss-red-rgb: 255 85 85;
+  /* dev-7 fase 44: rojo PROFUNDO para el relleno de la barra de jefe.
+     El #FF5555 de arriba vive sobre el planeta volcánico naranja y
+     no se leía; con la placa oscura debajo hace falta un extremo
+     más oscuro para que la barra tenga profundidad (y para que el
+     "vacío" se note). */
+  --boss-red-deep: #A3161F;
+  --hud-teal: #35E0C8;
+  --hud-teal-rgb: 53 224 200;
+  /* Derivados del teal de la UI: son el MISMO color de acento en otro
+     tono, así que cambian con el tema (si no, la pantalla de torretas
+     se queda en teal con cualquier tema). */
+  --hud-teal-deep: #2AA898;   /* degradado de las barras */
+  --hud-teal-lite: #4DF3D9;   /* cifra grande del banner de nivel */
+  --hud-teal-lite-rgb: 77 243 217;
+  --hud-teal-soft: #5FF0D8;   /* nombre de la torre en la card */
+  --hud-teal-soft-rgb: 95 240 216;
+  --hud-teal-mute: #7FD8CE;   /* aro metálico del badge de rango */
+  --hud-panel: rgba(15, 42, 40, 0.85);
+  --card-bg: #2A4D44;
+  --card-border: #7FE0C8;
+  --card-text: #E8FFF6;
+  --xp-teal: #35E0C8;
+  --score-white: #FFFFFF;
+  --crit-gold: #FFD24A;
+  --crit-gold-rgb: 255 210 74;
+  /* dev-7 fase 53: el acento frío de la LEYENDA y el BESTIARIO. Antes
+     se llamaba --ui-ice y pareía un 6o color de la UI, pero solo lo
+     usan los dos paneles que muestran los TIPOS DE DAÑO: esos tipos
+     tienen color FIJO por tipo (js/damagetypes.js, igual que las
+     familias de enemigo), así que el marco de la leyenda tampoco debe
+     cambiar con el tema (si no, la leyenda y las cartas que describe
+     hablan en colores distintos). NO se re-declara por tema. */
+  --legend-ice: #7FDFFF;
+  --legend-ice-rgb: 127 223 255;
+
+  /* ---------- dev-7 fase 53: la escala de RAREZA ----------
+     La rareza de una carta es una ESCALA SEMÁNTICA, como los tipos de
+     daño (js/damagetypes.js): se lee igual en los 5 temas y NO se
+     re-declara por tema (si no, una carta "rara" cambia de color según
+     el tema y el jugador pierde la referencia).
+     Antes el escalón "raro" usaba --thunder-violet (el color de la TORRE
+     Thunderstroke) con un halo en un violeta FIJO: en el tema "aqua" el
+     marco salía azul y el halo violeta (no cuadraba). */
+  --rarity-rare: #B48CFF;
+  --rarity-rare-rgb: 180 140 255;
+  /* La ESCALA de rareza de las cartas: neutro → teal → violeta → el
+     dorado del tema. Es una escala semantica (como los tipos de daño):
+     el marco de la carta dice "cuanto pesa", no "de que color es". Por eso
+     el paso intermedio es el teal de la UI (el más cercano al neutro
+     que hay en la paleta) y el TOPO es el dorado, que en este juego
+     significa "ganancia" — una carta legendaria ES una recompensa. */
+
+  /* ---------- dev-7 fase 53: la escala de RANGOS ----------
+     El rango del jugador (meta.js) es una ESCALA DE IDENTIDAD, como la
+     rareza o los tipos de dano: se lee igual en los 5 temas. Los colores
+     viven aqui (no como hexadecimal suelto en el JS) para que el tema
+     pueda moverlos si algun dia hace falta. */
+  --rank-1: #8AA0B8;   /* Aprendiz   */
+  --rank-2: #35E0C8;   /* Centinela  */
+  --rank-3: #00F0FF;   /* Guardia    */
+  --rank-4: #B388FF;   /* Comandante */
+  --rank-5: #FFD24A;   /* Almirante  */
+  --rank-6: #FF2E97;   /* Arquitecto */
+
+  /* ---------- dev-7 fase 53: el BLACK HOLE ----------
+     El botón del Black Hole llevaba su violeta en hexadecimal SUELTO
+     (#B48CFF): no reskineaba con el tema y no compartía color con
+     nada. Ahora tiene token (y su triplet para los halos). */
+  --bh-violet: #B48CFF;
+  --bh-violet-rgb: 180 140 255;
+
+  /* ---------- Fase 42: tokens de FORMA ----------
+     Antes no había ni un token de espaciado, radio o sombra: 40
+     paddings distintos, 16 gaps y 10 radios "a ojo" (5/6/7/9 px).
+     Estos son los tres peldaños que se usan en la UI. */
+  --space-1: 2px;    /* peldaño mínimo (micro-espaciado) */
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 14px;
+  --radius-xs: 4px;  /* micro-chip (la barra fina, el badge de daño) */
+  --radius-s: 8px;   /* chip / botón pequeño */
+  --radius-m: 12px;  /* card y panel */
+  --radius-l: 999px; /* píldora (pestaña, badge, botón redondo) */
+  /* Los dos glows que más se repiten: el teal de la UI y el dorado.
+     Se escriben con los TRIPLETS, así que también cambian con el tema. */
+  --shadow-1: 0 0 8px rgb(var(--hud-teal-rgb) / .3);
+  --shadow-2: 0 0 8px rgb(var(--crit-gold-rgb) / .35);
+
+  --font-title: 'Orbitron', sans-serif;
+  --font-body: 'Rajdhani', sans-serif;
+  /* La monoespaciada 'Share Tech Mono' no se puede embebir (licencia):
+     caía a la del sistema y desentonaba. Ahora la pila arranca con las
+     techno LOCALES y los NÚMEROS usan Exo2 (cifras tabulares). */
+  --font-mono: 'ChakraPetch', 'Exo2', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --font-num: 'Exo2', 'ChakraPetch', ui-monospace, monospace;
+  /* Alias de la fuente de display (la usan #boot-error y .screen-title). */
+  --font-display: var(--font-title);
+
+  /* ---------- dev-7 fase 45: ESCALA TIPOGRÁFICA ----------
+     Antes había 21 tamaños distintos en px (y 27 declaraciones por
+     debajo de 11 px, ilegibles en un teléfono de 390 px). Esta es la
+     escala corta: seis peldaños y nada más. El PISO es 11 px
+     (--text-xs): no queda ninguna declaración de font-size por
+     debajo. */
+  --text-xs: 11px;   /* micro-etiquetas: rareza, "NUEVO", frags, píldoras */
+  --text-sm: 12px;   /* texto secundario: descripciones, celdas, píldoras */
+  --text-md: 14px;   /* texto normal: botones, filas, cifras de apoyo */
+  --text-lg: 17px;   /* encabezados: nombre del stage, resumen, botones */
+  --text-xl: 22px;   /* CTA y títulos de pantalla */
+  --text-2xl: 30px;  /* la cifra grande del banner de nivel */
+
+  /* ---------- dev-7 fase 53: ESCALA DE TRACKING ----------
+     56 declaraciones de letter-spacing con 12 valores distintos (.2 .3
+     .4 .5 .6 1 1.5 2 2.5 3 4 8). Los 4 valores de la escala de texto no
+     eran un escalón sino ruido. Estos son los 4 peldaños que se usan
+     en el cuerpo de la UI; los títulos display (2.5/3/4/8 px) siguen
+     con su valor a propósito (son un caso aparte, documentado). */
+  --tracking-narrow: .5px;   /* micro-etiquetas y datos en mono */
+  --tracking-normal: 1px;    /* etiquetas, botones, títulos de dato */
+  --tracking-wide: 1.5px;    /* títulos de sección */
+  --tracking-caps: 2px;      /* rótulos en MAYÚSCULAS */
+  /* Los TITULOS DISPLAY (3 px en .screen-title, 4 px en .card-title y
+     8 px en el subtitulo del juego) NO usan un token: son el aire de un
+     titulo grande y su espaciado crece con el, no con el cuerpo. */
+
+  /* ---------- dev-7 fase 45: UN COLOR, UN SIGNIFICADO ----------
+     El TEAL es el acento de la UI (mi nivel, mi XP). El progreso del
+     STAGE (las olas del stage) deja de ser teal: es NEUTRO (blanco
+     frío) en los 5 temas, así las dos barras del HUD —que están una
+     al lado de la otra— no se confunden. Estos tokens NO se redefinen
+     por tema: el "progreso del mundo" es neutro siempre. */
+  --progress-neutral: #DCE6EE;
+  --progress-neutral-deep: #93A7B8;
+  --progress-neutral-line: rgba(220, 230, 238, .28);
+
+  /* ---------- dev-7 fase 45: el BOTÓN es CSS ----------
+     El fondo de los botones era el PNG button_rect_gloss_teal.png: al
+     ser una imagen NO se reskineaba, así que era el único resto del
+     tema que seguía teal con cualquier tema. Estos tres colores
+     reproducen el "gloss" del sprite (banda clara arriba + cuerpo
+     saturado + canto) con los tokens del tema.
+     OJO: --btn-gloss y --btn-edge se calculan con color-mix (que el
+     tema NO necesita: el color sale de --hud-teal). Si el navegador no
+     soporta color-mix, el degradado entero sería inválido y el botón
+     se quedaría SIN fondo: por eso hay un respaldo plano y el color-mix
+     va dentro de un @supports. */
+  --btn-face: var(--hud-teal);
+  --btn-gloss: #8AEADC;
+  --btn-edge: #2FC0AC;
+
+  /* ---------- dev-7 fase 45: el VELO de los overlays ----------
+     El modal de cartas (#card-choice) y el panel de combos usan el
+     MISMO velo: mismo color, mismo desenfoque, mismo padding. */
+  --overlay-veil-bg: rgba(6, 8, 12, .84);
+  --overlay-veil-blur: 4px;
+  --overlay-veil-pad: 18px;
+  --overlay-veil-gap: 14px;
+
+  /* ---------- dev-7 fase 57: la CAJA de los overlays ----------
+     La geometría del marco (#marco-portrait): 8 px de margen + 1 px de
+     borde. El escenario de los overlays (#overlay-stage) mide contra la
+     MISMA caja, para que en escritorio el overlay se vea EXACTAMENTE
+     como antes (cubre el marco y no el monitor entero).
+
+     El escenario toma el ANCHO del marco y el ALTO de la pantalla:
+       · escritorio → el marco ya es alto-limitado: la caja del
+         escenario coincide con el marco (nada cambia a la vista);
+       · móvil → el marco es angosto (609 px de alto) y el escenario
+         usa los 826 px de la pantalla: la columna de cartas entra
+         entera, sin scroll. */
+  --frame-margin: 8px;
+  --frame-edge: 1px;
+  /* La caja del escenario = la del MARCO (por dentro del borde) en ancho y
+     la de la PANTALLA en alto. La cuenta es la MISMA que la del marco
+     (fase 58): alto = pantalla - 2*margenes, ancho = min(ancho de
+     pantalla, alto * 54/88). El `100dvh` evita que la barra del navegador
+     del movil se coma el alto; la linea con `100vh` es el fallback para
+     navegadores viejos (si no conocen `100dvh`, ignoran esa declaracion y
+     manda la anterior). */
+  --stage-w: calc(min(calc(100vw - 2 * var(--frame-margin)), calc((100vh - 2 * var(--frame-margin)) * 54 / 88)) - 2 * var(--frame-edge));
+  --stage-h: calc(100vh - 2 * (var(--frame-margin) + var(--frame-edge)));
+  --stage-w: calc(min(calc(100vw - 2 * var(--frame-margin)), calc((100dvh - 2 * var(--frame-margin)) * 54 / 88)) - 2 * var(--frame-edge));
+  --stage-h: calc(100dvh - 2 * (var(--frame-margin) + var(--frame-edge)));
+}
+
+/* El brillo del botón, ya con el color del tema (ver la nota de arriba). */
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+  :root {
+    --btn-gloss: color-mix(in srgb, var(--hud-teal) 62%, #FFFFFF);
+    --btn-edge: color-mix(in srgb, var(--hud-teal) 88%, #000000);
+  }
+}
+
+/* ---------- dev-7 fase 13: temas de interfaz intercambiables ----------
+   Reskinea el HUD/paneles/botones/cartas/títulos (todo lo que ya usa
+   estas variables). El planeta/torres/enemigos del canvas NO cambian
+   (se dibujan con colores fijos en towers.js/enemies.js — fuera del
+   alcance de esta feature, ver theme.js). Elegido desde el MENÚ
+   (js/hud.js _bindThemePicker) vía atributo data-theme en <html>. */
+[data-theme="cyberpunk"] {
+  --void-deep: #2A0B45;
+  --void-glow: radial-gradient(170% 130% at 50% 52%, #2A0B45 0%, #190628 42%, #0C0414 76%, #050209 100%);
+  --void-star: 226 180 255;
+  --void-star-warm: 255 140 210;
+  --scene-tint: #FF2E97;
+  --scene-tint-alpha: .8;
+  --hud-teal: #00F0FF;
+  --hud-teal-rgb: 0 240 255;
+  --hud-teal-deep: #0A7C8C;
+  --hud-teal-lite: #7FF6FF;
+  --hud-teal-lite-rgb: 127 246 255;
+  --hud-teal-soft: #8AF8FF;
+  --hud-teal-soft-rgb: 138 248 255;
+  --hud-teal-mute: #4FD3E0;
+  --hud-panel: rgba(20, 10, 34, 0.85);
+  --crit-gold: #FF2E97;
+  --crit-gold-rgb: 255 46 151;
+  --boss-red: #FF3860;
+  --boss-red-rgb: 255 56 96;
+  --boss-red-deep: #B01A3C;
+  --thunder-violet: #B24BF3;
+  --platform: #1A1025;
+  --platform-light: #C9A0FF;
+  --card-bg: #241433;
+  --card-border: #FF2E97;
+  --card-text: #F0E8FF;
+  --xp-teal: #00F0FF;
+  --hp-green: #39FF6A;
+  --hp-green-rgb: 57 255 106;
+  --space-deep: #0A0612;
+}
+[data-theme="neon"] {
+  --void-deep: #1E0A44;
+  --void-glow: radial-gradient(170% 130% at 50% 52%, #1E0A44 0%, #120622 42%, #080311 76%, #040109 100%);
+  --void-star: 190 255 240;
+  --void-star-warm: 255 255 180;
+  --scene-tint: #00FFF0;
+  --scene-tint-alpha: .78;
+  --hud-teal: #00FFF0;
+  --hud-teal-rgb: 0 255 240;
+  --hud-teal-deep: #0A8F86;
+  --hud-teal-lite: #6BFFF2;
+  --hud-teal-lite-rgb: 107 255 242;
+  --hud-teal-soft: #78FFF5;
+  --hud-teal-soft-rgb: 120 255 245;
+  --hud-teal-mute: #35D9CC;
+  --hud-panel: rgba(18, 8, 32, 0.85);
+  --crit-gold: #FFEE00;
+  --crit-gold-rgb: 255 238 0;
+  --boss-red: #FF0060;
+  --boss-red-rgb: 255 0 96;
+  --boss-red-deep: #B00046;
+  --thunder-violet: #C400FF;
+  --platform: #150826;
+  --platform-light: #FF6EC7;
+  --card-bg: #1F0A33;
+  --card-border: #00FFF0;
+  --card-text: #FFF0FA;
+  --xp-teal: #00FFF0;
+  --hp-green: #39FF6A;
+  --hp-green-rgb: 57 255 106;
+  --space-deep: #08030F;
+}
+[data-theme="aqua"] {
+  --void-deep: #062A38;
+  --void-glow: radial-gradient(170% 130% at 50% 52%, #062A38 0%, #041C26 42%, #021017 76%, #01070B 100%);
+  --void-star: 190 240 255;
+  --void-star-warm: 220 255 240;
+  --scene-tint: #2BD9E0;
+  --scene-tint-alpha: .72;
+  --hud-teal: #2BD9E0;
+  --hud-teal-rgb: 43 217 224;
+  --hud-teal-deep: #1B8C92;
+  --hud-teal-lite: #7FE9EE;
+  --hud-teal-lite-rgb: 127 233 238;
+  --hud-teal-soft: #88ECEF;
+  --hud-teal-soft-rgb: 136 236 239;
+  --hud-teal-mute: #4FB8BE;
+  --hud-panel: rgba(10, 34, 42, 0.85);
+  --crit-gold: #FFD166;
+  --crit-gold-rgb: 255 209 102;
+  --boss-red: #FF6B6B;
+  --boss-red-rgb: 255 107 107;
+  --boss-red-deep: #B93E3E;
+  --thunder-violet: #6FC3DF;
+  --platform: #0E2A3A;
+  --platform-light: #A8DDE6;
+  --card-bg: #123647;
+  --card-border: #4FD8E0;
+  --card-text: #E5FBFF;
+  --xp-teal: #2BD9E0;
+  --hp-green: #4CD98A;
+  --hp-green-rgb: 76 217 138;
+  --space-deep: #061B24;
+}
+[data-theme="cielo"] {
+  --void-deep: #0B2136;
+  --void-glow: radial-gradient(170% 130% at 50% 52%, #0B2136 0%, #061524 42%, #030B15 76%, #01060B 100%);
+  --void-star: 200 225 255;
+  --void-star-warm: 235 245 255;
+  --scene-tint: #6FC6FF;
+  --scene-tint-alpha: .8;
+  --hud-teal: #6FC6FF;
+  --hud-teal-rgb: 111 198 255;
+  --hud-teal-deep: #3A7FB0;
+  --hud-teal-lite: #A6DCFF;
+  --hud-teal-lite-rgb: 166 220 255;
+  --hud-teal-soft: #AFE2FF;
+  --hud-teal-soft-rgb: 175 226 255;
+  --hud-teal-mute: #7FA8D8;
+  --hud-panel: rgba(16, 28, 44, 0.85);
+  --crit-gold: #FFC94A;
+  --crit-gold-rgb: 255 201 74;
+  --boss-red: #FF7A7A;
+  --boss-red-rgb: 255 122 122;
+  --boss-red-deep: #C04848;
+  --thunder-violet: #B7A8FF;
+  --platform: #1D2A3D;
+  --platform-light: #CFE6FF;
+  --card-bg: #1B2C42;
+  --card-border: #6FC6FF;
+  --card-text: #EAF6FF;
+  --xp-teal: #6FC6FF;
+  --hp-green: #6FE0A0;
+  --hp-green-rgb: 111 224 160;
+  --space-deep: #0B1420;
+}
+
+/* ---------- Foco visible GLOBAL (fase 42) ----------
+   Antes sólo 8 componentes tenían anillo propio y 3 (theme-swatch,
+   quality-btn, combo-btn) caían al anillo por defecto del navegador
+   (el del sistema operativo), que rompe la convención teal de la UI.
+   `:where()` deja la especificidad en 0: las reglas puntuales que
+   compiten (p.ej. el glow propio de .card-choice-card, que pone
+   `outline: none` a propósito) siguen mandando sin cambiar nada. */
+:where(button, [tabindex]):focus-visible {
+  outline: 2px solid var(--hud-teal);
+  outline-offset: 2px;
+}
+
+/* ---------- Números del HUD: cifras TABULARES ----------
+   Exo2 trae la feature OpenType 'tnum' (cifras tabulares): los números
+   ocupan SIEMPRE el mismo ancho, así el score/timer/DPS no bailan al
+   cambiar de valor ni se descuadran en columna. */
+.hud-timer,
+.score-value,
+.score-mult,
+.hud-stat b,
+.lv-label,
+.summary dd,
+.meta-card-lvl,
+.meta-card-frags,
+.meta-card-dmg,
+.meta-res-cell,
+.boss-mult,
+.bh-count,
+.stage-list small.ok {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+}
+
+html, body {
+  height: 100%;
+  /* dev-7 fase 44 — la BANDA que rodea al marco deja de ser negro
+     plano. Medido: en un teléfono de 390×844 el marco queda en
+     374×609 y alrededor sobran ~235 px (28 % de la pantalla) de
+     negro puro: una zona muerta. Ahora es "espacio": un degradado
+     radial azul-verde muy oscuro que se apaga a negro + una lluvia
+     fina de estrellas. Sin imágenes ni dependencias: cada estrella
+     es un radial-gradient de 1-2 px (las de arriba van ENCIMA del
+     degradado, que es la última capa de la lista).
+     dev-7 fase 56: el degradado y las estrellas salen de TOKENS, así
+     que la banda sigue al tema (antes era la misma en los 5). */
+  background-color: #03050A;
+  background-image:
+    radial-gradient(1.6px 1.6px at 12% 14%, rgb(var(--void-star) / .70), transparent 100%),
+    radial-gradient(1.2px 1.2px at 78% 9%, rgb(var(--void-star-warm) / .55), transparent 100%),
+    radial-gradient(1.1px 1.1px at 6% 42%, rgb(var(--void-star) / .45), transparent 100%),
+    radial-gradient(1.5px 1.5px at 92% 36%, rgb(var(--void-star) / .60), transparent 100%),
+    radial-gradient(1.3px 1.3px at 24% 78%, rgb(var(--void-star) / .50), transparent 100%),
+    radial-gradient(1.7px 1.7px at 84% 68%, rgb(var(--void-star-warm) / .62), transparent 100%),
+    radial-gradient(1.0px 1.0px at 4% 88%, rgb(var(--void-star) / .40), transparent 100%),
+    radial-gradient(1.2px 1.2px at 96% 92%, rgb(var(--void-star) / .45), transparent 100%),
+    radial-gradient(1.0px 1.0px at 33% 5%, rgb(var(--void-star) / .35), transparent 100%),
+    radial-gradient(1.4px 1.4px at 66% 92%, rgb(var(--void-star) / .55), transparent 100%),
+    radial-gradient(1.0px 1.0px at 50% 3%, rgb(var(--void-star) / .30), transparent 100%),
+    radial-gradient(1.1px 1.1px at 18% 33%, rgb(var(--void-star) / .40), transparent 100%),
+    radial-gradient(1.0px 1.0px at 88% 20%, rgb(var(--void-star) / .35), transparent 100%),
+    radial-gradient(1.4px 1.4px at 9% 62%, rgb(var(--void-star) / .50), transparent 100%),
+    radial-gradient(1.0px 1.0px at 74% 47%, rgb(var(--void-star) / .30), transparent 100%),
+    radial-gradient(1.2px 1.2px at 40% 95%, rgb(var(--void-star) / .40), transparent 100%),
+    radial-gradient(1.0px 1.0px at 61% 8%, rgb(var(--void-star) / .30), transparent 100%),
+    radial-gradient(1.3px 1.3px at 2% 20%, rgb(var(--void-star) / .45), transparent 100%),
+    radial-gradient(1.0px 1.0px at 98% 55%, rgb(var(--void-star) / .35), transparent 100%),
+    radial-gradient(0.9px 0.9px at 30% 60%, rgb(var(--void-star) / .25), transparent 100%),
+    radial-gradient(1.1px 1.1px at 70% 80%, rgb(var(--void-star) / .35), transparent 100%),
+    radial-gradient(2.6px 2.6px at 44% 88%, rgb(var(--void-star) / .55), transparent 100%),
+    var(--void-glow),
+    radial-gradient(100% 100% at 50% 45%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, .40) 100%);
+  background-repeat: no-repeat;
+  font-family: var(--font-body);
+  color: var(--score-white);
+  overflow: hidden;
+}
+
+.hidden { display: none !important; }
+
+/* ---------- Marco portrait centrado (540x880, §1.4) ----------
+   FASE 58 — el marco YA NO tiene proporción fija 54/88.
+   El alto es SIEMPRE todo el disponible (100dvh - 16px) y el ancho se
+   deduce de ahí, con el tope de 100vw - 16px:
+     · escritorio ancho (1920×1080) → 653×1064 → canvas lógico 540×880
+       (IDÉNTICO a siempre, porque el ancho manda y sale 54/88);
+     · móvil (390×844)             → 374×828  → canvas lógico 540×1195
+       (el marco es más alto que 54/88: el campo de juego crece).
+   `100dvh` (altura dinámica) evita que la barra del navegador del móvil
+   se coma el marco; el `100vh` de la línea anterior es el fallback para
+   navegadores viejos. */
+#marco-portrait {
+  position: relative;
+  height: calc(100vh - 16px);
+  width: min(calc(100vw - 16px), calc((100vh - 16px) * 54 / 88));
+  height: calc(100dvh - 16px);
+  width: min(calc(100vw - 16px), calc((100dvh - 16px) * 54 / 88));
+  margin: 8px auto;
+  border: 1px solid rgb(var(--hud-teal-rgb) / .25);
+  box-shadow: 0 0 18px rgb(var(--hud-teal-rgb) / .12);
+  overflow: hidden;
+  background: var(--space-deep);
+  /* El marco NO bloquea los gestos: las listas scrolleables (selector de
+     stages, grilla de torretas) tienen que poder deslizarse con el
+     dedo. El CANVAS sigue sin capturarlos (ver #game-canvas) → §1.5
+     (el canvas no captura pointer para el gameplay) intacto. */
+  touch-action: manipulation;
+  /* dev-7 fase 38 — el MARCO es la unidad de medida real de la UI: su
+     ancho NO es el del viewport (a 360 px de pantalla el marco mide
+     344 px). Con esto el marco pasa a ser "contenedor" y los @container
+     de abajo miden contra SU ancho, no contra el de la pantalla. */
+  container-type: inline-size;
+  container-name: marco;
+}
+
+/* FASE 58 — el canvas se ESTIRA al marco, pero el motor ajusta su buffer
+   al alto lógico real (540×h) y dibuja el mundo con escala uniforme: el
+   buffer y el marco tienen (casi) la misma proporción, así que no hay
+   deformación (el planeta sigue siendo un círculo). `object-fit: fill`
+   (el default) es lo correcto: con `contain` aparecerían bandas negras
+   y con el buffer ya ajustado a la proporción real no hay stretch. */
+#game-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: fill;
+  touch-action: none; /* §1.5: el canvas no captura pointer para gameplay */
+}
+
+/* ============================================================
+   HUD superior (§4.4) — fila única: pausa · x1.5 · combo ·
+   stage+progreso · Lv+barra · timer · ultimate
+   ============================================================ */
+#hud-top {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  z-index: 5;
+  /* dev-7 fase 4: respeta el notch/isla dinámica en iOS/Android
+     (requiere viewport-fit=cover en el <meta viewport>). */
+  padding: calc(6px + env(safe-area-inset-top)) calc(8px + env(safe-area-inset-right)) 4px calc(8px + env(safe-area-inset-left));
+  background: linear-gradient(180deg, rgba(10, 12, 16, .82), rgba(10, 12, 16, 0));
+  pointer-events: none; /* solo los botones capturan (§1.5) */
+}
+
+.hud-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  pointer-events: none;
+}
+
+/* dev-7 fase 37 — EL HUD SE ADAPTA AL MARCO (no al viewport).
+   El canvas se estira al marco (540 px de diseño), pero el HUD es DOM
+   con px FIJOS: si el marco mide menos de 540 px (todo móvil, y casi
+   todo portátil) la fila superior se salía y el marco la recortaba — el
+   reloj y el botón de ULTIMATE quedaban FUERA de la pantalla (medido a
+   390 px: el timer se salía 41 px y el ultimate 91 px, fuera entero).
+   `data-narrow` lo pone HUD.refreshFrameMode() (js/hud.js) y parte la
+   fila en dos: controles arriba, datos abajo. */
+.hud-break { display: none; }
+
+[data-narrow] .hud-row {
+  flex-wrap: wrap;
+  row-gap: var(--space-2);
+}
+[data-narrow] .hud-break {
+  display: block;
+  flex: 0 0 100%;
+  height: 0;
+  margin: 0;
+}
+/* Los datos pasan a la segunda fila (order > 0) y los controles se
+   quedan en la primera. */
+[data-narrow] .hud-stage { order: 2; flex: 1 1 110px; }
+[data-narrow] .hud-lv { order: 3; min-width: 72px; }
+[data-narrow] .hud-timer { order: 4; }
+[data-narrow] .btn-round { width: 40px; height: 40px; }
+
+/* El score compacto en marco estrecho: el panel grande (372 px de los
+   374 del marco) tapaba el arco de HP de la base y el domo. */
+[data-narrow] .hud-score { padding: 3px 9px 4px; gap: 6px; }
+[data-narrow] .score-label { display: none; }
+[data-narrow] .score-value { font-size: var(--text-xl); }
+
+/* Botones circulares oscuros 44px con icono teal (§4.4) — estética v3.1 B:
+   borde teal #35E0C8 más presente, fondo #0F2A28 alpha e iconos definidos
+   con glow (drop-shadow para glifos emoji). */
+.btn-round {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--text-md);
+  color: var(--hud-teal);
+  background: rgba(15, 42, 40, .78);
+  border: 1.5px solid rgb(var(--hud-teal-rgb) / .68);
+  box-shadow:
+    0 0 10px rgb(var(--hud-teal-rgb) / .35),
+    inset 0 0 8px rgb(var(--hud-teal-rgb) / .12);
+  filter: drop-shadow(0 0 5px rgb(var(--hud-teal-rgb) / .55));
+  cursor: pointer;
+  pointer-events: auto;
+  user-select: none;
+  transition: box-shadow .15s ease, color .15s ease;
+}
+.btn-round:hover { box-shadow: 0 0 14px rgb(var(--hud-teal-rgb) / .6); }
+.btn-round:active { transform: translateY(1px); }
+
+/* Íconos reales recoloreados (dev-7 fase 1): reemplazan el glifo emoji ⏸
+   por un sprite tinteado al teal del HUD (ver assets/sprites/ui_tinted/). */
+.btn-round .btn-icon-img {
+  width: 20px;
+  height: 20px;
+  display: block;
+  filter: drop-shadow(0 0 4px rgb(var(--hud-teal-rgb) / .75));
+}
+
+/* Toggle música ♪ (v3 5/7, BUG-004): muted = atenuado + tachado */
+.btn-round#btn-music { font-size: var(--text-lg); position: relative; }
+.btn-round#btn-music.muted {
+  color: rgba(160, 175, 180, .55);
+  border-color: rgba(120, 135, 140, .30);
+  box-shadow: none;
+}
+.btn-round#btn-music.muted::after {
+  content: '';
+  position: absolute;
+  width: 24px;
+  height: 2px;
+  background: rgba(200, 215, 220, .75);
+  transform: rotate(-40deg);
+}
+
+/* Botón ultimate con anillo de carga cónico (§4.4) */
+.btn-round.ult { position: relative; }
+.btn-round.ult .ult-icon { font-size: var(--text-lg); }
+.btn-round.ult .ult-icon .btn-icon-img {
+  width: 22px;
+  height: 22px;
+  filter: drop-shadow(0 0 5px rgb(var(--crit-gold-rgb) / .9));
+}
+.btn-round.ult .ult-ring {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: conic-gradient(var(--crit-gold) 0deg, rgb(var(--crit-gold-rgb) / .15) 0deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  pointer-events: none;
+}
+/* fase 42: el pulso del ULTIMATE no es eterno — late 3 veces y queda
+   en un halo dorado fijo (antes `infinite`: el botón latía para siempre
+   y el jugador no podía dejar de verlo). */
+.btn-round.ult.ready { animation: ult-pulse 1.1s ease-in-out 3 forwards; }
+@keyframes ult-pulse {
+  0%, 100% { box-shadow: var(--shadow-2); }
+  50% { box-shadow: 0 0 20px rgb(var(--crit-gold-rgb) / .85); }
+}
+
+/* Bloque stage: nombre + barra de progreso NEUTRA (§4.4) — estética v3.1 B:
+   contenedor #0F2A28 alpha con borde teal + tipografía Rajdhani.
+   dev-7 fase 45: la barra de abajo ya NO es teal (era el mismo
+   degradado que la de XP): el progreso del stage es blanco frío. */
+.hud-stage {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 12px 5px;
+  background: rgba(15, 42, 40, .6);
+  border: 1px solid rgb(var(--hud-teal-rgb) / .3);
+  border-radius: var(--radius-m);
+}
+.stage-name {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-wide);
+  color: var(--score-white);
+  text-shadow:
+    0 0 8px rgba(255, 255, 255, .22),
+    0 1px 3px rgba(0, 0, 0, .9);
+  white-space: nowrap;
+  /* dev-7 fase 29: el título se recorta LIMPIO en vez de desbordarse.
+     Con `nowrap` y sin `overflow`, un nombre de stage largo ("Normal
+     Stage 50") se salía por la izquierda y quedaba TAPADO por los
+     botones redondos de la izquierda (el "N" de "Normal" no se leía). */
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* ---------- dev-7 fase 45: UN COLOR, UN SIGNIFICADO ----------
+   La barra BASE es NEUTRA: es la barra del PROGRESO DEL MUNDO (las olas
+   del stage). Antes era teal —el mismo degradado que la barra de XP,
+   una al lado de la otra en el HUD— y el jugador no podía distinguirlas.
+   Ahora el teal es SÓLO el acento de la UI (mi nivel, mi XP) y el
+   progreso del stage es blanco frío en los 5 temas.
+   La barra del jefe tiene su propio color (rojo) más abajo. */
+.bar {
+  display: block;
+  width: 100%;
+  height: 7px;
+  background: rgba(20, 22, 28, .8);
+  border: 1px solid var(--progress-neutral-line);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+}
+.bar > span {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--progress-neutral-deep), var(--progress-neutral));
+  transition: width .25s ease;
+}
+
+/* La barra de XP es la TEAL: es MI nivel, no el del mundo. */
+.xp-bar {
+  border-color: rgb(var(--hud-teal-rgb) / .45);
+}
+.xp-bar > span {
+  background: linear-gradient(90deg, var(--hud-teal-deep), var(--xp-teal));
+  box-shadow: 0 0 8px rgb(var(--hud-teal-rgb) / .6);
+}
+
+/* Bloque Lv: etiqueta + barra XP teal fina (§2.7/§4.4) — v3.1 B: contenedor
+   #0F2A28 + label (--text-lg) con glow. La barra de XP es la TEAL:
+   es MI nivel (el acento de la UI), no el progreso del stage. */
+.hud-lv {
+  flex: 0 0 auto;
+  min-width: 92px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 3px var(--space-3) 5px;
+  background: rgba(15, 42, 40, .6);
+  border: 1px solid rgb(var(--hud-teal-rgb) / .3);
+  border-radius: var(--radius-m);
+}
+.lv-label {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--text-lg);
+  color: var(--xp-teal);
+  text-shadow: 0 0 8px rgb(var(--hud-teal-rgb) / .45);
+}
+
+/* Timer tabular (§4.3) — v3.1 B: contenedor #0F2A28 alpha */
+.hud-timer {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  color: var(--score-white);
+  background: rgba(15, 42, 40, .6);
+  border: 1px solid rgb(var(--hud-teal-rgb) / .3);
+  border-radius: var(--radius-m);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .8);
+}
+
+/* ============================================================
+   HUD inferior — SCORE grande abajo-izquierda (§4.4)
+   ============================================================ */
+#hud-bottom {
+  position: absolute;
+  left: 0; right: 0;
+  /* Sobre la plataforma. fase 60: era 118px y dejaba el banner a ~23 px del
+     tope de la fila de torres — pegado, y en marcos altos llegaba a
+     tocarlo (el tope de una torre está a ~106 px del ancla, y el ancla
+     baja con el alto lógico del canvas). Con 148 el margen es de ~7 px
+     para el caso más ajustado. */
+  bottom: 148px;
+  z-index: 5;
+  padding: 0 calc(14px + env(safe-area-inset-right)) 0 calc(14px + env(safe-area-inset-left));
+  pointer-events: none;
+}
+.hud-score {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: 6px var(--space-4) 7px;
+  background: rgba(15, 42, 40, .55);
+  border: 1px solid rgb(var(--hud-teal-rgb) / .25);
+  border-radius: var(--radius-m);
+}
+.score-label {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--text-md);
+  letter-spacing: var(--tracking-caps);
+  color: var(--platform-light);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .9);
+}
+.score-value {
+  font-family: var(--font-mono);
+  /* dev-7 fase 45: 36 px queda FUERA de la escala a propósito: es la
+     cifra grande del score, el elemento con más presencia del HUD, y
+     bajarla a --text-2xl (30 px) le quitaría el aire de la referencia.
+     Igual que .card-title (Orbitron) y .game-title / .screen-title
+     (clamp), es una excepción documentada, no un descuido. */
+  font-size: 36px; /* v3.1 B: presencia grande tipo referencia, mono 36px */
+  color: var(--score-white);
+  text-shadow:
+    0 0 14px rgba(255, 255, 255, .55),
+    0 0 4px rgb(var(--hud-teal-rgb) / .35),
+    0 1px 3px rgba(0, 0, 0, .95);
+}
+.score-mult {
+  /* dev-7 fase 44: usaba la fuente DISPLAY (Orbitron) mientras la
+     puntuación usa la tabular → el "×1.5" bailaba al cambiar. Ahora
+     usa --font-num (Exo2 con cifras tabulares, la pila de arriba). */
+  font-weight: 700;
+  font-size: var(--text-md);
+  color: var(--crit-gold);
+  text-shadow: 0 0 8px rgb(var(--crit-gold-rgb) / .6);
+}
+.score-mult.pop { animation: mult-pop .3s ease; }
+@keyframes mult-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.5); }
+  100% { transform: scale(1); }
+}
+
+/* ============================================================
+   Barra de jefe (dev-5, D11) — banner "BOSS" + HP roja + ×N
+
+   dev-7 fase 44 — CONTRASTE: la barra vive SOBRE el planeta
+   volcánico (naranja brillante) y el rojo #FF5555 sobre naranja
+   era la peor pareja de contraste posible. Ahora la barra va
+   sobre una PLACA oscura (velo neutro + borde rojo) y el relleno
+   de HP arranca en un rojo profundo (--boss-red-deep): la placa
+   es el fondo real del color y la barra sigue siendo claramente
+   "peligro" (borde + halo + etiqueta roja).
+   ============================================================ */
+#boss-bar {
+  position: absolute;
+  top: 88px;               /* bajo el HUD superior (fila + tira de estado) */
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(86%, 460px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 6;
+  padding: 5px 10px;
+  /* PLACA: el velo neutro encima del panel del tema (así el rojo se
+     lee igual en los 5 temas) + un halo rojo que la separa del
+     planeta. */
+  background:    linear-gradient(rgba(4, 6, 10, .90), rgba(4, 6, 10, .90)),
+    var(--hud-panel);
+  border: 1px solid rgb(var(--boss-red-rgb) / .55);
+  border-radius: var(--radius-s);
+  box-shadow:
+    0 0 16px rgb(var(--boss-red-rgb) / .22),
+    inset 0 0 14px rgba(0, 0, 0, .55);
+}
+#boss-bar.hidden { display: none; }
+/* dev-7 fase 44: en marco estrecho el HUD ocupa DOS filas (90 px) y la
+   tira de estado llega a y=123: con los 88 px de arriba la barra de jefe
+   la pisaba. En marco ancho (88 px) queda como estaba. */
+[data-narrow] #boss-bar { top: 136px; }
+#boss-bar .boss-tag {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-caps);
+  color: var(--boss-red);
+  text-shadow: 0 0 8px rgb(var(--boss-red-rgb) / .65), 0 1px 2px rgba(0, 0, 0, .95);
+  animation: boss-tag-blink 1s steps(2, end) 6;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+#boss-bar .boss-tag img {
+  width: 15px;
+  height: 15px;
+  filter: drop-shadow(0 0 4px rgb(var(--boss-red-rgb) / .9));
+}
+@keyframes boss-tag-blink {
+  50% { opacity: .55; }
+}
+#boss-bar .bar {
+  position: relative;
+  flex: 1;
+  height: 9px;
+  /* Pista casi negra + borde rojo tenue: el "vacío" de la barra se
+     distingue del naranja del planeta a simple vista. */
+  background: rgba(0, 0, 0, .78);
+  border: 1px solid rgb(var(--boss-red-rgb) / .38);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+}
+#boss-bar .bar.boss-hp > span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, var(--boss-red-deep), var(--boss-red));
+  box-shadow: 0 0 8px rgb(var(--boss-red-rgb) / .7);
+  transition: width .15s linear;
+}
+#boss-bar .boss-mult {
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  color: var(--crit-gold);
+  text-shadow: 0 0 6px rgb(var(--crit-gold-rgb) / .55), 0 1px 2px rgba(0, 0, 0, .95);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+}
+/* dev-7 fase 44 — micro-etiqueta del factor de RECOMPENSA (la
+   integra js/hud.js). Chiquita, apagada y junto al número: dice
+   QUÉ es el ×2 sin robarle el sitio al "BOSS". */
+#boss-bar .boss-mult-label {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-normal);
+  text-transform: uppercase;
+  color: var(--platform-light);
+  opacity: .85;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .95);
+}
+/* Si la etiqueta viene como hermana del número (y no dentro), se
+   pone ANTES para que se lea "RECOMPENSA ×2". */
+#boss-bar .boss-mult-label { order: -1; }
+#boss-bar > .boss-mult-label { order: 0; }
+#boss-bar > .boss-mult { order: 1; }
+
+/* ============================================================
+   Pantallas overlay (§2.10) — DOM sobre el canvas
+   ============================================================ */
+
+/* ---------- dev-7 fase 57: EL ESCENARIO DE LOS OVERLAYS ----------
+   Los overlays (menú, pausa, selector, fin de partida, cartas, perk y
+   combos) vivían DENTRO de #marco-portrait. Eso los condenaba a la caja
+   del MARCO (607 px en un móvil de 390×844) en vez de la de la
+   PANTALLA (844 px): el `overflow: hidden` del marco los recortaba y la
+   columna de cartas scrolleaba por dentro (432 px útiles de 500) → la
+   3.ª carta se cortaba a media descripción y abajo quedaban 227 px de
+   negro sin usar.
+
+   Ahora los overlays cuelgan de #overlay-stage, un nodo FIJO (fuera del
+   marco): nada lo recorta y su caja es la del marco en ANCHO y la de la
+   pantalla en ALTO (--stage-w / --stage-h). En escritorio coincide con
+   el marco → el overlay se ve igual que antes; en móvil usa los 826 px
+   reales y las 3 cartas entran SIN scroll.
+
+   OJO: el escenario es un CONTENEDOR con el MISMO nombre que el marco
+   (`marco`) y el MISMO ancho: las @container marco (...) siguen
+   midiendo lo de siempre (el breakpoint de 380 px = "marco angosto"),
+   aunque los overlays ya no estén dentro del marco. */
+#overlay-stage {
+  position: fixed;
+  inset: var(--frame-margin);
+  margin: auto;               /* centrado en la caja de la pantalla */
+  width: var(--stage-w);
+  height: var(--stage-h);
+  z-index: 10;                /* por encima del marco (z-index auto) */
+  container-type: inline-size;
+  container-name: marco;
+  /* El escenario no pinta nada: solo AGRUPA a los overlays. Sin esto
+     capturaría los toques del juego aunque no hubiera nada visible
+     (está siempre en el DOM). */
+  pointer-events: none;
+}
+/* Los overlays sí capturan toques (el velo frena el juego de fondo). */
+#overlay-stage > * { pointer-events: auto; }
+
+/* ---------- Velo + desenfoque de los overlays (T5) ----------
+   Detrás de los menús se ve la partida CONGELADA (enemigos, textos
+   flotantes tipo "¡MULTI KILL!", score): competía con el texto DOM y
+   lo volvía ilegible. Ahora el fondo queda como TEXTURA:
+   · VELO denso = la BASE (funciona en todos los navegadores);
+   · backdrop-filter = la MEJORA PROGRESIVA (si el navegador no lo
+     soporta, el velo solo ya cumple).
+   El difuminado va en la PANTALLA (cubre todo el overlay) y NO en
+   #overlay-root: si el overlay crease el "backdrop root", el blur de
+   la pantalla no vería el canvas de fondo. */
+#overlay-root {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* dev-7 fase 57: el velo es UNIFORME cuando el overlay es de
+     PANTALLA COMPLETA (ver #overlay-stage[data-full]): el mismo para el
+     menú, la pausa, el selector y el fin de partida — se ve como una
+     pantalla propia del juego, sin el fondo del mundo volcánico atrás.
+     En escritorio (el overlay coincide con el marco) el menú conserva
+     su velo claro de "portada" y TORRETAS el suyo. */
+  background: rgba(6, 8, 12, .34);
+}
+
+.screen {
+  position: relative;
+  z-index: 0;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center; /* el contenido sigue CENTRADO en el overlay */
+  gap: var(--space-4);
+  width: 100%;
+  padding: 24px;
+  text-align: center;
+}
+.screen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(6, 8, 12, .62), rgba(6, 8, 12, .82));
+  /* dev-7 fase 29: el radio del desenfoque bajó de 7 px a 4 px. El blur
+     de un overlay sobre el canvas se recalcula en CADA frame (el canvas
+     de detrás se mueve) y sin GPU es carísimo: medido en Chrome sin
+     aceleración, el modal de cartas con 7 px pasaba de 34 FPS a 4,6 FPS.
+     Con 4 px se mantiene el efecto y el coste se reduce a la mitad; en
+     calidad "baja" se apaga del todo (ver .gdf-lowq). */
+  backdrop-filter: blur(4px) saturate(.85);
+  -webkit-backdrop-filter: blur(4px) saturate(.85);
+}
+
+/* ---------- dev-7 fase 57: EL VELO DE LA PANTALLA COMPLETA ----------
+   Cuando el overlay es MÁS ALTO que el marco (móvil: el escenario usa
+   el alto de la pantalla), el velo es UNIFORME: el MISMO para todas las
+   pantallas (menú, pausa, selector, fin de partida, torretas) y el
+   mismo que el de los modales (.overlay-veil) → el overlay se ve como
+   una pantalla propia del juego y el mundo volcánico NO asoma detrás.
+
+   En escritorio el escenario coincide con el marco → el overlay NO es
+   de pantalla completa y conserva su velo de siempre (el menú con su
+   velo claro de "portada", la pausa con el denso). */
+#overlay-stage[data-full] #overlay-root {
+  background: var(--overlay-veil-bg);   /* rgba(6, 8, 12, .84) */
+}
+#overlay-stage[data-full] .screen::before {
+  background: linear-gradient(180deg, rgba(6, 8, 12, .18), rgba(6, 8, 12, .44));
+}
+/* El velo claro del MENÚ (fase 29) y el de TORRETAS (v3.5) solo aplican
+   cuando el overlay NO es de pantalla completa (escritorio). */
+#overlay-stage:not([data-full]) #overlay-root.backdrop-warm {
+  background: rgba(6, 8, 12, .18);
+}
+#overlay-stage:not([data-full]) #overlay-root.backdrop-warm .screen::before {
+  background: linear-gradient(180deg, rgba(8, 8, 10, .50), rgba(6, 8, 12, .82));
+}
+#overlay-stage:not([data-full]) #overlay-root.backdrop-meta {
+  background: rgba(6, 8, 12, .30);
+}
+#overlay-stage:not([data-full]) #overlay-root.backdrop-meta .screen::before {
+  background: linear-gradient(180deg, rgba(6, 10, 12, .58), rgba(6, 8, 12, .80));
+}
+
+.game-title {
+  font-family: var(--font-title);
+  font-weight: 700;
+  /* dev-7 fase 45: TÍTULOS FUERA de la escala tipográfica (y lo
+     seguirá .screen-title): son Orbitron con clamp y dependen del
+     viewport, no de un peldaño fijo. */
+  font-size: clamp(26px, 6.5vmin, 40px);
+  color: var(--volcano-edge);
+  text-shadow: 0 0 18px rgba(247, 168, 36, .55);
+  letter-spacing: var(--tracking-caps);
+}
+.game-title .subtitle {
+  display: block;
+  /* dev-7 fase 53: FUERA de la escala a proposito (como el titulo que lo
+     corona): es el subtitulo display del titulo del juego y va en .55em
+     para acompanar al `clamp()` del titulo. Con un peldano fijo se
+     descuadraria en pantallas grandes. */
+  font-size: .55em;
+  color: var(--hud-teal);
+  text-shadow: 0 0 12px rgb(var(--hud-teal-rgb) / .55);
+  letter-spacing: 8px;
+  margin-top: 4px;
+}
+.tagline { color: var(--platform-light); font-size: var(--text-md); }
+
+.screen-title {
+  font-family: var(--font-title);
+  /* dev-7 fase 45: fuera de la escala (como .game-title): título Orbitron
+     con clamp, no un peldaño fijo. */
+  font-size: clamp(20px, 5vmin, 28px);
+  letter-spacing: 3px;
+  color: var(--score-white);
+}
+.screen-title.danger { color: var(--boss-red); text-shadow: 0 0 14px rgb(var(--boss-red-rgb) / .55); }
+.screen-title.gold { color: var(--crit-gold); text-shadow: 0 0 14px rgb(var(--crit-gold-rgb) / .55); }
+
+.hint { color: var(--platform-light); font-size: var(--text-md); font-family: var(--font-mono); }
+
+/* dev-7 fase 44 — el hint de TECLADO de la pantalla de pausa
+   ("[P]/[Esc] continuar · [1][2][3] velocidad…") no sirve en un
+   teléfono: no hay teclado. js/hud.js le pone la clase `pause-hint`
+   a ese <p> → se oculta con puntero grueso (en escritorio sigue
+   igual). OJO: NO se usa `.hint` a secas: esa clase también está
+   en el modal de cartas, en el de perk y en el combo. */
+.pause-hint { text-align: center; }
+
+/* ---------- Selector de STAGES: lista agrupada por DÉCADAS (T1) ----------
+   50 filas idénticas no se podían recorrer. Ahora cada bloque de 10
+   lleva su cabecera ("STAGES 1–10") y cada fila su identidad: punto
+   de color del tema, insignia de JEFE y récord/bloqueo. */
+.stage-scroll {
+  position: relative;
+  width: 100%;
+  max-height: 58vh;
+  overflow: hidden;
+}
+/* Indicador de scroll: el borde inferior se desvanece (y el padding de
+   la lista deja aire para que la última fila no quede cortada). */
+.stage-scroll::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 40px;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(12, 16, 20, 0), rgba(12, 16, 20, .92));
+}
+.stage-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: center;
+  max-height: 58vh;
+  overflow-y: auto;
+  padding: var(--space-2) var(--space-3) 30px;
+  touch-action: pan-y;        /* scrollear con el dedo */
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.stage-list small { color: var(--platform-light); font-weight: 500; }
+.stage-list small.ok { color: var(--hp-green); }
+.stage-list small.lock { color: rgba(159, 180, 200, .6); }
+
+/* Bloque de 10 stages */
+.stage-group {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.stage-group-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0 var(--space-2) var(--space-2);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: rgba(159, 180, 200, .7);
+  border-bottom: 1px solid rgb(var(--hud-teal-rgb) / .22);  /* filete del bloque */
+}
+.stage-group-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Fila: punto de tema + nombre + insignias + récord */
+.btn.stage {
+  width: min(360px, 92%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  text-align: left;
+  font-size: var(--text-md);
+  padding: var(--space-3) 12px;
+}
+.btn.stage .stage-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.btn.stage small { margin-left: auto; }
+.stage-dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--stage-color, var(--hud-teal));
+  box-shadow: 0 0 8px var(--stage-color, rgb(var(--hud-teal-rgb) / .8));
+}
+/* Insignia de JEFE (antes era una estrella suelta: no se leía) */
+.stage-boss {
+  flex: 0 0 auto;
+  padding: 1px 6px 2px;
+  border-radius: var(--radius-xs);
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  color: #1A0608;
+  background: var(--boss-red);
+  box-shadow: 0 0 10px rgb(var(--boss-red-rgb) / .65);
+}
+/* La SIGUIENTE disponible se marca con un triángulo */
+.stage-flag {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  color: var(--hud-teal);
+  text-shadow: 0 0 8px rgb(var(--hud-teal-rgb) / .8);
+}
+/* Destacados: la siguiente disponible (borde teal), el mejor récord
+   (borde dorado) y los stages de JEFE (borde rojo). */
+.btn.stage.is-next {
+  border-color: rgb(var(--hud-teal-rgb) / .85);
+  box-shadow: 0 0 14px rgb(var(--hud-teal-rgb) / .45);
+}
+.btn.stage.is-best {
+  border-color: rgb(var(--crit-gold-rgb) / .6);
+  box-shadow: 0 0 12px rgb(var(--crit-gold-rgb) / .28);
+}
+.btn.stage.is-boss {
+  border-color: rgb(var(--boss-red-rgb) / .45);
+}
+
+/* ---------- fase 67: MODO INFINITO en el selector ----------
+   Dos tarjetas arriba de las 50 filas: CONTINUAR (∞) y el DESAFÍO DIARIO.
+   Van FUERA del scroll a propósito: con la lista por debajo, una tarjeta
+   dentro del scroll desaparece al primer gesto y el jugador no la vuelve
+   a ver. El ∞ no castiga (perder = reintentar la misma etapa), así que el
+   enganche es el RÉCORD: por eso vive en la tarjeta. */
+.endless-cards {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.stage-endless,
+.stage-daily,
+.stage-protocol {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--space-3) 10px;
+  text-align: left;
+  font-family: var(--font-body);
+  color: var(--score-white);
+  border: 1px solid rgb(var(--hud-teal-rgb) / .45);
+  border-radius: var(--radius-s);
+  background: linear-gradient(180deg, rgba(18, 34, 32, .92), rgba(10, 15, 18, .92));
+  box-shadow: inset 0 1px 0 rgb(var(--hud-teal-rgb) / .25);
+  cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.stage-endless:hover {
+  border-color: rgb(var(--hud-teal-rgb) / .85);
+  box-shadow: 0 0 14px rgb(var(--hud-teal-rgb) / .45), inset 0 1px 0 rgb(var(--hud-teal-rgb) / .4);
+}
+/* El diario es el acento DORADO (recompensa/reto), no el teal de "seguir". */
+.stage-daily {
+  border-color: rgb(var(--crit-gold-rgb) / .45);
+  box-shadow: inset 0 1px 0 rgb(var(--crit-gold-rgb) / .22);
+}
+.stage-daily:hover {
+  border-color: rgb(var(--crit-gold-rgb) / .85);
+  box-shadow: 0 0 14px rgb(var(--crit-gold-rgb) / .35), inset 0 1px 0 rgb(var(--crit-gold-rgb) / .4);
+}
+/* Rótulo de la tarjeta (arriba, en versalitas) y pie con el dato. */
+.card-kicker {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--hud-teal);
+}
+.stage-daily .card-kicker { color: var(--crit-gold); }
+/* La tarjeta del PROTOCOLO ocupa la fila entera: es un ajuste GLOBAL de
+   la run (no una etapa) y el dorado la aparta de la escalera del ∞. */
+.stage-protocol {
+  grid-column: 1 / -1;
+  border-color: rgb(var(--crit-gold-rgb) / .45);
+  box-shadow: inset 0 1px 0 rgb(var(--crit-gold-rgb) / .22);
+}
+.stage-protocol:hover {
+  border-color: rgb(var(--crit-gold-rgb) / .85);
+  box-shadow: 0 0 14px rgb(var(--crit-gold-rgb) / .35), inset 0 1px 0 rgb(var(--crit-gold-rgb) / .4);
+}
+.stage-protocol .card-kicker { color: var(--crit-gold); }
+.card-sub {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--platform-light);
+}
+/* OJO: `.card-title` YA existe (el título del modal de cartas: 34 px,
+   dorado y con animación). Acá se re-declara, no se hereda. */
+.stage-endless .card-title,
+.stage-daily .card-title,
+.stage-protocol .card-title {
+  font-family: var(--font-title);
+  font-size: var(--text-md);
+  font-weight: 700;
+  letter-spacing: var(--tracking-normal);
+  line-height: 1.25;
+  color: var(--score-white);
+  text-shadow: 0 0 8px rgb(var(--hud-teal-rgb) / .45);
+  animation: none;
+  margin: 0;
+}
+/* En el ancho del móvil (374 px) dos columnas dejan el título en 4 líneas:
+   se apilan. Mismo breakpoint del MARCO que el resto (ver @container). */
+@container marco (max-width: 380px) {
+  .endless-cards { grid-template-columns: 1fr; }
+}
+
+/* Bloque del ∞ en la DERROTA: la profundidad no baja al perder, así que
+   se muestran profundidad/récord y el "volvés a intentar la N" explícito. */
+.endless-result {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) 10px;
+  border: 1px solid rgb(var(--hud-teal-rgb) / .3);
+  border-radius: var(--radius-s);
+  background: rgba(12, 22, 24, .6);
+}
+.endless-result .summary { margin: 0; }
+.endless-result .hint { margin: 0; text-align: center; }
+
+/* ---------- fase 69: PANTALLA DEL PROTOCOLO DE ASEDIO ----------
+   Un menú de handicaps, no un formulario: cabecera con el HEAT grande y
+   lo que se GANA (recompensa y récord), la escalera de presets y las 11
+   condiciones en filas. El teal es "la UI" y el dorado, "lo que se gana":
+   por eso el heat activo de cada fila y los pips van en dorado. Sin
+   tokens nuevos (fase 42/45/53): el lenguaje de siempre. */
+.protocol-panel { gap: var(--space-3); }
+.protocol-head {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 10px;
+  border: 1px solid rgb(var(--hud-teal-rgb) / .35);
+  border-radius: var(--radius-m);
+  background: rgba(12, 22, 24, .72);
+}
+.protocol-total {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 0 0 auto;
+}
+.protocol-heat-label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  color: var(--hud-teal);
+}
+.protocol-heat-value {
+  font-family: var(--font-num);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--score-white);
+  text-shadow: 0 0 12px rgb(var(--hud-teal-rgb) / .55);
+}
+.protocol-head-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+  min-width: 0;
+  margin-left: auto;
+  text-align: right;
+}
+.protocol-reward {
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--crit-gold);
+}
+.protocol-record {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--platform-light);
+}
+.protocol-custom {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--crit-gold);
+}
+.protocol-hint { margin: 0; text-align: center; }
+.protocol-presets {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.protocol-preset {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 8px;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: var(--tracking-narrow);
+  color: var(--platform-light);
+  border: 1px solid rgb(var(--hud-teal-rgb) / .3);
+  border-radius: var(--radius-s);
+  background: rgba(12, 22, 26, .75);
+  cursor: pointer;
+  transition: color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.protocol-preset:hover {
+  color: var(--score-white);
+  border-color: rgb(var(--hud-teal-rgb) / .7);
+}
+.protocol-preset.active {
+  color: var(--score-white);
+  border-color: rgb(var(--crit-gold-rgb) / .8);
+  box-shadow: 0 0 10px rgb(var(--crit-gold-rgb) / .35), inset 0 1px 0 rgb(var(--crit-gold-rgb) / .3);
+}
+.protocol-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  /* Las 11 filas no entran en el marco: scrollea SOLO la lista (mismo
+     idiom que `.stage-list`) y la cabecera, los presets y VOLVER quedan
+     siempre a la vista. El alto deja lugar al heat total (que cambia con
+     cada ±) sin empujar el panel fuera del marco. */
+  max-height: 42vh;
+  overflow-y: auto;
+  padding: 0 var(--space-1) var(--space-2);
+  touch-action: pan-y;
+}
+.protocol-row {
+  min-width: 0;
+  padding: var(--space-3) 10px;
+  border: 1px solid rgba(120, 150, 160, .22);
+  border-left: 3px solid rgba(120, 150, 160, .3);
+  border-radius: var(--radius-s);
+  background: rgba(10, 16, 20, .72);
+}
+.protocol-row.is-on {
+  border-color: rgb(var(--crit-gold-rgb) / .4);
+  border-left-color: var(--crit-gold);
+  background: rgba(20, 26, 20, .8);
+}
+.protocol-row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.protocol-name {
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--score-white);
+}
+.protocol-cost {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--crit-gold);
+  white-space: nowrap;
+}
+.protocol-cost.is-max { color: var(--platform-light); }
+.protocol-desc {
+  margin: 2px 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--platform-light);
+}
+.protocol-row-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.protocol-pips { display: inline-flex; gap: var(--space-1); }
+.protocol-pip {
+  width: 10px;
+  height: 10px;
+  border: 1px solid rgb(var(--hud-teal-rgb) / .5);
+  border-radius: var(--radius-xs);
+  background: transparent;
+}
+.protocol-pip.on {
+  border-color: var(--crit-gold);
+  background: var(--crit-gold);
+  box-shadow: 0 0 6px rgb(var(--crit-gold-rgb) / .6);
+}
+.protocol-steps { display: inline-flex; gap: var(--space-2); }
+.protocol-step {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-body);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--score-white);
+  border: 1px solid rgb(var(--hud-teal-rgb) / .45);
+  border-radius: var(--radius-s);
+  background: rgba(18, 34, 32, .9);
+  cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease, opacity .15s ease;
+}
+.protocol-step:hover:not(:disabled) {
+  border-color: rgb(var(--hud-teal-rgb) / .9);
+  box-shadow: 0 0 10px rgb(var(--hud-teal-rgb) / .4);
+}
+.protocol-step:disabled { opacity: .35; cursor: default; }
+/* En el ancho del móvil la cabecera se apila y los presets van en 2
+   columnas: las 11 filas quedan legibles sin scroll horizontal. */
+@container marco (max-width: 380px) {
+  .protocol-head { flex-direction: column; align-items: flex-start; }
+  .protocol-head-meta { align-items: flex-start; margin-left: 0; text-align: left; }
+  .protocol-preset { flex: 1 1 45%; }
+}
+
+/* Sello del PROTOCOLO en el HUD (fase 69): `data-heat` lo pone el HUD
+   solo durante la batalla. El ::after deja intacto el textContent del
+   nombre del stage (que render() sigue escribiendo y recortando). */
+#hud-stage-name[data-heat]::after {
+  content: ' · HEAT ' attr(data-heat);
+  margin-left: var(--space-2);
+  font-family: var(--font-num);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  color: var(--crit-gold);
+  text-shadow: 0 0 8px rgb(var(--crit-gold-rgb) / .65);
+  vertical-align: middle;
+}
+
+/* ---------- fase 70: SUPERVIVENCIA Y SALA DE RÉCORDS ----------
+   El arcade se mide en OLEADAS: la tarjeta ocupa la fila entera (como el
+   PROTOCOLO) porque no es una etapa más de la escalera. El acento es el
+   ROJO del jefe —es el modo donde la base SÍ cae— y no el dorado de "lo
+   que se gana". La sala de récords es una lista de filas: en 374 px cinco
+   tarjetas en grilla no se leerían. */
+.stage-survival {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--space-3) 10px;
+  text-align: left;
+  font-family: var(--font-body);
+  color: var(--score-white);
+  border: 1px solid rgb(var(--boss-red-rgb) / .4);
+  border-radius: var(--radius-s);
+  background: linear-gradient(180deg, rgba(34, 18, 22, .92), rgba(12, 10, 14, .92));
+  box-shadow: inset 0 1px 0 rgb(var(--boss-red-rgb) / .22);
+  cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.stage-survival:hover {
+  border-color: rgb(var(--boss-red-rgb) / .8);
+  box-shadow: 0 0 14px rgb(var(--boss-red-rgb) / .32), inset 0 1px 0 rgb(var(--boss-red-rgb) / .4);
+}
+.stage-survival .card-kicker { color: var(--boss-red); }
+.stage-survival .card-title {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: var(--text-md);
+  font-weight: 700;
+  letter-spacing: var(--tracking-normal);
+  line-height: 1.25;
+  color: var(--score-white);
+  text-shadow: 0 0 8px rgb(var(--boss-red-rgb) / .45);
+  animation: none;
+}
+
+/* Bloque de la run de arcade en la DERROTA (mismo idiom que el del ∞). */
+.survival-result {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) 10px;
+  border: 1px solid rgb(var(--boss-red-rgb) / .3);
+  border-radius: var(--radius-s);
+  background: rgba(24, 12, 14, .6);
+}
+.survival-result .summary { margin: 0; }
+
+/* Sala de récords: una fila por modo, el mejor dato en grande y el
+   próximo hito en dorado (lo que se gana al volver a jugar). */
+.records-panel { gap: var(--space-3); }
+.records-grid {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.record-row {
+  min-width: 0;
+  padding: var(--space-3) 10px;
+  border: 1px solid rgba(120, 150, 160, .22);
+  border-left: 3px solid rgb(var(--hud-teal-rgb) / .5);
+  border-radius: var(--radius-s);
+  background: rgba(10, 16, 20, .72);
+}
+.record-best {
+  margin: 2px 0 0;
+  font-family: var(--font-num);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--score-white);
+}
+.record-detail {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--platform-light);
+}
+.record-next {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  color: var(--crit-gold);
+}
+
+/* ---------- Botones (chaflán + glow teal) ----------
+   dev-7 fase 45 — el FONDO DE LOS BOTONES ES CSS, no un PNG.
+   Antes era `url('../assets/sprites/ui_tinted/button_rect_gloss_teal.png')`:
+   al ser una imagen no se reskineaba, así que era el ÚNICO resto del
+   tema que seguía con el brillo teal por defecto con cualquier tema.
+   Ahora el degradado reproduce el "gloss" del sprite con los tokens
+   del tema:
+     · --btn-gloss → la banda clara de ARRIBA (el reflejo del sprite);
+     · --btn-face  → el cuerpo saturado;
+     · --btn-edge  → el canto (las 2 px de arriba y de abajo).
+   El velo oscuro (rgba(9,12,14,.58)) encima mantiene el contraste
+   del texto blanco, igual que antes. */
+.btn {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-normal);
+  color: var(--score-white);
+  background:
+    linear-gradient(rgba(9, 12, 14, .58), rgba(9, 12, 14, .58)),
+    linear-gradient(180deg,
+      var(--btn-edge) 0%,
+      var(--btn-edge) 3%,
+      var(--btn-gloss) 8%,
+      var(--btn-gloss) 44%,
+      var(--btn-face) 52%,
+      var(--btn-face) 92%,
+      var(--btn-gloss) 96%,
+      var(--btn-edge) 100%);
+  border: 1px solid rgb(var(--hud-teal-rgb) / .4);
+  box-shadow:
+    var(--shadow-1),
+    /* el "shadow interior suave" del sprite: filo claro arriba y
+       profundidad abajo (dentro del chaflán, que recorta el resto). */
+    inset 0 1px 0 rgb(var(--hud-teal-rgb) / .45),
+    inset 0 -10px 14px rgba(0, 0, 0, .38);
+  clip-path: polygon(
+    8px 0, calc(100% - 8px) 0,
+    100% 8px, 100% calc(100% - 8px),
+    calc(100% - 8px) 100%, 8px 100%,
+    0 calc(100% - 8px), 0 8px
+  );
+  padding: 10px 22px;
+  cursor: pointer;
+  transition: box-shadow .15s ease;
+  user-select: none;
+}
+.btn:hover {
+  box-shadow:
+    0 0 16px rgb(var(--hud-teal-rgb) / .65),
+    inset 0 1px 0 rgb(var(--hud-teal-rgb) / .6),
+    inset 0 -10px 14px rgba(0, 0, 0, .38);
+}
+.btn:disabled { color: var(--platform-light); opacity: .4; box-shadow: none; cursor: default; }
+.btn.ghost {
+  border-color: rgba(159, 180, 200, .4);
+  box-shadow: none;
+  background: rgba(12, 16, 18, .5); /* ghost = plano a propósito, sin textura */
+}
+.btn.big {
+  font-size: var(--text-xl);
+  padding: var(--space-4) 40px;
+  /* CTA principal: paleta TEAL/cian (la misma del HUD) — antes usaba la
+     textura dorada, que tiraba a oliva/marrón y rompía la paleta. Se
+     distingue del resto por tamaño + glow, no por otro color.
+     Mismo degradado CSS que .btn, con el velo oscuro más suave (el CTA
+     tiene que leerse más vivo). */
+  background:
+    linear-gradient(rgba(9, 12, 14, .45), rgba(9, 12, 14, .45)),
+    linear-gradient(180deg,
+      var(--btn-edge) 0%,
+      var(--btn-edge) 3%,
+      var(--btn-gloss) 8%,
+      var(--btn-gloss) 44%,
+      var(--btn-face) 52%,
+      var(--btn-face) 92%,
+      var(--btn-gloss) 96%,
+      var(--btn-edge) 100%);
+  border-color: rgb(var(--hud-teal-rgb) / .75);
+  box-shadow:
+    0 0 12px rgb(var(--hud-teal-rgb) / .45),
+    inset 0 1px 0 rgb(var(--hud-teal-rgb) / .55),
+    inset 0 0 10px rgb(var(--hud-teal-rgb) / .16);
+  text-shadow: 0 0 8px rgb(var(--hud-teal-rgb) / .45);
+}
+.btn.big:hover {
+  box-shadow:
+    0 0 22px rgb(var(--hud-teal-rgb) / .8),
+    inset 0 1px 0 rgb(var(--hud-teal-rgb) / .7),
+    inset 0 0 12px rgb(var(--hud-teal-rgb) / .22);
+}
+
+/* Botones del MENÚ: ancho máximo razonable y centrados (antes ocupaban
+   casi todo el ancho y se veían vacíos). Solo afecta a los botones
+   DIRECTOS de la pantalla (los de los paneles ya tienen su ancho). */
+.screen > .btn {
+  width: 100%;
+  max-width: 280px;
+}
+.screen > .btn.danger-link { width: auto; }
+/* La fila de stage se define arriba (bloque "Selector de STAGES"). */
+
+/* dev-7 fase 14: "Borrar progreso" — link discreto (no un botón grande,
+   a propósito: es destructivo, no debe competir visualmente con JUGAR)
+   + su confirmación inline en 2 pasos. */
+.btn.danger-link {
+  background: none;
+  border: none;
+  box-shadow: none;
+  color: rgb(var(--boss-red-rgb) / .65);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-normal);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 6px 10px;
+  margin-top: 10px;
+  clip-path: none;
+  cursor: pointer;
+}
+.btn.danger-link:hover { color: var(--boss-red); }
+.btn.small { font-size: var(--text-sm); padding: 7px 16px; }
+.btn.danger {
+  border-color: rgb(var(--boss-red-rgb) / .55);
+  background:
+    linear-gradient(rgba(9, 12, 14, .6), rgba(9, 12, 14, .6)),
+    /* dev-7 fase 53: era un rojo en hexadecimal SUELTO (#FF7A7A es el
+       --boss-red del tema "cielo"): no reskineaba. Ahora usa el token. */
+    linear-gradient(135deg, var(--boss-red), var(--boss-red-deep));
+  box-shadow: 0 0 10px rgb(var(--boss-red-rgb) / .35);
+}
+.btn.danger:hover { box-shadow: 0 0 18px rgb(var(--boss-red-rgb) / .7); }
+.reset-confirm {
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgb(var(--boss-red-rgb) / .4);
+  border-radius: var(--radius-m);
+  background: rgba(58, 12, 12, .35);
+  max-width: min(340px, 88vw);
+}
+.reset-warn {
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: rgba(255, 220, 220, .9);
+  margin-bottom: 10px;
+}
+.reset-confirm-row { display: flex; gap: 10px; justify-content: center; }
+/* Acciones del resumen STAGE_CLEAR: Reintentar / Siguiente / Menú (dev-5b) */
+.stage-actions { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+
+/* ---------- Resumen de fin de run (dev-4, §2.10) ---------- */
+.summary {
+  margin: 18px 0 6px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: min(340px, 82%);
+}
+.summary > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 24px;
+  border-bottom: 1px solid rgb(var(--hud-teal-rgb) / .14);
+  padding-bottom: 6px;
+}
+.summary dt {
+  font-family: var(--font-body);
+  font-weight: 500;
+  letter-spacing: var(--tracking-wide);
+  color: var(--platform-light);
+  font-size: var(--text-md);
+}
+.summary dd {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  color: var(--score-white);
+  font-size: var(--text-lg);
+  text-shadow: 0 0 8px rgb(var(--hud-teal-rgb) / .45);
+}
+.summary dd.ok { color: var(--crit-gold); text-shadow: 0 0 8px rgb(var(--crit-gold-rgb) / .5); }
+
+/* ============================================================
+   dev-6 — pulido estético: paneles, transiciones, animaciones
+   ============================================================ */
+
+/* dev-7 fase 57: el overlay translúcido SOLO del menú se fue cuando el
+   overlay es de PANTALLA COMPLETA (ahí el velo es uniforme); en
+   escritorio conserva su velo claro de "portada" (ver arriba). */
+
+/* dev-7 fase 29: en calidad gráfica "BAJA" se apaga el desenfoque de los
+   overlays. El `backdrop-filter: blur()` se recalcula en cada frame
+   (el canvas de detrás se mueve) y sin GPU es carísimo: medido en Chrome
+   sin aceleración, el modal de cartas con blur de 7 px pasaba de 34 FPS
+   a 4,6 FPS. El velo opaco se queda, así que el texto se lee igual. */
+.gdf-lowq .screen::before,
+.gdf-lowq #card-choice,
+.gdf-lowq #combo-panel,
+.gdf-lowq .overlay-veil {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* dev-7 fase 42: en calidad BAJA se apagan TAMBIÉN los glows y las
+   animaciones. Apagar sólo el backdrop-filter no bajaba el coste real:
+   los box-shadow/text-shadow se repintan en cada frame y las
+   animaciones infinitas (pulso del ultimate, cartel de BOSS, latido de
+   la legendaria) mantenían la pantalla repintándose para siempre.
+   La UI sigue igual de legible: los colores de texto y los bordes NO
+   se tocan, sólo desaparecen los halos y el movimiento. */
+.gdf-lowq *,
+.gdf-lowq *::before,
+.gdf-lowq *::after {
+  animation: none !important;
+  transition: none !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+/* Las cartas del modal de nivel se muestran YA reveladas (sin el flip
+   no pasarían de `opacity: 0`) y la carta ya elegida sigue en gris:
+   es información, no decoración. */
+.gdf-lowq .card-choice-card:not(.dealt-out) {
+  transform: none;
+  opacity: 1;
+}
+.gdf-lowq .card-choice-card.dealt-out { filter: grayscale(.55) !important; }
+
+/* dev-7 fase 29: el bloque "LO QUE PERDISTE" de la pantalla de derrota.
+   Antes la pantalla de GAME OVER sólo decía el score: el jugador no
+   sabía qué había hecho en la run ni lo que esa run le costó. */
+.lost-box {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgb(var(--boss-red-rgb) / .28);
+  border-radius: var(--radius-m);
+  background: rgba(60, 12, 12, .30);
+}
+.lost-box .lost-title {
+  margin: 0 0 6px;
+  font-family: var(--font-title);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-caps);
+  color: var(--boss-red);
+  text-align: center;
+}
+.lost-box .summary { margin: 0; }
+.lost-box .summary dt { color: rgb(var(--crit-gold-rgb) / .78); }
+.lost-box .summary dd { color: var(--score-white); }
+
+/* dev-7 fase 29: el desglose del score en STAGE CLEAR (por kills / por
+   clear / por HP) — cada línea con su color para que se lea el reparto. */
+.summary dt { color: rgba(190, 205, 220, .75); }
+.summary dd { font-variant-numeric: tabular-nums; }
+
+/* ============================================================
+   dev-7 fase 32 — TIPOS DE DAÑO
+   La leyenda de la matriz (tipo × familia de enemigo) y el
+   distintivo de tipo por unidad.
+   ============================================================ */
+
+/* El distintivo de tipo (glifo + color) en el panel de combos. */
+.dmg-badge {
+  display: inline-block;
+  min-width: 16px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 15px;
+  color: var(--dmg-color, #fff);
+  text-shadow: 0 0 8px var(--dmg-color, #fff);
+  border: 1px solid color-mix(in srgb, var(--dmg-color, #fff) 45%, transparent);
+  border-radius: var(--radius-xs);
+  padding: 0 3px;
+  margin: 0 4px;
+}
+
+/* La leyenda de la matriz. */
+.dmg-legend {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  margin: var(--space-2) 0 var(--space-3);
+  color: rgba(200, 215, 230, .9);
+}
+.dmg-legend th,
+.dmg-legend td {
+  border: 1px solid rgb(var(--legend-ice-rgb) / .18);
+  padding: 3px var(--space-2);
+  text-align: center;
+  font-weight: 600;
+}
+.dmg-legend thead th {
+  color: var(--hud-teal);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-narrow);
+}
+.dmg-legend tbody th {
+  text-align: left;
+  color: var(--score-white);
+  white-space: nowrap;
+}
+.dmg-legend td.leg-weak { color: #8CFFB0; background: rgba(80, 255, 160, .10); }
+.dmg-legend td.leg-resist { color: #FF9A9A; background: rgba(255, 100, 100, .08); }
+.dmg-legend .leg-glyph { margin-right: 3px; }
+
+/* El bloque de la leyenda dentro de la pantalla de torretas. */
+.meta-legend {
+  margin: var(--space-3) 0 var(--space-2);
+  padding: var(--space-3) 10px;
+  border: 1px solid rgb(var(--legend-ice-rgb) / .20);
+  border-radius: var(--radius-m);
+  background: rgba(10, 30, 34, .45);
+}
+.meta-legend-title {
+  margin: 0 0 6px;
+  font-family: var(--font-title);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  color: var(--hud-teal);
+  text-align: center;
+}
+.meta-legend-note {
+  margin: 6px 0 0;
+  font-size: var(--text-xs);
+  color: rgba(200, 215, 230, .7);
+  text-align: center;
+}
+/* Panel tarjeta con marco neón (SELECT/PAUSA/CLEAR/OVER) */
+.panel {
+  position: relative; /* ancla los destellos/íconos decorativos (dev-7 f2) */
+  width: min(420px, 92%);
+  padding: 22px 20px 20px;
+  border: 1px solid rgb(var(--hud-teal-rgb) / 0.28);
+  border-radius: var(--radius-m);
+  background: linear-gradient(180deg, rgba(18, 24, 28, 0.94), rgba(10, 13, 16, 0.96));
+  box-shadow: 0 0 22px rgb(var(--hud-teal-rgb) / 0.14), inset 0 0 18px rgba(15, 42, 40, 0.30);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ---------- dev-7 fase 2: acentos con sprites reales en STAGE_CLEAR /
+   GAME_OVER (ver assets/sprites/ui_tinted/) ---------- */
+.clear-sparkle {
+  position: absolute;
+  pointer-events: none;
+  width: 34px;
+  height: 34px;
+  animation: sparkle-twinkle 1.8s ease-in-out 4;
+}
+.clear-sparkle.tl { top: -10px; left: -6px; animation-delay: 0s; }
+.clear-sparkle.tr { top: -14px; right: -4px; width: 24px; height: 24px; animation-delay: .6s; }
+.clear-sparkle.br { bottom: 30px; right: 10px; width: 20px; height: 20px; animation-delay: 1.1s; }
+@keyframes sparkle-twinkle {
+  0%, 100% { opacity: .25; transform: scale(.75) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.05) rotate(12deg); }
+}
+.danger-icon {
+  width: 26px;
+  height: 26px;
+  vertical-align: -5px;
+  margin-right: 6px;
+  filter: drop-shadow(0 0 6px rgb(var(--boss-red-rgb) / .9));
+  animation: boss-tag-blink 1.1s steps(2, end) 6;
+}
+
+/* Entrada suave de cada pantalla overlay (se re-renderiza al mostrarse) */
+#overlay-root .screen { animation: screen-in 0.28s cubic-bezier(0.2, 0.8, 0.3, 1); }
+@keyframes screen-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Título del menú con glow arcade pulsante (fase 42: 3 pulsos y para,
+   antes latía eternamente) */
+.game-title { animation: title-glow 2.4s ease-in-out 3; }
+@keyframes title-glow {
+  0%, 100% { text-shadow: 0 0 14px rgba(247, 168, 36, .42), 0 0 4px rgba(255, 221, 85, .25); }
+  50% { text-shadow: 0 0 26px rgba(247, 168, 36, .85), 0 0 9px rgba(255, 221, 85, .55); }
+}
+
+.menu-hint { margin-top: 8px; }
+
+/* dev-7 fase 13: selector de temas en el MENÚ (theme.js) */
+.theme-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin: 10px 0 0;
+}
+/* dev-7 fase 44 — los swatches eran CÍRCULOS pastel: la única
+   paleta cálida/pastel de toda la UI y un lenguaje distinto al del
+   juego (silueta + neón). Ahora son cuadrados redondeados (radio
+   del sistema) con el degradado del tema, borde teal FINO y el
+   estado activo marcado con borde grueso + halo. */
+/* dev-7 fase 55 — EL SELECTOR DE TEMA.
+   El botón ya no es un cuadrado de color: es una MINIATURA de 4
+   muestras (acento · dorado · fondo · rojo, pintadas por el
+   `conic-gradient` que pone el HTML) con el NOMBRE del tema escrito
+   DEBAJO. Antes el nombre solo vivía en el `title` del botón, que
+   en un teléfono no se ve: el jugador tenía que adivinar de qué
+   color era cada tema. */
+.theme-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 58px;
+  padding: 3px 2px 4px;
+  border-radius: var(--radius-m);
+  border: 1.5px solid rgb(var(--hud-teal-rgb) / .45);
+  cursor: pointer;
+  /* El boton NO lleva fondo: la MINIATURA es su propio bloque (abajo),
+     para que el nombre se lea sobre el fondo de la pantalla y no sobre
+     los colores de la muestra. */
+  background: rgba(10, 12, 16, .55);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, .55),
+    inset 0 0 10px rgba(0, 0, 0, .35),
+    0 0 8px rgb(var(--hud-teal-rgb) / .18);
+  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+/* La miniatura: 4 cuadrantes del tema (acento, dorado, fondo, rojo). */
+.theme-swatch-chip {
+  display: block;
+  width: 100%;
+  height: 20px;
+  border-radius: var(--radius-xs);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .45);
+}
+/* El nombre bajo la miniatura: micro-texto, sin mayusculas (el
+   `text-transform` del rótulo "Tema: X" ya pone el nombre en juego). */
+.theme-swatch-name {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0;
+  color: var(--platform-light);
+  text-align: center;
+  white-space: nowrap;
+}
+.theme-swatch:hover {
+  transform: translateY(-2px) scale(1.06);
+  border-color: rgb(var(--hud-teal-rgb) / .9);
+}
+.theme-swatch.active {
+  border-color: var(--hud-teal);
+  border-width: 2px;
+  box-shadow:
+    0 0 0 1px rgb(var(--hud-teal-rgb) / .35),
+    0 0 14px rgb(var(--hud-teal-rgb) / .55),
+    inset 0 0 10px rgba(0, 0, 0, .3);
+  transform: translateY(-2px) scale(1.06);
+}
+/* El activo también dice cuál es por el texto, no solo por el marco. */
+.theme-swatch.active .theme-swatch-name { color: var(--hud-teal); }
+.theme-picker-label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--platform-light);
+  margin-top: 4px;
+}
+/* dev-7 fase 19: selector de calidad gráfica (quality.js) */
+.quality-picker {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  margin-top: 10px;
+}
+.quality-btn {
+  padding: 6px var(--space-4);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-narrow);
+  color: var(--platform-light);
+  background: rgba(15, 20, 24, .6);
+  border: 1px solid rgba(159, 180, 200, .35);
+  border-radius: var(--radius-l);
+  cursor: pointer;
+  transition: border-color .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.quality-btn:hover { border-color: rgba(255, 255, 255, .5); }
+.quality-btn.active {
+  color: var(--score-white);
+  border-color: var(--hud-teal);
+  box-shadow: 0 0 10px rgb(var(--hud-teal-rgb) / .4);
+}
+.version {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-wide);
+  color: rgba(159, 180, 200, .5);
+  margin-top: 6px;
+}
+
+/* Subida de nivel: label y barra XP "chispean" (D14/D7) */
+.lv-label.lv-pop { animation: lv-pop .5s ease; }
+@keyframes lv-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.35); filter: brightness(1.7); }
+  100% { transform: scale(1); }
+}
+.xp-bar > span.xp-flash { animation: xp-flash .5s ease; }
+@keyframes xp-flash {
+  0%, 100% { filter: brightness(1); }
+  25%, 75% { filter: brightness(2.2); }
+}
+
+/* Accesibilidad de teclado: el anillo teal es GLOBAL (fase 42, ver
+   `:where(button, [tabindex]):focus-visible` arriba). Antes sólo lo
+   tenían .btn/.btn-round y los controles del meta/perk; el resto
+   (theme-swatch, quality-btn, combo-btn) caía al anillo del sistema. */
+
+/* Touch: botones más grandes (objetivo de toque cómodo) */
+@media (pointer: coarse) {
+  .btn { padding: 14px 26px; font-size: var(--text-lg); }
+  .btn-round { width: 52px; height: 52px; }
+  .hud-row { gap: var(--space-3); }
+  .stage-name { font-size: var(--text-md); }
+  /* dev-7 fase 38 — los atajos de TECLADO no existen en un teléfono:
+     la fila "[P] pausa · [1][2][3] velocidad · [Espacio] ultimate ·
+     [B] black hole" del menú se oculta con puntero grueso (en
+     escritorio sigue igual). */
+  .menu-hint { display: none; }
+  /* dev-7 fase 44 — idem para el hint de teclado de la PAUSA. */
+  .pause-hint { display: none; }
+}
+
+/* ============================================================
+   dev-7 fase 28 — AVISO DE ARRANQUE FALLIDO
+   Si el módulo de entrada no cargó (típico: abrir index.html con
+   doble clic → los ES modules los bloquea el navegador por CORS)
+   o el juego se quedó sin frames por un error fatal, se explica
+   qué hacer en vez de dejar una pantalla negra.
+   ============================================================ */
+#boot-error {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(180deg, #101318, #05070F);
+  font-family: var(--font-body);
+  color: var(--hud-text);
+  text-align: center;
+}
+#boot-error[hidden] { display: none; }
+#boot-error .boot-error-box { max-width: 460px; }
+#boot-error h1 {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  letter-spacing: var(--tracking-normal);
+  color: var(--hud-teal);
+  margin: 0 0 14px;
+}
+#boot-error p { font-size: var(--text-md); line-height: 1.5; margin: 0 0 12px; opacity: .9; }
+#boot-error code {
+  font-family: var(--font-mono);
+  background: rgb(var(--hud-teal-rgb) / .12);
+  border: 1px solid rgb(var(--hud-teal-rgb) / .3);
+  border-radius: var(--radius-xs);
+  padding: 2px 6px;
+  color: var(--hud-teal);
+}
+
+/* ============================================================
+   v3 4/7 — BUG-010: ORIENTACIÓN PORTRAIT FORZADA en mobile
+   El juego es portrait (540×880 §1.4). En móviles/touch landscape
+   se muestra un aviso a pantalla completa pidiendo girar el
+   dispositivo. En desktop NO aplica: solo entra por pointer coarse.
+   ============================================================ */
+#rotate-hint {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: none; /* visible SOLO con la clase .show */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: linear-gradient(180deg, #101318, #05070F);
+  text-align: center;
+}
+#rotate-hint.show { display: flex; }
+#rotate-hint .rotate-icon {
+  /* dev-7 fase 53: el `font-size: 64px` era un resto del emoji 📱 (el
+     SVG de dentro ya tiene su propio width/height de 64 px): quitarlo deja
+     la escala tipografica sin un tamano fuera de ella que no hace nada. */
+  color: var(--hud-teal);
+  text-shadow: 0 0 24px rgb(var(--hud-teal-rgb) / .55);
+  animation: rotate-wiggle 1.6s ease-in-out 3;
+}
+@keyframes rotate-wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  45%, 55% { transform: rotate(-90deg); } /* sugiere girar el móvil */
+}
+#rotate-hint .rotate-text {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: var(--text-xl);
+  letter-spacing: var(--tracking-caps);
+  color: var(--score-white);
+  text-shadow: 0 0 12px rgb(var(--hud-teal-rgb) / .4);
+}
+#rotate-hint .rotate-sub {
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  color: var(--platform-light);
+}
+
+/* Landscape + pantalla táctil = aviso visible (BUG-010).
+   Desktop (mouse/trackpad) nunca lo ve: no es coarse. */
+@media (pointer: coarse) and (orientation: landscape) {
+  #rotate-hint.show { display: flex; }
+}
+
+/* Usuarios sensibles al movimiento: sin shake glow continuo */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01s !important; animation-iteration-count: 1 !important; transition-duration: 0.01s !important; }
+}
+
+/* ============================================================
+   v3-1/7 — CARD CHOICE (modal LEVEL UP, §4.4/D7) + COMBO LIST
+   ============================================================ */
+
+/* ---------- dev-7 fase 45: el VELO COMPARTIDO de los overlays ----------
+   El modal de cartas (#card-choice) y el panel de combos son el MISMO
+   overlay: mismo velo, mismo desenfoque, mismo padding y mismo gap.
+   Antes el panel de combos replicaba todo eso en una cadena de estilos
+   inline (COMBO_OVERLAY_STYLE, js/hud.js) y cualquier cambio había que
+   hacerse dos veces. Ahora hay UNA clase: `.overlay-veil`.
+   Para usarla: el nodo del overlay lleva `class="overlay-veil"` y se
+   borra el string inline de JS. Los valores salen de los tokens
+   --overlay-veil-*, los MISMOS que usa #card-choice: el velo tiene que
+   ser idéntico en los dos.
+
+   dev-7 fase 57: los dos cuelgan de #overlay-stage (pantalla real), así
+   que `inset: 0` los llena entero (antes llenaban el marco). */
+.overlay-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--overlay-veil-gap);
+  padding: var(--overlay-veil-pad);
+  background: var(--overlay-veil-bg);
+  backdrop-filter: blur(var(--overlay-veil-blur));
+  -webkit-backdrop-filter: blur(var(--overlay-veil-blur));
+}
+
+/* Modal sobre el HUD (el canvas sigue visible detrás, congelado).
+   dev-7 fase 57: cuelga de #overlay-stage (la pantalla real), no del
+   marco: por eso la columna de cartas tiene el alto de la PANTALLA y
+   no el del marco (607 px en un móvil de 390×844). */
+#card-choice {
+  position: absolute;
+  inset: 0;
+  z-index: 40; /* sobre hud-top/bottom/boss-bar, bajo nada más */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  /* dev-7 fase 45: el velo sale de los MISMOS tokens que usa la clase
+     .overlay-veil (el panel de combos): el velo tiene que ser idéntico
+     en los dos overlays. */
+  gap: var(--overlay-veil-gap);
+  padding: var(--overlay-veil-pad);
+  background: var(--overlay-veil-bg);
+  backdrop-filter: blur(var(--overlay-veil-blur));
+  -webkit-backdrop-filter: blur(var(--overlay-veil-blur));
+}
+#card-choice.hidden { display: none; }
+
+/* Título "Mejora de Nivel" (v3.1): bold con GLOW pronunciado como la
+   referencia levelup — dorado intenso con halo doble pulsante.
+   dev-7 fase 45: 34px queda FUERA de la escala tipográfica a propósito:
+   es un título en Orbitron y es el elemento que ancla el modal; con
+   --text-2xl (30 px) el "Mejora de Nivel" pierde el aire de la referencia. */
+.card-title {
+  font-family: var(--font-title);
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: var(--crit-gold);
+  text-shadow:
+    0 0 10px rgb(var(--crit-gold-rgb) / .85),
+    0 0 30px rgb(var(--crit-gold-rgb) / .45);
+  animation: title-glow 2.4s ease-in-out 3;
+  margin: 0;
+}
+
+/* Encabezado "Fase Normal N · Nvl.X" (v3.1, reference-levelup) */
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  width: min(480px, 94%);
+  padding: 0 6px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--text-md);
+  letter-spacing: var(--tracking-normal);
+  color: rgba(200, 216, 224, .85);
+}
+.card-head span:last-child { color: var(--hud-teal); }
+
+/* Botón verde redondeado "Lista de Combos" (v3.1, reference-levelup) */
+.combo-btn {
+  align-self: center;
+  margin-left: 8px;
+  padding: 5px 16px;
+  border: none;
+  border-radius: var(--radius-l);
+  /* dev-7 fase 53: verde literal -> token (reskinea con el tema). */
+  background: linear-gradient(180deg, var(--hp-green), rgb(var(--hp-green-rgb) / .6));
+  color: #06281A;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--text-md);
+  letter-spacing: var(--tracking-normal);
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 0 12px rgb(var(--hp-green-rgb) / .45);
+  transition: box-shadow .15s ease, transform .1s ease;
+}
+.combo-btn:hover { box-shadow: 0 0 18px rgb(var(--hp-green-rgb) / .75); }
+.combo-btn:active { transform: translateY(1px); }
+
+/* Badge circular verde de nivel en cada carta (v3.1) */
+.card-lv-badge {
+  position: absolute;
+  top: -10px;
+  right: -6px;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  /* dev-7 fase 53: el verde iba en hexadecimal SUELTO (#4BE89A): no
+     reskineaba con el tema. Ahora usa el token del verde de la UI. */
+  background: radial-gradient(circle at 35% 30%, var(--hp-green), rgb(var(--hp-green-rgb) / .55));
+  color: #06281A;
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: var(--text-xs);
+  box-shadow: 0 0 10px rgb(var(--hp-green-rgb) / .6);
+}
+.card-choice-card { position: relative; }
+.card-gems {
+  font-style: normal;
+  color: var(--crit-gold);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-shadow: 0 0 6px rgb(var(--crit-gold-rgb) / .5);
+}
+
+/* Fila de torres poseídas + pips (§4.4) */
+.own-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+.own-tower {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-2) 10px;
+  border: 1px solid rgb(var(--hud-teal-rgb) / .35);
+  border-radius: var(--radius-l);
+  background: var(--hud-panel);
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  color: var(--hud-teal);
+}
+.own-tower i { font-style: normal; color: var(--crit-gold); letter-spacing: var(--tracking-normal); }
+
+/* Fila de 3 cartas con reveal flip escalonado 0/120/240 ms */
+.cards-row {
+  display: flex;
+  gap: var(--space-4);
+  justify-content: center;
+  align-items: stretch;
+  /* dev-7 fase 38 — la fila mide contra el ANCHO ÚTIL DEL MARCO, no
+     contra el viewport (a 360 px de pantalla el marco mide 344 px: con
+     `width: min(160px, 31vw)` la fila daba 352 px y la 1ª/3ª carta
+     quedaban CORTADAS por el overflow:hidden del marco). */
+  width: 100%;
+  max-width: 100%;
+  flex: 0 0 auto; /* no se aplasta: si no, el contenido de la carta desborda */
+}
+.card-choice-card {
+  --deal-delay: 0ms;
+  /* fase 38 — el ancho de la carta es el del marco repartido entre las 3
+     (flex-basis 0 + grow 1), con min-width:0 para que el texto pueda
+     envolver. max-width conserva el ancho de diseño en desktop. */
+  flex: 1 1 0;
+  min-width: 0;
+  width: auto;
+  max-width: 150px;
+  min-height: 210px;
+  padding: 12px 10px;
+  border: 1.5px solid var(--card-border);
+  border-radius: var(--radius-m);
+  background: linear-gradient(180deg, var(--card-bg), #16332C);
+  box-shadow: 0 0 16px rgb(var(--hud-teal-rgb) / .22), inset 0 0 12px rgba(15, 42, 40, .5);
+  color: var(--card-text);
+  font-family: var(--font-body);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  /* Reveal: parte "dada vuelta" y se voltea escalonado */
+  transform: rotateY(90deg) scale(.9);
+  opacity: 0;
+  animation: card-flip .42s cubic-bezier(.2, .85, .3, 1.15) forwards;
+  animation-delay: var(--deal-delay);
+  transition: box-shadow .18s ease, transform .18s ease, border-color .18s ease;
+}
+@keyframes card-flip {
+  from { transform: rotateY(90deg) scale(.9); opacity: 0; }
+  60% { opacity: 1; }
+  to { transform: rotateY(0deg) scale(1); opacity: 1; }
+}
+.card-choice-card:hover, .card-choice-card:focus-visible {
+  border-color: #B7FFE9;
+  box-shadow:
+    0 0 26px rgb(var(--hud-teal-rgb) / .65),
+    0 0 46px rgb(var(--hud-teal-rgb) / .30),
+    inset 0 0 16px rgb(var(--hud-teal-rgb) / .25);
+  outline: none;
+}
+.card-choice-card:active { transform: translateY(2px) scale(.98); }
+
+/* dev-7 fase 11: rareza REAL (según el weight de cards.js) en vez del
+   "3 de 5" fijo que no significaba nada. 4 escalones, cada uno con su
+   propio color de borde/glow — de un vistazo se nota qué carta pesa más. */
+.card-choice-card.rarity-common {
+  border-color: var(--platform-light);
+  box-shadow: 0 0 14px rgba(159, 180, 200, .25), inset 0 0 12px rgba(159, 180, 200, .12);
+}
+.card-choice-card.rarity-common:hover, .card-choice-card.rarity-common:focus-visible {
+  border-color: #C9D8E4;
+  box-shadow: 0 0 22px rgba(159, 180, 200, .55), inset 0 0 14px rgba(159, 180, 200, .2);
+}
+.card-choice-card.rarity-uncommon {
+  border-color: var(--hud-teal);
+  box-shadow: 0 0 16px rgb(var(--hud-teal-rgb) / .3), inset 0 0 12px rgb(var(--hud-teal-rgb) / .16);
+}
+.card-choice-card.rarity-uncommon:hover, .card-choice-card.rarity-uncommon:focus-visible {
+  border-color: #B7FFE9;
+  box-shadow: 0 0 26px rgb(var(--hud-teal-rgb) / .65), 0 0 46px rgb(var(--hud-teal-rgb) / .3), inset 0 0 16px rgb(var(--hud-teal-rgb) / .25);
+}
+.card-choice-card.rarity-rare {
+  border-color: var(--rarity-rare);
+  box-shadow: 0 0 18px rgb(var(--rarity-rare-rgb) / .4), inset 0 0 12px rgb(var(--rarity-rare-rgb) / .2);
+}
+.card-choice-card.rarity-rare:hover, .card-choice-card.rarity-rare:focus-visible {
+  border-color: #DCC8FF;
+  box-shadow: 0 0 28px rgb(var(--rarity-rare-rgb) / .75), 0 0 48px rgb(var(--rarity-rare-rgb) / .35), inset 0 0 16px rgb(var(--rarity-rare-rgb) / .3);
+}
+.card-choice-card.rarity-legendary {
+  border-color: var(--crit-gold);
+  box-shadow: 0 0 20px rgb(var(--crit-gold-rgb) / .45), inset 0 0 14px rgb(var(--crit-gold-rgb) / .22);
+  /* fase 42: la carta legendaria late 3 veces (con el flip de entrada)
+     y después queda quieta: el brillo lo aporta su propia sombra. */
+  animation: card-flip .42s cubic-bezier(.2, .85, .3, 1.15) forwards, legendary-pulse 2.2s ease-in-out .5s 3;
+}
+.card-choice-card.rarity-legendary:hover, .card-choice-card.rarity-legendary:focus-visible {
+  border-color: #FFE9A8;
+  box-shadow: 0 0 30px rgb(var(--crit-gold-rgb) / .8), 0 0 52px rgb(var(--crit-gold-rgb) / .4), inset 0 0 18px rgb(var(--crit-gold-rgb) / .35);
+}
+@keyframes legendary-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgb(var(--crit-gold-rgb) / .45), inset 0 0 14px rgb(var(--crit-gold-rgb) / .22); }
+  50% { box-shadow: 0 0 30px rgb(var(--crit-gold-rgb) / .75), inset 0 0 18px rgb(var(--crit-gold-rgb) / .4); }
+}
+
+/* Colores de los diamantes/etiqueta de rareza — el mismo tono del borde,
+   para que gems + label + marco cuenten la misma historia. */
+.rarity-common .card-gems, .rarity-common .card-rarity-label { color: var(--platform-light); }
+.rarity-uncommon .card-gems, .rarity-uncommon .card-rarity-label { color: var(--hud-teal); }
+.rarity-rare .card-gems, .rarity-rare .card-rarity-label { color: var(--rarity-rare); }
+.rarity-legendary .card-gems, .rarity-legendary .card-rarity-label { color: var(--crit-gold); }
+.card-rarity-label {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  opacity: .85;
+  margin-top: -4px;
+}
+
+/* Badge "NUEVO" (cartas que desbloquean torre/dron) — violeta en vez del
+   verde "+1" genérico, para no decir "+1" de algo que no es un número. */
+.card-lv-badge.is-new {
+  width: auto;
+  padding: 0 8px;
+  border-radius: var(--radius-l);
+  /* dev-7 fase 53: otro violeta SUELTO (#C8A8FF): ahora el de la rareza
+     "rara", que es el unico violeta de la escala de cartas. */
+  background: radial-gradient(circle at 35% 30%, #DCC8FF, var(--rarity-rare));
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-normal);
+  box-shadow: 0 0 10px rgb(var(--rarity-rare-rgb) / .6);
+}
+
+.card-inner { display: flex; flex-direction: column; gap: var(--space-3); text-align: center; flex: 0 0 auto; }
+.card-name {
+  font-weight: 700;
+  font-size: var(--text-md);
+  letter-spacing: var(--tracking-normal);
+  /* dev-7 fase 53 (UN COLOR, UN SIGNIFICADO): el nombre de la carta es
+     NEUTRO. Antes era dorado en TODAS las cartas, y con eso (a) el canal
+     "rareza" se apagaba (todas las cartas parecían legends) y (b) el
+     dorado decía dos cosas a la vez en la MISMA pantalla donde el
+     jugador elige por color: "ganancia/recompensa" y "rareza".
+     El dorado queda para lo que SÍ es una recompensa: la carta legendaria
+     (abajo) y las recompensas de verdad. */
+  color: var(--card-text);
+}
+/* La carta LEGENDARIA sí se pone dorada: es la recompensa. */
+.rarity-legendary .card-name {
+  color: var(--crit-gold);
+  text-shadow: 0 0 8px rgb(var(--crit-gold-rgb) / .55);
+}
+.card-desc { font-size: var(--text-sm); line-height: 1.35; color: rgba(232, 255, 246, .82); }
+
+#card-choice .hint { margin-top: 4px; }
+
+/* Panel COMBO LIST (BUG-005) reutiliza el mismo modal */
+.combo-panel {
+  width: min(360px, 88%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-height: 60vh;
+  overflow-y: auto;
+  touch-action: pan-y; /* deslizar con el dedo */
+}
+.combo-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border: 1px solid rgb(var(--hud-teal-rgb) / .25);
+  border-radius: var(--radius-s);
+  background: var(--hud-panel);
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  color: var(--card-text);
+}
+.combo-row b { flex: 1; text-align: left; letter-spacing: var(--tracking-normal); }
+.combo-row i { font-style: normal; color: var(--crit-gold); letter-spacing: var(--tracking-normal); }
+.combo-row small { color: var(--platform-light); }
+.combo-slot { color: var(--platform-light); font-size: var(--text-xs); }
+.combo-mods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: center;
+}
+.combo-mods span {
+  padding: 3px 10px;
+  border-radius: var(--radius-l);
+  border: 1px solid rgb(var(--crit-gold-rgb) / .4);
+  color: var(--crit-gold);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+/* Touch: cartas cómodas de tocar */
+@media (pointer: coarse) {
+  .cards-row { gap: 10px; }
+  /* fase 38: NADA de px/vw — el ancho sale del marco (flex: 1 1 0). */
+  .card-choice-card { max-width: 160px; min-height: 220px; }
+}
+
+/* ============================================================
+   dev-7 fase 38 — MÓVIL: el MARCO angosto (< 380 px de ancho)
+   ============================================================
+   A 360 px de pantalla el marco mide 344 px: 3 cartas en fila quedan
+   de 92 px (letra microscópica) y el alto del modal no alcanza. Con
+   un marco angosto las cartas se APILAN en una columna y la columna
+   scrollea por dentro (el modal es un overlay: no scrollea la página).
+   El breakpoint mide el MARCO (container query), no el viewport. */
+@container marco (max-width: 380px) {
+  #card-choice {
+    justify-content: flex-start; /* con contenido largo no se corta arriba */
+    overflow: hidden;
+    padding: 12px;     /* más ancho útil para las cartas */
+  }
+  .card-title {
+    font-size: var(--text-xl);   /* "Mejora de Nivel" en UNA línea (34px no entra) */
+    letter-spacing: var(--tracking-caps);
+  }
+  .cards-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    flex: 1 1 auto;      /* ocupa el alto libre del modal */
+    min-height: 0;
+    overflow-y: auto;    /* scroll interno de la columna de cartas */
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+    padding: 2px;        /* el glow del borde no queda pegado al scroll */
+  }
+  .card-choice-card {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: none;
+    min-height: 0;
+  }
+  .card-choice-card .card-name { font-size: var(--text-lg); }
+  .card-choice-card .card-desc { font-size: var(--text-md); }
+}
+
+/* ============================================================
+   dev-7 fase 38 — STAGES: el nombre se lee entero en móvil
+   ============================================================
+   El auxiliar de la fila ("🔒 próximamente" / "récord 001000") le
+   robaba el ancho al nombre y TODOS los stages se leían "Normal…".
+   Con un marco de hasta 520 px el nombre baja a su propia línea y el
+   auxiliar (con las insignias BOSS/▶) queda en la línea 2, a la
+   derecha. Por arriba de 520 px de marco, la fila de una línea como
+   siempre (escritorio: el nombre tiene 139 px y entra de sobra). */
+@container marco (max-width: 520px) {
+  .btn.stage {
+    flex-wrap: wrap;
+    row-gap: var(--space-1);
+    width: 100%;      /* el 92% leave al nombre sin aire (eran 8px) */
+  }
+  .stage-list { padding-left: 4px; padding-right: 4px; }
+  .btn.stage .stage-title {
+    /* El nombre ocupa la línea 1 COMPLETA (punto + nombre): las
+       insignias (BOSS/▶) y el auxiliar bajan a la línea 2. El basis
+       descuenta el punto (10 px) + el gap (8 px) para que ambos quepan
+       en la misma línea. */
+    flex: 1 1 calc(100% - 18px);
+    min-width: 0;
+  }
+  .btn.stage small {
+    flex: 1 1 auto;   /* línea 2: se alinea a la derecha */
+    min-width: 0;
+    margin-left: 0;
+    text-align: right;
+    font-size: var(--text-sm);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Botón Black Hole (v3-3/7, §2.3): variante violeta del botón ultimate.
+   La visibilidad la maneja hud.js con la clase .hidden (carga lista). */
+.btn-round.bh {
+  /* dev-7 fase 53: el violeta literal (#B48CFF) ahora es token. */
+  color: var(--bh-violet);
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.btn-round.bh .bh-icon { font-size: var(--text-lg); text-shadow: 0 0 8px rgb(var(--bh-violet-rgb) / .8); }
+/* Medidor Black Hole (v4 4b/5): anillo de carga violeta como el ultimate */
+.btn-round.bh .bh-ring {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: conic-gradient(var(--bh-violet) 0deg, rgb(var(--bh-violet-rgb) / .15) 0deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  pointer-events: none;
+}
+.btn-round.bh .bh-count {
+  font-size: var(--text-xs);
+  margin-top: 1px;
+  color: var(--crit-gold);
+  font-family: var(--font-mono);
+}
+/* El pulso ready lo da la clase .ult compartida (.btn-round.ult.ready) */
+
+/* ============================================================
+   v3.5 — META-GAME: pantalla TORRETAS (reference-torretas.jpg)
+   Paleta del diseño base: fondos #0F2A28 semitransparentes,
+   acentos #35E0C8, texto blanco; oro dorado · gemas púrpura ·
+   energía azul. Nav inferior fija de 5 pestañas.
+   ============================================================ */
+
+/* dev-7 fase 57: la variante translúcida de TORRETAS (`.backdrop-meta`)
+   ahora solo se usa cuando el overlay NO es de pantalla completa
+   (escritorio): en móvil el velo es UNIFORME para todas las pantallas
+   (ver #overlay-stage[data-full]). */
+
+/* Pantalla: columna a tope, navegación inferior fija dentro del marco */
+.screen-meta {
+  width: 100%;
+  height: 100%;
+  padding: 12px 12px 0;
+  gap: 10px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch; /* hijos a lo ancho (sobreescribe .screen) */
+  position: relative;
+}
+
+/* ---------- Barra superior: badge + identidad + recursos ---------- */
+.meta-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex: 0 0 auto;
+}
+.meta-ident {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 74px;
+}
+/* Badge circular metálico con número (diseño base: aro metálico + nivel) */
+.meta-badge {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: var(--text-xl);
+  color: var(--score-white);
+  text-shadow: 0 0 8px rgb(var(--hud-teal-rgb) / .8);
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, .16), transparent 46%),
+    linear-gradient(160deg, #274046, #12262a 62%, #0B181B);
+  border: 2px solid var(--hud-teal-mute);
+  box-shadow:
+    0 0 12px rgb(var(--hud-teal-rgb) / .45),
+    inset 0 0 10px rgb(var(--hud-teal-rgb) / .18);
+}
+.meta-player {
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-narrow);
+  color: var(--platform-light);
+  font-weight: 600;
+}
+/* Recursos: celdas teal oscuro con botón + cuadrado (diseño base) */
+.meta-res {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 62%;
+}
+.meta-res-cell {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 6px 5px var(--space-3);
+  background: rgba(15, 42, 40, .88);
+  border: 1px solid rgb(var(--hud-teal-rgb) / .55);
+  border-radius: var(--radius-s);
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  color: var(--score-white);
+  text-shadow: 0 0 6px rgb(var(--hud-teal-rgb) / .4);
+}
+.meta-res-cell i { font-style: normal; font-size: var(--text-md); }
+.meta-res-cell.gold i { color: var(--crit-gold); filter: drop-shadow(0 0 4px rgb(var(--crit-gold-rgb) / .8)); }
+/* dev-7 fase 18: .meta-plus (botón "＋" de compra) sacado — no hay tienda
+   ni forma de comprar más oro/gemas/energía, mostrar un "＋" ahí solo
+   confundía (mismo motivo que ya sacó gemas/energía en la fase 16). */
+
+/* ---------- Banner "¿Cómo subo de nivel?" (antes: DAÑO CRÍTICO falso) --- */
+.meta-banner {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4) 9px;
+  background: rgba(15, 42, 40, .72);
+  border: 1px solid rgb(var(--hud-teal-rgb) / .4);
+  border-radius: var(--radius-m);
+  box-shadow: 0 0 14px rgb(var(--hud-teal-rgb) / .18), inset 0 0 14px rgba(15, 42, 40, .5);
+}
+.meta-banner-label {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-caps);
+  color: var(--platform-light);
+}
+.meta-banner-val {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: var(--text-2xl);
+  line-height: 1;
+  color: var(--hud-teal-lite);
+  text-shadow: 0 0 14px rgb(var(--hud-teal-lite-rgb) / .85);
+}
+.meta-banner-val small {
+  font-size: var(--text-md);
+  opacity: .7;
+  font-weight: 600;
+}
+.meta-banner-sub {
+  font-size: var(--text-sm);
+  color: rgba(159, 180, 200, .85);
+  text-align: center;
+}
+/* dev-7 fase 44 — banner plegable: el botón "?" que lo abre y el
+   bloque de detalle. Los integra js/hud.js (si la clase no existe
+   en el HTML, estas reglas simplemente no aplican). */
+.meta-banner-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  padding: 0;
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: var(--text-xs);
+  line-height: 1;
+  color: var(--hud-teal);
+  background: rgba(8, 18, 20, .8);
+  border: 1px solid rgb(var(--hud-teal-rgb) / .45);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 8px rgb(var(--hud-teal-rgb) / .25);
+  transition: transform .12s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.meta-banner-toggle:hover {
+  border-color: var(--hud-teal);
+  box-shadow: 0 0 12px rgb(var(--hud-teal-rgb) / .5);
+}
+.meta-banner-toggle:active { transform: scale(.94); }
+.meta-banner-more {
+  width: 100%;
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: rgba(214, 232, 240, .92);
+  text-align: left;
+  background: rgba(8, 18, 20, .6);
+  border: 1px solid rgb(var(--hud-teal-rgb) / .25);
+  border-radius: var(--radius-s);
+}
+.meta-banner-more p { margin: 0 0 4px; }
+.meta-banner-more p:last-child { margin-bottom: 0; }
+/* Plegado: se oculta con el atributo `hidden` o con la clase
+   `collapsed` (lo que use js/hud.js). */
+.meta-banner-more[hidden],
+.meta-banner-more.collapsed { display: none; }
+
+/* ---------- Grilla 3×3 de torretas (scrollable si no entra) ---------- */
+.meta-grid {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+  align-content: start;
+  overflow-y: auto;
+  padding-bottom: 66px; /* deja ver la nav inferior fija */
+  min-height: 0;
+  touch-action: pan-y; /* deslizar con el dedo */
+}
+
+/* dev-7 fase 39 — las SECCIONES del meta (Bestiario, Progreso) son
+   contenedores con su propio scroll, como la grilla de torretas. Antes
+   "Defensa" era un panel absoluto (position:absolute) que tapaba la
+   grilla por debajo. */
+.meta-section {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 0 2px 66px; /* deja ver la nav inferior fija */
+  min-height: 0;
+  touch-action: pan-y; /* deslizar con el dedo */
+}
+/* La sección de progreso: las mismas filas que usaba el panel. */
+.meta-section#meta-progreso .meta-def-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  border-bottom: 1px solid rgb(var(--hud-teal-rgb) / .18);
+}
+.meta-section#meta-progreso .meta-def-k {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--text-md);
+  letter-spacing: var(--tracking-narrow);
+  color: var(--platform-light);
+}
+.meta-section#meta-progreso b {
+  font-family: var(--font-num);
+  font-weight: 700;
+  font-size: var(--text-md);
+  color: var(--hud-teal);
+  text-align: right;
+}
+.meta-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 7px var(--space-2) var(--space-3);
+  background: rgba(15, 42, 40, .8);
+  border: 1px solid rgb(var(--hud-teal-rgb) / .38);
+  border-radius: var(--radius-m);
+  box-shadow:
+    0 0 10px rgb(var(--hud-teal-rgb) / .14),
+    inset 0 0 10px rgba(15, 42, 40, .55);
+  transition: box-shadow .12s ease;
+}
+.meta-card:active { box-shadow: 0 0 16px rgb(var(--hud-teal-rgb) / .55); }
+.meta-card-name {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-narrow);
+  color: var(--hud-teal-soft);
+  text-shadow: 0 0 7px rgb(var(--hud-teal-soft-rgb) / .55);
+  text-align: center;
+  line-height: 1.15;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+}
+.meta-card-icon {
+  width: 84px;
+  height: 72px;
+  image-rendering: auto;
+}
+.meta-card-lvl {
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  color: var(--score-white);
+  text-shadow: 0 0 6px rgba(255, 255, 255, .4);
+}
+.meta-card-bar {
+  display: block;
+  width: 88%;
+  height: 8px;
+  border-radius: var(--radius-xs);
+  background: #1E252B; /* fondo gris oscuro (diseño base) */
+  border: 1px solid rgb(var(--hud-teal-rgb) / .25);
+  overflow: hidden;
+}
+.meta-card-bar-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--hud-teal-deep), var(--hud-teal));
+  box-shadow: 0 0 8px rgb(var(--hud-teal-rgb) / .65);
+  transition: width .25s ease;
+}
+.meta-card.maxed .meta-card-bar-fill {
+  background: linear-gradient(90deg, var(--crit-gold), #FFF3C4);
+  box-shadow: 0 0 8px rgb(var(--crit-gold-rgb) / .7);
+}
+.meta-card-frags {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: rgba(159, 180, 200, .95);
+}
+.meta-card.maxed .meta-card-frags { color: var(--crit-gold); }
+/* v6: perk especial cada 10 niveles (JK 28-08)
+   Los perks ELEGIDOS se listan uno por línea (`<br>`) y el bloque se
+   recorta a 3 líneas: con 10 tiers de ~83 caracteres el texto grows
+   hasta ~46 líneas y la fila entera de la grilla se estiraba
+   (bug en mobile: ~110 px de ancho por card). El texto completo queda
+   en el `title` (hover) y en el modal de elección.
+
+   TRUNCADO LIMPIO (T2): sin `height` fijo (era lo que cortaba a media
+   palabra, sin ellipsis) y con `-webkit-line-clamp` + `text-overflow:
+   ellipsis` → el texto se corta SIEMPRE en el límite de línea y con
+   puntos suspensivos. `overflow-wrap: break-word` evita que una palabra
+   larga se salga de la caja (y quede cortada). */
+.meta-card-perk {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: break-word;
+  width: 100%;
+  max-width: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.25;
+  letter-spacing: var(--tracking-narrow);
+  text-align: center;
+  /* dev-7 fase 53: es texto normal (no de la leyenda): color neutro del
+     tema, sin halo. */
+  color: var(--platform-light);
+}
+/* Rótulo del tier pendiente / próximo a desbloquear: va APARTE para que
+   se lea ENTERO (el texto largo de abajo es el que se recorta). */
+.meta-card-perk-tier {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--text-xs);
+  line-height: 1.2;
+  letter-spacing: var(--tracking-narrow);
+  text-align: center;
+  color: var(--crit-gold);
+  text-shadow: 0 0 6px rgb(var(--crit-gold-rgb) / .4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Descripción del tier pendiente / próximo a desbloquear (3 líneas máx,
+   con ellipsis al final). */
+.meta-card-perk-next {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: break-word;
+  width: 100%;
+  max-width: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.25;
+  text-align: center;
+  color: rgb(var(--crit-gold-rgb) / .82);
+  text-shadow: 0 0 5px rgb(var(--crit-gold-rgb) / .3);
+}
+
+/* ---------- v5 5b/5: daño en partida + botón MEJORAR por card ---------- */
+.meta-card-dmg {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-narrow);
+  color: var(--crit-gold); /* dorado: el beneficio REAL en batalla */
+  text-shadow: 0 0 6px rgb(var(--crit-gold-rgb) / .4);
+}
+.meta-upgrade {
+  margin-top: 1px;
+  min-height: 24px; /* WCAG 2.2: objetivo táctil ≥ 24×24 px */
+  padding: 5px 9px 6px;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--text-xs);
+  line-height: 1.25;
+  letter-spacing: var(--tracking-narrow);
+  color: #06201E;
+  background: linear-gradient(180deg, var(--hud-teal-lite), var(--hud-teal-deep));
+  border: 1px solid rgb(var(--hud-teal-rgb) / .9);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  box-shadow: 0 0 10px rgb(var(--hud-teal-rgb) / .35);
+  transition: transform .08s ease, box-shadow .12s ease;
+}
+.meta-upgrade:active { transform: translateY(1px); }
+.meta-upgrade:disabled {
+  background: rgba(28, 38, 44, .92);
+  color: rgba(159, 180, 200, .5);
+  border-color: rgba(120, 140, 160, .3);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+/* dev-7 fase 18: "Faltan N fragmentos" — texto SIEMPRE visible (antes
+   vivía solo en el atributo title del botón, invisible en mobile). */
+.meta-card-need {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: rgba(255, 180, 120, .85);
+  margin-top: 1px;
+}
+
+/* ---------- fase 16: elección A/B de perks + REDISTRIBUIR ---------- */
+.meta-perk-pick {
+  display: inline-block;
+  margin: 2px 0 0;
+  min-height: 24px; /* WCAG 2.2: objetivo táctil ≥ 24×24 px */
+  min-width: 24px;
+  padding: var(--space-2) var(--space-3) 5px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.25;
+  letter-spacing: var(--tracking-narrow);
+  color: #06201E;
+  background: linear-gradient(180deg, var(--crit-gold), #E8A63A);
+  border: 1px solid rgb(var(--crit-gold-rgb) / .9);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  box-shadow: var(--shadow-2);
+  transition: transform .08s ease, box-shadow .12s ease;
+}
+.meta-perk-pick:hover { box-shadow: 0 0 12px rgb(var(--crit-gold-rgb) / .6); }
+.meta-perk-pick:active { transform: translateY(1px); }
+.meta-perk-reset {
+  margin-top: 2px;
+  min-height: 24px; /* WCAG 2.2: objetivo táctil ≥ 24×24 px */
+  min-width: 24px;
+  padding: var(--space-2) var(--space-3) 5px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.25;
+  letter-spacing: var(--tracking-narrow);
+  color: #FFB4A0;
+  background: rgba(70, 22, 12, .55);
+  border: 1px solid rgba(255, 140, 100, .5);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  transition: transform .08s ease, box-shadow .12s ease;
+}
+.meta-perk-reset:hover { box-shadow: 0 0 8px rgba(255, 140, 100, .4); }
+.meta-perk-reset:active { transform: translateY(1px); }
+.meta-reset-confirm { margin-top: 2px; padding: 3px 5px; }
+
+/* Modal de elección A/B (reusa #card-choice) */
+.perk-choice-row {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  margin: 10px 0 6px;
+  /* dev-7 fase 44: la fila toma TODO el ancho útil del modal. Antes
+     los botones se medían con `min(190px, 42vw)` — un 42vw del
+     VIEWPORT (no del marco) que a 360 px de pantalla se pasaba ~4 px
+     del ancho útil. Ahora la fila es la que manda y los dos botones
+     se reparten el espacio exacto (nunca desbordan). */
+  width: 100%;
+}
+.perk-choice-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  /* Se reparten la fila (basis 0) con un tope de 190 px para que en
+     pantallas anchas no se vuelvan botones gigante; `min-width: 0`
+     deja que el texto largo encoja en vez de desbordar. */
+  flex: 1 1 0;
+  max-width: 190px;
+  min-width: 0;
+  min-height: 24px; /* WCAG 2.2: objetivo táctil ≥ 24×24 px */
+  padding: 12px 10px;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--crit-gold, var(--crit-gold));
+  background: rgba(10, 22, 28, .92);
+  /* dev-7 fase 53: este boton NO es de la leyenda: usa el acento del
+     tema (como el resto de la UI). */
+  border: 1px solid rgb(var(--hud-teal-rgb) / .5);
+  border-radius: var(--radius-m);
+  cursor: pointer;
+  box-shadow: 0 0 10px rgb(var(--hud-teal-rgb) / .25);
+  transition: transform .08s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.perk-choice-btn i {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-style: normal;
+  letter-spacing: var(--tracking-narrow);
+  color: rgba(159, 180, 200, .8);
+}
+.perk-choice-btn:hover {
+  border-color: var(--crit-gold);
+  box-shadow: 0 0 14px rgb(var(--crit-gold-rgb) / .45);
+}
+.perk-choice-btn:active { transform: translateY(2px) scale(.98); }
+
+/* ---------- v5 5b/5: panel DEFENSA (resumen real, sin MTX) ---------- */
+.meta-panel {
+  position: absolute;
+  left: 12px; right: 12px; bottom: 74px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 11px 13px 12px;
+  background: rgba(10, 20, 22, .94);
+  border: 1px solid rgb(var(--hud-teal-rgb) / .5);
+  border-radius: var(--radius-m);
+  box-shadow: 0 0 16px rgb(var(--hud-teal-rgb) / .22), inset 0 0 14px rgba(15, 42, 40, .55);
+}
+.meta-panel.hidden { display: none; }
+.meta-def-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.3;
+}
+.meta-def-k { color: rgba(159, 180, 200, .92); }
+.meta-def-row b { color: var(--hud-teal-lite); font-weight: 700; white-space: nowrap; }
+.meta-def-row b:last-child { color: var(--crit-gold); }
+
+/* ---------- Hint transitorio (pestañas decorativas / sin MTX) ---------- */
+.meta-hint {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 74px;
+  z-index: 4; /* sobre el panel DEFENSA (z-index 3) cuando flashea */
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--hud-teal);
+  background: rgba(10, 20, 22, .92);
+  border: 1px solid rgb(var(--hud-teal-rgb) / .5);
+  border-radius: var(--radius-s);
+  padding: 7px 10px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition: opacity .18s ease, transform .18s ease;
+}
+.meta-hint.show { opacity: 1; transform: none; }
+
+/* ---------- Nav inferior fija: 5 pestañas, activa resaltada ---------- */
+.meta-nav {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  justify-content: space-around;
+  padding: 6px var(--space-2) var(--space-3);
+  background: linear-gradient(0deg, rgba(8, 14, 16, .96), rgba(8, 14, 16, .82));
+  border-top: 1px solid rgb(var(--hud-teal-rgb) / .28);
+  z-index: 2;
+}
+.meta-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: 24px; /* WCAG 2.2: objetivo táctil ≥ 24×24 px */
+  padding: 5px var(--space-1) var(--space-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  color: var(--hud-teal);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-narrow);
+  transition: background .15s ease, box-shadow .15s ease;
+}
+.meta-tab i {
+  font-style: normal;
+  font-size: var(--text-lg);
+  filter: drop-shadow(0 0 5px rgb(var(--hud-teal-rgb) / .5));
+  opacity: .85;
+}
+.meta-tab span { opacity: .85; }
+/* Pestaña activa: fondo cuadrado teal brillante (diseño base: "Torreta") */
+.meta-tab.active {
+  background: rgb(var(--hud-teal-rgb) / .92);
+  color: #06201E;
+  box-shadow: 0 0 14px rgb(var(--hud-teal-rgb) / .65);
+}
+.meta-tab.active i { filter: none; opacity: 1; }
+.meta-tab.active span { opacity: 1; font-weight: 700; }
+.meta-tab:hover { background: rgb(var(--hud-teal-rgb) / .18); }
+.meta-tab.active:hover { background: rgb(var(--hud-teal-rgb) / .92); }
+
+/* ============================================================
+   dev-7 fase 29 — HUD: rango, estado de batalla, aviso de jefe
+   y anti-doble-toque de las cartas.
+   ============================================================ */
+
+/* ---------- T1: badge del RANGO (ya no es un contador) ---------- */
+/* El badge circular con número queda para el rango: pasa a pastilla con
+   el NOMBRE del rango y su color (--rank-color lo pone el HTML). */
+.meta-badge.meta-badge-rank {
+  width: auto;
+  height: auto;
+  min-width: 52px;
+  padding: 6px 12px;
+  border-radius: var(--radius-l);
+  font-size: var(--text-md);
+  letter-spacing: var(--tracking-normal);
+  color: var(--rank-color, var(--score-white));
+  text-shadow: 0 0 8px var(--rank-color, rgb(var(--hud-teal-rgb) / .8));
+  border-color: var(--rank-color, var(--hud-teal-mute));
+  box-shadow:
+    0 0 12px var(--rank-color, rgb(var(--hud-teal-rgb) / .45)),
+    inset 0 0 10px rgba(0, 0, 0, .25);
+}
+/* Umbral del rango (de dónde viene el título y qué falta para el siguiente) */
+.meta-rank-min {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-narrow);
+  color: var(--platform-light);
+  white-space: nowrap;
+}
+
+/* ---------- T8: tira de estado de batalla (2ª fila del HUD) ----------
+   dev-7 fase 44: la tira pasa de 4 a 2 píldoras → menos gap y las
+   píldoras no estiran (quedan a la izquierda, pegadas a los
+   botones de la fila de arriba). */
+.hud-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px var(--space-2);
+  margin-top: 5px;
+  pointer-events: none; /* solo informa: nunca captura toques */
+}
+.hud-stat {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid rgb(var(--hud-teal-rgb) / .22);
+  border-radius: var(--radius-l);
+  background: rgba(10, 12, 16, .55);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+.hud-stat i {
+  font-style: normal;
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-normal);
+  color: var(--platform-light);
+}
+.hud-stat b {
+  font-weight: 700;
+  color: var(--hud-teal);
+  text-shadow: 0 0 6px rgb(var(--hud-teal-rgb) / .45);
+}
+
+/* ---------- T4: la carta ya elegida se apaga ---------- */
+/* !important: la animación de reveal (.card-flip) fija el transform al
+   terminar y, sin esto, ganaría a la regla normal. */
+.card-choice-card.dealt-out {
+  opacity: .35 !important;
+  transform: scale(.96) !important;
+  filter: grayscale(.55);
+  pointer-events: none;
+}
+
+/* ---------- T5: el panel 🃏 no se come el HUD ---------- */
+/* El overlay (pointer-events:none) atenúa el mundo pero deja pasar los
+   toques: los botones del HUD (pausa, ultimate, combo) siguen siendo
+   clicables con el panel abierto. Solo el cuerpo del panel y su botón
+   de cerrar capturan el puntero. */
+#combo-panel { pointer-events: none; }
+#combo-panel .combo-panel,
+#combo-panel .btn { pointer-events: auto; }
+
+/* ---------- BESTIARIO (fase 40) ----------
+   La sección de bestiario de la pantalla de torretas: una tarjeta por
+   enemigo con su icono (el draw real del juego), su chip de familia y
+   su fila de resistencias.
+
+   La fila de resistencias REUSA la clase .dmg-legend (y sus clases
+   .leg-weak / .leg-resist) de la leyenda de tipos de daño: el ×1,5
+   verde y el ×0,5 rojo son los MISMOS estilos, no una copia. */
+.bestiary {
+  flex: 0 0 auto; /* dentro de .screen-meta (columna flex) no se aplasta */
+  margin: 10px 0 4px;
+  padding: 10px 10px 12px;
+  border: 1px solid rgb(var(--legend-ice-rgb) / .20);
+  border-radius: var(--radius-m);
+  background: rgba(10, 30, 34, .45);
+}
+.bestiary-title {
+  margin: 0 0 4px;
+  font-family: var(--font-title);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  color: var(--hud-teal);
+  text-align: center;
+}
+.bestiary-note {
+  margin: 0 0 8px;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: rgba(200, 215, 230, .7);
+  text-align: center;
+}
+
+/* La rejilla de tarjetas: 2 columnas en móvil y más en pantallas anchas.
+   Por debajo de ~420 px pasa a 1 columna (el juego es móvil-first). */
+.bestiary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+@media (max-width: 420px) {
+  .bestiary-grid { grid-template-columns: 1fr; }
+}
+.bestiary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-3);
+  background: rgba(15, 42, 40, .55);
+  border: 1px solid rgb(var(--hud-teal-rgb) / .28);
+  border-radius: var(--radius-m);
+  box-shadow: inset 0 0 10px rgba(15, 42, 40, .45);
+}
+.bestiary-card.is-boss {
+  border-color: rgb(var(--boss-red-rgb) / .45);
+  box-shadow: inset 0 0 12px rgb(var(--boss-red-rgb) / .14);
+}
+.bestiary-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.bestiary-icon {
+  flex: 0 0 64px;
+  width: 64px;
+  height: 64px;
+  border: 1px solid rgb(var(--legend-ice-rgb) / .18);
+  border-radius: var(--radius-s);
+  background:
+    radial-gradient(circle at 50% 62%, rgb(var(--legend-ice-rgb) / .12), rgba(0, 0, 0, .30) 78%);
+}
+.bestiary-ident {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.bestiary-name {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  line-height: 1.2;
+  letter-spacing: var(--tracking-narrow);
+  color: var(--score-white);
+  text-shadow: 0 0 7px rgb(var(--hud-teal-soft-rgb) / .45);
+  overflow-wrap: anywhere;
+}
+.bestiary-badge {
+  padding: 0 6px;
+  border: 1px solid rgb(var(--boss-red-rgb) / .6);
+  border-radius: var(--radius-l);
+  background: rgb(var(--boss-red-rgb) / .16);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-normal);
+  line-height: 14px;
+  color: #FFB4B4;
+}
+/* El chip de familia: glifo + nombre, con el color de la familia. */
+.bestiary-family {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 1px 7px;
+  border-radius: var(--radius-l);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 15px;
+  color: var(--fam-color, #9AA7B4);
+  border: 1px solid color-mix(in srgb, var(--fam-color, #9AA7B4) 45%, transparent);
+  background: color-mix(in srgb, var(--fam-color, #9AA7B4) 12%, transparent);
+}
+.bestiary-family-glyph {
+  font-size: var(--text-xs);
+  line-height: 1;
+}
+
+/* Las stats: HP / velocidad / puntos. */
+.bestiary-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 10px;
+  margin: 0;
+}
+.bestiary-stat {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.bestiary-stat dt {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-narrow);
+  color: rgba(200, 215, 230, .65);
+}
+.bestiary-stat dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--hud-teal);
+}
+
+/* La fila de resistencias: es una mini tabla .dmg-legend (los colores
+   verde/rojo de .leg-weak / .leg-resist son los de la leyenda). */
+.bestiary-resist {
+  width: 100%;
+  table-layout: fixed;
+  margin: 0;
+  font-size: var(--text-xs);
+}
+.bestiary-resist td { padding: 2px 1px; }
+.bestiary-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+.bestiary-cell-glyph {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1;
+  text-shadow: 0 0 6px currentColor;
+}
+.bestiary-cell-mul {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   fase 65 — LAS VARIANTES DE ÉLITE (bestiario) y el sesgo de familia
+   ============================================================
+   La sección de variantes vive DENTRO del bestiario y reusa la misma
+   rejilla (.bestiary-grid): es un grupo más de fichas. El acento es
+   ÁMBAR (--fire-trail-2), distinto del teal del HUD y del rojo del
+   jefe: una variante no es un jefe, es un modificador. */
+.bestiary-variants {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid rgb(var(--hud-teal-rgb) / .18);
+}
+/* fase 68: siete fichas y textos más largos (qué hace + cómo se
+   contrarresta). La rejilla de variantes pide un poco más de ancho por
+   ficha que la de enemigos; por debajo de ~420 px sigue a 1 columna. */
+.bestiary-variants .bestiary-grid {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+@media (max-width: 420px) {
+  .bestiary-variants .bestiary-grid { grid-template-columns: 1fr; }
+}
+.bestiary-card.bestiary-variant {
+  border-left: 3px solid var(--fire-trail-2);
+  box-shadow: inset 0 0 10px rgba(15, 42, 40, .45), inset 3px 0 12px rgb(255 210 74 / .08);
+}
+.bestiary-card.bestiary-variant .bestiary-badge {
+  border-color: color-mix(in srgb, var(--fire-trail-2) 55%, transparent);
+  background: color-mix(in srgb, var(--fire-trail-2) 14%, transparent);
+  color: var(--fire-trail-2);
+}
+.bestiary-variant-effect,
+.bestiary-variant-counter {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: rgba(200, 215, 230, .82);
+}
+.bestiary-variant-counter { color: rgba(159, 180, 200, .78); }
+.bestiary-variant-effect i,
+.bestiary-variant-counter i {
+  font-style: normal;
+  font-family: var(--font-mono);
+  letter-spacing: var(--tracking-narrow);
+  color: var(--fire-trail-2);
+}
+.bestiary-variant-counter i { color: var(--hud-teal); }
+
+/* El sesgo de familia del selector de etapas ("STAGES 11-20 · roca / virus"):
+   dato secundario del título del bloque, en el teal del HUD y sin mayúsculas
+   forzadas (el título ya las lleva). */
+.stage-group-fam {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  letter-spacing: var(--tracking-normal);
+  text-transform: none;
+  color: rgb(var(--hud-teal-rgb) / .78);
+}
+
+/* ============================================================
+   dev-7 fase 41 — UN SOLO LENGUAJE DE ICONOS (SVG inline)
+   + la LEYENDA de tipos de daño como TOGGLE.
+
+   Todo lo de este bloque va AL FINAL a propósito: el CSS es de otro
+   agente en otro worktree y este bloque no pisa nada de lo suyo (son
+   selectores nuevos o reglas que extienden las de arriba).
+
+   Los iconos de la UI son SVG inline (mismo estilo de línea: viewBox
+   24×24, sin relleno, stroke="currentColor" → el color lo pone el
+   CSS). Antes eran emoji del sistema, que cada plataforma dibujaba
+   distinto y en la misma fila unos salían en color y otros en línea.
+   ============================================================ */
+
+/* ---------- Iconos SVG de la nav (los de las 5 pestañas) ---------- */
+/* El tamaño y el glow replican los que tenía el <i> con el emoji. */
+.meta-tab svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  filter: drop-shadow(0 0 5px rgba(53, 224, 200, .5));
+  opacity: .85;
+}
+.meta-tab.active svg { filter: none; opacity: 1; }
+
+/* ---------- Iconos SVG de los botones de texto (menú, pausa, etc.) ---- */
+/* Van dentro del rótulo: se alinean con la línea de texto. */
+.btn svg {
+  width: 17px;
+  height: 17px;
+  display: inline-block;
+  vertical-align: -3px;
+  margin-right: 6px;
+}
+.btn.big svg { width: 20px; height: 20px; vertical-align: -4px; }
+
+/* ---------- Botones redondos del HUD (combos y música) ---------------- */
+/* El SVG usa la misma clase que los sprites PNG (btn-icon-img) para
+   heredar el tamaño (20×20) y el glow. Con la música silenciada el
+   glow teal sobra: el icono queda gris, como el tachado. */
+.btn-round#btn-music.muted .btn-icon-img { filter: none; }
+
+/* ---------- El reloj del HUD (SVG en vez del emoji ⏱) ----------------- */
+.hud-timer { display: flex; align-items: center; gap: 6px; }
+.hud-timer-icon {
+  width: 15px;
+  height: 15px;
+  display: block;
+  flex: 0 0 auto;
+  opacity: .9;
+}
+
+/* ---------- El aviso de "girá el móvil" (SVG en vez del emoji 📱) ------ */
+#rotate-hint .rotate-icon svg {
+  width: 64px;
+  height: 64px;
+  display: block;
+}
+
+/* ---------- La LEYENDA de tipos de daño, como TOGGLE ------------------- */
+/* El botón vive en una barra propia, arriba (siempre alcanzable). */
+.meta-legend-bar {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+}
+.meta-legend-toggle {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-normal);
+  color: var(--hud-teal);
+  background: rgba(15, 42, 40, .72);
+  border: 1px solid rgba(53, 224, 200, .45);
+  border-radius: var(--radius-s);
+  padding: 6px 10px;
+  min-height: 24px; /* WCAG 2.2: objetivo táctil ≥ 24×24 px */
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.meta-legend-toggle:hover { background: rgba(53, 224, 200, .18); }
+.meta-legend-toggle[aria-expanded="true"] {
+  background: rgba(53, 224, 200, .92);
+  border-color: rgba(53, 224, 200, .9);
+  color: #06201E;
+}
+
+/* Abierta, la leyenda es un bloque con SU PROPIO scroll: así la última
+   fila se puede leer ENTERA (antes quedaba detrás de la nav fija, que
+   medía ~70 px). El padding inferior deja ver esa última fila por
+   encima de la nav. */
+.meta-legend {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 10px 8px;
+}
+.meta-legend-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 72px; /* deja ver la nav inferior fija */
+  touch-action: pan-y; /* deslizar con el dedo */
+}
+
+/* ============================================================
+   dev-7 fase 49 — LAS CARTAS HABLAN (tipo de daño + sinonergia)
+
+   Bloque NUEVO al final del CSS (no toca ninguna regla de arriba):
+   el glifo del TIPO DE DAÑO junto al nombre de la carta y la línea
+   de SINONERGIA (cómo queda ese daño contra cada familia de enemigo).
+
+   El glifo REUSA la clase .leg-glyph de la leyenda de tipos: misma
+   fuente y mismo color, para que el jugador lo lea igual allí y en
+   la card.
+   ============================================================ */
+
+/* Nombre de la carta + glifo del tipo, en la misma línea. */
+.card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+/* El glifo del tipo de daño (mismo lenguaje que la leyenda). */
+.card-dmg-glyph {
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  line-height: 1;
+  text-shadow: 0 0 10px currentColor;
+}
+
+/* La SINONERGIA: una línea de dato (tipografía de la leyenda) con el
+   resultado contra cada familia de enemigo. */
+.card-synergy {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.3;
+  color: rgba(200, 215, 230, .9);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Las cartas de daño creceron (el tipo + la sinonergia) y en el marco
+   angosto la fila de 3 puede quedar MÁS ALTA que la caja: con el
+   `justify-content: center` del bloque de arriba el contenido que
+   desborda se reparte por los dos lados y la PRIMERA carta queda
+   recortada por arriba (y no se puede llegar a ella al scrollear).
+   En el marco angosto la fila arranca arriba y scrollea ella sola. */
+@container marco (max-width: 380px) {
+  .cards-row { justify-content: flex-start; }
+}
+
+/* ============================================================
+   dev-7 fase 52 — LA CAPA DE AVISOS (una sola)
+   ------------------------------------------------------------
+   Antes cada tipo de aviso hacia lo suyo: el banner del jefe
+   (#boss-warning), el del cambio de fase (#boss-phase) y el
+   toast del meta (#meta-hint), cada uno con su nodo, su placa
+   y su animación. Ahora TODOS los avisos de la partida pasan
+   por el MISMO componente: una pila de banners (#avisos) que
+   vive bajo el HUD (nunca en el centro del campo, que es por
+   donde caen los enemigos) y que se vacía sola.
+
+   La variante cambia el color de la placa:
+   · jefe → rojo   (amenaza)
+   · fase → dorado (regla nueva)
+   · info → teal   (logro)
+   ============================================================ */
+
+#avisos {
+  position: absolute;
+  inset: 132px 0 auto 0;   /* bajo el HUD + la tira de estado */
+  /* dev-7 fase 52: los avisos son de la PARTIDA, así que van DEBAJO del
+     overlay (z-index 10): en el menú o en la pausa no deben flotar sobre
+     la pantalla. Por encima del mundo (0), del HUD (5) y de la barra de
+     jefe (6). */
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;    /* un aviso nunca captura toques */
+}
+/* En el marco ANCHOSTO el HUD ocupa DOS filas + la tira de estado
+   (llega a y=127) y la barra de jefe baja a y=136 (termina ~176):
+   el aviso tiene que ir por debajo de las dos, o se pisa con la
+   barra de jefe. */
+@container marco (max-width: 380px) {
+  #avisos { inset: 178px 0 auto 0; }
+}
+
+.aviso {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  max-width: min(94%, 460px);
+  padding: 6px 16px 8px;
+  border: 1px solid rgb(var(--hud-teal-rgb) / .55);
+  border-radius: var(--radius-l);
+  /* Placa oscura: el mismo criterio que la barra de jefe (el color
+     de acento no puede competir con el naranja del planeta). */
+  background:
+    linear-gradient(rgba(4, 8, 10, .90), rgba(4, 8, 10, .90)),
+    var(--hud-panel);
+  box-shadow: 0 0 12px rgba(0, 0, 0, .45), inset 0 0 12px rgba(0, 0, 0, .5);
+  text-align: center;
+  animation: aviso-in .3s ease-out;
+}
+.aviso.aviso-out {
+  animation: aviso-out .3s ease-in forwards;
+}
+
+/* Las variantes: el color dice QUÉ clase de aviso es. */
+.aviso--jefe {
+  border-color: rgb(var(--boss-red-rgb) / .6);
+  box-shadow: 0 0 12px rgb(var(--boss-red-rgb) / .28), inset 0 0 12px rgba(0, 0, 0, .5);
+  animation: aviso-in .3s ease-out, aviso-grow 2s ease-out forwards;
+}
+.aviso--fase {
+  border-color: rgb(var(--crit-gold-rgb) / .55);
+  box-shadow: 0 0 14px rgb(var(--crit-gold-rgb) / .26), inset 0 0 12px rgba(0, 0, 0, .5);
+}
+.aviso--info {
+  border-color: rgb(var(--hud-teal-rgb) / .55);
+}
+
+/* La cabecera: el icono (opcional) + el rótulo. */
+.aviso-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.aviso-icon {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+}
+.aviso--jefe .aviso-icon {
+  filter: drop-shadow(0 0 6px rgb(var(--boss-red-rgb) / .9));
+}
+
+.aviso-title {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: var(--text-md);
+  letter-spacing: var(--tracking-caps);
+  color: var(--platform-light);
+}
+.aviso--jefe .aviso-title {
+  color: var(--boss-red);
+  /* La sombra CRECE durante el aviso (docs/DESIGN.md §4.4). */
+  animation: aviso-shadow 2s ease-out forwards, aviso-blink .5s steps(2, end) 6;
+}
+.aviso--fase .aviso-title { color: var(--platform-light); }
+
+.aviso-name {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-caps);
+  color: var(--crit-gold);
+  text-shadow: 0 0 10px rgb(var(--crit-gold-rgb) / .6), 0 1px 2px rgba(0, 0, 0, .9);
+}
+.aviso--jefe .aviso-name {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-narrow);
+  color: var(--score-white);
+  opacity: .9;
+  text-shadow: none;
+}
+.aviso--info .aviso-name {
+  color: var(--hud-teal);
+  text-shadow: 0 0 10px rgb(var(--hud-teal-rgb) / .5);
+}
+
+.aviso-rule {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-narrow);
+  color: var(--score-white);
+  text-align: center;
+}
+
+@keyframes aviso-in {
+  from { opacity: 0; transform: translateY(-8px) scale(.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes aviso-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(-6px) scale(.98); }
+}
+@keyframes aviso-grow {
+  from { box-shadow: 0 0 6px rgb(var(--boss-red-rgb) / .18), inset 0 0 12px rgba(0, 0, 0, .5); }
+  to { box-shadow: 0 0 18px rgb(var(--boss-red-rgb) / .55), 0 0 40px rgb(var(--boss-red-rgb) / .22), inset 0 0 12px rgba(0, 0, 0, .5); }
+}
+@keyframes aviso-shadow {
+  from { text-shadow: 0 0 5px rgb(var(--boss-red-rgb) / .3), 0 1px 2px rgba(0, 0, 0, .95); }
+  to { text-shadow: 0 0 14px rgb(var(--boss-red-rgb) / .8), 0 0 30px rgb(var(--boss-red-rgb) / .4), 0 1px 2px rgba(0, 0, 0, .95); }
+}
+@keyframes aviso-blink {
+  50% { opacity: .55; }
+}
+
+/* ============================================================
+   dev-7 fase 52 — los 2 detalles sueltos que quedaban
+   ============================================================ */
+
+/* El botón del modal de PERK a 360 px: el texto de la opción puede
+   ser largo ("DEFINITIVO Tormenta de balas: la ráfaga COMPLETA
+   detona al morir...") y sinhyphens/overflow-wrap se salía de la
+   caja. Además en el marco angosto bajamos el padding y el cuerpo
+   para que las dos opciones quepan sin encoger. */
+.perk-choice-btn b {
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+@container marco (max-width: 380px) {
+  .perk-choice-row { gap: var(--space-2); }
+  .perk-choice-btn {
+    padding: 10px 8px;
+    font-size: var(--text-xs);
+  }
+  .perk-choice-btn i { font-size: var(--text-xs); }
+}
+
+
+/* ============================================================
+   dev-7 fase 59.4 — EL META QUE SE VE
+   (el botón "SUBIR TODO", el aviso de pendientes y la línea de PODER)
+
+   OJO: estas reglas van AL FINAL del archivo a propósito: el css lo
+   está tocando en paralelo otro agente (y este bloque es suyo: si
+   hace falta mover algo, se mueve entero).
+   ============================================================ */
+
+/* ---------- La línea de PODER (multiplicador real del meta) ---------- */
+.meta-power {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-narrow);
+  color: rgba(159, 180, 200, .92);
+  text-align: center;
+}
+.meta-power b {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: var(--text-md);
+  color: var(--crit-gold);
+  text-shadow: 0 0 10px rgb(var(--crit-gold-rgb) / .5);
+}
+.meta-power span { opacity: .75; }
+
+/* ---------- El botón "SUBIR TODO LO POSIBLE" ---------- */
+.meta-upgrade-all-bar {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+.meta-upgrade-all {
+  width: 100%;
+  min-height: 44px; /* objetivo táctil cómodo (el botón se usa en móvil) */
+  padding: 10px 12px;
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: var(--text-md);
+  letter-spacing: var(--tracking-normal);
+  color: #06201E;
+  background: linear-gradient(180deg, var(--hud-teal-lite), var(--hud-teal-deep));
+  border: 1px solid rgb(var(--hud-teal-rgb) / .9);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+  box-shadow: 0 0 16px rgb(var(--hud-teal-rgb) / .45);
+  transition: transform .08s ease, box-shadow .12s ease;
+}
+.meta-upgrade-all:hover { box-shadow: 0 0 22px rgb(var(--hud-teal-rgb) / .65); }
+.meta-upgrade-all:active { transform: translateY(1px); }
+.meta-upgrade-all-note {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-narrow);
+  color: rgba(159, 180, 200, .75);
+  text-align: center;
+}
+
+/* ---------- El AVISO de mejoras pendientes (menú y selector) ---------- */
+.pending-notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-narrow);
+  color: var(--score-white);
+  background: rgba(15, 42, 40, .82);
+  border: 1px solid rgb(var(--hud-teal-rgb) / .5);
+  border-radius: var(--radius-s);
+  box-shadow: 0 0 12px rgb(var(--hud-teal-rgb) / .2);
+}
+.pending-notice svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  color: var(--hud-teal);
+}
+.pending-notice b { color: var(--crit-gold); }
+.pending-notice .btn { width: auto; }
+

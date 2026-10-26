@@ -1,0 +1,173 @@
+# Balance — Open Defense Fortress
+
+Este documento resume las decisiones de balance vigentes y cómo medirlas. Los
+números salen de un **simulador headless** y de la **sonda del director de
+olas**; ninguno da pass/fail. Son un **piso, no un techo**: sirven para comparar
+tendencias, no para prometer win rates exactos.
+
+## Herramientas
+
+```bash
+# Campaña, 5 semillas por etapa
+node scripts/balance-sim.mjs --mode=inteligente --meta=trajectory --seeds=5
+
+# Un stage puntual
+node scripts/balance-sim.mjs --stage=50 --seeds=10
+
+# Modos de elección de cartas
+node scripts/balance-sim.mjs --mode=greedy|tardy|mixto|inteligente
+
+# Techo de poder, meta, perks, kill rate, variantes, heat, supervivencia
+node scripts/balance-sim.mjs --cards=ceiling --metalv=44 --perks=optimal
+node scripts/balance-sim.mjs --killrate=75 --seeds=5
+node scripts/balance-sim.mjs --variants=acorazado --seeds=5
+node scripts/balance-sim.mjs --protocol=II --seeds=5
+node scripts/balance-sim.mjs --survival --seeds=5
+
+# Composición del director (sin motor, segundos)
+node scripts/probe-waves.mjs --seeds=20
+node scripts/probe-waves.mjs --stages=1,5,6,10,20,30,40,50
+node scripts/probe-waves.mjs --full
+```
+
+### Modos del simulador
+
+| Modo | Qué jugador modela |
+|---|---|
+| `greedy` | Se queda con la primera oferta del catálogo. **Punto ciego histórico**: no juega el arsenal de la fila trasera. |
+| `tardy` | Elige cartas con una política conservadora. |
+| `mixto` | Desbloqueo al azar: sí juega mortero, gauss y láser. |
+| `inteligente` | Maximiza DPS con las cartas. Es el perfil de referencia actual. |
+
+`--cards=ceiling` mide el techo de poder; `--cards=normal` el caso normal.
+`--meta=trajectory` deriva el nivel meta real de la campaña; `--metalv=N` lo
+fuerza. `--killrate=X` asume que el jugador mata como máximo el X % de la ola.
+
+> **Cuidado**: el simulador no es el juego. Sirve para comparar antes/después
+> con las mismas semillas. Las diferencias de ±10 puntos en un mismo stage son
+> ruido si la muestra es chica.
+
+## Curva de la campaña
+
+- **HP de base**: `baseHpForStage(s)` = `2000 + 480·(s-1)`, redondeado a 100.
+  S1 arranca en 2000; S50 en 25 500.
+- **HP enemigo**: escala con `scaleFor(stage)`; la pendiente es 0,14 por etapa.
+- **Velocidad enemiga**: +0,02 por etapa.
+- **Jefes**: S1, 10, 20, 30, 40 y 50. El HP del jefe escala con la etapa.
+- **XP**: `xpForKill()` escala con el `hpMul` de la etapa. El **score** se
+  mantiene plano por etapa (la leaderboard es por etapa).
+- **Precio de nivel**: `(60 + 45·(n-1)) × levelScaleForStage(s)`, con
+  `LEVEL_PRICE_PER_STAGE = 0,07` (`×1` en S1, `×4,43` en S50).
+- **Cartas por etapa**: ~20 repartidas; tope duro `MAX_CARDS_PER_STAGE = 20` y
+  `MAX_LEVEL_PER_STAGE = 21`. El XP sobrante se convierte en score.
+- **Fugas**: la etapa permite un presupuesto de fugas del **25 %** de la ola.
+  Al agotarse, la base cae. Matar enemigos antes de que lleguen lo abarata.
+
+### Campaña: referencia de S50 (10 semillas)
+
+| Protocolo | Heat | Win | HP final | % bajas |
+|---|---|---:|---:|---:|
+| Sin heat | 0 | 100 % | 90 % | 92 % |
+| I | 5 | 90 % | 66 % | 80 % |
+| II | 10 | 70 % | 48 % | 61 % |
+| III | 16 | 40 % | 16 % | 39 % |
+| IV | 24 | 20 % | 5 % | 27 % |
+| V | 35 | 30 % | 8 % | 27 % |
+
+La varianza es alta: con 5 semillas, IV/V pueden verse 10–15 puntos arriba o
+abajo. La banda objetivo es heat 5 ≈ 80–90 %, heat 10 ≈ 55–70 %, heat 20 ≈
+20–35 %.
+
+## Director de olas
+
+`waves.js` reparte un **presupuesto de HP**, no una lista fija:
+
+```text
+waveBudget = densidad × budgetFit × presión × 33 HP × densityMul
+```
+
+- **Presión**: apertura ×0,65 → picos ×1,30 → respiro ×0,62 → marea final
+  ×1,35, normalizada a media 1,00.
+- **Biomas por década**: S1–9 mezcla; S10–19 roca/virus; S20–29 espora;
+  S30–39 roca/virus pesada; S40–50 todo. Décadas consecutivas no comparten
+  dominante.
+- **Crystal**: exactamente 1 por descarga, descontado del presupuesto. Antes
+  era una lotería del 28–31 %; el crystal es la fuente de XP más importante.
+- **Escalonado**: `stagger`/`delay`/`lane` por grupo, `waveSchedule()` pura y
+  jitter de velocidad ±7 % (fuera de la apertura).
+- **Cola**: `WaveManager` usa `pending[]`; el aviso de jefe la vacía y la etapa
+  no cierra con pendientes.
+- **Variantes**: 3–4 % de los enemigos; ~70 % de las descargas llevan una. En
+  >50 la probabilidad sube de 0,70 a 0,85.
+- **Guarda**: el HP por etapa se mantiene dentro del **±10 %** de la línea base,
+  medido con 20 semillas. La cubre `tests/test-stages.mjs`.
+
+## Torres, cartas y meta
+
+- **5 slots**, **5 torres + 1 dron por run**. Las torres y drones entran por
+  cartas; no hay colocación libre.
+- **8 torres**: Guardian, Missile, Beam, Thunderstroke, Tesla, Mortar, Gauss y
+  Láser. **3 drones**: Rueda de Fuego, Avispas y Campo de Fuerza.
+- **48 cartas** con topes por carta y por run; las mejoras ofrecidas se
+  relacionan con las unidades presentes.
+- **Meta**: 100 niveles; fragmentos por victoria (60, ×2 la primera vez),
+  `fragCost(nivel) = 75 + 35·década`; el daño meta por nivel es +18 % (no +5 %).
+  La trayectoria real llega a meta ~44 en S50.
+- **Perks**: remate, robo de vida con tope del **10 %** del daño efectivo y
+  explosión al matar. Los valores por perk son 1–6 %.
+
+## Modo infinito (∞)
+
+- Etapas 51+ generadas con la **misma curva** de HP de base (`baseHpForStage`).
+- Jefe cada 10 etapas; nombre y tipo por vuelta.
+- `ENDLESS_FIT_SLOPE = 0,04` (+4 % del presupuesto por descarga por etapa sobre
+  el S50); sin término cuadrático.
+- **El conteo de enemigos no escala 1:1 con el presupuesto**: +25 % de
+  presupuesto ≈ +13 % de enemigos y +47 % de HP en S60. La guarda del test es
+  +8 % y la tendencia S60 > S50, S70 > S60 se cumple.
+- El ∞ **no juega con Heat** en v1: la profundidad 51 ya arranca en el techo de
+  poder y un modificador encima la vuelve injugable. Queda para una versión
+  posterior.
+
+## Supervivencia
+
+- Base de **25 500 HP**; sin contador de fugas.
+- Cada fuga resta el **HP máximo** del enemigo (atrición).
+- Olas cada ~8 s; presupuesto **lineal**: `60 + 30·oleada` de HP base.
+- Jefe cada **5** oleadas; el tema rota cada 5.
+- Tope de nivel 31 (30 cartas); XP con la curva del stage base (1).
+- Recompensa solo por **oleadas nuevas** sobre el récord, × heat.
+- La curva es **provisional**: el simulador tiene artefactos (la base no sufre
+  y la oleada avanza). Vale la tendencia, no el número absoluto.
+
+## Heat / Protocolo
+
+- **11 condiciones** con rangos y coste acumulativo; máximo **49**.
+- **Presets**: I=5, II=10, III=16, IV=24, V=35.
+- **Recompensa**: `heatRewardMul = 1 + 0,08·heat` (heat 10 ≈ ×1,8).
+- **Hitos únicos** 5/10/20/35: 60/120/240/420 fragmentos **por torreta**.
+- v1 se aplica **solo a la campaña**. El ∞ y el daily juegan a heat 0.
+
+## Metodología y guardas
+
+1. Medir antes de tocar: correr el sim y la sonda con las mismas semillas.
+2. Cambiar **un dial** por vez: `LEVEL_PRICE_PER_STAGE`, `budgetFit`,
+   `densityMul`, `variantChanceFor`, `ENDLESS_FIT_SLOPE`, etc.
+3. No compensar dos veces: si el presupuesto de HP no se movió, el win rate
+   tampoco debería moverse.
+4. Guardar el resultado de la sonda: la composición se mide en segundos.
+5. Las diferencias de ±10 puntos con 5 semillas son ruido. Para decisiones
+   finas, usar 10–20 semillas.
+6. La suite tiene guardas de regresión de HP por etapa, apertura, jefes,
+   variantes y supervivencia.
+
+## Estado actual (v1.0.0)
+
+- Campaña: 50 etapas, win 100 % con la trayectoria real de meta y cartas.
+- S50 sin heat: 100 % / 90 % de HP / 92 % de bajas.
+- Heat: la escalera 5→35 cae de 90 % a 30 % en S50.
+- ∞: la pared empieza alrededor de 60–70; el win cae con la profundidad.
+- Supervivencia: ~84 oleadas planas en el simulador; el número absoluto no es
+  confiable, la tendencia sí.
+- El balance sigue siendo un trabajo abierto: el simulador es una herramienta
+  de comparación, no un oráculo.

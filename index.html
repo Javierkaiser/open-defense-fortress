@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#14161C">
+<title>Open Defense Fortress</title>
+<meta name="description" content="Tower defense roguelike de torres fijas, 100% offline. Campaña de 50 etapas, modo infinito, supervivencia y Heat.">
+
+<!-- Favicon volcánico (data URI, 100% offline dev-6) -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23090B10'/%3E%3Ccircle cx='8' cy='8' r='5.6' fill='%23E8641F'/%3E%3Cpath d='M3 8.5 C4.8 7.6 6.8 10 8 9.4 M8 9.4 C9 10.6 11.5 7.4 13 8.6' stroke='%23FFDD55' stroke-width='1.1' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='5.4' cy='6.2' r='0.85' fill='%23FFE9B0'/%3E%3Ccircle cx='10.8' cy='6.4' r='0.85' fill='%23FFE9B0'/%3E%3C/svg%3E">
+<!-- dev-7 fase 28: SIN llamadas de red. Antes había un <link> a Google
+     Fonts, lo que contradecía la promesa "100% offline" del README y
+     AGENTS.md (y el juego NO funcionaba sin conexión: la fuente mono
+     'Share Tech Mono' no está embebida — su licencia no lo permite — así
+     que offline ya caía a la monoespaciada del sistema).
+     Orbitron y Rajdhani sí están embebidas en assets/fonts/ vía
+     @font-face (css/style.css); la monoespaciada usa el fallback
+     'monospace' del sistema. -->
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<main id="marco-portrait">
+  <!-- Mundo de juego: Canvas 2D, 540×880 lógicos (§1.4) -->
+  <canvas id="game-canvas" width="540" height="880"></canvas>
+
+  <!-- HUD superior (§4.4): pausa · velocidad · combo · stage+progreso · Lv · timer · ultimate -->
+  <header id="hud-top" class="hidden">
+    <div class="hud-row">
+      <button class="btn-round" id="btn-pause" data-action="pause" title="Pausa (P / Esc)"><img class="btn-icon-img" src="assets/sprites/ui_tinted/icon_pause_teal.png" alt=""></button>
+      <button class="btn-round" id="btn-speed" data-action="speed" title="Velocidad (1/2/3)">x1</button>
+      <!-- dev-7 fase 41: los iconos del HUD son SVG INLINE (mismo estilo
+           de línea que la nav: viewBox 24×24, sin relleno y con
+           stroke="currentColor", así que el color lo pone el CSS). Antes
+           eran EMOJI del sistema (🃏 y ♪), que se veían distintos en cada
+           plataforma. La clase es la misma que usan los sprites PNG
+           (btn-icon-img) para heredar el tamaño y el glow.
+           OJO: el SVG de "cartas" es el mismo que UI_ICONS.cartas de
+           js/hud.js (no se puede importar JS desde el HTML: el único
+           módulo de la página es main.js). -->
+      <button class="btn-round" id="btn-combo" data-action="combo" title="Combo List (U)"><svg class="btn-icon-img" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8.5" y="2.5" width="13" height="13" rx="2.5"/><rect x="2.5" y="8.5" width="13" height="13" rx="2.5"/></svg></button>
+      <!-- v3 5/7 (BUG-004): toggle música techno sintetizada -->
+      <button class="btn-round" id="btn-music" title="Música on/off (M)"><svg class="btn-icon-img" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3L11 5.5v13L7 14.5H4z"/><path d="M14.5 9.2a4 4 0 0 1 0 5.6"/><path d="M17.5 6.5a8 8 0 0 1 0 11"/></svg></button>
+      <div class="hud-stage">
+        <span class="stage-name" id="hud-stage-name">Normal Stage 1</span>
+        <span class="bar stage-bar"><span id="hud-progress"></span></span>
+      </div>
+      <div class="hud-lv">
+        <span class="lv-label" id="hud-lv">Lv.1</span>
+        <span class="bar xp-bar"><span id="hud-xp"></span></span>
+      </div>
+      <!-- dev-7 fase 41: el reloj es un SVG inline (antes era el emoji ⏱,
+           que cada plataforma dibujaba distinto). El número va en el span
+           interior: eso es lo que actualiza el HUD (js/hud.js). -->
+      <span class="hud-timer"><svg class="hud-timer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg><span id="hud-timer">00:00</span></span>
+      <button class="btn-round ult" id="btn-ultimate" data-action="ultimate" title="Ultimate (Espacio)">
+        <span class="ult-ring"></span><span class="ult-icon"><img class="btn-icon-img" src="assets/sprites/ui_tinted/icon_ultimate_gold.png" alt=""></span>
+      </button>
+      <button class="btn-round ult bh" id="btn-blackhole" data-action="blackhole" title="Black Hole (B)">
+        <span class="bh-ring"></span><span class="bh-icon">◉</span><span class="bh-count">0%</span>
+      </button>
+      <!-- dev-7 fase 37: salto de línea del HUD. En el diseño (ancho 540)
+           la fila del HUD es única; cuando el marco es más estrecho
+           (móvil) el CSS la parte en dos: controles arriba y datos abajo.
+           Este elemento vacío es el que fuerza el corte (flex-basis 100%). -->
+      <span class="hud-break" aria-hidden="true"></span>
+    </div>
+  </header>
+
+  <!-- HUD inferior (§4.4): score + multiplicador de racha (badge dev-4) -->
+  <footer id="hud-bottom" class="hidden">
+    <div class="hud-score">
+      <span class="score-label">SCORE</span>
+      <span class="score-value" id="hud-score">000000</span>
+      <span class="score-mult hidden" id="hud-mult">×1.5</span>
+    </div>
+  </footer>
+</main>
+
+<!-- dev-7 fase 57 — EL ESCENARIO DE LOS OVERLAYS (la pantalla REAL)
+     Los overlays (menú, pausa, selector, fin de partida, cartas, perk y
+     combos) vivían DENTRO de #marco-portrait, así que su caja era la del
+     MARCO (607 px en un móvil de 390×844) y no la de la PANTALLA (844 px):
+     la columna de cartas scrolleaba por dentro (432 px útiles de 500) y
+     la 3.ª carta se cortaba a media descripción, con 227 px de negro sin
+     usar abajo.
+     Ahora cuelgan de #overlay-stage, un nodo de PANTALLA COMPLETA (fijo,
+     FUERA del marco): nada lo recorta y las container queries del marco
+     dejan de medirlos. La caja del escenario es la del MARCO en ancho y
+     la de la PANTALLA en alto → en escritorio coincide con el marco (el
+     overlay se ve igual que antes) y en móvil usa los 826 px reales. -->
+<div id="overlay-stage">
+  <!-- Pantallas superpuestas: MENU / SELECT_STAGE / PAUSED / STAGE_CLEAR / GAME_OVER / TORRETAS -->
+  <div id="overlay-root" class="hidden"></div>
+</div>
+
+<!-- BUG-010 (v3 4/7): aviso "girá el móvil" en landscape táctil.
+     La visibilidad la alterna main.js con .show según orientación real. -->
+<div id="rotate-hint">
+  <!-- dev-7 fase 41: el teléfono es un SVG inline (antes era el emoji 📱). -->
+  <span class="rotate-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M10.8 18.5h2.4"/></svg></span>
+  <span class="rotate-text">GIRÁ EL DISPOSITIVO</span>
+  <span class="rotate-sub">Open Defense Fortress se juega en vertical (portrait)</span>
+</div>
+
+<!-- dev-7 fase 28: aviso de ARRANQUE FALLIDO.
+     Si el módulo de entrada no llegó a bootear (o el juego se quedó sin
+     frames por un error fatal), esto le explica al jugador QUÉ pasó en vez
+     de dejarle una pantalla negra. Sin JS no hay nada que hacer, así que el
+     banner se muestra por CSS puro cuando el body lleva .boot-failed. -->
+<div id="boot-error" hidden>
+  <div class="boot-error-box">
+    <h1>No se pudo iniciar el juego</h1>
+    <p id="boot-error-msg">Cargá el juego desde un servidor local: los módulos ES
+      (JavaScript) están bloqueados por el navegador si abrís el archivo
+      directamente con doble clic.</p>
+    <p class="boot-error-cmd">En la carpeta del proyecto, ejecutá:<br>
+      <code>python3 -m http.server 8080</code><br>
+      y abrí <code>http://localhost:8080</code></p>
+  </div>
+</div>
+
+<!-- Módulo único de entrada (§1.1) -->
+<script type="module" src="js/main.js"></script>
+<script>
+// dev-7 fase 28: guarda de arranque. Si tras 2.5 s el juego no
+// registró window.__GDF__, el módulo no cargó (típico: abrir el archivo
+// con doble clic → los ES modules los bloquea el navegador por CORS) o
+// falló el boot. Se muestra el aviso para que el jugador no piense que
+// la descarga está rota.
+setTimeout(function () {
+  if (!window.__GDF__) {
+    var el = document.getElementById('boot-error');
+    if (el) el.hidden = false;
+  }
+}, 2500);
+</script>
+</body>
+</html>

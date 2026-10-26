@@ -1,0 +1,15 @@
+Creative Commons Attribution 3.0 Unported (CC BY 3.0)
+
+License: https://creativecommons.org/licenses/by/3.0/
+Legal code: https://creativecommons.org/licenses/by/3.0/legalcode
+
+You are free to share and adapt the material for any purpose, even
+commercially, provided that you give appropriate credit, provide a link to
+the license, and indicate if changes were made.
+
+Attribution for this project:
+
+  Icon: "Power Lightning" by Lorc, from game-icons.net
+  https://game-icons.net/1x1/lorc/power-lightning.html
+  Licensed under CC BY 3.0.
+  Modified: recolored to gold for the Ultimate HUD button.

@@ -1,0 +1,46 @@
+# Deploy de Open Defense Fortress a here.now
+#
+# Publica el juego en https://faint-desert-zjv5.here.now/ con cada push a main.
+# El deploy replica el flujo manual validado:
+#   - staging limpio (index.html + privacy.html + css/ + assets/) con js/ versionado
+#     como js_v<commit-sha> para romper el cache-control max-age=3600 de
+#     here.now (sin ?v= en imports: rompe Node ESM en los tests).
+#   - actualiza el site existente por slug, verifica el index servido.
+#
+# REQUISITO: secret de repo/org `HERENOW_API_KEY` con la API key de here.now.
+#
+# Si usás otra rama por defecto, cambiá "main" en `branches`.
+
+name: Deploy here.now
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-herenow
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy a here.now (staging + js_vSHA)
+        env:
+          HERENOW_API_KEY: ${{ secrets.HERENOW_API_KEY }}
+        run: bash .github/scripts/deploy-herenow.sh
+
+      - name: Resumen
+        run: |
+          echo "## Deploy here.now" >> "$GITHUB_STEP_SUMMARY"
+          echo "- URL: https://faint-desert-zjv5.here.now/" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Commit: \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "> Caché de JS: carpeta \`js_v\` nueva por push (max-age 3600)." >> "$GITHUB_STEP_SUMMARY"
+          echo "Publicado: https://faint-desert-zjv5.here.now/"

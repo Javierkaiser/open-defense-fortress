@@ -1,0 +1,25 @@
+# Documentación local/privada y artefactos de trabajo
+docs-private/
+.codegraph/
+.playwright-mcp/
+.scratch/
+.kilo/
+
+# Node / Android
+node_modules/
+mobile/www/
+mobile/android/.gradle/
+mobile/android/app/build/
+mobile/android/local.properties
+mobile/android/keystore.properties
+*.keystore
+*.jks
+*.aab
+*.apk
+
+# Entorno y temporales
+.env
+.env.*
+*.log
+.DS_Store
+Thumbs.db

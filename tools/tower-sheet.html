@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Hoja de contactos — torres (v7)</title>
+<!--
+  ============================================================
+  tools/tower-sheet.html — HOJA DE CONTACTOS del arte de las torres.
+
+  PARA QUÉ: revisar de un vistazo el arte de las 8 torres sin tener que
+  jugar una partida (niveles, estados, siluetas y la fila en escena).
+  Es la herramienta con la que se aprobó el rediseño "silueta primero"
+  (fase 60) y con la que se revisa cualquier retoque del rig.
+
+  CÓMO SE USA: necesita el servidor estático del proyecto (los módulos ES
+  no cargan sobre file://):
+
+      python3 -m http.server 8080     # desde la raíz del repo
+      # → http://localhost:8080/tools/tower-sheet.html
+
+  NO forma parte del juego: no lo importa nadie desde js/. Reusa el
+  render REAL (Tower.render → renderTowerRig), así que lo que se ve acá
+  es exactamente lo que se ve en pantalla.
+  ============================================================
+-->
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0; padding: 18px 20px 60px;
+    background: #0B0F16; color: #C7D3E0;
+    font: 13px/1.5 ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  h1 { font-size: 17px; margin: 0 0 4px; color: #E6EEF6; letter-spacing: .04em; }
+  h2 { font-size: 13px; margin: 30px 0 8px; color: #7FE8FF; letter-spacing: .10em; text-transform: uppercase; }
+  p.nota { margin: 0 0 18px; color: #6C7C8C; max-width: 90ch; }
+  .fila { display: flex; flex-wrap: wrap; gap: 6px; align-items: flex-start; }
+  canvas { display: block; image-rendering: auto; }
+  figure { margin: 0; }
+  figcaption { color: #6C7C8C; font-size: 11px; padding-top: 3px; }
+  .toolbar { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin: 0 0 6px; color: #8FA3B8; }
+  label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+  select, button {
+    background: #141A22; color: #C7D3E0; border: 1px solid #2A3648;
+    border-radius: 4px; padding: 3px 7px; font: inherit;
+  }
+  button { cursor: pointer; }
+</style>
+</head>
+<body>
+<h1>Hoja de contactos — torres v7 «silueta primero»</h1>
+<p class="nota">
+  Render real (<code>Tower.render</code> → <code>renderTowerRig</code>, js/tower-art.js). La columna
+  <em>silueta</em> pinta el rig en negro: si dos torres dan el mismo borrón, la silueta no existe
+  (era el problema de la fase 60 — el disco de acento de r=32..42 ×1.2 se comía las 8 formas).
+</p>
+
+<div class="toolbar">
+  <label>fondo
+    <select id="fondo">
+      <option value="#2A313C">plataforma</option>
+      <option value="#0D1420">noche</option>
+      <option value="#6E7681">gris claro</option>
+    </select>
+  </label>
+  <label>zoom <input id="zoom" type="range" min="1" max="4" step="0.5" value="2" /></label>
+  <button id="redibujar">redibujar</button>
+</div>
+
+<h2>1 · Niveles (Lv1 → Lv5): ticks del pad y textura del chasis</h2>
+<div class="fila" id="niveles"></div>
+
+<h2>2 · Estados: reposo · cargando · disparando · silueta</h2>
+<div class="fila" id="estados"></div>
+
+<h2>3 · La fila en escena (slots reales de CONFIG)</h2>
+<figure><canvas id="escena"></canvas><figcaption id="escena-pie"></figcaption></figure>
+
+<script type="module">
+import { Tower, TOWERS } from '../js/towers.js';
+import { CONFIG } from '../js/engine.js';
+
+const TIPOS = ['guardian', 'missile', 'beam', 'thunderstroke', 'tesla', 'mortar', 'gauss', 'laser'];
+const fondo = document.getElementById('fondo');
+const zoom = document.getElementById('zoom');
+
+/** Crea un canvas con su ctx ya escalado. */
+function lienzo(w, h, z) {
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(w * z);
+  cv.height = Math.round(h * z);
+  cv.style.width = w + 'px';
+  cv.style.height = h + 'px';
+  const ctx = cv.getContext('2d');
+  ctx.scale(z, z);
+  return { cv, ctx };
+}
+
+/** Pinta el suelo del panel (una banda tipo plataforma). */
+function suelo(ctx, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  ctx.fillRect(0, h - 30, w, 30);
+  ctx.fillStyle = 'rgba(159,180,200,0.45)';
+  ctx.fillRect(0, h - 30, w, 1);
+}
+
+/** Instancia una torre lista para dibujar en (0,0). */
+function torre(type, lv, estado = {}) {
+  const t = new Tower(type, 0, lv);
+  t.x = 0;
+  t.y = 0;
+  t.game = { engine: { _t: estado.t ?? 1.2 } };
+  t._aim = estado.aim ?? -0.22;
+  t._charge = estado.charge ?? 0;
+  t._recoil = estado.recoil ?? 0;
+  t._heat = estado.heat ?? 0;
+  t.firing = !!estado.firing;
+  t.active = !!estado.active;
+  return t;
+}
+
+/** Pinta una torre dentro de un panel, con etiqueta. */
+function panel(type, { w = 150, h = 190, z = 2, lv = 1, estado = {}, silueta = false, etiqueta = '' } = {}) {
+  const fig = document.createElement('figure');
+  const { cv, ctx } = lienzo(w, h, z);
+  suelo(ctx, w, h, fondo.value);
+  ctx.save();
+  ctx.translate(w / 2, h - 34);
+  if (silueta) {
+    // Test de silueta: se pinta el rig en negro. El truco del proxy es el
+    // mismo que se usó en el análisis: todo fillStyle/strokeStyle → negro.
+    const negro = new Proxy(ctx, {
+      get(t, k) {
+        if (k === 'drawImage') return () => {};
+        const v = t[k];
+        return typeof v === 'function' ? v.bind(t) : v;
+      },
+      set(t, k, v) {
+        if (k === 'fillStyle' || k === 'strokeStyle' || k === 'shadowColor') v = '#000000';
+        if (k === 'globalAlpha') v = 1;
+        if (k === 'shadowBlur') v = 0;
+        t[k] = v;
+        return true;
+      },
+    });
+    torre(type, lv, estado).render(negro);
+  } else {
+    torre(type, lv, estado).render(ctx);
+  }
+  ctx.restore();
+  ctx.fillStyle = 'rgba(0,0,0,0.62)';
+  ctx.fillRect(4, 4, Math.min(w - 8, 8 + etiqueta.length * 6.4), 14);
+  ctx.fillStyle = '#E6EEF6';
+  ctx.font = '10px monospace';
+  ctx.textBaseline = 'top';
+  ctx.fillText(etiqueta, 8, 6);
+  fig.appendChild(cv);
+  return fig;
+}
+
+function dibujar() {
+  const z = Number(zoom.value);
+
+  // ---- 1. niveles ----
+  const niveles = document.getElementById('niveles');
+  niveles.textContent = '';
+  for (const type of TIPOS) {
+    for (let lv = 1; lv <= 5; lv++) {
+      niveles.appendChild(panel(type, { z, lv, etiqueta: `${type} Lv${lv}` }));
+    }
+  }
+
+  // ---- 2. estados ----
+  const estados = document.getElementById('estados');
+  estados.textContent = '';
+  for (const type of TIPOS) {
+    const combos = [
+      ['reposo', {}],
+      ['cargando', { charge: 0.95, aim: -0.3 }],
+      ['disparo', { firing: true, active: true, recoil: 1, heat: 1, aim: -0.15 }],
+    ];
+    for (const [nombre, estado] of combos) {
+      estados.appendChild(panel(type, { z, lv: 3, estado, etiqueta: `${type} · ${nombre}` }));
+    }
+    estados.appendChild(panel(type, { z, lv: 3, silueta: true, etiqueta: `${type} · silueta` }));
+  }
+
+  // ---- 3. escena ----
+  const S = 1;
+  const W = CONFIG.CANVAS_W;
+  const H = 200;
+  const cv = document.getElementById('escena');
+  cv.width = W * S;
+  cv.height = H * S;
+  cv.style.width = W + 'px';
+  cv.style.height = H + 'px';
+  const ctx = cv.getContext('2d');
+  ctx.scale(S, S);
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#0D1420');
+  g.addColorStop(0.72, '#131C28');
+  g.addColorStop(1, '#2A3648');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(159,180,200,0.35)';
+  ctx.fillRect(0, H - 46, W, 1);
+  const yFila = H - 44;
+  const yTrasera = yFila - 16;
+  const frontales = ['guardian', 'missile', 'beam', 'thunderstroke', 'tesla'];
+  const traseras = ['mortar', 'gauss', 'laser'];
+  frontales.forEach((type, i) => {
+    const t = torre(type, i === 0 ? 3 : i === 2 ? 5 : 1, { t: 2.4, aim: -0.18 });
+    t.x = CONFIG.SLOTS[i];
+    t.y = yFila;
+    t.render(ctx);
+  });
+  traseras.forEach((type, i) => {
+    const t = torre(type, i === 1 ? 5 : 1, { t: 2.4, aim: 0.2 });
+    t.x = CONFIG.SLOTS_BACK[i];
+    t.y = yTrasera;
+    t.render(ctx);
+  });
+  document.getElementById('escena-pie').textContent =
+    `slots reales: delanteros [${CONFIG.SLOTS.join(', ')}] · traseros [${CONFIG.SLOTS_BACK.join(', ')}]`;
+}
+
+document.getElementById('redibujar').addEventListener('click', dibujar);
+fondo.addEventListener('change', dibujar);
+zoom.addEventListener('input', dibujar);
+dibujar();
+</script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+{
+  "name": "open-defense-fortress",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Tower defense roguelike offline, 100% estático (HTML5 + Canvas).",
+  "license": "MIT",
+  "author": "Javier Lust <contacto@javierlust.net.ar>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Javierkaiser/open-defense-fortress.git"
+  },
+  "homepage": "https://faint-desert-zjv5.here.now/",
+  "bugs": {
+    "url": "https://github.com/Javierkaiser/open-defense-fortress/issues"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test tests/",
+    "serve": "node scripts/serve.mjs 8080",
+    "balance": "node scripts/balance-sim.mjs",
+    "probe": "node scripts/probe-waves.mjs"
+  },
+  "keywords": [
+    "tower-defense",
+    "roguelike",
+    "html5-game",
+    "canvas",
+    "javascript",
+    "offline"
+  ]
+}
