@@ -33,7 +33,7 @@ Los módulos ES no cargan desde `file://`; hace falta el servidor estático.
 ## Tests y checks
 
 ```bash
-node --test "tests/**/*.mjs"                    # 837 tests
+node --test "tests/**/*.mjs"                    # 846 tests
 node .github/scripts/ci-checks.mjs    # sintaxis, zero-dep, referencias
 ```
 
@@ -45,6 +45,13 @@ La suite corre en Node puro: **no hay DOM, canvas, audio ni jsdom**. Si tu cambi
 toca un módulo que se evalúa al importarse, respetá los guards
 (`typeof document === 'undefined'`, storage inyectable, etc.). Ver
 [docs/TESTING.md](docs/TESTING.md).
+
+## Android
+
+El wrapper Android vive en `mobile/` (Capacitor 8). El CI **Android CI (debug)**
+es manual y compila un APK debug; no firma AAB ni sube a Play. Si tocás el
+lifecycle nativo, leé [docs/ANDROID.md](docs/ANDROID.md) y corré
+`node --test tests/test-native.mjs`.
 
 ## Estilo
 

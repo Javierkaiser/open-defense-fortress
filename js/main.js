@@ -52,6 +52,7 @@ import {
   SURVIVAL, survivalStage, survivalScale, survivalWaveChunk, survivalTheme,
   survivalBossKind, survivalBossName, survivalReward,
 } from './survival.js';
+import { NATIVE_EVENTS, backAction } from './native.js';
 
 export class Game {
   /**
@@ -149,6 +150,7 @@ export class Game {
         // menú) tapa el frame entero y bloquea todos los clicks.
         // hideCardChoice() es idempotente (no-op si el modal no existe).
         this.hud.hideCardChoice();
+        this.hud.hideCreditsModal();
       }
       hud.showScreen(next, this._screenData(next));
       this._playing = next === 'PLAYING';
@@ -614,6 +616,8 @@ export class Game {
       },
       // v5 5a/5: volver al menú principal desde PAUSA (data-action="menu")
       menu: () => this.toMenu(),
+      // Etapa 2: créditos/licencias (MIT, CC BY 3.0, CC0, OFL).
+      credits: () => this.hud.showCreditsModal(),
       // v3.5 meta-game: pantalla TORRETAS desde el menú / nav inferior
       torretas: () => this.toTorretas(),
       // fase 69: pantalla PROTOCOLO (heat) y sus ajustes. El handler recibe
@@ -1786,3 +1790,33 @@ window.addEventListener('orientationchange', () => hud.refreshFrameMode());
 // La Fortress viva siempre en window.__GDF__.game.fortress (se recrea
 // por stage en startStage()).
 window.__GDF__ = { game, engine, hud };
+
+// ------------------------------------------------------------
+// Puente nativo (Android/Capacitor)
+// ------------------------------------------------------------
+// MainActivity.java llama a window.__gdfBack() desde onBackPressed. Si el
+// juego no lo maneja, el nativo manda la app a background (no la cierra).
+window.__gdfBack = () => {
+  // Un modal de créditos abierto se cierra antes de navegar la FSM.
+  if (hud.creditsOpen()) {
+    hud.hideCreditsModal();
+    return true;
+  }
+  const action = backAction(engine.state);
+  if (!action.handled) return false;
+  if (action.next) engine.setState(action.next);
+  return true;
+};
+
+// Background/foreground: la partida se pausa y la música se detiene/duckea.
+// Al volver, el AudioContext se reanuda pero la partida sigue en pausa.
+window.addEventListener(NATIVE_EVENTS.pause, () => {
+  if (engine.state === 'PLAYING') engine.setState('PAUSED');
+  // En Android no alcanza con duckear: el WebView puede seguir sonando en
+  // background. Se corta la música; al volver a jugar se rearma sola.
+  hud.audio.setPaused(true);
+  hud.audio.stopMusic();
+});
+window.addEventListener(NATIVE_EVENTS.resume, () => {
+  hud.audio.resume();
+});

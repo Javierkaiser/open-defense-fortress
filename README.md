@@ -5,7 +5,7 @@
 [![CI](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml/badge.svg)](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml)
 [![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-3FD4FF.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-6DA55F.svg)](package.json)
-[![Tests](https://img.shields.io/badge/tests-837-3FD4FF.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-846-3FD4FF.svg)](tests/)
 
 [Demo web](https://faint-desert-zjv5.here.now/) · [English summary](README.en.md) · [Diseño técnico](docs/DESIGN.md) · [Balance](docs/BALANCE.md) · [Testing](docs/TESTING.md) · [Créditos](docs/CREDITS.md) · [Cómo contribuir](CONTRIBUTING.md) · [Código de conducta](CODE_OF_CONDUCT.md)
 
@@ -66,7 +66,7 @@ La demo se publica sola: cada push a `main` corre el workflow de deploy
 - **Sin anuncios, sin compras, sin cuentas, sin telemetría.**
 - **Offline real**: fuentes, sprites y SFX locales.
 - **Calidad gráfica Alta/Baja** para equipos modestos.
-- **837 tests** en Node, sin DOM ni canvas.
+- **846 tests** en Node, sin DOM ni canvas.
 
 ## Controles
 
@@ -85,7 +85,7 @@ El disparo es automático: no hay apuntado ni joystick.
 ## Tests
 
 ```bash
-node --test "tests/**/*.mjs"            # 837 tests (832 pass, 5 skip, 0 fail)
+node --test "tests/**/*.mjs"            # 846 tests (841 pass, 5 skip, 0 fail)
 node .github/scripts/ci-checks.mjs   # checks estáticos (sintaxis, zero-dep, refs)
 ```
 
@@ -104,21 +104,22 @@ que pasar esa matriz para mergearse.
 .
 ├─ index.html            # canvas + HUD DOM + overlays
 ├─ css/style.css         # HUD, pantallas, temas, responsive
-├─ js/                   # 22 módulos ES (juego)
+├─ js/                   # 23 módulos ES (juego + puente nativo)
 ├─ assets/               # solo los 33 assets que usa el juego
 ├─ tests/                # node:test
 ├─ scripts/              # serve, balance-sim, probe-waves, probes
 ├─ tools/tower-sheet.html# hoja de contactos del arte de torres
+├─ mobile/               # wrapper Android (Capacitor 8) + CI
 ├─ docs/                 # diseño, balance, testing, créditos, screenshots
 ├─ openspec/specs/       # specs de comportamiento
-└─ .github/              # CI, deploy a here.now, templates de issues/PR, dependabot
+└─ .github/              # CI, deploy here.now, Android CI, templates y dependabot
 ```
 
 ## Arquitectura
 
 - **Canvas 2D** lógico 540×880, escalado por CSS y DPR (tope 2).
 - **DOM/CSS** para HUD, menús, cartas, pausa, meta, protocolo y récords.
-- **22 módulos ES acíclicos** con un EventBus en `engine.js`; sin dependencias npm.
+- **23 módulos ES acíclicos** con un EventBus en `engine.js`; sin dependencias npm.
 - **FSM de 11 estados** (`BOOT`, `MENU`, `SELECT_STAGE`, `PLAYING`, `PAUSED`,
   `CARD_CHOICE`, `STAGE_CLEAR`, `GAME_OVER`, `TORRETAS`, `PROTOCOLO`, `RECORDS`).
 - **Director de olas** con presupuesto de HP, curva de presión, biomas por década
@@ -146,9 +147,14 @@ tendencias. Ver [docs/BALANCE.md](docs/BALANCE.md).
 
 ## Android / Play Store
 
-La app Android (Capacitor 8 + GitHub Actions) está planificada. El objetivo es
-un AAB firmado, offline, con back button nativo, pausa al pasar a background y
-keep-awake. Cuando esté publicada, el link de Play va acá.
+La **base Android** ya está en `mobile/` con Capacitor 8. El CI manual
+“Android CI (debug)” compila un APK debug desde GitHub Actions, sin keystore ni
+Play. Incluye back button nativo, pausa/audio al pasar a background,
+keep-awake, safe areas y una pantalla de Créditos/Licencias.
+
+Ver [docs/ANDROID.md](docs/ANDROID.md). La firma AAB, la service account y la
+publicación en Play son la Etapa 3; cuando esté publicada, el link de Play va
+acá.
 
 ## Licencia
 

@@ -16,6 +16,16 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 - `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1) y `THIRD_PARTY_NOTICES.md`.
 - `.editorconfig` y `.gitattributes` (LF en el repo, binarios sin conversión).
 
+### Android base
+
+- Capacitor 8.5.3 + proyecto `mobile/android/` (`targetSdk 36`, `minSdk 24`).
+- Build manual de APK debug en GitHub Actions.
+- Hooks nativos: back button, pausa/audio al background, keep-awake.
+- `js/native.js` puro + tests; sin plugins JS.
+- Pantalla de Créditos/Licencias (MIT, CC BY 3.0, CC0, OFL).
+- Safe areas y pulido táctil.
+- 846 tests (841 pass, 5 skip).
+
 ### Cambiado
 
 - `README.md`: la sección de cómo correr/jugar quedó arriba, junto al TL;DR, y el

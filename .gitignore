@@ -7,9 +7,13 @@ docs-private/
 
 # Node / Android
 node_modules/
+mobile/node_modules/
 mobile/www/
 mobile/android/.gradle/
+mobile/android/.idea/
+mobile/android/*.iml
 mobile/android/app/build/
+mobile/android/app/src/main/assets/public/
 mobile/android/local.properties
 mobile/android/keystore.properties
 *.keystore

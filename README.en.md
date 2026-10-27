@@ -17,7 +17,7 @@ and the upgrade cards offered on level-up. Every run is a roguelike.
 - 8 towers + 3 drones, 48 cards, 7 elite affixes, 5 visual themes.
 - No ads, no purchases, no accounts, no telemetry.
 - Canvas 2D + DOM/CSS + ES modules; no build step, no server, no network calls.
-- 837 Node tests.
+- 846 Node tests.
 
 ## Run it
 
@@ -26,7 +26,7 @@ and the upgrade cards offered on level-up. Every run is a roguelike.
 node scripts/serve.mjs 8080
 # open http://localhost:8080
 
-# tests (837) + static checks
+# tests (846) + static checks
 node --test "tests/**/*.mjs"
 node .github/scripts/ci-checks.mjs
 ```
@@ -48,8 +48,11 @@ CI runs the suite on Linux, macOS and Windows with Node 22 and 24
 
 ## Android
 
-Capacitor 8 + GitHub Actions packaging is planned. The Android app will be
-offline and will keep the same web codebase. Play Store link pending.
+The Capacitor 8 Android base lives in `mobile/`. A manual GitHub Actions
+workflow (“Android CI (debug)”) builds a debug APK; no keystore or Play upload
+yet. It keeps the same web codebase and adds native back, pause/audio,
+keep-awake, safe areas and a credits/licenses screen. See
+[docs/ANDROID.md](docs/ANDROID.md). Play Store link pending.
 
 ## License
 

@@ -1,0 +1,26 @@
+{
+  "name": "open-defense-fortress-mobile",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Wrapper Android (Capacitor 8) de Open Defense Fortress.",
+  "license": "MIT",
+  "scripts": {
+    "build:web": "node scripts/build-web.mjs",
+    "sync": "npm run build:web && cap sync android",
+    "assets:src": "node scripts/make-assets.mjs",
+    "assets": "npm run assets:src && npx @capacitor/assets generate --android",
+    "open": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/core": "8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "3.0.5",
+    "@capacitor/cli": "8.5.3"
+  },
+  "allowScripts": {
+    "sharp@0.32.6": true
+  }
+}

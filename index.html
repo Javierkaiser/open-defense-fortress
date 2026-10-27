@@ -135,6 +135,17 @@ setTimeout(function () {
     if (el) el.hidden = false;
   }
 }, 2500);
+// En la app Android el aviso de "servidor local" no aplica: el juego va
+// empaquetado. Capacitor inyecta window.Capacitor antes de este script.
+if (window.Capacitor) {
+  var msg = document.getElementById('boot-error-msg');
+  if (msg) {
+    msg.textContent = 'No se pudo iniciar la app. Reinstalá la aplicación o '
+      + 'actualizá Android System WebView.';
+  }
+  var cmd = document.querySelector('.boot-error-cmd');
+  if (cmd) cmd.style.display = 'none';
+}
 </script>
 </body>
 </html>

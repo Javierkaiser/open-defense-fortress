@@ -6,13 +6,13 @@
 node --test "tests/**/*.mjs"
 ```
 
-Estado actual: **837 tests** (832 pass, 5 skip, 0 fail) en **23 archivos**.
+Estado actual: **846 tests** (841 pass, 5 skip, 0 fail) en **24 archivos**.
 Node 22 o superior.
 
 Para un archivo:
 
 ```bash
-node --test "tests/**/*.mjs"test-stages.mjs
+node --test tests/test-stages.mjs
 ```
 
 ## Qué cubre
@@ -36,6 +36,7 @@ node --test "tests/**/*.mjs"test-stages.mjs
 | Infinito | `test-endless.mjs` |
 | Supervivencia | `test-survival.mjs` |
 | Balance sim | `test-balance-sim.mjs` |
+| Puente nativo Android (`backAction`, eventos) | `test-native.mjs` |
 | Integración del motor real | `test-integration.mjs` |
 
 ## Qué **no** cubre
@@ -47,7 +48,7 @@ node --test "tests/**/*.mjs"test-stages.mjs
 - El cableado `perk:proc` → sonido de `main.js` (solo se testea la señal).
 - `comboSummary()` y algunos helpers de presentación.
 
-Para eso hay **smoke manual** y, cuando exista la app, una checklist Android.
+Para eso hay **smoke manual** y una checklist Android (APK debug).
 
 ## Convenciones para tests
 
@@ -70,7 +71,7 @@ Para eso hay **smoke manual** y, cuando exista la app, una checklist Android.
 6. Probar `SELECCIONAR STAGE`, `TORRETAS`, `PROTOCOLO` y `RÉCORDS`.
 7. Verificar que no haya requests de red en DevTools.
 
-## Smoke Android (cuando exista la app)
+## Smoke Android (APK debug)
 
 - [ ] Instalar desde Play internal / APK debug.
 - [ ] Primer arranque en modo avión.
@@ -88,5 +89,5 @@ Para eso hay **smoke manual** y, cuando exista la app, una checklist Android.
 ## CI
 
 La suite corre en GitHub Actions antes del build de Android. El build web se
-publica en here.now desde `main`; la app Android se agrega en la etapa de
-packaging.
+publica en here.now desde `main`; el APK debug se compila con el workflow
+manual “Android CI (debug)” (ver [ANDROID.md](ANDROID.md)).

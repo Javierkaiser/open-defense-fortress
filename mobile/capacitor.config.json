@@ -1,0 +1,20 @@
+{
+  "appId": "ar.net.javierlust.opendefensefortress",
+  "appName": "Open Defense Fortress",
+  "webDir": "www",
+  "backgroundColor": "#14161C",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "minWebViewVersion": 111,
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "native",
+      "hidden": true,
+      "style": "DARK"
+    }
+  }
+}

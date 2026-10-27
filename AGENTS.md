@@ -7,8 +7,9 @@ Documentación y comentarios en **español**.
 ## Comandos
 
 ```bash
-node --test "tests/**/*.mjs"                         # suite completa (837 tests)
-node --test "tests/**/*.mjs"test-stages.mjs          # un archivo
+node --test "tests/**/*.mjs"                # suite completa (846 tests)
+node --test tests/test-stages.mjs           # un archivo
+node .github/scripts/ci-checks.mjs          # checks estáticos
 node --check js/main.js                    # sintaxis de un módulo
 node scripts/serve.mjs 8080                # servidor estático local
 node scripts/balance-sim.mjs --mode=inteligente --seeds=5
@@ -40,9 +41,12 @@ En Windows/PS 5.1 el glob `js/*.js` no se expande solo; usá
 - `js/theme.js`, `js/quality.js`, `js/damagetypes.js`, `js/effects.js`,
   `js/tower-art.js`, `js/audio.js` — temas, calidad, tipos de daño, efectos,
   arte de torres y audio.
+- `js/native.js` — contrato puro del contenedor Android (`backAction`,
+  `NATIVE_EVENTS`, `isNativePlatform`). No importa Capacitor.
 - `tests/` — `node:test`; un archivo por módulo + integración.
 - `scripts/` — herramientas de desarrollo (servidor, balance, probe).
-- `docs/` — diseño, balance, testing, créditos, assets y screenshots.
+- `mobile/` — wrapper Android (Capacitor 8), `build-web.mjs`, iconos y CI.
+- `docs/` — diseño, balance, testing, créditos, assets, Android y screenshots.
 - `openspec/specs/` — specs de comportamiento.
 
 ## Reglas duras
@@ -83,6 +87,7 @@ Kilo, Hermes u otro agente, podés aprovecharlas; si no, ignoralas.
 
 ## Android / Play
 
-La app Android (Capacitor 8 + GitHub Actions) está planificada. El objetivo:
-AAB firmado, offline, back button nativo, pausa al pasar a background y
-keep-awake. No agregar dependencias de Android al runtime web.
+La base Android está en `mobile/` (Capacitor 8). El CI manual **Android CI
+(debug)** compila un APK debug; no firma AAB ni sube a Play (Etapa 3). El
+lifecycle se resuelve en `MainActivity.java`; no agregar plugins JS ni
+dependencias de Android al runtime web. Ver `docs/ANDROID.md`.

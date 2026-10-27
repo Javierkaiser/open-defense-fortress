@@ -488,6 +488,8 @@
 
 html, body {
   height: 100%;
+  overscroll-behavior: none;
+  -webkit-touch-callout: none;
   /* dev-7 fase 44 — la BANDA que rodea al marco deja de ser negro
      plano. Medido: en un teléfono de 390×844 el marco queda en
      374×609 y alrededor sobran ~235 px (28 % de la pantalla) de
@@ -2381,6 +2383,8 @@ html, body {
      en los dos overlays. */
   gap: var(--overlay-veil-gap);
   padding: var(--overlay-veil-pad);
+  padding-top: calc(var(--overlay-veil-pad) + env(safe-area-inset-top));
+  padding-bottom: calc(var(--overlay-veil-pad) + env(safe-area-inset-bottom));
   background: var(--overlay-veil-bg);
   backdrop-filter: blur(var(--overlay-veil-blur));
   -webkit-backdrop-filter: blur(var(--overlay-veil-blur));
@@ -3478,6 +3482,38 @@ html, body {
 #combo-panel { pointer-events: none; }
 #combo-panel .combo-panel,
 #combo-panel .btn { pointer-events: auto; }
+
+/* ---------- CRÉDITOS / LICENCIAS (Etapa 2 Android) ---------- */
+#credits-panel { pointer-events: none; }
+#credits-panel .credits-panel,
+#credits-panel .btn { pointer-events: auto; }
+.credits-panel {
+  width: min(380px, 90%);
+  max-height: 64vh;
+  overflow-y: auto;
+  touch-action: pan-y;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  font-family: var(--font-body);
+  color: var(--score-white);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+.credits-panel h3 {
+  margin: 8px 0 0;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-normal);
+  color: var(--hud-teal);
+}
+.credits-panel p { margin: 0; }
+.credits-panel a { color: var(--hud-teal); }
+.credits-url {
+  color: var(--hud-teal);
+  word-break: break-all;
+}
 
 /* ---------- BESTIARIO (fase 40) ----------
    La sección de bestiario de la pantalla de torretas: una tarjeta por

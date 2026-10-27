@@ -37,7 +37,7 @@ mediciones, ver [BALANCE.md](BALANCE.md); para la suite, [TESTING.md](TESTING.md
 ```text
 index.html              canvas + HUD DOM + overlays
 css/style.css           HUD, pantallas, temas, responsive
-js/                     22 módulos ES
+js/                     23 módulos ES
 assets/                 fuentes, SFX y sprites usados
 tests/                  node:test
 scripts/                serve, balance-sim, probe-waves, probes
@@ -72,6 +72,7 @@ openspec/specs/         specs de comportamiento
 | `effects.js` | Partículas, floats, explosiones, spritesheet del boss y fireworks. |
 | `tower-art.js` | Datos del rig de cada torre + renderizador; fallback de `Path2D`. |
 | `audio.js` | WebAudio: síntesis, samples, música techno, unlock/resume y throttles. |
+| `native.js` | Contrato puro con el contenedor Android: `backAction`, `NATIVE_EVENTS`, `isNativePlatform`. No importa Capacitor. |
 
 ### Límites de dependencias
 
@@ -99,7 +100,9 @@ MENU ⇄ RECORDS
 - `CARD_CHOICE` bloquea el update del mundo, no el render.
 - Las transiciones pasan solo por `engine.setState()` y emiten `state:changed`.
 - Al ocultarse la pestaña/app, `visibilitychange` pausa si está en `PLAYING`.
-- El botón atrás de Android (cuando exista la app) se mapea a pausa → menú.
+- El botón atrás de Android se mapea en `js/native.js`: `PLAYING → PAUSED`,
+  `PAUSED → MENU`, pantallas de navegación → `MENU`; en `MENU` la app pasa a
+  background.
 
 ## 6. Loop y render
 
@@ -253,16 +256,21 @@ inmune: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 837 tests (832 pass, 5 skip) en 23 archivos.
+- 846 tests (841 pass, 5 skip) en 24 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 
-## 16. Empaquetado Android (planificado)
+## 16. Empaquetado Android
 
-- Capacitor 8, assets empaquetados, `targetSdk 36`, `minSdk 24`.
+- Capacitor **8.5.3**, assets empaquetados, `targetSdk 36`, `minSdk 24`.
 - `applicationId`: `ar.net.javierlust.opendefensefortress`.
-- Portrait, back button nativo, pausa/audio al background, keep-awake.
-- AAB firmado y subido por GitHub Actions; Play App Signing.
+- `mobile/` contiene `capacitor.config.json`, `build-web.mjs`, iconos y el
+  proyecto `android/` versionado.
+- **Sin plugins JS**: `MainActivity.java` resuelve back, pausa/audio y
+  keep-awake; `js/native.js` expone el mapping puro y los eventos DOM.
+- `SystemBars` con insets nativos; portrait con opt-out temporal para tablets.
+- El CI manual `android-ci.yml` compila un APK debug. El AAB firmado y Play
+  App Signing son la Etapa 3.
 - La app usa el mismo código web; no hay fork del juego.
 
 ## 17. Decisiones y no-goals
