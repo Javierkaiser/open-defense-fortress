@@ -137,7 +137,11 @@ export class Game {
       // meta TORRETAS también sobre la noche estrellada (semitransparencias).
       if (next === 'MENU' || next === 'SELECT_STAGE'
         || next === 'STAGE_CLEAR' || next === 'GAME_OVER'
-        || next === 'TORRETAS' || next === 'PROTOCOLO') {
+        || next === 'TORRETAS' || next === 'PROTOCOLO'
+        // fase 72: CRÉDITOS (y, de paso, RÉCORDS, que faltaba desde la
+        // fase 70) también van sobre la noche estrellada. Sin esto la
+        // pantalla hereda el tema del stage anterior.
+        || next === 'RECORDS' || next === 'CREDITS') {
         this.engine.setTheme('night');
       }
       // Modal de cartas (§4.4): entra/sale con la FSM CARD_CHOICE
@@ -150,7 +154,6 @@ export class Game {
         // menú) tapa el frame entero y bloquea todos los clicks.
         // hideCardChoice() es idempotente (no-op si el modal no existe).
         this.hud.hideCardChoice();
-        this.hud.hideCreditsModal();
       }
       hud.showScreen(next, this._screenData(next));
       this._playing = next === 'PLAYING';
@@ -601,6 +604,8 @@ export class Game {
       // fase 70: tarjeta de SUPERVIVENCIA y sala de RÉCORDS (hud.js).
       'start-survival': () => this.startSurvival(),
       records: () => this.toRecords(),
+      // fase 72: la pantalla de créditos y licencias (atribución CC BY 3.0).
+      credits: () => this.toCredits(),
       resume: () => this.resume(),
       'select-stage': () => this.toSelectStage(),
       'next-stage': () => this.startStage((this.stageId ?? 1) + 1),
@@ -616,8 +621,6 @@ export class Game {
       },
       // v5 5a/5: volver al menú principal desde PAUSA (data-action="menu")
       menu: () => this.toMenu(),
-      // Etapa 2: créditos/licencias (MIT, CC BY 3.0, CC0, OFL).
-      credits: () => this.hud.showCreditsModal(),
       // v3.5 meta-game: pantalla TORRETAS desde el menú / nav inferior
       torretas: () => this.toTorretas(),
       // fase 69: pantalla PROTOCOLO (heat) y sus ajustes. El handler recibe
@@ -1198,6 +1201,11 @@ export class Game {
     // fase 69: el Protocolo se abre desde el selector, así que Esc vuelve ahí
     else if (this.engine.state === 'PROTOCOLO') this.toSelectStage();
     else if (this.engine.state === 'STAGE_CLEAR' || this.engine.state === 'GAME_OVER') this.toSelectStage();
+    // fase 72: los créditos se abren desde el menú, así que Esc vuelve ahí.
+    else if (this.engine.state === 'CREDITS') this.toMenu();
+    // deuda de la fase 70 que este diff cierra: RÉCORDS tampoco tenía salida
+    // con Esc (se abría desde el menú y Esc no hacía nada).
+    else if (this.engine.state === 'RECORDS') this.toMenu();
   }
 
   /** Datos para SELECT_STAGE (§2.10): desbloqueo + mejor score reales. */
@@ -1303,6 +1311,20 @@ export class Game {
     // setState() es no-op con el mismo estado: re-render manual (mismo
     // patrón que toSelectStage/toTorretas).
     this.hud.showScreen('RECORDS');
+  }
+
+  /**
+   * Navega a CRÉDITOS Y LICENCIAS (fase 72). Es una pantalla ESTÁTICA: el
+   * HUD la arma con los textos embebidos en js/licenses.js, así que no hay
+   * datos que recargar (a diferencia de toRecords/toSelectStage). Se limpia
+   * el campo para que no quede la partida congelada detrás del overlay.
+   */
+  toCredits() {
+    this._clearBattlefield();
+    this.engine.setState('CREDITS');
+    // setState() es no-op con el mismo estado: re-render manual (mismo
+    // patrón que toSelectStage/toTorretas/toRecords).
+    this.hud.showScreen('CREDITS');
   }
 
   _refreshSpeed() {
@@ -1797,11 +1819,6 @@ window.__GDF__ = { game, engine, hud };
 // MainActivity.java llama a window.__gdfBack() desde onBackPressed. Si el
 // juego no lo maneja, el nativo manda la app a background (no la cierra).
 window.__gdfBack = () => {
-  // Un modal de créditos abierto se cierra antes de navegar la FSM.
-  if (hud.creditsOpen()) {
-    hud.hideCreditsModal();
-    return true;
-  }
   const action = backAction(engine.state);
   if (!action.handled) return false;
   if (action.next) engine.setState(action.next);

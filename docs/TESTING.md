@@ -6,8 +6,9 @@
 node --test "tests/**/*.mjs"
 ```
 
-Estado actual: **846 tests** (841 pass, 5 skip, 0 fail) en **24 archivos**.
-Node 22 o superior.
+Estado actual: **857 tests** (852 pass, 5 skip, 0 fail) en **25 archivos**.
+
+Requisitos: Node 22 o superior.
 
 Para un archivo:
 
@@ -30,6 +31,7 @@ node --test tests/test-stages.mjs
 | Score, XP, nivel, multiplicadores | `test-score.mjs` |
 | Meta-juego y persistencia | `test-meta.mjs`, `test-progress.mjs` |
 | HUD (markup puro, sin DOM real) | `test-hud.mjs` |
+| Créditos y licencias (datos + textos legales verbatim) | `test-licenses.mjs` |
 | Temas y calidad | `test-theme.mjs`, `test-quality.mjs` |
 | Audio (rutas, gains, throttles) | `test-audio.mjs` |
 | Heat / Protocolo | `test-heat.mjs`, `test-heat-waves.mjs` |

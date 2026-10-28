@@ -20,7 +20,7 @@ test('backAction: PAUSED va al menú', () => {
 
 test('backAction: pantallas de navegación vuelven al menú', () => {
   for (const state of [
-    'SELECT_STAGE', 'TORRETAS', 'PROTOCOLO', 'RECORDS', 'STAGE_CLEAR', 'GAME_OVER',
+    'SELECT_STAGE', 'TORRETAS', 'PROTOCOLO', 'RECORDS', 'CREDITS', 'STAGE_CLEAR', 'GAME_OVER',
   ]) {
     assert.deepEqual(backAction(state), { handled: true, next: 'MENU' }, state);
   }

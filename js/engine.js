@@ -316,6 +316,13 @@ export const STATES = [
   // fase 70: la SALA DE RÉCORDS (los cinco modos). Tampoco es pausa: es una
   // pantalla de consulta que se abre desde el menú/selector.
   'RECORDS',
+  // fase 72: CRÉDITOS Y LICENCIAS — la pantalla que cumple, DENTRO de la
+  // obra distribuida, la atribución CC BY 3.0 del icono del Ultimate
+  // (Lorc / game-icons.net, recoloreado) y que muestra el texto de OFL 1.1,
+  // que la licencia exige que viaje con las fuentes (docs/ no se publica).
+  // Tampoco es pausa: se entra desde el menú, con el juego ya fuera de
+  // PLAYING, igual que PROTOCOLO y RECORDS.
+  'CREDITS',
 ];
 const PAUSE_STATES = ['PAUSED', 'CARD_CHOICE'];
 

@@ -315,6 +315,18 @@ test('fase 70: RECORDS es un estado más (y NO de pausa)', () => {
   assert.equal(e.state, 'MENU');
 });
 
+test('fase 72: CREDITS es un estado más (y NO de pausa)', () => {
+  assert.ok(STATES.includes('CREDITS'), 'la pantalla de créditos tiene su estado');
+  const e = makeEngine();
+  assert.doesNotThrow(() => e.setState('CREDITS'), 'setState rechaza el estado nuevo');
+  assert.equal(e.state, 'CREDITS');
+  // Consultar los créditos no congela nada: se entra con el juego ya fuera
+  // de PLAYING (igual que PROTOCOLO y RECORDS).
+  assert.notEqual(e.timeScale, 0, 'CREDITS no es un estado de pausa');
+  e.setState('MENU');
+  assert.equal(e.state, 'MENU');
+});
+
 test('main.js: Esc en PAUSED reanuda la partida (BUG-003)', () => {
   const src = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
   const body = methodBody(src, '_onEscape() {');

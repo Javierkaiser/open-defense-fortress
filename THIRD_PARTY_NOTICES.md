@@ -25,9 +25,16 @@ autor por autor y asset por asset, está en:
 ## Cumplimiento de la atribución
 
 La atribución de **Lorc / game-icons.net (CC BY 3.0)** —autor, título, fuente,
-licencia y cambio realizado (recoloreado)— aparece en `docs/CREDITS.md` y debe
-mostrarse también **dentro de la app** (pantalla de créditos), porque CC BY 3.0
-exige la atribución en la obra distribuida, no solo en el repositorio.
+licencia y cambio realizado (recoloreado)— aparece en `docs/CREDITS.md` **y
+dentro del juego**, en la pantalla **CRÉDITOS Y LICENCIAS** (menú principal →
+botón CRÉDITOS), que es la obra distribuida, tal como exige CC BY 3.0 §4.
+
+El texto completo de las licencias (MIT, CC BY 3.0 y OFL 1.1) viaja embebido en
+`js/licenses.js`: no depende de la red ni de que el jugador abra un link. En
+particular, el texto de **OFL 1.1** se distribuye con las fuentes, como exige
+esa licencia (`docs/` no forma parte del build publicado).
+
+La ficha de la tienda (cuando exista) reutiliza el mismo bloque de atribución.
 
 ## Marcas y nombres
 

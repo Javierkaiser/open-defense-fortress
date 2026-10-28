@@ -11,6 +11,9 @@
 
 import { AudioManager } from './audio.js';
 import { STAGES } from './stages.js';
+// fase 72: los créditos y los TEXTOS LEGALES embebidos. Módulo de datos puro
+// (cero imports, cero DOM): la pantalla CREDITS se arma sin payload y sin red.
+import { LICENSES, ATTRIBUTIONS, FONTS, CODE } from './licenses.js';
 // dev-7 fase 37: el ancho LÓGICO del canvas, para saber si el marco
 // (DOM) es más estrecho que el diseño y hay que compactar el HUD.
 import { CONFIG } from './engine.js';
@@ -1071,6 +1074,126 @@ export function cardRarity(card) {
 export const CARD_PICK_DEBOUNCE_MS = 350;
 
 /**
+ * fase 72 — PANTALLA DE CRÉDITOS Y LICENCIAS. PURA: no recibe datos, no toca
+ * el DOM, no hace red. Devuelve el HTML completo; el contenido viene de
+ * `licenses.js` (embebido, porque el juego es offline y docs/ no se publica).
+ *
+ * POR QUÉ EXISTE: el icono del Ultimate (assets/sprites/ui_tinted/
+ * icon_ultimate_gold.png) es de Lorc / game-icons.net bajo CC BY 3.0, que
+ * exige la atribución EN LA OBRA DISTRIBUIDA (§4 b: autor, título, URI de
+ * origen y —por ser una adaptación recoloreada— un crédito que identifique
+ * el uso). Hasta la fase 71 la atribución vivía solo en docs/CREDITS.md.
+ *
+ * ORDEN: el bloque CC BY va PRIMERO y con el mismo componente que los demás.
+ * §4 b exige que el crédito de la obra CC BY sea "at least as prominent as
+ * the credits for the other contributing authors": una nota al pie no cumple.
+ *
+ * @returns {string} HTML de la pantalla
+ */
+export function buildCreditsHtml() {
+  /** URI como TEXTO seleccionable (no <a>: el juego no tiene anclas y en el
+   *  APK un link abriría un webview encima de la partida). */
+  const url = (u) => `<span class="credits-url">${esc(u)}</span>`;
+  /** Una fila `clave · valor` del bloque de atribución. */
+  const row = (k, v) => `<dt>${esc(k)}</dt><dd>${v}</dd>`;
+
+  // --- CC BY 3.0 (obligatorio) ---
+  const ccBy = ATTRIBUTIONS.find((a) => a.license === 'CC-BY-3.0');
+  const ccByLic = ccBy ? LICENSES[ccBy.license] : null;
+  const ccByHtml = (ccBy && ccByLic) ? `
+        <section class="credits-section credits-ccby" aria-labelledby="credits-ccby-h">
+          <h3 class="credits-h" id="credits-ccby-h">Arte con atribución obligatoria · CC BY 3.0</h3>
+          <article class="credits-attrib credits-attrib-main">
+            ${ccBy.thumb ? `<img class="credits-icon" src="${attr(ccBy.thumb)}" width="56" height="56"
+              alt="Icono del Ultimate: un rayo dorado" loading="lazy" decoding="async">` : ''}
+            <div class="credits-body">
+              <p class="credits-work">«${esc(ccBy.work)}» — ${esc(ccBy.use)}</p>
+              <dl class="credits-dl">
+                ${row('Autor', esc(ccBy.author))}
+                ${row('Obra', `${esc(ccBy.work)} (<code>${esc(ccBy.slug)}</code>)`)}
+                ${row('Fuente', `${esc(ccBy.sourceLabel)} — ${url(ccBy.source)}`)}
+                ${row('Licencia', `${esc(ccByLic.name)} — ${url(ccByLic.url)}`)}
+                ${row('Cambios', esc(ccBy.modified))}
+              </dl>
+              <p class="credits-note">Esta atribución se muestra en el juego, que es la obra
+                distribuida, como exige la licencia (CC BY 3.0, §4 b).</p>
+            </div>
+          </article>
+        </section>` : '';
+
+  // --- CC0 1.0 (sin obligación, se acredita igual) ---
+  const cc0Html = ATTRIBUTIONS
+    .filter((a) => a.license !== 'CC-BY-3.0')
+    .map((a) => {
+      const lic = LICENSES[a.license] ?? { name: a.license, url: '' };
+      return `
+          <article class="credits-attrib">
+            <div class="credits-body">
+              <p class="credits-work">${esc(a.author)} · ${esc(a.work)}</p>
+              <dl class="credits-dl">
+                ${row('Uso', esc(a.use))}
+                ${row('Fuente', `${esc(a.sourceLabel)} — ${url(a.source)}`)}
+                ${row('Licencia', `${esc(lic.name)}${lic.url ? ` — ${url(lic.url)}` : ''}`)}
+                ${a.modified ? row('Cambios', esc(a.modified)) : ''}
+              </dl>
+            </div>
+          </article>`;
+    }).join('');
+
+  // --- Tipografías (OFL 1.1) ---
+  const oflLic = LICENSES['OFL-1.1'];
+  const fontsHtml = FONTS.map((f) => `
+          <div class="credits-row">
+            <span class="credits-row-name">${esc(f.name)}</span>
+            <span class="credits-row-detail">${esc(f.authors)}</span>
+          </div>`).join('');
+
+  // --- Código (MIT) ---
+  const codeLic = LICENSES[CODE.license];
+
+  // --- Textos legales completos: una entrada por licencia CON texto. Se
+  //     derivan de los datos (no de una lista hardcodeada): si mañana se
+  //     embebe otro texto, aparece solo. ---
+  const legalHtml = Object.keys(LICENSES).map((id) => {
+    const lic = LICENSES[id];
+    if (!lic?.text) return '';
+    return `
+          <details class="credits-legal-box">
+            <summary>Texto completo de ${esc(lic.name)}</summary>
+            <pre class="credits-legal">${esc(lic.text)}</pre>
+          </details>`;
+  }).join('');
+
+  return `
+    <h2 class="screen-title">CRÉDITOS Y LICENCIAS</h2>
+    <p class="credits-lead">Open Defense Fortress es un juego 100 % offline: todo el arte,
+      el audio y las tipografías viajan con el juego. Acá está quién hizo cada pieza y bajo
+      qué licencia se distribuye.</p>
+    <div class="credits-scroll" tabindex="0" role="region" aria-label="Créditos y licencias">${ccByHtml}
+        <section class="credits-section" aria-labelledby="credits-cc0-h">
+          <h3 class="credits-h" id="credits-cc0-h">Arte y audio en dominio público · CC0 1.0</h3>
+          <p class="credits-hint">CC0 no exige atribución; se acredita igual.</p>${cc0Html}
+        </section>
+        <section class="credits-section" aria-labelledby="credits-fonts-h">
+          <h3 class="credits-h" id="credits-fonts-h">Tipografías · SIL Open Font License 1.1</h3>${fontsHtml}
+          <p class="credits-hint">Se distribuyen embebidas con el juego, no se venden por separado.
+            ${esc(oflLic.name)} — ${url(oflLic.url)}</p>
+        </section>
+        <section class="credits-section" aria-labelledby="credits-code-h">
+          <h3 class="credits-h" id="credits-code-h">Código · MIT</h3>
+          <p class="credits-work">${esc(CODE.project)} — Copyright (c) ${esc(String(CODE.year))} ${esc(CODE.holder)}</p>
+          <p class="credits-hint">Licencia: ${esc(codeLic.name)} — ${url(codeLic.url)}</p>
+        </section>
+        <section class="credits-section" aria-labelledby="credits-legal-h">
+          <h3 class="credits-h" id="credits-legal-h">Textos completos de las licencias</h3>${legalHtml}
+        </section>
+    </div>
+    <div class="stage-actions">
+      <button class="btn ghost" data-action="menu">${UI_ICONS.menu} VOLVER</button>
+    </div>`;
+}
+
+/**
  * dev-7 fase 36 — SCROLL de la pantalla de torretas.
  *
  * La grilla de torretas (`.meta-grid`, el contenedor scrolleable) se
@@ -1582,45 +1705,6 @@ export function buildThemeSwatches(activeId = '') {
  *
  * @param {{theme?: string, quality?: string, confirmingReset?: boolean, meta?: object}} [opts]
  */
-/**
- * Contenido de la pantalla de Créditos/Licencias.
- * Es HTML puro (testeable en Node) y reutiliza el lenguaje visual de los
- * modales. La atribución CC BY 3.0 del icono del Ultimate es obligatoria.
- */
-export function creditsHtml() {
-  return `
-    <h2 class="card-title">CRÉDITOS / LICENCIAS</h2>
-    <div class="credits-panel">
-      <p><b>Código:</b> MIT · © 2026 Javier Lust.</p>
-      <p><b>Arte y audio:</b> arte procedural propio (Canvas 2D) y una capa
-        acotada de assets libres.</p>
-
-      <h3>Atribución obligatoria</h3>
-      <p><b>Icono del Ultimate:</b> Lorc,
-        <a href="https://game-icons.net/1x1/lorc/power-lightning.html" target="_blank" rel="noopener">game-icons.net</a>,
-        <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>.
-        Recoloreado a dorado.</p>
-      <p class="hint">game-icons.net/1x1/lorc/power-lightning.html ·
-        creativecommons.org/licenses/by/3.0/</p>
-
-      <h3>CC0 1.0</h3>
-      <p>Chasis de torres, iconos de pausa/aviso, destellos y SFX: Kenney
-        (kenney.nl). Explosión de jefe: BenHickling / OpenGameArt. Son CC0;
-        se acreditan igual por buena práctica.</p>
-
-      <h3>Fuentes</h3>
-      <p>Orbitron, Rajdhani, Chakra Petch y Exo 2, bajo
-        <a href="https://openfontlicense.org/" target="_blank" rel="noopener">OFL 1.1</a>.</p>
-
-      <h3>Privacidad</h3>
-      <p>El juego no recolecta datos y no tiene anuncios ni compras.
-        Política: <span class="credits-url">https://faint-desert-zjv5.here.now/privacy.html</span></p>
-
-      <p class="hint">Open Defense Fortress es un proyecto independiente.</p>
-    </div>
-    <button class="btn ghost" data-credits-close>CERRAR</button>`;
-}
-
 export function buildMenuScreen({ theme = '', quality = '', confirmingReset = false, meta = null } = {}) {
   // dev-7 fase 13: selector de temas — reskinea el HUD/paneles/botones
   // (no el canvas del juego, ver theme.js). El activo queda marcado.
@@ -1657,11 +1741,11 @@ export function buildMenuScreen({ theme = '', quality = '', confirmingReset = fa
       <button class="btn ghost" data-action="torretas">${UI_ICONS.torreta} TORRETAS · mejoras permanentes</button>
       <button class="btn ghost" data-action="protocol">PROTOCOLO · heat y récords</button>
       <button class="btn ghost" data-action="records">RÉCORDS · los cinco modos</button>
+      <button class="btn ghost" data-action="credits">CRÉDITOS · licencias y atribuciones</button>
       <div class="theme-picker" role="radiogroup" aria-label="Tema de la interfaz">${swatches}</div>
       <p class="theme-picker-label" data-theme-label>Tema: ${THEMES.find((t) => t.id === theme)?.name ?? theme}</p>
       <div class="quality-picker">${qButtons}</div>
       <p class="theme-picker-label">Calidad gráfica (probá "Baja" si el juego anda lento)</p>
-      <button class="btn ghost small" data-action="credits">CRÉDITOS / LICENCIAS</button>
       <p class="hint menu-hint">[P] pausa · [1][2][3] velocidad · [Espacio] ultimate · [B] black hole</p>
       ${resetBlock}
       <p class="version">v1.0.0 · sin anuncios · 100% offline</p>
@@ -2129,11 +2213,6 @@ export class HUD {
     this.comboPanel = null;
     this._focusBeforeCombo = null;
 
-    // Modal de Créditos/Licencias (Etapa 2 Android): nodo propio, igual
-    // patrón que el panel de combos.
-    this.creditsModal = null;
-    this._focusBeforeCredits = null;
-
     // Barra de jefe (D11): DOM creado bajo demanda en render()
     this.boss = null;
     this._bossHidden = true;
@@ -2480,6 +2559,9 @@ export class HUD {
       // fase 70: la sala de récords de los cinco modos. Tampoco es UI de
       // combate: solo emite `menu`/`select-stage`.
       case 'RECORDS': el.innerHTML = this._screenRecords(); break;
+      // fase 72: créditos y licencias. Pantalla estática, sin payload ni
+      // re-render en caliente (no tiene controles que muten estado).
+      case 'CREDITS': el.innerHTML = this._screenCredits(); break;
       case 'PAUSED':
         el.innerHTML = this._screenPaused();
         this._bindPauseActions();
@@ -2667,6 +2749,19 @@ export class HUD {
     return `
       <section class="screen">
         <div class="panel records-panel">${buildRecordsHtml(this._recordsData())}</div>
+      </section>`;
+  }
+
+  /**
+   * Pantalla CRÉDITOS Y LICENCIAS (fase 72). El HTML lo arma
+   * `buildCreditsHtml()` (pura): el contenido es estático y vive embebido en
+   * js/licenses.js, así que no hay `_data()` que consultar ni juego vivo que
+   * pueda faltar. Mismo molde que `_screenRecords()`.
+   */
+  _screenCredits() {
+    return `
+      <section class="screen">
+        <div class="panel credits-panel">${buildCreditsHtml()}</div>
       </section>`;
   }
 
@@ -3723,91 +3818,9 @@ export class HUD {
       && !this.comboPanel.classList.contains('hidden');
   }
 
-  // ---------- Créditos / Licencias (Etapa 2 Android) ----------
-
-  /** Crea el nodo propio #credits-panel en el escenario de overlays. */
-  _ensureCreditsModal() {
-    if (this.creditsModal) return;
-    const host = this._overlayHost();
-    if (!host) return;
-    const div = document.createElement('div');
-    div.id = 'credits-panel';
-    div.classList.add('hidden');
-    div.classList.add(OVERLAY_VEIL_CLASS);
-    div.setAttribute('style', COMBO_OVERLAY_LAYOUT);
-    div.setAttribute('role', 'dialog');
-    div.setAttribute('aria-modal', 'true');
-    div.setAttribute('aria-label', 'Créditos y licencias');
-    host.appendChild(div);
-    div.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Escape') {
-        ev.preventDefault();
-        ev.stopPropagation();
-        this.hideCreditsModal();
-        return;
-      }
-      if (ev.key === 'Tab') this._trapModalFocus(ev, this.creditsModal);
-    });
-    this.creditsModal = div;
-  }
-
-  /** Abre la pantalla de créditos; reutiliza el contenido puro de creditsHtml(). */
-  showCreditsModal() {
-    this._ensureCreditsModal();
-    if (!this.creditsModal) return;
-    this._captureCreditsFocus();
-    this.creditsModal.innerHTML = creditsHtml();
-    // En Android, un link externo dentro del WebView sacaría al jugador del
-    // juego (y el back nativo no navega el historial). Las URLs quedan
-    // visibles como texto; en web los links siguen funcionando.
-    const native = typeof window !== 'undefined'
-      && window.Capacitor?.isNativePlatform?.() === true;
-    if (native) {
-      this.creditsModal.querySelectorAll('a[href]').forEach((a) => {
-        a.addEventListener('click', (ev) => ev.preventDefault());
-      });
-    }
-    this.creditsModal.querySelector('[data-credits-close]')
-      ?.addEventListener('click', () => this.hideCreditsModal());
-    this.creditsModal.classList.remove('hidden');
-    const closeBtn = this.creditsModal.querySelector('[data-credits-close]');
-    if (closeBtn && typeof closeBtn.focus === 'function') {
-      try { closeBtn.focus(); } catch (_err) { /* sin foco */ }
-    }
-  }
-
-  /** Cierra el modal de créditos y devuelve el foco. */
-  hideCreditsModal() {
-    if (this.creditsModal) {
-      this.creditsModal.classList.add('hidden');
-      this.creditsModal.innerHTML = '';
-    }
-    this._restoreCreditsFocus();
-  }
-
-  /** ¿Está abierto el modal de créditos? */
-  creditsOpen() {
-    return !!this.creditsModal
-      && !this.creditsModal.classList.contains('hidden');
-  }
-
-  _captureCreditsFocus() {
-    if (typeof document === 'undefined') return;
-    const active = document.activeElement;
-    this._focusBeforeCredits = (active && active !== document.body) ? active : null;
-  }
-
-  _restoreCreditsFocus() {
-    const el = this._focusBeforeCredits;
-    this._focusBeforeCredits = null;
-    if (!el || typeof el.focus !== 'function') return;
-    if (el.isConnected === false) return;
-    try { el.focus(); } catch (_err) { /* nodo desconectado */ }
-  }
-
   /**
    * ¿Hay ALGÚN modal abierto sobre la pantalla? Cubre el modal de cartas y
-   * el de perk (#card-choice), el panel combo (#combo-panel) y créditos.
+   * el de perk (#card-choice) y el panel combo (#combo-panel).
    *
    * El modal de PERK cierra con [data-perk-close], por eso la detección
    * anterior (solo combo) daba false con el perk abierto: el modal
@@ -3817,7 +3830,6 @@ export class HUD {
   anyModalOpen() {
     // El panel combo tiene su propio nodo (#combo-panel).
     if (this.comboPanel && !this.comboPanel.classList.contains('hidden')) return true;
-    if (this.creditsModal && !this.creditsModal.classList.contains('hidden')) return true;
     if (!this.cardModal) return false;
     if (this.cardModal.classList.contains('hidden')) return false;
     // El modal de PERK cierra con [data-perk-close].
