@@ -1703,6 +1703,149 @@ html, body {
   color: var(--crit-gold);
 }
 
+/* ============================================================
+   fase 72 — PANTALLA DE CRÉDITOS Y LICENCIAS
+   Requisito legal: la atribución CC BY 3.0 del icono del Ultimate
+   (Lorc / game-icons.net) tiene que verse EN EL JUEGO, no solo en el
+   repo. El bloque CC BY es el PRIMERO y usa la misma ficha que los
+   créditos CC0 (CC BY 3.0 §4 b: "at least as prominent as the credits
+   for the other contributing authors").
+   Todo el estilo sale de variables del :root => los 5 temas lo repintan
+   sin CSS por tema. Sin blur ni sombras nuevas: la calidad "Baja" no
+   paga nada extra acá.
+   ============================================================ */
+.credits-panel {
+  width: min(520px, 96%);
+  align-items: stretch;   /* el .panel base centra: acá el texto se lee a la izquierda */
+  text-align: left;
+  gap: var(--space-3);
+}
+.credits-panel .screen-title { text-align: center; }
+.credits-lead {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  color: rgb(var(--hud-teal-rgb) / .82);
+  text-align: center;
+}
+/* UN SOLO contenedor que scrollea (mismo idiom que .protocol-list): el
+   título y el VOLVER quedan siempre a la vista. El texto legal NO lleva
+   scroll propio: un scroll dentro de otro es una trampa táctil en móvil. */
+.credits-scroll {
+  width: 100%;
+  /* Presupuesto de alto: la pantalla entera tiene que entrar en el marco.
+     - 58vh es el techo "cómodo" (mismo criterio que .protocol-list).
+     - 100dvh - 330px descuenta lo FIJO (título 1-2 líneas + lead + VOLVER
+       + paddings): en un viewport corto (landscape de móvil, ventana baja)
+       58vh solo ya no entra y el título quedaba recortado arriba.
+     - clamp() pone piso 180px para que nunca colapse en pantallas mínimas.
+     La primera línea es el fallback (navegadores sin dvh/clamp). */
+  max-height: 58vh;
+  max-height: clamp(180px, calc(100dvh - 330px), 58vh);
+  overflow-y: auto;
+  overflow-x: hidden;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0 var(--space-1) var(--space-2);
+  scrollbar-gutter: stable;
+}
+.credits-scroll:focus-visible { outline: 2px solid rgb(var(--hud-teal-rgb) / .8); outline-offset: 2px; }
+.credits-section { display: flex; flex-direction: column; gap: var(--space-2); width: 100%; }
+.credits-h {
+  margin: 0;
+  font-family: var(--font-title);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--crit-gold);
+}
+.credits-hint { margin: 0; font-family: var(--font-body); font-size: var(--text-xs); line-height: 1.4; color: rgba(200, 214, 220, .66); }
+.credits-note { margin: 0; font-family: var(--font-body); font-size: var(--text-xs); line-height: 1.4; color: rgba(200, 214, 220, .72); }
+.credits-attrib {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-3) 10px;
+  border: 1px solid rgba(120, 150, 160, .22);
+  border-left: 3px solid rgb(var(--hud-teal-rgb) / .5);
+  border-radius: var(--radius-s);
+  background: rgba(12, 22, 24, .55);
+}
+/* El bloque CC BY (obligatorio) se distingue con el acento dorado de
+   MÁS el fondo cálido derivado del MISMO token: así sigue al tema (en
+   cyberpunk/neón el acento es magenta y un fondo marrón fijo chocaría). */
+.credits-attrib-main {
+  border-left-color: rgb(var(--crit-gold-rgb) / .85);
+  background: rgb(var(--crit-gold-rgb) / .07);
+}
+.credits-icon { flex: 0 0 auto; width: 48px; height: 48px; image-rendering: pixelated; }
+.credits-body { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.credits-work { margin: 0; font-family: var(--font-body); font-size: var(--text-md); font-weight: 700; color: var(--score-white); }
+.credits-dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  gap: 2px 8px;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  line-height: 1.35;
+}
+.credits-dl dt { color: rgb(var(--hud-teal-rgb) / .9); text-transform: uppercase; letter-spacing: .06em; font-size: 10px; padding-top: 2px; }
+.credits-dl dd { margin: 0; color: rgba(214, 228, 232, .86); overflow-wrap: anywhere; }
+.credits-dl code { font-family: var(--font-mono); font-size: 10.5px; color: var(--crit-gold); }
+/* Las URLs son TEXTO, no <a>: el juego no tiene ni un ancla y en el APK un
+   link abriría un webview encima de la partida. `user-select: all` las hace
+   copiables de un tirón. */
+.credits-url { font-family: var(--font-mono); font-size: 10.5px; color: rgb(var(--crit-gold-rgb) / .92); user-select: all; overflow-wrap: anywhere; }
+.credits-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border: 1px solid rgba(120, 150, 160, .18);
+  border-radius: var(--radius-s);
+}
+.credits-row-name { font-family: var(--font-body); font-size: var(--text-sm); font-weight: 700; color: var(--score-white); }
+.credits-row-detail { font-family: var(--font-body); font-size: var(--text-xs); color: rgba(200, 214, 220, .72); }
+.credits-legal-box { border: 1px solid rgba(120, 150, 160, .18); border-radius: var(--radius-s); padding: 6px 10px; }
+.credits-legal-box summary { cursor: pointer; font-family: var(--font-body); font-size: var(--text-sm); color: rgb(var(--hud-teal-rgb) / .95); }
+.credits-legal-box summary:focus-visible { outline: 2px solid rgb(var(--hud-teal-rgb) / .8); outline-offset: 2px; }
+.credits-legal {
+  margin: 8px 0 2px;
+  font-family: var(--font-mono);
+  /* 9,5 px a propósito: acá van ~700 líneas de texto legal; con --text-xs
+     (11 px) el bloque se vuelve una pared ilegible en 390 px de ancho. */
+  font-size: 9.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;      /* el texto legal se lee verbatim, con sus saltos */
+  overflow-wrap: anywhere;
+  color: rgba(214, 228, 232, .8);
+}
+/* Marco angosto (móvil): el <dl> pasa a una columna. El alto del área
+   scrolleable NO se toca acá: lo gobierna la regla base con dvh (una
+   container query de ancho no sabe nada del alto, y fijar 62vh acá fue
+   justo lo que recortaba el título en landscape). */
+@container marco (max-width: 380px) {
+  .credits-dl { grid-template-columns: 1fr; gap: 0; }
+  .credits-dl dt { padding-top: 6px; }
+  .credits-icon { width: 40px; height: 40px; }
+}
+
+/* Viewport CORTO (landscape de móvil, ventana baja): el título a 22 px
+   envuelve en dos líneas y el lead en tres, y entre los dos se comen el
+   marco antes de que el área scrolleable exista. Se comprimen los dos y
+   el scroll recibe un presupuesto más chico. */
+@media (max-height: 640px) {
+  .credits-panel .screen-title { font-size: var(--text-lg); }
+  .credits-lead { font-size: var(--text-xs); line-height: 1.35; }
+  .credits-scroll { max-height: clamp(140px, calc(100dvh - 265px), 52vh); }
+}
+
 /* ---------- Botones (chaflán + glow teal) ----------
    dev-7 fase 45 — el FONDO DE LOS BOTONES ES CSS, no un PNG.
    Antes era `url('../assets/sprites/ui_tinted/button_rect_gloss_teal.png')`:
