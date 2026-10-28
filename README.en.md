@@ -17,8 +17,7 @@ and the upgrade cards offered on level-up. Every run is a roguelike.
 - 8 towers + 3 drones, 48 cards, 7 elite affixes, 5 visual themes.
 - No ads, no purchases, no accounts, no telemetry.
 - Canvas 2D + DOM/CSS + ES modules; no build step, no server, no network calls.
-- 846 Node tests.
-
+- 857 Node tests.
 ## Run it
 
 ```bash
@@ -26,7 +25,7 @@ and the upgrade cards offered on level-up. Every run is a roguelike.
 node scripts/serve.mjs 8080
 # open http://localhost:8080
 
-# tests (846) + static checks
+# tests (857) + static checks
 node --test "tests/**/*.mjs"
 node .github/scripts/ci-checks.mjs
 ```

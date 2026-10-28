@@ -26,7 +26,7 @@ mediciones, ver [BALANCE.md](BALANCE.md); para la suite, [TESTING.md](TESTING.md
 | Mundo | Canvas 2D, 540×880 lógicos, DPR con tope 2 |
 | HUD/overlays | DOM + CSS (sin framework) |
 | Loop | `requestAnimationFrame` + delta con clamp |
-| Estado | FSM de 11 estados + `EventBus` en `engine.js` |
+| Estado | FSM de 12 estados + `EventBus` en `engine.js` |
 | Persistencia | `localStorage` (`gdf_progress`, `gdf_meta`, `gdf_quality`, `gdf_theme`) |
 | Audio | WebAudio sintetizado + 18 samples OGG locales |
 | Dependencias | Cero en runtime; solo herramientas Node en `scripts/` |
@@ -95,6 +95,7 @@ BOOT → MENU → SELECT_STAGE → PLAYING ⇄ PAUSED
 MENU ⇄ TORRETAS
 MENU ⇄ PROTOCOLO
 MENU ⇄ RECORDS
+MENU ⇄ CREDITS
 ```
 
 - `CARD_CHOICE` bloquea el update del mundo, no el render.
@@ -256,7 +257,7 @@ inmune: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 846 tests (841 pass, 5 skip) en 24 archivos.
+- 857 tests (852 pass, 5 skip) en 25 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

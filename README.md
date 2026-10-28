@@ -5,8 +5,7 @@
 [![CI](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml/badge.svg)](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml)
 [![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-3FD4FF.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-6DA55F.svg)](package.json)
-[![Tests](https://img.shields.io/badge/tests-846-3FD4FF.svg)](tests/)
-
+[![Tests](https://img.shields.io/badge/tests-857-3FD4FF.svg)](tests/)
 [Demo web](https://faint-desert-zjv5.here.now/) · [English summary](README.en.md) · [Diseño técnico](docs/DESIGN.md) · [Balance](docs/BALANCE.md) · [Testing](docs/TESTING.md) · [Créditos](docs/CREDITS.md) · [Cómo contribuir](CONTRIBUTING.md) · [Código de conducta](CODE_OF_CONDUCT.md)
 
 ![Menú principal](docs/screenshots/menu.webp)
@@ -66,8 +65,7 @@ La demo se publica sola: cada push a `main` corre el workflow de deploy
 - **Sin anuncios, sin compras, sin cuentas, sin telemetría.**
 - **Offline real**: fuentes, sprites y SFX locales.
 - **Calidad gráfica Alta/Baja** para equipos modestos.
-- **846 tests** en Node, sin DOM ni canvas.
-
+- **857 tests** en Node, sin DOM ni canvas.
 ## Controles
 
 | Acción | Teclado | Touch |
@@ -85,7 +83,7 @@ El disparo es automático: no hay apuntado ni joystick.
 ## Tests
 
 ```bash
-node --test "tests/**/*.mjs"            # 846 tests (841 pass, 5 skip, 0 fail)
+node --test "tests/**/*.mjs"            # 857 tests (852 pass, 5 skip, 0 fail)
 node .github/scripts/ci-checks.mjs   # checks estáticos (sintaxis, zero-dep, refs)
 ```
 
@@ -104,7 +102,7 @@ que pasar esa matriz para mergearse.
 .
 ├─ index.html            # canvas + HUD DOM + overlays
 ├─ css/style.css         # HUD, pantallas, temas, responsive
-├─ js/                   # 23 módulos ES (juego + puente nativo)
+├─ js/                   # 24 módulos ES (juego + puente nativo)
 ├─ assets/               # solo los 33 assets que usa el juego
 ├─ tests/                # node:test
 ├─ scripts/              # serve, balance-sim, probe-waves, probes
@@ -120,8 +118,9 @@ que pasar esa matriz para mergearse.
 - **Canvas 2D** lógico 540×880, escalado por CSS y DPR (tope 2).
 - **DOM/CSS** para HUD, menús, cartas, pausa, meta, protocolo y récords.
 - **23 módulos ES acíclicos** con un EventBus en `engine.js`; sin dependencias npm.
-- **FSM de 11 estados** (`BOOT`, `MENU`, `SELECT_STAGE`, `PLAYING`, `PAUSED`,
-  `CARD_CHOICE`, `STAGE_CLEAR`, `GAME_OVER`, `TORRETAS`, `PROTOCOLO`, `RECORDS`).
+- **FSM de 12 estados** (`BOOT`, `MENU`, `SELECT_STAGE`, `PLAYING`, `PAUSED`,
+  `CARD_CHOICE`, `STAGE_CLEAR`, `GAME_OVER`, `TORRETAS`, `PROTOCOLO`, `RECORDS`,
+  `CREDITS`).
 - **Director de olas** con presupuesto de HP, curva de presión, biomas por década
   y variantes de élite.
 - **Persistencia** en `localStorage` (`gdf_progress`, `gdf_meta`, `gdf_quality`,

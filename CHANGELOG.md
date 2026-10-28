@@ -8,6 +8,13 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 
 ### Añadido
 
+- Pantalla **CRÉDITOS Y LICENCIAS** dentro del juego (menú principal → CRÉDITOS,
+  estado `CREDITS` de la FSM): cumple la atribución **CC BY 3.0** del icono del
+  Ultimate (Lorc / game-icons.net, recoloreado) en la obra distribuida, y lista
+  el resto de las licencias (CC0 de Kenney y BenHickling, OFL 1.1 de las cuatro
+  tipografías y MIT del código). Los textos legales completos viajan embebidos
+  en el módulo nuevo `js/licenses.js` (offline, sin `fetch`); el texto de
+  OFL 1.1 pasa a distribuirse con el juego.
 - CI en GitHub Actions con matriz Linux/macOS/Windows × Node 22/24 y un job de
   checks estáticos (sintaxis, zero-dependency, referencias rotas).
 - Dependabot semanal para las GitHub Actions.
@@ -22,12 +29,13 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 - Build manual de APK debug en GitHub Actions.
 - Hooks nativos: back button, pausa/audio al background, keep-awake.
 - `js/native.js` puro + tests; sin plugins JS.
-- Pantalla de Créditos/Licencias (MIT, CC BY 3.0, CC0, OFL).
 - Safe areas y pulido táctil.
-- 846 tests (841 pass, 5 skip).
+- 857 tests (852 pass, 5 skip).
 
 ### Cambiado
 
+- `docs/CREDITS.md` y `THIRD_PARTY_NOTICES.md`: la atribución CC BY 3.0 deja de
+  ser una tarea pendiente de la etapa Android — ya se muestra en el juego.
 - `README.md`: la sección de cómo correr/jugar quedó arriba, junto al TL;DR, y el
   badge de estado ahora es el de CI.
 - `SECURITY.md`: el reporte privado por GitHub Advisories es el canal preferido.

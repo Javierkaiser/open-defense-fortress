@@ -56,11 +56,23 @@ del repositorio ni del APK. El inventario completo de los usados está en
 
 ## Atribución en la app
 
-La app Android debe incluir una pantalla **Créditos / Licencias** con:
+La atribución **se muestra dentro del juego**: menú principal → **CRÉDITOS ·
+licencias y atribuciones** (estado `CREDITS` de la FSM). La pantalla lista,
+en este orden:
 
-- Lorc / game-icons.net, CC BY 3.0 (icono Ultimate, recoloreado).
-- Kenney / OpenGameArt, CC0.
-- Fuentes OFL 1.1 y link al texto de la licencia.
+1. **CC BY 3.0 (obligatoria)** — Lorc / game-icons.net, obra «Power Lightning»,
+   fuente, licencia y el cambio realizado (recoloreado a dorado), con la
+   miniatura del icono **en uso**.
+2. **CC0 1.0** — Kenney (sprites y 18 SFX) y BenHickling / OpenGameArt
+   (explosión de jefe). CC0 no exige crédito; se acredita igual.
+3. **OFL 1.1** — Orbitron, Rajdhani, Chakra Petch y Exo 2, con el texto
+   completo de la licencia (que tiene que viajar con las fuentes).
+4. **MIT** — el código, Copyright (c) 2026 Javier Lust.
 
-Esa pantalla se agrega en la etapa de packaging Android. Mientras tanto, estos
-documentos son la fuente de verdad.
+El contenido vive en `js/licenses.js` (atribuciones + textos legales completos
+embebidos) y se pinta con `buildCreditsHtml()` en `js/hud.js`. No hay `fetch`
+ni red: el juego es offline y el deploy publica `js/`, no `docs/`.
+
+`docs/licenses/OFL-1.1.txt` y `docs/licenses/CC-BY-3.0-legalcode.txt` son la
+copia canónica del repo; `tests/test-licenses.mjs` verifica que la copia
+embebida en el juego sea idéntica.

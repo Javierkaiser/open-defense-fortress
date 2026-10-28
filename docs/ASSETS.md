@@ -62,4 +62,7 @@ El único asset con atribución obligatoria es el icono del Ultimate:
 > **Lorc**, [game-icons.net](https://game-icons.net/1x1/lorc/power-lightning.html),
 > [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Recoloreado.
 
-Debe aparecer en la pantalla de créditos de la app y en la ficha de la tienda.
+Se muestra en la pantalla **CRÉDITOS Y LICENCIAS** del juego (estado `CREDITS`
+de la FSM, menú principal → CRÉDITOS), armada por `buildCreditsHtml()` en
+`js/hud.js` a partir de `js/licenses.js`; la ficha de la tienda reutiliza el
+mismo bloque.
