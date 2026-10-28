@@ -7,7 +7,10 @@
 #      versionado como js_v<commit> (rompe el cache-control max-age=3600
 #      de here.now).
 #   2. reescribe `<script src="js/main.js">` -> `js_v<commit>/main.js`
-#      en el index.html del staging (el repo queda intacto).
+#      y `href="css/style.css"` -> `css/style.css?v=<commit>` en el
+#      index.html del staging (el repo queda intacto). El CSS también
+#      tiene max-age=3600 y no está versionado: sin el ?v= los clientes
+#      que ya lo tenían cacheado siguen viendo el CSS viejo.
 #   3. flow de API: PUT /api/v1/publish/<slug> (manifest con hashes)
 #      -> uploads a URLs firmadas -> finalize.
 #   4. verifica que el index servido por here.now referencia la carpeta nueva.
@@ -82,7 +85,9 @@ cp -r "$REPO/assets" "$STAGING/"
 cp -r "$REPO/js" "$STAGING/$JS_DIR"
 # Reescribir la referencia del módulo de entrada en el index del staging
 sed -i "s|src=\"js/main.js\"|src=\"$JS_DIR/main.js\"|" "$STAGING/index.html"
-echo ">> staging: $STAGING (js -> $JS_DIR)"
+# Cache-bust del CSS (mismo motivo que js/: max-age=3600 sin versionar).
+sed -i "s|href=\"css/style.css\"|href=\"css/style.css?v=$JS_TAG\"|" "$STAGING/index.html"
+echo ">> staging: $STAGING (js -> $JS_DIR, css -> style.css?v=$JS_TAG)"
 
 # --- 2. Manifest + create/update --------------------------------------------
 TARGET="$STAGING"
@@ -163,9 +168,17 @@ fi
 JS_HTTP=$(curl -sS -o /dev/null -w "%{http_code}" "https://$SLUG.here.now/$JS_DIR/main.js")
 [[ "$JS_HTTP" == "200" ]] || die "main.js servido con HTTP $JS_HTTP"
 
+SERVED_CSS=$(echo "$INDEX" | grep -oE 'css/style\.css\?v=[^"]*' | head -1)
+if [[ "$SERVED_CSS" != "css/style.css?v=$JS_TAG" ]]; then
+  die "el index servido referencia '$SERVED_CSS' (esperado 'css/style.css?v=$JS_TAG')"
+fi
+CSS_HTTP=$(curl -sS -o /dev/null -w "%{http_code}" "https://$SLUG.here.now/css/style.css?v=$JS_TAG")
+[[ "$CSS_HTTP" == "200" ]] || die "style.css servido con HTTP $CSS_HTTP"
+
 echo ""
 echo "publish_result.site_url=$SITE_URL"
 echo "publish_result.slug=$SLUG"
 echo "publish_result.js_dir=$JS_DIR"
-echo "publish_result.verified=ok (index -> $JS_DIR/main.js, HTTP $JS_HTTP)"
+echo "publish_result.css_url=css/style.css?v=$JS_TAG"
+echo "publish_result.verified=ok (index -> $JS_DIR/main.js + style.css?v=$JS_TAG, HTTP $JS_HTTP/$CSS_HTTP)"
 echo "✅ Publicado: $SITE_URL"
