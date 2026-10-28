@@ -166,6 +166,25 @@ test('applyProjectileHit: splash propaga slow/stun/crit a todos los del radio', 
   assert.equal(list[1].stun, 0.5);
 });
 
+// ---------- fase 73: CCD (colisión barrida) de proyectiles rápidos ----------
+
+test('CCD: una bala rápida no se salta a una espora entre frames', () => {
+  const b = new Bullet(100, 512, 0, { speed: 920, damage: 10, radius: 4 });
+  const e = mkEnemy(100, 480, 100, 7); // espora: r 7 + bala 4 = 11 px
+  b.update(0.05); // 46 px de avance: 512 → 466, pasa de largo el centro
+  assert.ok(b.y < e.y, 'la bala ya pasó al enemigo en este frame');
+  assert.equal(applyProjectileHit(b, [e]), true);
+  assert.equal(e.hp, 90, 'el sweep del segmento sí la alcanza');
+});
+
+test('CCD: no pega a un enemigo que quedó DETRÁS del recorrido', () => {
+  const b = new Bullet(100, 512, 0, { speed: 920, damage: 10, radius: 4 });
+  const e = mkEnemy(100, 530, 100, 7); // detrás del spawn
+  b.update(0.05);
+  assert.equal(applyProjectileHit(b, [e]), false);
+  assert.equal(e.hp, 100);
+});
+
 test('Bullet: acepta opts de perks sistemáticos (fase 17)', () => {
   const b = new Bullet(0, 0, 0, {
     bounce: 2, slowOnHit: 0.2, stunChance: 0.3,
@@ -309,8 +328,12 @@ test('chainFork: Thunderstroke con bifurcación golpea a más objetivos que sin 
   const run = () => {
     const game = mkGame();
     const t = new Tower('thunderstroke', 100, 1, 0);
-    const es = [0, 1, 2].map((i) => ({ x: 100 + i * 10, y: 100, r: 10, hp: 5000, hpMax: 5000,
-      dead: false, slowFactor: 1, stun: 0, takeDamage(n) { this.hp -= n; return false; } }));
+    // 6 enemigos agrupados dentro del radio de área (130 px): el rayo
+    // principal + 3 mini rayos base dejan 2 afuera; chainFork suma +1.
+    const es = [0, 1, 2, 3, 4, 5].map((i) => ({
+      x: 100 + i * 10, y: 100, r: 10, hp: 5000, hpMax: 5000,
+      dead: false, slowFactor: 1, stun: 0, takeDamage(n) { this.hp -= n; return false; },
+    }));
     t.fire(es, game);
     return es.filter((e) => e.hp < 5000).length;
   };
@@ -319,6 +342,8 @@ test('chainFork: Thunderstroke con bifurcación golpea a más objetivos que sin 
   setPerks({ thunderstroke: [null, 0] }); // tier 2, rama A: chainFork 1
   const con = run();
   setPerks({});
+  assert.equal(sin, 4, 'sin perks: principal + 3 mini rayos');
+  assert.equal(con, 5, 'con bifurcación: principal + 4 mini rayos');
   assert.ok(con > sin, `con bifurcación debía golpear a más enemigos (sin ${sin}, con ${con})`);
 });
 
@@ -1549,6 +1574,9 @@ test('fase 48: hasta el Lv.3 las balas van al MISMO blanco (paralelas)', () => {
   assert.equal(balas.length, 3, 'la rafaga del Lv.3 son 3 balas');
   const angulos = new Set(balas.map((b) => Math.round(Math.atan2(b.vx, -b.vy) * 1000)));
   assert.equal(angulos.size, 1, `las 3 balas van al mismo blanco (angulos distintos: ${angulos.size})`);
+  // fase 73: separación compacta de 10 px (antes 13).
+  const xs = balas.map((b) => Math.round(b.x)).sort((a, b) => a - b);
+  assert.deepEqual(xs, [260, 270, 280], 'las balas salen a 10 px de distancia');
 });
 
 test('fase 48: el Lv.5 del Guardian perfora +1', () => {
@@ -1762,13 +1790,76 @@ test('fase 66: Sensores Ampliados (detectMul) SUBE la banda', () => {
   assert.equal(t.detectWidthNow(juego), Infinity, 'el ancho de detección sigue infinito');
 });
 
-test('fase 66: el Thunderstroke sigue con su CÍRCULO (no se volvió banda)', () => {
-  const lejos = mkAlvo(20, 520); // a 414 px de la torre
-  const { t, juego } = mkTowerF66('thunderstroke', [lejos]);
-  assert.equal(TOWERS.thunderstroke.range, MAX_TOWER_REACH);
-  assert.equal(targetInRange(lejos, juego, t), false, 'el círculo de 260 sigue mandando');
-  const cerca = mkAlvo(270, 700);
-  assert.equal(targetInRange(cerca, juego, t), true, 'lo que entra al círculo, entra');
+test('fase 73: el Thunderstroke tiene alcance TOTAL (global, no círculo)', () => {
+  const lejos = mkAlvo(20, 520);   // esquina opuesta
+  const arriba = mkAlvo(500, 80);  // parte alta de la pantalla
+  const { t, juego } = mkTowerF66('thunderstroke', [lejos, arriba]);
+  assert.equal(TOWERS.thunderstroke.range, undefined, 'sin círculo de 260');
+  assert.equal(TOWERS.thunderstroke.detectHalfWidth, Infinity);
+  assert.equal(t.detectWidthNow(juego), Infinity, 'sin tope horizontal');
+  assert.equal(targetInRange(lejos, juego, t), true, 'la esquina opuesta entra');
+  assert.equal(targetInRange(arriba, juego, t), true, 'la parte alta entra');
+  assert.equal(t._primaryTarget([lejos, arriba], juego, 1), arriba,
+    'farthest: el más lejano (arriba) es el blanco');
+});
+
+test('fase 73: un rayo principal + mini rayos de área (50 %)', () => {
+  setMeta({});
+  const principal = mkAlvo(270, 200, 1000);
+  const vecinoA = mkAlvo(320, 230, 1000);
+  const vecinoB = mkAlvo(220, 240, 1000);
+  const fuera = mkAlvo(500, 500, 1000);
+  const { t, juego } = mkTowerF66('thunderstroke', [principal, vecinoA, vecinoB, fuera]);
+  t.fire(juego.fortress.enemies, juego, 1 / 60);
+
+  const d = TOWERS.thunderstroke;
+  const areaDmg = Math.round(d.damage * d.areaFrac);
+  assert.equal(principal.hp, 1000 - d.damage, 'el principal come el daño pleno');
+  assert.equal(vecinoA.hp, 1000 - areaDmg, 'el vecino A come el 50 %');
+  assert.equal(vecinoB.hp, 1000 - areaDmg, 'el vecino B come el 50 %');
+  assert.equal(fuera.hp, 1000, 'fuera del radio no hay daño de área');
+  assert.equal(principal.stun, d.stun, 'principal: stun pleno');
+  assert.equal(vecinoA.stun, d.areaStun, 'vecino: stun de área');
+
+  const rayos = juego.log.efectos.filter((fx) => Array.isArray(fx.points));
+  assert.equal(rayos.length, 3, '1 rayo principal + 2 mini rayos');
+  assert.equal(rayos[0].points.length, 2, 'el principal es un solo segmento');
+  assert.equal(rayos[0].points[1].x, principal.x, 'el principal va al blanco (x)');
+  assert.equal(rayos[0].points[1].y, principal.y, 'el principal va al blanco (y)');
+  assert.equal(rayos[1].points[0].x, principal.x, 'los mini rayos salen del impacto (x)');
+  assert.equal(rayos[1].points[0].y, principal.y, 'los mini rayos salen del impacto (y)');
+  assert.equal(rayos[2].points[0].x, principal.x);
+});
+
+test('fase 73: el blanco principal NO recibe también el daño de área', () => {
+  setMeta({});
+  const principal = mkAlvo(270, 200, 1000);
+  const vecino = mkAlvo(300, 220, 1000);
+  const { t, juego } = mkTowerF66('thunderstroke', [principal, vecino]);
+  t.fire(juego.fortress.enemies, juego, 1 / 60);
+  assert.equal(principal.hp, 1000 - TOWERS.thunderstroke.damage,
+    'solo el rayo principal; el estallido excluye al principal');
+  assert.ok(vecino.hp < 1000, 'el vecino sí recibe el estallido');
+});
+
+test('fase 73: el Thunderstroke marca el blanco durante el build-up', () => {
+  const enemigo = mkAlvo(270, 200);
+  const { t, juego } = mkTowerF66('thunderstroke', [enemigo]);
+  t.cooldownLeft = 1.2;
+  t.update(1 / 60, [enemigo], juego);
+  assert.equal(t.targets[0], enemigo, 'adquiere el blanco durante la carga');
+  assert.ok(t._charge > 0, 'la carga avanza');
+  t._charge = 0.9;
+  const ctx = recCtx();
+  t.render(ctx);
+  const lock = ctx.arcs.find((a) => Math.abs(a.y + 630) < 3 && a.r > enemigo.r);
+  assert.ok(lock, 'dibuja el anillo de lock sobre el blanco');
+  assert.ok(lock.alpha > 0.1, `el anillo se ve con carga alta (alpha ${lock.alpha})`);
+  // Sin carga no hay anillo de lock (la torre sigue dibujándose normal).
+  t._charge = 0;
+  const sin = recCtx();
+  t.render(sin);
+  assert.equal(sin.arcs.some((a) => Math.abs(a.y + 630) < 3), false);
 });
 
 test('fase 66: la cadena SIGUE al enjambre en la esquina opuesta', () => {

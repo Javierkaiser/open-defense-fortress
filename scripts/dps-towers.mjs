@@ -13,7 +13,8 @@
 //   · beam              → promedio del ciclo de ventana (ramp incluido):
 //                         ∫ damagePerSec·ramp dt / (beamBurst + beamCooldown)
 //   · chain (tesla)     → suma de la descarga / cooldown, con falloff por salto
-//   · bolt (thunder)    → damage / cooldown
+//   · bolt (thunder)    → damage / cooldown; multi = principal + mini rayos
+//                         de área (areaTargets × areaFrac)
 //   · mortar            → damage / cooldown (sin contar el área)
 //   · gauss             → damage / cooldown (sin contar la perforación)
 //   · laser             → damagePerSec × laserDuration / cooldown
@@ -50,8 +51,15 @@ function dpsOf(type) {
         nota: `ventana ${burst}s + cd ${cd}s · pico ${pico}`,
       };
     }
-    case 'bolt': // thunderstroke
-      return { single: d.damage / d.cooldown, multi: null, nota: 'sin stun' };
+    case 'bolt': { // thunderstroke
+      // fase 73: un rayo principal + estallido de mini rayos de área.
+      const mini = (d.areaTargets ?? 0) * d.damage * (d.areaFrac ?? 0);
+      return {
+        single: d.damage / d.cooldown,
+        multi: (d.damage + mini) / d.cooldown,
+        nota: `1 principal + ${d.areaTargets ?? 0} mini rayos (${Math.round((d.areaFrac ?? 0) * 100)} %)`,
+      };
+    }
     case 'chain': {
       // `jumps` = cantidad de blancos de la descarga (criterio de la tabla
       // vieja: 3) y el daño cae con `falloff` por salto.

@@ -169,22 +169,27 @@ test('CAPS: TODA carta repetible del catálogo tiene tope (anti-stack infinito)'
   }
 });
 
-test('detect_up: NO elegible sin Beam/Thunderstroke/Tesla (regresión)', () => {
+test('detect_up: NO elegible sin Beam/Tesla (regresión)', () => {
   // Bug real: esta carta escala detectMul, pero Guardian/Missile/Mortar/
-  // Gauss/Láser tienen rango infinito desde v4 4a — la carta no hacía
-  // nada si el jugador solo tenía esas. Viola la regla propia del
-  // catálogo ("una carta inútil nunca entra al pool").
+  // Gauss/Láser tienen rango infinito desde v4 4a y el Thunderstroke desde
+  // la fase 73 — la carta no hacía nada si el jugador solo tenía esas.
+  // Viola la regla propia del catálogo ("una carta inútil nunca entra al
+  // pool").
   const card = CATALOG.find((c) => c.id === 'detect_up');
   const gameSinFinitas = makeGame({ towers: ['guardian', 'missile', 'mortar'] });
   assert.equal(isCardEligible(card, gameSinFinitas), false);
 });
 
-test('detect_up: SÍ elegible con Beam, Thunderstroke o Tesla', () => {
+test('detect_up: SÍ elegible con Beam o Tesla (el Thunderstroke ya es global)', () => {
   const card = CATALOG.find((c) => c.id === 'detect_up');
-  for (const type of ['beam', 'thunderstroke', 'tesla']) {
+  for (const type of ['beam', 'tesla']) {
     const game = makeGame({ towers: ['guardian', type] });
     assert.equal(isCardEligible(card, game), true, `debería ser elegible con ${type}`);
   }
+  // fase 73: el Thunderstroke pasó a alcance global; la carta no le hace nada.
+  const soloThunder = makeGame({ towers: ['guardian', 'thunderstroke'] });
+  assert.equal(isCardEligible(card, soloThunder), false,
+    'con solo Thunderstroke la carta sería inútil');
 });
 
 test('bullets_5: NO elegible sin Guardian o con Guardian a tope', () => {

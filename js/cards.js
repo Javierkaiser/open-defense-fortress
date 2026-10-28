@@ -394,16 +394,16 @@ export function isRelevant(card, game) {
     if (!gw || gw.level >= 5) return false;
   }
   // dev-7 (docs/BALANCE.md): Sensores Ampliados (detect_up) NO
-  // hace nada en Guardian/Missile/Mortar/Gauss/Láser — todas quedaron con
+  // hace nada en Guardian/Missile/Mortar/Gauss/Láser - todas quedaron con
   // detectHalfWidth: Infinity en rebalances posteriores (v4 4a en
   // adelante) y detectWidthNow() ignora el multiplicador cuando el ancho
-  // no es finito. Solo Beam (range, fase 34), Thunderstroke y Tesla
-  // (range) siguen siendo finitas. Sin este chequeo, la carta podía
-  // ofrecerse con CERO efecto si el jugador no tiene ninguna de esas 3 —
-  // viola la regla propia del catálogo (línea ~75: "una carta inútil
-  // NUNCA entra al pool").
+  // no es finito. fase 73: el Thunderstroke también pasó a alcance global;
+  // solo Beam (columnHalfWidth) y Tesla (banda reachY) siguen usando
+  // detectMul. Sin este chequeo, la carta podía ofrecerse con CERO efecto
+  // si el jugador no tiene ninguna de esas 2 — viola la regla propia del
+  // catálogo (línea ~75: "una carta inútil NUNCA entra al pool").
   if (card.id === 'detect_up') {
-    const hasFiniteRangeTower = ['beam', 'thunderstroke', 'tesla']
+    const hasFiniteRangeTower = ['beam', 'tesla']
       .some((type) => ownedTypes(game).has(type));
     if (!hasFiniteRangeTower) return false;
   }
@@ -987,7 +987,7 @@ export const CATALOG = [
     id: 'detect_up',
     rarity: 'uncommon',
     name: 'Sensores Ampliados',
-    desc: 'Ancho de detección de las torres ×1.4 (más blancos en el abanico/rango) (hasta 2 veces).',
+    desc: 'Alcance de detección del Beam y la banda de la Tesla ×1.4 (hasta 2 veces).',
     weight: 4,
     apply: (g) => {
       const f = g.fortress;

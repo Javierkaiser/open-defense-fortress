@@ -133,11 +133,15 @@ MENU ⇄ CREDITS
 | Guardian | Abanico de balas; tracking global |
 | Missile | Misiles homing con explosión |
 | Beam | Láser continuo que atraviesa; alcance lateral |
-| Thunderstroke | Rayo instantáneo al enemigo con más HP; stun breve |
+| Thunderstroke | Rayo único de alcance total al enemigo más lejano; estalla en mini rayos de área; stun breve |
 | Tesla | Cadena eléctrica entre enemigos; anti-enjambre de banda |
 | Mortar | Obús de área |
 | Gauss | Perdigón perforante rápido |
 | Láser | Haz continuo de daño alto |
+
+El Thunderstroke dibuja un enlace suave con su blanco durante el build-up
+(con anillo de lock); al disparar, el rayo principal se engrosa y el anillo
+de impacto marca dónde cayó.
 
 Drones: Rueda de Fuego (contacto), Avispas (enjambre) y Campo de Fuerza
 (escudo/curación). La plataforma tiene **5 slots**; por run entran **5 torres +

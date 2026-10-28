@@ -78,14 +78,14 @@ export const TOWER_BAY = {
  */
 export const SPAWN_Y = -120;
 /**
- * Radio MÁXIMO de las torres de alcance LIMITADO (thunderstroke y tesla:
- * `range: 260` en js/towers.js). Marca el borde superior del "bajo
- * fuego": por encima de esta línea NO hay torre capaz de disparar al
- * enemigo (todas las demás tienen alcance global en Y), así que es
- * donde termina el tramo "libre" de la caída (ver LAYOUT.fallScale).
+ * Radio HISTÓRICO de referencia de las viejas torres de alcance limitado
+ * (260 px: el extinto círculo del Thunderstroke y la base de la Tesla).
  *
- * Si algún día una torre pasa de 260 px de radio, esta constante tiene
- * que subir con ella (o el tiempo bajo fuego de esa torre cambia).
+ * fase 73: YA NO es el alcance máximo de una torre. El Thunderstroke pasó
+ * a alcance global (como Gauss/Mortar/Láser) y la banda de la Tesla sube
+ * 70 px por encima de este borde. La constante se mantiene porque define
+ * `LAYOUT.bandY` y el `fallScale` del tramo libre: cambiarla altera el
+ * ritmo de caída de TODOS los enemigos.
  */
 export const MAX_TOWER_REACH = 260;
 
@@ -131,9 +131,10 @@ export const SCENE = {
  *
  * · `h`      → alto LÓGICO actual del canvas (540×h).
  * · `delta`  → cuánto crece respecto del layout de referencia (h - 880).
- * · `bandY`  → Y del borde superior del alcance de las torres limitadas
- *              (CONFIG.TOWER_Y - MAX_TOWER_REACH): por encima de esta
- *              línea el enemigo está FUERA del alcance de TODAS las torres.
+ * · `bandY`  → Y del borde superior del tramo de caída "libre" histórico
+ *              (CONFIG.TOWER_Y - MAX_TOWER_REACH). fase 73: ya NO marca el
+ *              alcance de todas las torres (el Thunderstroke es global y la
+ *              Tesla sube 70 px); se mantiene para el ritmo de caída.
  * · `fallScale` → factor de la velocidad de caída en el tramo LIBRE.
  *
  * POR QUÉ `fallScale` > 1: al crecer el marco, el campo de caída crece

@@ -9,7 +9,7 @@
 // viva, vacía hasta dev-3 — tolerada). Colisiones: NO aquí (dev-3).
 // ============================================================
 
-import { CONFIG, LAYOUT, clamp, dist, rand, fallYAfter, MAX_TOWER_REACH } from './engine.js';
+import { CONFIG, LAYOUT, clamp, dist, rand, fallYAfter } from './engine.js';
 import { applyProjectileHit, applyPoison } from './enemies.js';
 // dev-7 fase 28: `perkDmgFor` (DPS real de las espinas = thornDps del
 // perk × metaDmgMul) y `META_SLOW_CAP` (tope COMBINADO del slow del
@@ -159,11 +159,19 @@ export const TOWERS = {
     name: 'Thunderstroke',
     dmgType: 'electric', // fase 32: tipo de daño
     kind: 'bolt',
-    // FASE 58: el radio sale de MAX_TOWER_REACH (engine.js) porque es
-    // JUSTO el borde superior del "bajo fuego" del layout: si esta torre
-    // llegara más lejos, el tiempo bajo fuego dejaría de ser el mismo
-    // con el marco alto (ver LAYOUT.fallScale).
-    cooldown: 1.6, damage: 55, stun: 0.2, range: MAX_TOWER_REACH,
+    // fase 73 — TIRO LARGO GLOBAL: mismo patrón que Gauss/Mortar/Láser
+    // (`detectHalfWidth: Infinity`), sin el círculo de 260 px que lo
+    // limitaba a la mitad de la pantalla. Sigue apuntando al MÁS LEJANO
+    // (farthest, sticky).
+    // DIFERENCIA CON LA TESLA: la Tesla ENCADENA saltos de enemigo a
+    // enemigo (falloff); el Thunderstroke dispara UN rayo principal al
+    // blanco elegido y, en el punto de impacto, abre MINI RAYOS de área
+    // a los vecinos. `areaR`/`areaFrac`/`areaTargets`/`areaStun` son ese
+    // estallido; los perks extraCount/chainFork suman mini rayos, no
+    // rayos principales.
+    cooldown: 1.6, damage: 65, stun: 0.2,
+    areaR: 130, areaFrac: 0.5, areaTargets: 3, areaStun: 0.1,
+    detectHalfWidth: Infinity,
     color: '#B48CFF', coreColor: '#FFFFFF',
     bodyColor: '#12101C', accent: '#B48CFF',
   },
@@ -341,6 +349,14 @@ const TESLA_ABOVE_BAND = 70;
 const TESLA_CHAIN_RADIUS = 170;
 
 /**
+ * fase 73 — Tope de objetivos del estallido del Thunderstroke. El árbol
+ * de perks suma +1 mini rayo por `extraCount`/`chainFork`; con los valores
+ * actuales el máximo natural es 3 (base) + 5 + 4 = 12. El tope evita que
+ * datos corruptos o futuros perks generen una lista patológica.
+ */
+const THUNDER_AREA_MAX = 12;
+
+/**
  * dev-7 fase 29 — COLOR DEL PROYECTIL de cada torre: el tiro dice de
  * qué torre salió. Se usa la FIRMA visual de la fase 28 (MUZZLE_ACCENT)
  * cuando existe y, si no, el `accent` canónico de la torre:
@@ -427,9 +443,9 @@ export function targetInRange(e, game, tower) {
     );
     if (e.y < top) return false;
   } else if (typeof d.range === 'number') {
-    // El rango del tipo (si lo tiene) manda; si no, es global.
-    // OJO: el Thunderstroke (kind 'bolt') sigue con el CÍRCULO de
-    // MAX_TOWER_REACH — no es una banda.
+    // Mecanismo genérico de alcance circular. Hoy NINGUNA torre lo usa:
+    // el Thunderstroke pasó a alcance global (fase 73) y la Tesla usa la
+    // banda de `rangeBand`. Queda disponible para futuras torres.
     const range = d.range * (game?.fortress?.detectMul ?? 1);
     if (dist(e.x, e.y, tower.x, tower.y) > range) return false;
   }
@@ -589,6 +605,13 @@ function detectWidth(d) {
 export class Bullet {
   constructor(x, y, angleRad, opts = {}) {
     this.x = x; this.y = y;
+    // CCD (colisión barrida): posición del frame ANTERIOR. `applyProjectileHit`
+    // (enemies.js) testea el segmento _px/_py→x/y contra el enemigo, no sólo
+    // el punto final. Sin esto, una bala a 920 px/s avanza ~31 px por frame a
+    // 30 fps (61 a 2×) y puede saltarse una espora (r 7 + bala 4 = 22 px de
+    // diámetro de captura). Se inicializa en el spawn para que el primer
+    // chequeo (si ocurre antes del primer update) siga siendo puntual.
+    this._px = x; this._py = y;
     const spd = opts.speed ?? TOWERS.guardian.bulletSpeed;
     this.vx = Math.sin(angleRad) * spd;
     this.vy = -Math.cos(angleRad) * spd;
@@ -610,6 +633,8 @@ export class Bullet {
   }
 
   update(dt) {
+    this._px = this.x;
+    this._py = this.y;
     this.x += this.vx * dt;
     this.y += this.vy * dt;
     if (this.y < -30 || this.x < -30 || this.x > CONFIG.CANVAS_W + 30) this.dead = true;
@@ -1918,34 +1943,66 @@ class BeamFx {
 }
 
 /**
- * Rayo vertical con zigzag determinista (Thunderstroke / cadena Tesla).
+ * Rayo con zigzag determinista (Thunderstroke / cadena Tesla).
  * `colors` = { color, core }: el halo va con la firma de la torre (ámbar
  * en el Thunderstroke, cian en el Tesla — fase 28/29) y el núcleo es
  * casi blanco.
+ *
+ * fase 73: acepta opciones de GROSOR/VIDA/ALPHA para que el Thunderstroke
+ * pueda dibujar UN rayo principal grueso y varios mini rayos finos desde
+ * el punto de impacto. Los paths de 2 puntos (rayo principal y mini rayos)
+ * reciben un quiebre perpendicular: antes salían como una línea recta y
+ * no se leían como relámpagos. La cadena de la Tesla (>2 puntos) conserva
+ * su zigzag histórico.
  */
 class BoltFx {
-  constructor(points, colors) {
+  constructor(points, colors, opts = {}) {
     this.points = points;
     this.colors = colors;
-    this.life = 0.16;
+    this.life = opts.life ?? 0.16;
+    this.width = opts.width ?? 5;
+    this.coreWidth = opts.coreWidth ?? 1.2;
+    this.alpha = opts.alpha ?? 1;
+    this.zigX = opts.zigX ?? 12;
+    this.zigY = opts.zigY ?? 8;
     // Zigzag fijo por descarga (NO regenerar por frame)
     this.zigs = points.map(() => (Math.random() * 2 - 1));
   }
   path(ctx) {
     const p = this.points;
     ctx.moveTo(p[0].x, p[0].y);
+    if (p.length === 2) {
+      // Quiebre perpendicular al segmento: un solo rayo también se lee
+      // como relámpago (antes era una línea recta).
+      const dx = p[1].x - p[0].x;
+      const dy = p[1].y - p[0].y;
+      const len = Math.hypot(dx, dy) || 1;
+      const off = this.zigs[1] * this.zigX;
+      ctx.lineTo(
+        (p[0].x + p[1].x) / 2 - (dy / len) * off,
+        (p[0].y + p[1].y) / 2 + (dx / len) * off,
+      );
+      ctx.lineTo(p[1].x, p[1].y);
+      return;
+    }
     for (let i = 1; i < p.length - 1; i++) {
       const a = p[i - 1], b = p[i];
-      ctx.lineTo((a.x + b.x) / 2 + this.zigs[i] * 12, (a.y + b.y) / 2 + this.zigs[i] * 8);
+      ctx.lineTo(
+        (a.x + b.x) / 2 + this.zigs[i] * this.zigX,
+        (a.y + b.y) / 2 + this.zigs[i] * this.zigY,
+      );
       ctx.lineTo(b.x, b.y);
     }
     ctx.lineTo(p[p.length - 1].x, p[p.length - 1].y);
   }
   draw(ctx, t) {
     // Halo de acento + núcleo claro, flicker de alpha
-    for (const [color, width, blur] of [[this.colors.color, 5, 12], [this.colors.core, 1.2, 0]]) {
+    for (const [color, width, blur] of [
+      [this.colors.color, this.width, 12],
+      [this.colors.core, this.coreWidth, 0],
+    ]) {
       ctx.save();
-      ctx.globalAlpha = 0.35 + 0.65 * t;
+      ctx.globalAlpha = (0.35 + 0.65 * t) * this.alpha;
       ctx.strokeStyle = color;
       ctx.shadowColor = this.colors.color;
       ctx.shadowBlur = blur;
@@ -2002,6 +2059,15 @@ export function guardianLeadAim(tower, tgt, top, spd) {
  * audio.js, que tiene un pool de 3 justamente para ese zumbido).
  */
 const BEAM_SFX_GAP = 0.34;
+
+/**
+ * Separación horizontal entre las balas PARALELAS del Guardian (Lv.1-3).
+ * Antes 13 px: con esporas (r 7) + bala (r 4) el diámetro de captura es
+ * 22 px, así que 13 px dejaba huecos visuales y, sobre todo, el muestreo
+ * por frame se comía a los enemigos chicos a 30 fps / 2× (ver CCD en
+ * Bullet y applyProjectileHit). 10 px deja una pared más compacta.
+ */
+const GUARDIAN_VOLLEY_STEP = 10;
 
 export class Tower {
   /**
@@ -2241,7 +2307,7 @@ export class Tower {
           // Dirigida (n=1) o líneas paralelas al MISMO blanco: mismo ángulo,
           // X escalonadas (separación uniforme tipo "4-8 líneas paralelas").
           const aim = guardianLeadAim(this, tgt, top, this.bulletSpeedNow);
-          const step = 13;
+          const step = GUARDIAN_VOLLEY_STEP;
           const x0 = this.x - ((n - 1) / 2) * step;
           for (let i = 0; i < n; i++) {
             this._spawnBullet(x0 + i * step, top, aim, game);
@@ -2354,34 +2420,98 @@ export class Tower {
         }
         break;
       case 'bolt': {
-        // v6 perk (thunderstroke): impacta 1 enemigo fuerte extra por cada
-        // 10 niveles meta (los de más HP, todos con daño pleno).
-        // fase 17: chainFork del perk bifurca la descarga (duplica ramas)
-        // y stunChance agrega stun probabilístico propio.
-        const range = d.range * (game?.fortress?.detectMul ?? 1);
+        // fase 73 — TIRO LARGO: un ÚNICO rayo principal al blanco más
+        // lejano (farthest, sticky) y, en el punto de impacto, un estallido
+        // de MINI RAYOS a los vecinos dentro de `areaR`. Es la diferencia
+        // con la Tesla: la Tesla encadena saltos; el Thunderstroke pega
+        // fuerte en un punto y salpica alrededor.
+        // Los perks `extraCount` y `chainFork` suman objetivos de ÁREA
+        // (mini rayos), no rayos principales: se mantiene el "solo 1 rayo".
         const ptm = unitMods(this);
-        const fork = ptm.chainFork ?? 0;
-        const count = (1 + (ptm.extraCount ?? 0)) * (1 + fork);
-        // dev-7 fase 33: el Thunderstroke apunta al MÁS LEJANOS (farthest)
-        // y su blanco es STICKY. Los blancos extra de la bifurcación
-        // (perk chainFork) se eligen por la misma política, pero SIN ser
-        // sticky (son saltos de un solo disparo).
-        const targets = this._acquireTargets(enemies, game, count);
-        if (targets.length) {
+        const primary = this._acquireTargets(enemies, game, 1)[0] ?? null;
+        if (primary) {
+          const accent = MUZZLE_ACCENT[d.kind] ?? d.accent;
+          const colors = { color: accent, core: d.coreColor ?? '#FFFFFF' };
+          // Punto de impacto CONGELADO: los FX no deben seguir al enemigo
+          // durante su vida (el rayo y el anillo son instantáneos).
+          const impact = { x: primary.x, y: primary.y };
+          const areaR = d.areaR ?? 130;
+          const areaDmg = Math.round(this.damage * (d.areaFrac ?? 0.5));
+          const maxArea = Math.min(
+            THUNDER_AREA_MAX,
+            Math.max(0, (d.areaTargets ?? 3)
+              + (ptm.extraCount ?? 0) + (ptm.chainFork ?? 0)),
+          );
+          // La lista se resuelve ANTES de dañar: el punto de impacto es la
+          // posición actual del principal, y los vecinos se ordenan por
+          // cercanía. Si un golpe posterior los mata, se saltean.
+          const area = maxArea > 0
+            ? (enemies || [])
+              .filter((e) => e && !e.dead && e !== primary)
+              .map((e) => ({ e, dd: dist(e.x, e.y, impact.x, impact.y) }))
+              .filter(({ e, dd }) => dd <= areaR + (e.r ?? 10))
+              .sort((a, b) => a.dd - b.dd)
+              .slice(0, maxArea)
+            : [];
+
+          // 1) Un solo rayo principal, grueso.
           game.engine.addEffect(new BoltFx(
-            [{ x: this.x, y: top }, ...targets],
-            { color: MUZZLE_ACCENT[d.kind] ?? d.accent, core: d.coreColor ?? '#FFFFFF' },
+            [{ x: this.x, y: top }, impact],
+            colors,
           ));
-          for (const e of targets) {
-            hurtP(e, this.damage, 'bolt', ptm, game, enemies); // descarga instantánea (§2.2)
-            if (d.stun && typeof e.stun === 'number') e.stun = d.stun;
+          // 2) Mini rayos finos desde el impacto a cada vecino.
+          for (const { e } of area) {
+            game.engine.addEffect(new BoltFx(
+              [impact, { x: e.x, y: e.y }],
+              colors,
+              { life: 0.13, width: 2.4, coreWidth: 0.7, alpha: 0.85, zigX: 7, zigY: 5 },
+            ));
+          }
+
+          const stunHit = (e, base) => {
+            if (base > 0 && typeof e.stun === 'number') {
+              e.stun = Math.max(e.stun ?? 0, base);
+            }
             if ((ptm.stunChance ?? 0) > 0 && typeof e.stun === 'number'
               && Math.random() < ptm.stunChance) {
               e.stun = Math.max(e.stun ?? 0, 0.5);
             }
+          };
+
+          // 3) Daño pleno al principal + estallido a los vecinos.
+          hurtP(primary, this.damage, 'bolt', ptm, game, enemies);
+          stunHit(primary, d.stun ?? 0);
+          for (const { e } of area) {
+            if (e.dead) continue;
+            hurtP(e, areaDmg, 'bolt', ptm, game, enemies);
+            stunHit(e, d.areaStun ?? 0);
           }
-          // dev-7 fase 28: UN 'bolt:fire' por descarga (la bifurcación del
-          // perk chainFork sigue siendo UNA descarga).
+
+          // 4) Lectura del impacto: anillo ámbar + chispas + sacudida.
+          game.engine.addEffect({
+            life: 0.22,
+            draw(ctx, tt) {
+              ctx.save();
+              ctx.globalCompositeOperation = 'lighter';
+              ctx.globalAlpha = tt * 0.9;
+              ctx.strokeStyle = accent;
+              ctx.shadowColor = accent;
+              ctx.shadowBlur = 12;
+              ctx.lineWidth = 2.5;
+              ctx.beginPath();
+              ctx.arc(impact.x, impact.y, 8 + (1 - tt) * 34, 0, Math.PI * 2);
+              ctx.stroke();
+              ctx.restore();
+            },
+          });
+          game.engine.spawnParticles(impact.x, impact.y, accent, 10, {
+            speedMin: 40, speedMax: 180, gravity: 40,
+            lifeMin: 0.18, lifeMax: 0.4, sizeMin: 1, sizeMax: 2.6,
+          });
+          game?.engine?.shake?.(2, 120);
+
+          // dev-7 fase 28: UN 'bolt:fire' por descarga (los mini rayos
+          // siguen siendo UNA descarga).
           game?.engine?.emit?.('bolt:fire', { x: this.x, y: top });
           this.firing = true;
         }
@@ -2604,6 +2734,11 @@ export class Tower {
     // mientras se agota el cooldown y el jugador lo ve (el riel del Gauss
     // acumulando energia, el orbe del Thunderstroke creciendo). Solo
     // carga si hay blanco: cargar hacia la nada seria ruido visual.
+    // fase 73: el Thunderstroke refresca el blanco también DURANTE la
+    // carga. Antes `targets` solo se llenaba al disparar; si el blanco
+    // moría, el build-up seguía apuntando a un cadáver y el enlace suave
+    // del render no tenía a quién dibujarse.
+    if (d.kind === 'bolt') this._primaryTarget(enemies, game, 1);
     if (d.kind === 'gauss' || d.kind === 'bolt') {
       this._charge = this.targets?.[0]
         ? Math.max(0, Math.min(1, 1 - this.cooldownLeft / Math.max(0.001, this.cooldown)))
@@ -2721,6 +2856,83 @@ export class Tower {
       speedMin: 10, speedMax: 30, gravity: 0, upBias: 40,
       lifeMin: 0.08, lifeMax: 0.15, sizeMin: 1, sizeMax: 2,
     });
+  }
+
+  /**
+   * fase 73 — ENLACE DE CARGA del Thunderstroke. Mientras la torre acumula
+   * el build-up, dibuja un rayo suave (y un anillo de lock) entre la boca
+   * y el blanco actual. La intensidad sube con `_charge`; al disparar, el
+   * rayo principal de `BoltFx` (mucho más grueso y brillante) y el anillo
+   * de impacto toman el relevo. Es solo render: no toca daño ni cadencia.
+   *
+   * Se llama con el contexto ya trasladado a la torre y SIN la escala
+   * visual (por eso `mx/my` llegan multiplicados por TOWER_VISUAL_SCALE).
+   *
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {number} mx boca X en coordenadas de torre (unscaled)
+   * @param {number} my boca Y en coordenadas de torre (unscaled)
+   */
+  _drawChargeLink(ctx, mx, my) {
+    const tgt = this.targets?.[0];
+    const charge = Math.max(0, Math.min(1, this._charge ?? 0));
+    if (!tgt || tgt.dead || charge <= 0.01) return;
+
+    const tx = tgt.x - this.x;
+    const ty = tgt.y - this.y;
+    const dx = tx - mx;
+    const dy = ty - my;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len;
+    const ny = dx / len;
+    const t = this.game?.engine?._t ?? 0;
+    const color = MUZZLE_ACCENT[this.data.kind] ?? this.data.accent;
+    const core = this.data.coreColor ?? '#FFFFFF';
+    const wobble = 2.5 + 4.5 * charge;
+    const steps = 7;
+    const path = (c) => {
+      c.beginPath();
+      c.moveTo(mx, my);
+      // Zigzag animado con envolvente: 0 en la boca y en el blanco para
+      // que el enlace "nazca" de la torre y "clave" en el objetivo.
+      for (let i = 1; i < steps; i++) {
+        const f = i / steps;
+        const env = Math.sin(f * Math.PI);
+        const off = Math.sin(f * 9 + t * 12) * wobble * env;
+        c.lineTo(mx + dx * f + nx * off, my + dy * f + ny * off);
+      }
+      c.lineTo(tx, ty);
+    };
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'round';
+    // Halo suave.
+    ctx.strokeStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 8 + 10 * charge;
+    ctx.globalAlpha = 0.05 + 0.20 * charge;
+    ctx.lineWidth = 1.4 + 2.2 * charge;
+    path(ctx);
+    ctx.stroke();
+    // Núcleo casi blanco, más fino.
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = core;
+    ctx.globalAlpha = 0.04 + 0.16 * charge;
+    ctx.lineWidth = 0.6 + 0.8 * charge;
+    path(ctx);
+    ctx.stroke();
+    // Anillo de LOCK: se cierra sobre el enemigo a medida que la carga
+    // llega a 1 (radio target.r + 8 al final).
+    const ringR = (tgt.r ?? 10) + 8 + (1 - charge) * 14 + Math.sin(t * 6) * 1.5;
+    ctx.strokeStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 6;
+    ctx.globalAlpha = 0.06 + 0.22 * charge;
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.arc(tx, ty, ringR, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
   }
 
   /**
@@ -2847,6 +3059,14 @@ export class Tower {
 
     // Cierre de la escala visual (la silueta se dibuja un 20 % más grande).
     ctx.restore();
+
+    // fase 73 — BUILD-UP del Thunderstroke: enlace suave torre → blanco
+    // con anillo de lock. Se dibuja DESPUÉS del cuerpo (sale del orbe) y
+    // antes de los enemigos (Fortress.render corre antes que las entidades),
+    // así el rayo queda por debajo del enemigo y no lo tapa.
+    if (d.kind === 'bolt') {
+      this._drawChargeLink(ctx, mx * TOWER_VISUAL_SCALE, my * TOWER_VISUAL_SCALE);
+    }
 
     // dev-7 fase 32 / fase 60 — GLIFO DEL TIPO DE DAÑO en el PAD. El
     // jugador tiene que ver "esta torre es eléctrica" para decidir contra

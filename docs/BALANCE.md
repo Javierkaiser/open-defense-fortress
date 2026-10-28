@@ -140,6 +140,14 @@ no sólo un multiplicador de daño:
   cartas; no hay colocación libre.
 - **8 torres**: Guardian, Missile, Beam, Thunderstroke, Tesla, Mortar, Gauss y
   Láser. **3 drones**: Rueda de Fuego, Avispas y Campo de Fuerza.
+- **Guardian (fase 73)**: balas paralelas separadas 10 px (antes 13) y
+  colisión barrida (CCD): una bala a 920 px/s ya no se salta a una espora
+  entre frames a 30 fps o 2×. El multi-blanco de Lv.4 se mantiene.
+- **Thunderstroke (fase 73)**: alcance global; un rayo principal de 65 al más
+  lejano + estallido de mini rayos (50 % a hasta 3 vecinos en 130 px). Los
+  perks `extraCount`/`chainFork` suman mini rayos, no rayos principales. DPS
+  nominal ≈40,6 a un blanco y ≈102 contra un principal + 3 vecinos. Se
+  diferencia de la Tesla, que encadena saltos con falloff.
 - **48 cartas** con topes por carta y por run; las mejoras ofrecidas se
   relacionan con las unidades presentes.
 - **Meta**: 100 niveles; fragmentos por victoria (60, ×2 la primera vez),

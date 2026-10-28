@@ -2678,6 +2678,22 @@ function projectileStrike(p, e, kind, list) {
 }
 
 /**
+ * Distancia mínima de un punto (cx,cy) al segmento (px,py)→(x,y).
+ * Se usa para CCD: una bala rápida no se salta al enemigo entre frames.
+ * Es el equivalente a barrer un círculo (la bala) contra el círculo del
+ * enemigo: el radio de captura se suma aparte en `applyProjectileHit`.
+ */
+function segmentPointDist(px, py, x, y, cx, cy) {
+  const dx = x - px;
+  const dy = y - py;
+  const len2 = dx * dx + dy * dy;
+  if (len2 <= 1e-9) return Math.hypot(cx - px, cy - py);
+  let t = ((cx - px) * dx + (cy - py) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(cx - (px + t * dx), cy - (py + t * dy));
+}
+
+/**
  * Aplica el daño de un proyectil sobre la lista viva de enemigos.
  * Bala recta: primer enemigo alcanzado (más cercano a la torre).
  * Splash (missile/mortar): TODOS los enemigos dentro del radio.
@@ -2686,6 +2702,9 @@ function projectileStrike(p, e, kind, list) {
  * Perks sistemáticos (fase 17): p.bounce (rebotes restantes, re-apunta al
  * enemigo vivo más cercano al impacto, sin repetir el último), p.slowOnHit,
  * p.stunChance, p.critChance/critMul — ausentes = comportamiento histórico.
+ * CCD: si el proyectil trae `_px/_py` (Bullet.update los guarda), el impacto
+ * directo se testea contra el SEGMENTO recorrido. Ausentes → test puntual
+ * histórico (tests/stubs y proyectiles sin update).
  */
 export function applyProjectileHit(p, enemies, radiusOverride = undefined) {
   if (!p || p.dead || typeof p.x !== 'number') return false;
@@ -2709,10 +2728,14 @@ export function applyProjectileHit(p, enemies, radiusOverride = undefined) {
   }
 
   // Impacto directo: el más cercano al origen del disparo (Y mayor)
+  const swept = Number.isFinite(p._px) && Number.isFinite(p._py);
   let best = null;
   for (const e of list) {
     if (!e || e.dead || e === p._lastHit) continue; // fase 17: no repetir tras rebote
-    if (Math.hypot(e.x - p.x, e.y - p.y) > (e.r ?? 10) + projectileRadius(p)) continue;
+    const d = swept
+      ? segmentPointDist(p._px, p._py, p.x, p.y, e.x, e.y)
+      : Math.hypot(e.x - p.x, e.y - p.y);
+    if (d > (e.r ?? 10) + projectileRadius(p)) continue;
     if (!best || e.y > best.y) best = e;
   }
   if (!best) return false;
