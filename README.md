@@ -69,7 +69,7 @@ La demo se publica sola: cada push a `main` corre el workflow de deploy
 - **Sin anuncios, sin compras, sin cuentas, sin telemetría.**
 - **Offline real**: fuentes, sprites y SFX locales.
 - **Calidad gráfica Alta/Baja** para equipos modestos.
-- **876 tests** en Node, sin DOM ni canvas.
+- **885 tests** en Node, sin DOM ni canvas.
 
 ## Controles
 
@@ -88,7 +88,7 @@ El disparo es automático: no hay apuntado ni joystick.
 ## Tests
 
 ```bash
-node --test "tests/**/*.mjs"            # 876 tests (871 pass, 5 skip, 0 fail)
+node --test "tests/**/*.mjs"            # 885 tests (880 pass, 5 skip, 0 fail)
 node .github/scripts/ci-checks.mjs   # checks estáticos (sintaxis, zero-dep, refs)
 ```
 

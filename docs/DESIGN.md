@@ -269,7 +269,7 @@ inmune: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 876 tests (871 pass, 5 skip) en 25 archivos.
+- 885 tests (880 pass, 5 skip) en 26 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

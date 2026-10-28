@@ -2383,6 +2383,72 @@ html, body {
 }
 
 /* ============================================================
+   Fix móvil — PANTALLA DE CARGA
+   Aparece a los 3 s para no parpadear en cargas rápidas; main.js
+   la oculta con __gdfBootOk(). Queda debajo de #boot-error.
+   ============================================================ */
+#boot-loading {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(180deg, #101318, #05070F);
+  color: var(--hud-text);
+  text-align: center;
+  opacity: 0;
+  visibility: hidden;
+  animation: boot-loading-in 0.35s ease 3s forwards;
+  pointer-events: none;
+}
+#boot-loading[hidden] { display: none; }
+.boot-loading-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 460px;
+}
+.boot-loading-title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  letter-spacing: var(--tracking-normal);
+  color: var(--hud-teal);
+}
+.boot-loading-bar {
+  width: 180px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgb(var(--hud-teal-rgb) / 0.15);
+  overflow: hidden;
+}
+.boot-loading-bar i {
+  display: block;
+  width: 40%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--hud-teal);
+  animation: boot-loading-slide 1.1s ease-in-out infinite;
+}
+.boot-loading-text {
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  opacity: 0.75;
+}
+@keyframes boot-loading-in {
+  to { opacity: 1; visibility: visible; }
+}
+@keyframes boot-loading-slide {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .boot-loading-bar i { animation: none; width: 100%; opacity: 0.6; }
+}
+
+/* ============================================================
    dev-7 fase 28 — AVISO DE ARRANQUE FALLIDO
    Si el módulo de entrada no cargó (típico: abrir index.html con
    doble clic → los ES modules los bloquea el navegador por CORS)

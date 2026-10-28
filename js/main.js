@@ -1827,6 +1827,10 @@ window.addEventListener('orientationchange', () => hud.refreshFrameMode());
 // por stage en startStage()).
 window.__GDF__ = { game, engine, hud };
 
+// Fix móvil: la guarda de index.html ya no avisa a los 2,5 s. Al terminar
+// el boot, cierra la pantalla de carga y cualquier aviso de error tardío.
+window.__gdfBootOk?.();
+
 // ------------------------------------------------------------
 // Puente nativo (Android/Capacitor)
 // ------------------------------------------------------------

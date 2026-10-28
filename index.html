@@ -104,14 +104,24 @@
   <span class="rotate-sub">Open Defense Fortress se juega en vertical (portrait)</span>
 </div>
 
+<!-- Fix móvil — PANTALLA DE CARGA.
+     Aparece recién a los 3 s (CSS) para no parpadear en cargas rápidas;
+     main.js la oculta con __gdfBootOk() cuando el juego termina de bootear. -->
+<div id="boot-loading" role="status" aria-live="polite">
+  <div class="boot-loading-box">
+    <span class="boot-loading-title">OPEN DEFENSE FORTRESS</span>
+    <span class="boot-loading-bar" aria-hidden="true"><i></i></span>
+    <span class="boot-loading-text">Cargando…</span>
+  </div>
+</div>
+
 <!-- dev-7 fase 28: aviso de ARRANQUE FALLIDO.
-     Si el módulo de entrada no llegó a bootear (o el juego se quedó sin
-     frames por un error fatal), esto le explica al jugador QUÉ pasó en vez
-     de dejarle una pantalla negra. Sin JS no hay nada que hacer, así que el
-     banner se muestra por CSS puro cuando el body lleva .boot-failed. -->
+     Si el módulo de entrada no llegó a bootear (404, CORS, sintaxis o un
+     error fatal), esto le explica al jugador QUÉ pasó en vez de dejarle una
+     pantalla negra. La guarda vive en el script inline de abajo. -->
 <div id="boot-error" hidden>
   <div class="boot-error-box">
-    <h1>No se pudo iniciar el juego</h1>
+    <h1 id="boot-error-title">No se pudo iniciar el juego</h1>
     <p id="boot-error-msg">Cargá el juego desde un servidor local: los módulos ES
       (JavaScript) están bloqueados por el navegador si abrís el archivo
       directamente con doble clic.</p>
@@ -122,30 +132,95 @@
 </div>
 
 <!-- Módulo único de entrada (§1.1) -->
-<script type="module" src="js/main.js"></script>
+<script type="module" id="boot-entry" src="js/main.js"></script>
 <script>
-// dev-7 fase 28: guarda de arranque. Si tras 2.5 s el juego no
-// registró window.__GDF__, el módulo no cargó (típico: abrir el archivo
-// con doble clic → los ES modules los bloquea el navegador por CORS) o
-// falló el boot. Se muestra el aviso para que el jugador no piense que
-// la descarga está rota.
-setTimeout(function () {
-  if (!window.__GDF__) {
-    var el = document.getElementById('boot-error');
-    if (el) el.hidden = false;
+// Fix móvil: guarda de arranque. Antes avisaba a los 2,5 s fijos y, en
+// redes móviles lentas, el juego booteaba igual pero el aviso quedaba
+// tapándolo para siempre. Ahora:
+//   - una falla REAL del módulo de entrada (404/CORS/sintaxis) avisa ya;
+//   - una excepción durante el boot avisa con el detalle;
+//   - el timeout es solo un último recurso a los 30 s;
+//   - __gdfBootOk() (main.js) cierra carga y aviso al terminar.
+(function () {
+  var BOOT_TIMEOUT_MS = 30000;
+  var errorEl = document.getElementById('boot-error');
+  var titleEl = document.getElementById('boot-error-title');
+  var msgEl = document.getElementById('boot-error-msg');
+  var cmdEl = document.querySelector('.boot-error-cmd');
+  var loadingEl = document.getElementById('boot-loading');
+  var isNative = !!window.Capacitor;
+  var isFile = location.protocol === 'file:';
+  var timer = 0;
+
+  function hideLoading() {
+    if (loadingEl) loadingEl.hidden = true;
   }
-}, 2500);
-// En la app Android el aviso de "servidor local" no aplica: el juego va
-// empaquetado. Capacitor inyecta window.Capacitor antes de este script.
-if (window.Capacitor) {
-  var msg = document.getElementById('boot-error-msg');
-  if (msg) {
-    msg.textContent = 'No se pudo iniciar la app. Reinstalá la aplicación o '
-      + 'actualizá Android System WebView.';
+
+  function showBootError(kind, detail) {
+    // Si el juego ya booteó, un timeout tardío no debe taparlo.
+    if (window.__GDF__) return;
+    hideLoading();
+    if (!errorEl) return;
+
+    if (titleEl) {
+      titleEl.textContent = kind === 'timeout'
+        ? 'El juego está tardando en cargar'
+        : 'No se pudo iniciar el juego';
+    }
+    if (msgEl) {
+      if (isNative) {
+        msgEl.textContent = 'No se pudo iniciar la app. Reinstalá la aplicación '
+          + 'o actualizá Android System WebView.';
+      } else if (isFile) {
+        msgEl.textContent = 'Cargá el juego desde un servidor local: los módulos ES '
+          + '(JavaScript) están bloqueados por el navegador si abrís el archivo '
+          + 'directamente con doble clic.';
+      } else if (kind === 'timeout') {
+        msgEl.textContent = 'La conexión está muy lenta o la carga se quedó '
+          + 'colgada. Esperá unos segundos más o recargá la página.';
+      } else {
+        msgEl.textContent = 'No se pudo cargar el juego. Revisá tu conexión y '
+          + 'recargá la página.' + (detail ? ' Detalle: ' + detail : '');
+      }
+    }
+    if (cmdEl) cmdEl.style.display = (!isNative && isFile) ? '' : 'none';
+    errorEl.hidden = false;
   }
-  var cmd = document.querySelector('.boot-error-cmd');
-  if (cmd) cmd.style.display = 'none';
-}
+
+  // En la app Android el aviso de "servidor local" no aplica: el juego va
+  // empaquetado. Se deja listo también para el error fatal de main.js.
+  if (isNative) {
+    if (msgEl) {
+      msgEl.textContent = 'No se pudo iniciar la app. Reinstalá la aplicación '
+        + 'o actualizá Android System WebView.';
+    }
+    if (cmdEl) cmdEl.style.display = 'none';
+  }
+
+  // Falla real del módulo de entrada (404, MIME, CORS, sintaxis).
+  var entry = document.getElementById('boot-entry');
+  if (entry) {
+    entry.addEventListener('error', function () { showBootError('load'); });
+  }
+
+  // Excepción durante la evaluación de cualquier módulo del juego.
+  window.addEventListener('error', function (ev) {
+    if (window.__GDF__) return;
+    var file = ev && typeof ev.filename === 'string' ? ev.filename : '';
+    if (file.indexOf('/js') === -1) return;
+    showBootError('load', ev.message);
+  });
+
+  // main.js la llama al terminar el boot: cierra carga y aviso.
+  window.__gdfBootOk = function () {
+    clearTimeout(timer);
+    hideLoading();
+    if (errorEl) errorEl.hidden = true;
+  };
+
+  // Último recurso: si a los 30 s no hay juego ni error, avisar.
+  timer = setTimeout(function () { showBootError('timeout'); }, BOOT_TIMEOUT_MS);
+})();
 </script>
 </body>
 </html>

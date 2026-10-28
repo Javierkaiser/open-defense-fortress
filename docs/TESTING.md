@@ -6,7 +6,7 @@
 node --test "tests/**/*.mjs"
 ```
 
-Estado actual: **876 tests** (871 pass, 5 skip, 0 fail) en **25 archivos**.
+Estado actual: **885 tests** (880 pass, 5 skip, 0 fail) en **26 archivos**.
 
 Requisitos: Node 22 o superior.
 
@@ -39,6 +39,7 @@ node --test tests/test-stages.mjs
 | Supervivencia | `test-survival.mjs` |
 | Balance sim | `test-balance-sim.mjs` |
 | Puente nativo Android (`backAction`, eventos) | `test-native.mjs` |
+| Arranque / guarda de boot (index.html) | `test-boot-guard.mjs` |
 | Integración del motor real | `test-integration.mjs` |
 
 ## Qué **no** cubre
