@@ -1705,45 +1705,6 @@ export function buildThemeSwatches(activeId = '') {
  *
  * @param {{theme?: string, quality?: string, confirmingReset?: boolean, meta?: object}} [opts]
  */
-/**
- * Contenido de la pantalla de Créditos/Licencias.
- * Es HTML puro (testeable en Node) y reutiliza el lenguaje visual de los
- * modales. La atribución CC BY 3.0 del icono del Ultimate es obligatoria.
- */
-export function creditsHtml() {
-  return `
-    <h2 class="card-title">CRÉDITOS / LICENCIAS</h2>
-    <div class="credits-panel">
-      <p><b>Código:</b> MIT · © 2026 Javier Lust.</p>
-      <p><b>Arte y audio:</b> arte procedural propio (Canvas 2D) y una capa
-        acotada de assets libres.</p>
-
-      <h3>Atribución obligatoria</h3>
-      <p><b>Icono del Ultimate:</b> Lorc,
-        <a href="https://game-icons.net/1x1/lorc/power-lightning.html" target="_blank" rel="noopener">game-icons.net</a>,
-        <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>.
-        Recoloreado a dorado.</p>
-      <p class="hint">game-icons.net/1x1/lorc/power-lightning.html ·
-        creativecommons.org/licenses/by/3.0/</p>
-
-      <h3>CC0 1.0</h3>
-      <p>Chasis de torres, iconos de pausa/aviso, destellos y SFX: Kenney
-        (kenney.nl). Explosión de jefe: BenHickling / OpenGameArt. Son CC0;
-        se acreditan igual por buena práctica.</p>
-
-      <h3>Fuentes</h3>
-      <p>Orbitron, Rajdhani, Chakra Petch y Exo 2, bajo
-        <a href="https://openfontlicense.org/" target="_blank" rel="noopener">OFL 1.1</a>.</p>
-
-      <h3>Privacidad</h3>
-      <p>El juego no recolecta datos y no tiene anuncios ni compras.
-        Política: <span class="credits-url">https://faint-desert-zjv5.here.now/privacy.html</span></p>
-
-      <p class="hint">Open Defense Fortress es un proyecto independiente.</p>
-    </div>
-    <button class="btn ghost" data-credits-close>CERRAR</button>`;
-}
-
 export function buildMenuScreen({ theme = '', quality = '', confirmingReset = false, meta = null } = {}) {
   // dev-7 fase 13: selector de temas — reskinea el HUD/paneles/botones
   // (no el canvas del juego, ver theme.js). El activo queda marcado.
@@ -1785,7 +1746,6 @@ export function buildMenuScreen({ theme = '', quality = '', confirmingReset = fa
       <p class="theme-picker-label" data-theme-label>Tema: ${THEMES.find((t) => t.id === theme)?.name ?? theme}</p>
       <div class="quality-picker">${qButtons}</div>
       <p class="theme-picker-label">Calidad gráfica (probá "Baja" si el juego anda lento)</p>
-      <button class="btn ghost small" data-action="credits">CRÉDITOS / LICENCIAS</button>
       <p class="hint menu-hint">[P] pausa · [1][2][3] velocidad · [Espacio] ultimate · [B] black hole</p>
       ${resetBlock}
       <p class="version">v1.0.0 · sin anuncios · 100% offline</p>
@@ -2252,11 +2212,6 @@ export class HUD {
     // que elegir). Nodo aparte = oferta de cartas siempre intacta.
     this.comboPanel = null;
     this._focusBeforeCombo = null;
-
-    // Modal de Créditos/Licencias (Etapa 2 Android): nodo propio, igual
-    // patrón que el panel de combos.
-    this.creditsModal = null;
-    this._focusBeforeCredits = null;
 
     // Barra de jefe (D11): DOM creado bajo demanda en render()
     this.boss = null;
@@ -3863,91 +3818,9 @@ export class HUD {
       && !this.comboPanel.classList.contains('hidden');
   }
 
-  // ---------- Créditos / Licencias (Etapa 2 Android) ----------
-
-  /** Crea el nodo propio #credits-panel en el escenario de overlays. */
-  _ensureCreditsModal() {
-    if (this.creditsModal) return;
-    const host = this._overlayHost();
-    if (!host) return;
-    const div = document.createElement('div');
-    div.id = 'credits-panel';
-    div.classList.add('hidden');
-    div.classList.add(OVERLAY_VEIL_CLASS);
-    div.setAttribute('style', COMBO_OVERLAY_LAYOUT);
-    div.setAttribute('role', 'dialog');
-    div.setAttribute('aria-modal', 'true');
-    div.setAttribute('aria-label', 'Créditos y licencias');
-    host.appendChild(div);
-    div.addEventListener('keydown', (ev) => {
-      if (ev.key === 'Escape') {
-        ev.preventDefault();
-        ev.stopPropagation();
-        this.hideCreditsModal();
-        return;
-      }
-      if (ev.key === 'Tab') this._trapModalFocus(ev, this.creditsModal);
-    });
-    this.creditsModal = div;
-  }
-
-  /** Abre la pantalla de créditos; reutiliza el contenido puro de creditsHtml(). */
-  showCreditsModal() {
-    this._ensureCreditsModal();
-    if (!this.creditsModal) return;
-    this._captureCreditsFocus();
-    this.creditsModal.innerHTML = creditsHtml();
-    // En Android, un link externo dentro del WebView sacaría al jugador del
-    // juego (y el back nativo no navega el historial). Las URLs quedan
-    // visibles como texto; en web los links siguen funcionando.
-    const native = typeof window !== 'undefined'
-      && window.Capacitor?.isNativePlatform?.() === true;
-    if (native) {
-      this.creditsModal.querySelectorAll('a[href]').forEach((a) => {
-        a.addEventListener('click', (ev) => ev.preventDefault());
-      });
-    }
-    this.creditsModal.querySelector('[data-credits-close]')
-      ?.addEventListener('click', () => this.hideCreditsModal());
-    this.creditsModal.classList.remove('hidden');
-    const closeBtn = this.creditsModal.querySelector('[data-credits-close]');
-    if (closeBtn && typeof closeBtn.focus === 'function') {
-      try { closeBtn.focus(); } catch (_err) { /* sin foco */ }
-    }
-  }
-
-  /** Cierra el modal de créditos y devuelve el foco. */
-  hideCreditsModal() {
-    if (this.creditsModal) {
-      this.creditsModal.classList.add('hidden');
-      this.creditsModal.innerHTML = '';
-    }
-    this._restoreCreditsFocus();
-  }
-
-  /** ¿Está abierto el modal de créditos? */
-  creditsOpen() {
-    return !!this.creditsModal
-      && !this.creditsModal.classList.contains('hidden');
-  }
-
-  _captureCreditsFocus() {
-    if (typeof document === 'undefined') return;
-    const active = document.activeElement;
-    this._focusBeforeCredits = (active && active !== document.body) ? active : null;
-  }
-
-  _restoreCreditsFocus() {
-    const el = this._focusBeforeCredits;
-    this._focusBeforeCredits = null;
-    if (!el || typeof el.focus !== 'function') return;
-    if (el.isConnected === false) return;
-    try { el.focus(); } catch (_err) { /* nodo desconectado */ }
-  }
-
   /**
    * ¿Hay ALGÚN modal abierto sobre la pantalla? Cubre el modal de cartas y
-   * el de perk (#card-choice), el panel combo (#combo-panel) y créditos.
+   * el de perk (#card-choice) y el panel combo (#combo-panel).
    *
    * El modal de PERK cierra con [data-perk-close], por eso la detección
    * anterior (solo combo) daba false con el perk abierto: el modal
@@ -3957,7 +3830,6 @@ export class HUD {
   anyModalOpen() {
     // El panel combo tiene su propio nodo (#combo-panel).
     if (this.comboPanel && !this.comboPanel.classList.contains('hidden')) return true;
-    if (this.creditsModal && !this.creditsModal.classList.contains('hidden')) return true;
     if (!this.cardModal) return false;
     if (this.cardModal.classList.contains('hidden')) return false;
     // El modal de PERK cierra con [data-perk-close].

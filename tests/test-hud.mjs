@@ -16,7 +16,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  HUD, buildMenuScreen, creditsHtml, buildTowerCards, buildTorretasScreen, META_TOTAL_MAX_LEVELS,
+  HUD, buildMenuScreen, buildTowerCards, buildTorretasScreen, META_TOTAL_MAX_LEVELS,
   buildRankBadge, canPickCard, CARD_PICK_DEBOUNCE_MS, formatBattleStatus,
   buildStatusStripHtml, buildBossBarHtml,
   towerDps, fortressDps, BOSS_WARNING_MS,
@@ -181,24 +181,6 @@ test('buildMenuScreen: la advertencia de borrado usa la cantidad real de torreta
   assert.ok(html.includes(`las ${META_TOWERS.length} torretas mejoradas`),
     'la confirmación debe decir "las 11 torretas mejoradas"');
   assert.ok(!html.includes('9 torretas'), 'no debe quedar "9 torretas"');
-});
-
-test('buildMenuScreen: incluye el acceso a Créditos/Licencias', () => {
-  const html = buildMenuScreen({ theme: 'neon', quality: 'alta' });
-  assert.match(html, /data-action="credits"/);
-  assert.match(html, /CRÉDITOS \/ LICENCIAS/);
-});
-
-test('creditsHtml: incluye la atribución CC BY 3.0 obligatoria', () => {
-  const html = creditsHtml();
-  assert.match(html, /Lorc/);
-  assert.match(html, /game-icons\.net/);
-  assert.match(html, /CC BY 3\.0/);
-  assert.match(html, /kenney\.nl/i);
-  assert.match(html, /OFL 1\.1/);
-  assert.match(html, /MIT/);
-  assert.match(html, /faint-desert-zjv5\.here\.now\/privacy\.html/);
-  assert.match(html, /data-credits-close/);
 });
 
 test('buildMenuScreen: sin confirmación muestra el botón de pedir confirmación', () => {

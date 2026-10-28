@@ -154,7 +154,6 @@ export class Game {
         // menú) tapa el frame entero y bloquea todos los clicks.
         // hideCardChoice() es idempotente (no-op si el modal no existe).
         this.hud.hideCardChoice();
-        this.hud.hideCreditsModal();
       }
       hud.showScreen(next, this._screenData(next));
       this._playing = next === 'PLAYING';
@@ -622,8 +621,8 @@ export class Game {
       },
       // v5 5a/5: volver al menú principal desde PAUSA (data-action="menu")
       menu: () => this.toMenu(),
-      // Etapa 2: créditos/licencias (MIT, CC BY 3.0, CC0, OFL).
-      credits: () => this.hud.showCreditsModal(),
+      // fase 72: la pantalla de créditos y licencias (atribución CC BY 3.0).
+      credits: () => this.toCredits(),
       // v3.5 meta-game: pantalla TORRETAS desde el menú / nav inferior
       torretas: () => this.toTorretas(),
       // fase 69: pantalla PROTOCOLO (heat) y sus ajustes. El handler recibe
@@ -1822,11 +1821,6 @@ window.__GDF__ = { game, engine, hud };
 // MainActivity.java llama a window.__gdfBack() desde onBackPressed. Si el
 // juego no lo maneja, el nativo manda la app a background (no la cierra).
 window.__gdfBack = () => {
-  // Un modal de créditos abierto se cierra antes de navegar la FSM.
-  if (hud.creditsOpen()) {
-    hud.hideCreditsModal();
-    return true;
-  }
   const action = backAction(engine.state);
   if (!action.handled) return false;
   if (action.next) engine.setState(action.next);

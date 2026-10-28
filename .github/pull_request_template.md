@@ -2,7 +2,7 @@
 Gracias por el PR. Checklist corto (marcá con una x lo que aplica):
 
 - [ ] Un cambio por PR, con título `feat:` / `fix:` / `docs:` / `test:` / `perf:` / `ci:`.
-- [ ] `node --test "tests/**/*.mjs"` en verde (850 tests, 5 skip esperados).
+- [ ] `node --test "tests/**/*.mjs"` en verde (857 tests, 5 skip esperados).
 - [ ] `node .github/scripts/ci-checks.mjs` en verde.
 - [ ] Si toqué lógica: tests nuevos o actualizados.
 - [ ] Si toqué comportamiento: actualicé la spec de `openspec/specs/` correspondiente.

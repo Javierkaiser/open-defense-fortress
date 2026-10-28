@@ -37,7 +37,7 @@ mediciones, ver [BALANCE.md](BALANCE.md); para la suite, [TESTING.md](TESTING.md
 ```text
 index.html              canvas + HUD DOM + overlays
 css/style.css           HUD, pantallas, temas, responsive
-js/                     23 módulos ES
+js/                     24 módulos ES
 assets/                 fuentes, SFX y sprites usados
 tests/                  node:test
 scripts/                serve, balance-sim, probe-waves, probes
@@ -65,7 +65,8 @@ openspec/specs/         specs de comportamiento
 | `meta.js` | Meta-juego de 100 niveles: fragmentos, oro, perks por torre, rangos. |
 | `progress.js` | Persistencia tolerante: desbloqueos, récords, modos, heat, daily. |
 | `score.js` | Fórmulas puras: score, XP, precio de nivel, multiplicadores, resumen de combo. |
-| `hud.js` | HUD, pantallas, modales, selector de stage, meta, bestiario, protocolo y récords. |
+| `hud.js` | HUD, pantallas, modales, selector de stage, meta, bestiario, protocolo, récords y créditos. |
+| `licenses.js` | Datos puros de atribución y los textos legales completos (MIT, CC BY 3.0, OFL 1.1, CC0) embebidos: la pantalla `CREDITS` no depende de la red. |
 | `theme.js` | 5 temas de interfaz y tokens de color. |
 | `quality.js` | Calidad Alta/Baja: `shadowBlur`, partículas, blur DOM. |
 | `damagetypes.js` | 5 tipos de daño × 4 familias, matriz, badges y bestiario. |

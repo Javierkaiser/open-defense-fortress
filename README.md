@@ -117,7 +117,7 @@ que pasar esa matriz para mergearse.
 
 - **Canvas 2D** lógico 540×880, escalado por CSS y DPR (tope 2).
 - **DOM/CSS** para HUD, menús, cartas, pausa, meta, protocolo y récords.
-- **23 módulos ES acíclicos** con un EventBus en `engine.js`; sin dependencias npm.
+- **24 módulos ES acíclicos** con un EventBus en `engine.js`; sin dependencias npm.
 - **FSM de 12 estados** (`BOOT`, `MENU`, `SELECT_STAGE`, `PLAYING`, `PAUSED`,
   `CARD_CHOICE`, `STAGE_CLEAR`, `GAME_OVER`, `TORRETAS`, `PROTOCOLO`, `RECORDS`,
   `CREDITS`).

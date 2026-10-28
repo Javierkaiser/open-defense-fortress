@@ -3626,38 +3626,6 @@ html, body {
 #combo-panel .combo-panel,
 #combo-panel .btn { pointer-events: auto; }
 
-/* ---------- CRÉDITOS / LICENCIAS (Etapa 2 Android) ---------- */
-#credits-panel { pointer-events: none; }
-#credits-panel .credits-panel,
-#credits-panel .btn { pointer-events: auto; }
-.credits-panel {
-  width: min(380px, 90%);
-  max-height: 64vh;
-  overflow-y: auto;
-  touch-action: pan-y;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  text-align: left;
-  font-family: var(--font-body);
-  color: var(--score-white);
-  font-size: var(--text-sm);
-  line-height: 1.45;
-}
-.credits-panel h3 {
-  margin: 8px 0 0;
-  font-family: var(--font-display);
-  font-size: var(--text-sm);
-  letter-spacing: var(--tracking-normal);
-  color: var(--hud-teal);
-}
-.credits-panel p { margin: 0; }
-.credits-panel a { color: var(--hud-teal); }
-.credits-url {
-  color: var(--hud-teal);
-  word-break: break-all;
-}
-
 /* ---------- BESTIARIO (fase 40) ----------
    La sección de bestiario de la pantalla de torretas: una tarjeta por
    enemigo con su icono (el draw real del juego), su chip de familia y

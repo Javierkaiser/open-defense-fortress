@@ -29,6 +29,7 @@ export function backAction(state) {
     case 'TORRETAS':
     case 'PROTOCOLO':
     case 'RECORDS':
+    case 'CREDITS':
     case 'STAGE_CLEAR':
     case 'GAME_OVER':
       return { handled: true, next: 'MENU' };
