@@ -30,6 +30,8 @@ import {
   readProtocolScroll, restoreProtocolScroll, readProtocolFocus, restoreProtocolFocus,
   // fase 70: la tarjeta del modo arcade y la sala de récords.
   buildSurvivalCardHtml, buildRecordsHtml,
+  // fase 72: los créditos y licencias (atribución CC BY 3.0 en la app).
+  buildCreditsHtml,
   CARD_RARITIES, cardRarity, UI_ICONS, overlayStageBox,
   // dev-7 fase 59.4: el meta que se ve (SUBIR TODO, aviso de pendientes
   // y la línea de PODER).
@@ -3633,6 +3635,79 @@ test('fase 70: el CSS tiene la tarjeta, el bloque del resumen y la sala', () => 
     assert.ok(css.includes(sel), `falta el estilo ${sel}`);
   }
 });
+
+// ============================================================
+// fase 72 — CRÉDITOS Y LICENCIAS
+//
+// La pantalla existe por una razón LEGAL, no estética: el icono del
+// Ultimate es CC BY 3.0 (Lorc / game-icons.net) y la atribución tiene que
+// verse en la obra distribuida. Estos tests fijan los campos que la
+// licencia exige, el orden (CC BY primero) y que los textos viajen
+// EMBEBIDOS (el juego es offline: no hay fetch).
+// ============================================================
+
+test('fase 72: los créditos listan las cuatro licencias y sus titulares', () => {
+  const html = buildCreditsHtml();
+  for (const s of ['MIT', 'CC BY 3.0', 'CC0 1.0', 'SIL Open Font License 1.1',
+    'Lorc', 'Kenney', 'BenHickling', 'Javier Lust']) {
+    assert.ok(html.includes(s), `falta «${s}» en la pantalla de créditos`);
+  }
+});
+
+test('fase 72: la atribución CC BY 3.0 trae autor, obra, fuente, licencia y cambio', () => {
+  const html = buildCreditsHtml();
+  assert.ok(html.includes('Lorc'), 'autor (§4 b i)');
+  assert.ok(html.includes('Power Lightning'), 'título de la obra (§4 b ii)');
+  assert.ok(html.includes('power-lightning'), 'el slug identifica el asset original');
+  assert.ok(html.includes('https://game-icons.net/1x1/lorc/power-lightning.html'),
+    'URI de origen (§4 b iii)');
+  assert.ok(html.includes('https://creativecommons.org/licenses/by/3.0/'),
+    'URI de la licencia (§4 a)');
+  assert.ok(html.includes('Recoloreado'), 'el cambio realizado (§4 b iv: es una adaptación)');
+  assert.ok(html.includes('icon_ultimate_gold.png'), 'la miniatura muestra la obra EN USO');
+});
+
+test('fase 72: el bloque CC BY va ANTES que los créditos CC0', () => {
+  const html = buildCreditsHtml();
+  assert.ok(html.indexOf('CC BY 3.0') < html.indexOf('CC0 1.0'),
+    '§4 b: el crédito CC BY tiene que ser al menos tan prominente como los demás');
+  assert.ok(html.indexOf('credits-attrib-main') < html.indexOf('Kenney'),
+    'el bloque destacado es el de Lorc');
+});
+
+test('fase 72: los textos legales completos van EMBEBIDOS (offline, sin red)', () => {
+  const html = buildCreditsHtml();
+  assert.ok(html.includes('Attribution 3.0 Unported'), 'legal code de CC BY 3.0');
+  assert.ok(html.includes('SIL OPEN FONT LICENSE Version 1.1'), 'texto de OFL 1.1');
+  assert.ok(html.includes('MIT License'), 'texto de MIT');
+  // Tres <details> (MIT, CC BY 3.0 y OFL 1.1); CC0 no exige texto.
+  assert.equal((html.match(/<details class="credits-legal-box">/g) ?? []).length, 3);
+  assert.ok(!html.includes('fetch('), 'la pantalla no puede depender de la red');
+});
+
+test('fase 72: _screenCredits() envuelve el builder y el menú ofrece la puerta', () => {
+  const hud = fakeHudLive();
+  // No necesita `window` ni juego vivo: el contenido es estático.
+  const html = hud._screenCredits();
+  assert.ok(html.includes('credits-panel'), 'usa el panel de la pantalla');
+  assert.ok(html.includes('data-action="menu"'), 'la salida es `menu` (main ya la entiende)');
+  assert.ok(buildMenuScreen({ theme: 'neon', quality: 'alta' }).includes('data-action="credits"'),
+    'el menú principal ofrece la pantalla de créditos');
+});
+
+test('fase 72: el CSS tiene el panel, el área scrolleable y el bloque CC BY', () => {
+  for (const sel of [
+    '.credits-panel', '.credits-scroll', '.credits-section', '.credits-attrib',
+    '.credits-attrib-main', '.credits-legal', '.credits-url', '.credits-icon',
+  ]) {
+    assert.ok(css.includes(sel), `falta el estilo ${sel}`);
+  }
+  const sc = cssRule('.credits-scroll');
+  assert.ok(sc.includes('overflow-y: auto'), 'el área de créditos scrollea');
+  assert.ok(sc.includes('touch-action: pan-y'), 'scroll táctil sin rebote lateral');
+  assert.ok(sc.includes('max-height'), 'el panel no puede empujar el VOLVER fuera del marco');
+});
+
 
 
 
