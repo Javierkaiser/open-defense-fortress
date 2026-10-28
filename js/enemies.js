@@ -457,6 +457,44 @@ export function applyPoison(enemy, dps, seconds) {
   return true;
 }
 
+/**
+ * fase 74.2 — SLOW con DURACIÓN. Antes el slow era de un solo frame y el
+ * guard de los proyectiles fallaba (Enemy.update limpia `slowFactor`):
+ * Balas Gélidas no hacía nada. `applySlow` fija `slowTimer` + `slowFrac`
+ * y mantiene `slowFactor` por compatibilidad con el lead/render.
+ * @param {object} enemy
+ * @param {number} frac 0.20 = 20% slower
+ * @param {number} seconds duración
+ * @returns {boolean}
+ */
+export function applySlow(enemy, frac, seconds = 1.5) {
+  if (!enemy || enemy.dead || enemy._slowImmune) return false;
+  if (!Number.isFinite(frac) || frac <= 0) return false;
+  if (!Number.isFinite(seconds) || seconds <= 0) return false;
+  const f = Math.min(0.9, frac);
+  enemy.slowTimer = Math.max(enemy.slowTimer ?? 0, seconds);
+  enemy.slowFrac = Math.min(enemy.slowFrac ?? 1, 1 - f);
+  enemy.slowFactor = enemy.slowFrac;
+  return true;
+}
+
+/**
+ * fase 74.2 — MARCA temporal de un enemigo (Marca de Riel / Enlace de
+ * Enjambre). `key` es 'rail' o 'swarm'; el timer se descuenta en update().
+ */
+export function applyMark(enemy, key, seconds = 2) {
+  if (!enemy || enemy.dead || !key) return false;
+  if (!Number.isFinite(seconds) || seconds <= 0) return false;
+  enemy.marks ??= {};
+  enemy.marks[key] = Math.max(enemy.marks[key] ?? 0, seconds);
+  return true;
+}
+
+/** ¿El enemigo tiene la marca `key` activa? */
+export function hasMark(enemy, key) {
+  return (enemy?.marks?.[key] ?? 0) > 0;
+}
+
 /** Rampa 0..1 dentro de la zona caliente (último 25 % de la caída). */
 function threatPulse(t) {  if (t <= THREAT_ZONE) return 0;
   return (t - THREAT_ZONE) / (1 - THREAT_ZONE);
@@ -762,6 +800,12 @@ export class Enemy {
     this.t = 0;
     this.flash = 0;       // destello blanco al recibir daño (juice D1)
     this.stun = 0;        // stun de Thunderstroke (0.2 s)
+    // fase 74.2: slow con DURACIÓN (el slow de un frame era inútil) y
+    // marcas temporales de los combos (rail/swarm).
+    this.slowTimer = 0;
+    this.slowFrac = 1;
+    this.slowFactor = 1;  // compatibilidad con lead/render
+    this.marks = {};
     // dev-7 fase 30: VENENO (picadura del Dron Avispas). Es un DoT: hace
     // daño por segundo durante un tiempo, así que la picadura sigue
     // rindiendo aunque el objetivo NO muera con ella (antes la picadura
@@ -883,7 +927,15 @@ export class Enemy {
     // tipo (×1,5) y resistente a otro (×0,5). Aquí es el único punto
     // donde se aplica el daño.
     const mul = dmgMultiplier(type, family) * this._phaseTypeMul(type);
-    const total = n * mul;
+    // fase 74.2 — combos de frío: los enemigos ralentizados son frágiles
+    // a ciertos tipos (Cero Absoluto → luz; Onda Glacial → explosión).
+    const combo = this.game?.fortress?.comboMods;
+    let comboMul = 1;
+    if ((this.slowTimer ?? 0) > 0) {
+      if (type === 'light' && combo?.slowLightVuln) comboMul *= combo.slowLightVuln;
+      if (type === 'blast' && combo?.slowBlastVuln) comboMul *= combo.slowBlastVuln;
+    }
+    const total = n * mul * comboMul;
     // Oleadas dinámicas — variante `escudado`: el escudo ABSORBE ANTES que
     // el hp. El daño (y su multiplicador de familia) es el de siempre:
     // una variante no cambia la matriz, sólo cuánto cuesta bajarla.
@@ -1208,8 +1260,17 @@ export class Enemy {
     // El slow y el stun los escriben towers.js y los drones desde fuera; se
     // borran ANTES de consumirlos (unas líneas más abajo), así el afijo los
     // ignora sin tocar esas torres ni el comportamiento de las otras élites.
-    if (this._slowImmune) this.slowFactor = undefined;
+    if (this._slowImmune) {
+      this.slowTimer = 0;
+      this.slowFrac = 1;
+      this.slowFactor = undefined;
+    }
     if (this._stunImmune) this.stun = 0;
+    // fase 74.2: marcas de combo (Marca de Riel / Enlace de Enjambre).
+    for (const key of Object.keys(this.marks ?? {})) {
+      this.marks[key] = Math.max(0, this.marks[key] - dt);
+      if (this.marks[key] <= 0) delete this.marks[key];
+    }
     // dev-7 fase 32: decaimiento del destello de impacto por tipo.
     if (this._hitT > 0) this._hitT = Math.max(0, this._hitT - dt);
     // dev-7 fase 30: VENENO (picadura del Dron Avispas). Se consume
@@ -1229,10 +1290,15 @@ export class Enemy {
         this.die();
       }
     }
-    // Slow del Dron Campo de Fuerza (§2.3): el dron marca slowFactor=0.7
-    // cada frame a quien está dentro; aquí se consume y se resetea.
-    const sf = this.slowFactor ?? 1;
-    this.slowFactor = undefined;
+    // fase 74.2: slow con DURACIÓN. El Campo de Fuerza lo refresca cada
+    // frame; Balas Gélidas lo aplica por 1,5 s. `slowFactor` se mantiene
+    // para el lead predictivo.
+    if (this.slowTimer > 0) {
+      this.slowTimer = Math.max(0, this.slowTimer - dt);
+      if (this.slowTimer <= 0) this.slowFrac = 1;
+    }
+    const sf = this.slowTimer > 0 ? (this.slowFrac ?? 1) : 1;
+    this.slowFactor = this._slowImmune ? undefined : sf;
     if (this.stun > 0) this.stun -= dt; // paralizado: no avanza este frame
     else {
       // FASE 58: la velocidad vertical EFFECTIVA (ver effVel) compensa
@@ -2625,11 +2691,21 @@ export function projectileRadius(p) {
 
 /** Daño crítico propio de un proyectil (perks sistemáticos, fase 17):
  *  critChance × critMul, compuesto SOLO en el proyectil (el bonus global
- *  del meta es aparte). Sin critChance → daño tal cual. */
-function rollProjectileCrit(p) {
-  const chance = p.critChance ?? 0;
-  if (chance <= 0) return p.damage;
-  return Math.random() < chance ? Math.round(p.damage * (p.critMul ?? 2)) : p.damage;
+ *  del meta es aparte). Sin critChance → daño tal cual.
+ *  fase 74.2 — Fractura Criogénica: contra un enemigo ralentizado suma
+ *  `slowCritChanceAdd` y `slowCritDmgAdd` de `fortress.comboMods`. */
+function rollProjectileCrit(p, e = null) {
+  let chance = p.critChance ?? 0;
+  let critMul = p.critMul ?? 2;
+  const cm = p.game?.fortress?.comboMods;
+  if (e && (e.slowTimer ?? 0) > 0) {
+    chance += cm?.slowCritChanceAdd ?? 0;
+    critMul += cm?.slowCritDmgAdd ?? 0;
+  }
+  chance = Math.min(1, Math.max(0, chance));
+  const crit = chance > 0 && Math.random() < chance;
+  p._lastCrit = crit;
+  return crit ? Math.round(p.damage * critMul) : p.damage;
 }
 
 /** Debuffs de impacto de un proyectil (perks sistemáticos, fase 17):
@@ -2637,8 +2713,8 @@ function rollProjectileCrit(p) {
  *  slow actual) y stunChance con una base de 0.5 s (piso sobre el stun
  *  previo). Sin claves → no toca nada (comportamiento histórico). */
 function applyProjectileDebuffs(p, e) {
-  if ((p.slowOnHit ?? 0) > 0 && typeof e.slowFactor === 'number') {
-    e.slowFactor = Math.min(e.slowFactor ?? 1, 1 - p.slowOnHit);
+  if ((p.slowOnHit ?? 0) > 0) {
+    applySlow(e, p.slowOnHit, p.slowDuration ?? 1.5);
   }
   if ((p.stunChance ?? 0) > 0 && typeof e.stun === 'number' && Math.random() < p.stunChance) {
     e.stun = Math.max(e.stun ?? 0, 0.5);
@@ -2667,7 +2743,16 @@ function applyProjectileDebuffs(p, e) {
  *  del área (no el % por enemigo) — que es lo que promete el perk.
  */
 function projectileStrike(p, e, kind, list) {
-  const dmg = rollProjectileCrit(p);
+  // fase 74.2 — marcas de combo: Gauss marca 'rail'; los drones marcan
+  // 'swarm'. Se aplican antes del daño.
+  if (p.markOnHit) applyMark(e, p.markOnHit, p.markDuration ?? 2);
+  let markMul = 1;
+  if (p.source === 'guardian') {
+    const cm = p.game?.fortress?.comboMods;
+    if (cm?.railMark && hasMark(e, 'rail')) markMul *= 1.25;
+    if (cm?.swarmMark && hasMark(e, 'swarm')) markMul *= 1.15;
+  }
+  const dmg = Math.round(rollProjectileCrit(p, e) * markMul);
   // dev-7 fase 32: el proyectil lleva su TIPO de daño (`p.dmgType`), que
   // es el que decide el multiplicador contra la familia del enemigo
   // (se aplica en takeDamage). El `kind` ('bullet'/'splash') es sólo el
@@ -2675,6 +2760,15 @@ function projectileStrike(p, e, kind, list) {
   const dmgKind = p.dmgType ?? kind;
   // Los mods viajan en el propio proyectil (onHitOpts) — se pasan tal cual.
   const killed = applyPerkDamage(e, dmg, dmgKind, p, p.game, list);
+
+  // fase 74.2 — Fractura Criogénica: un crítico contra un enemigo
+  // ralentizado puede congelarlo.
+  const cm = p.game?.fortress?.comboMods;
+  if (p._lastCrit && !killed && e && (e.slowTimer ?? 0) > 0
+    && (cm?.slowFreezeChance ?? 0) > 0
+    && Math.random() < cm.slowFreezeChance && typeof e.stun === 'number') {
+    e.stun = Math.max(e.stun ?? 0, 0.5);
+  }
 
   // fase 74 — Balas Detonantes: explosión AL IMPACTAR, una vez por
   // proyectil. Excluye al blanco directo (ya comió el daño pleno) y usa
@@ -2690,6 +2784,10 @@ function projectileStrike(p, e, kind, list) {
           if (!other || other.dead || other === e) continue;
           if (Math.hypot(other.x - e.x, other.y - e.y) > R + (other.r ?? 10)) continue;
           applyPerkDamage(other, splash, 'blast', p, p.game, list);
+          const cm = p.game?.fortress?.comboMods;
+          if (cm?.explosionSlowFrac > 0) {
+            applySlow(other, cm.explosionSlowFrac, cm.explosionSlowTime ?? 2);
+          }
         }
       }
       // Singularidad: las explosiones dejan un mini Black Hole.
@@ -2779,6 +2877,13 @@ export function applyProjectileHit(p, enemies, radiusOverride = undefined) {
     // "atraviesa +N ENEMIGOS" — debe ser N enemigos DISTINTOS, no N golpes
     // al mismo (si no, una bala lenta re-golpearía al mismo blanco).
     p._lastHit = best;
+    // fase 74.2 — Perforación Compartida: los atravesados sangran un
+    // 0.5% de su HP máximo por segundo durante 2 s (usa el DoT existente).
+    if (p.game?.fortress?.comboMods?.pierceBleed
+      && (p.source === 'guardian' || p.source === 'gauss') && !best.dead) {
+      const bleed = Math.max(0.5, (best.hpMax ?? best.hp ?? 100) * 0.005);
+      applyPoison(best, bleed, 2);
+    }
   }
   // Rebote (perks fase 17): sigue viva y se re-apunta al enemigo vivo más
   // cercano al punto de impacto distinto del último golpeado.
@@ -2798,6 +2903,11 @@ export function applyProjectileHit(p, enemies, radiusOverride = undefined) {
         const ang = Math.atan2(nxt.x - p.x, -(nxt.y - p.y));
         p.vx = Math.sin(ang) * spd;
         p.vy = -Math.cos(ang) * spd;
+      }
+      // fase 74.2 — Rebote Conductor: la bala rebotada descarga 50% de
+      // daño eléctrico en el nuevo objetivo.
+      if (p.source === 'guardian' && p.game?.fortress?.comboMods?.bounceElectric) {
+        applyPerkDamage(nxt, Math.round(p.damage * 0.5), 'electric', p, p.game, list);
       }
       return false;
     }

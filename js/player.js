@@ -206,7 +206,7 @@ export class Fortress {
     this.bhReady = false;     // medidor lleno → botón [B] habilitado
     // fase 74: mods de las cartas de Black Hole (por instancia, no se
     // muta la constante BLACK_HOLE compartida).
-    this.blackHoleMods = { durationAdd: 0, radiusMul: 1, endBurst: 0, singularity: 0 };
+    this.blackHoleMods = { durationAdd: 0, radiusMul: 1, endBurst: 0, singularity: 0, drain: 0 };
     this._miniBhCd = 0;
     // fase 74: stacks GLOBALES de cartas (dmg_all/cadence_up/tipo/caza).
     // Se guardan acá para que las unidades desbloqueadas DESPUÉS hereden
@@ -215,6 +215,22 @@ export class Fortress {
     this.cadAllStacks = 0;
     this.typeStacks = {};
     this.huntStacks = {};
+    // fase 74.2: flags de COMBOS (frío, sustain, marcas, etc.).
+    this.comboMods = {
+      slowLightVuln: 1,
+      slowBlastVuln: 1,
+      slowCritChanceAdd: 0,
+      slowCritDmgAdd: 0,
+      slowFreezeChance: 0,
+      explosionSlowFrac: 0,
+      explosionSlowTime: 0,
+      poisonRegen: 0,
+      railMark: 0,
+      swarmMark: 0,
+      judgment: 0,
+      bounceElectric: 0,
+      pierceBleed: 0,
+    };
     // Contadores de aplicaciones para caps de cartas repetibles:
     this.detectApps = 0;
     this.xpBoostApps = 0;
@@ -395,6 +411,7 @@ export class Fortress {
       duration: BLACK_HOLE.duration + (mods.durationAdd ?? 0),
       radius: BLACK_HOLE.radius * (mods.radiusMul ?? 1),
       endBurst: mods.endBurst ?? 0,
+      drain: mods.drain ?? 0,
     });
     game.engine.addEntity(fx);
     game.engine.emit('blackhole:fired', { ready: false });
@@ -624,6 +641,19 @@ export class Fortress {
       if (this.invuln > 0) this.invuln -= dt;
       if (this.flash > 0) this.flash = Math.max(0, this.flash - dt * 2.5);
       if (this._miniBhCd > 0) this._miniBhCd = Math.max(0, this._miniBhCd - dt);
+      // fase 74.2 — Transfusión: los enemigos envenenados por Avispas
+      // regeneran escudo, con tope de 5 HP/s.
+      const poisonRegen = this.comboMods?.poisonRegen ?? 0;
+      if (poisonRegen > 0 && Number.isFinite(this.hp) && this.hp > 0) {
+        let poisoned = 0;
+        for (const e of enemies || []) {
+          if (e && !e.dead && (e.poisonT ?? 0) > 0) poisoned += 1;
+        }
+        if (poisoned > 0) {
+          const heal = Math.min(5, poisoned * poisonRegen) * dt;
+          this.hp = Math.min(this.maxHp ?? this.hp, this.hp + heal);
+        }
+      }
       this._updateOrbital(dt, enemies);
     }
     for (const t of this.slots) {

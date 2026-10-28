@@ -6,6 +6,36 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-10-28
+
+### Añadido
+
+- **11 combos nuevos** (81 cartas en total):
+  - Frío: Cero Absoluto, Fractura Criogénica, Onda Glacial.
+  - Lifesteal: Cosecha Explosiva, Pacto de Sangre, Transfusión.
+  - Tipo/mecánica: Marca de Riel, Enlace de Enjambre, Juicio Final,
+    Rebote Conductor y Perforación Compartida.
+- Slow con **duración real** (`slowTimer`/`slowFrac` + `applySlow`): Balas
+  Gélidas deja de ser una carta casi inerte.
+- Marcas temporales de enemigo (`rail`/`swarm`) para los combos de Gauss y
+  drones.
+- Prerrequisito `requiresCards`/`requiresAnyCards`: los combos pueden exigir
+  una técnica ya elegida.
+- Black Hole con drenaje (Pacto de Sangre) y regeneración por veneno
+  (Transfusión).
+
+### Cambiado
+
+- `tech_slow` aplica un slow real de 1,5 s; antes solo duraba un frame y el
+  guard de los proyectiles fallaba.
+- El panel de combos muestra los tags activos y los nuevos flags.
+
+### Corregido
+
+- El slow de proyectiles, Firewheel y Beam ahora usa el mismo helper que el
+  Campo de Fuerza.
+- 918 tests (913 pass, 5 skip, 0 fail).
+
 ## [1.2.0] — 2026-10-28
 
 ### Añadido

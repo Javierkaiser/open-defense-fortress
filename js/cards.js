@@ -153,6 +153,18 @@ export const CAPS = {
   combo_singularity: 1,
   combo_chain_reactor: 1,
   combo_light_prism: 1,
+  // fase 74.2: combos de frío, lifesteal y tipo/mecánica.
+  combo_absolute_zero: 1,
+  combo_fracture: 1,
+  combo_glacial_wave: 1,
+  combo_harvest: 1,
+  combo_blood_pact: 1,
+  combo_transfusion: 1,
+  combo_rail_mark: 1,
+  combo_swarm_link: 1,
+  combo_judgment: 1,
+  combo_conductor: 1,
+  combo_shared_pierce: 1,
   bh_horizon: 1,
   bh_collapse: 1,
   // dev-7 fase 50: la caza de familia se aplica UNA vez (si se
@@ -310,6 +322,31 @@ function allOwnedUnits(game) {
   ];
 }
 
+/** ¿El jugador ya eligió esta técnica/carta en alguna unidad? */
+function ownsCard(game, cardId) {
+  return allOwnedUnits(game).some((u) => cardApps(u, cardId) > 0);
+}
+
+/** Asegura el contenedor de flags de combos (tests duck-typed incluidos). */
+function comboMods(f) {
+  f.comboMods ??= {
+    slowLightVuln: 1,
+    slowBlastVuln: 1,
+    slowCritChanceAdd: 0,
+    slowCritDmgAdd: 0,
+    slowFreezeChance: 0,
+    explosionSlowFrac: 0,
+    explosionSlowTime: 0,
+    poisonRegen: 0,
+    railMark: 0,
+    swarmMark: 0,
+    judgment: 0,
+    bounceElectric: 0,
+    pierceBleed: 0,
+  };
+  return f.comboMods;
+}
+
 /** Tags que posee el jugador AHORA (tipo + mecánica). */
 function ownedTags(game) {
   const out = new Set();
@@ -338,6 +375,10 @@ function ownedTagCounts(game) {
 function meetsRequirements(card, game) {
   const f = game?.fortress;
   if (card.requiresBlackHole && !f?.blackHoleUnlocked) return false;
+  if (card.requiresCards?.length
+    && !card.requiresCards.every((id) => ownsCard(game, id))) return false;
+  if (card.requiresAnyCards?.length
+    && !card.requiresAnyCards.some((id) => ownsCard(game, id))) return false;
   const tags = ownedTags(game);
   if (card.requiresTags?.length && !card.requiresTags.some((t) => tags.has(t))) return false;
   if (card.requiresAllTags?.length && !card.requiresAllTags.every((t) => tags.has(t))) return false;
@@ -433,6 +474,17 @@ function appsOf(cardId, game) {
       cardApps(findTower(game, 'laser'), cardId),
     );
     case 'combo_singularity': return f.blackHoleMods?.singularity ? 1 : 0;
+    case 'combo_absolute_zero': return (f.comboMods?.slowLightVuln ?? 1) > 1 ? 1 : 0;
+    case 'combo_fracture': return (f.comboMods?.slowCritChanceAdd ?? 0) > 0 ? 1 : 0;
+    case 'combo_glacial_wave': return (f.comboMods?.explosionSlowFrac ?? 0) > 0 ? 1 : 0;
+    case 'combo_harvest': return f.comboMods?.harvest ? 1 : 0;
+    case 'combo_blood_pact': return (f.blackHoleMods?.drain ?? 0) > 0 ? 1 : 0;
+    case 'combo_transfusion': return (f.comboMods?.poisonRegen ?? 0) > 0 ? 1 : 0;
+    case 'combo_rail_mark': return f.comboMods?.railMark ? 1 : 0;
+    case 'combo_swarm_link': return f.comboMods?.swarmMark ? 1 : 0;
+    case 'combo_judgment': return f.comboMods?.judgment ? 1 : 0;
+    case 'combo_conductor': return f.comboMods?.bounceElectric ? 1 : 0;
+    case 'combo_shared_pierce': return f.comboMods?.pierceBleed ? 1 : 0;
     case 'bh_horizon': return (f.blackHoleMods?.durationAdd ?? 0) > 0 ? 1 : 0;
     case 'bh_collapse': return (f.blackHoleMods?.endBurst ?? 0) > 0 ? 1 : 0;
     // dev-7 fase 51: las CARTAS DE TÉCNICA cuentan sus aplicaciones en la
@@ -623,6 +675,7 @@ function needsUnit(card) {
     // fase 74: combos y cartas condicionadas por tags/unidades/BH.
     || card.requiresTags?.length || card.requiresAllTags?.length
     || card.requiresUnits?.length || card.requiresTagCount
+    || card.requiresCards?.length || card.requiresAnyCards?.length
     || card.requiresBlackHole);
 }
 
@@ -976,6 +1029,102 @@ function applyComboLightPrism(game) {
   return true;
 }
 
+/** fase 74.2 — combos de frío. */
+function applyComboAbsoluteZero(game) {
+  const f = game?.fortress;
+  if (!f) return false;
+  comboMods(f).slowLightVuln = 1.2;
+  return true;
+}
+
+function applyComboFracture(game) {
+  const f = game?.fortress;
+  if (!f) return false;
+  const cm = comboMods(f);
+  cm.slowCritChanceAdd = 0.2;
+  cm.slowCritDmgAdd = 0.3;
+  cm.slowFreezeChance = 0.2;
+  return true;
+}
+
+function applyComboGlacialWave(game) {
+  const f = game?.fortress;
+  if (!f) return false;
+  const cm = comboMods(f);
+  cm.explosionSlowFrac = 0.25;
+  cm.explosionSlowTime = 2;
+  cm.slowBlastVuln = 1.2;
+  return true;
+}
+
+/** fase 74.2 — combos de lifesteal. */
+function applyComboHarvest(game) {
+  const f = game?.fortress;
+  if (!f) return false;
+  let ok = false;
+  for (const type of ['missile', 'mortar']) {
+    const t = findTower(game, type);
+    if (t && addCardMods(t, { lifesteal: 0.02 }, 'combo_harvest')) ok = true;
+  }
+  if (ok) comboMods(f).harvest = 1;
+  return ok;
+}
+
+function applyComboBloodPact(game) {
+  const f = game?.fortress;
+  if (!f || !f.blackHoleUnlocked) return false;
+  f.blackHoleMods ??= {};
+  f.blackHoleMods.drain = (f.blackHoleMods.drain ?? 0) + 0.10;
+  f.blackHoleMods.durationAdd = (f.blackHoleMods.durationAdd ?? 0) + 1;
+  return true;
+}
+
+function applyComboTransfusion(game) {
+  const f = game?.fortress;
+  if (!f) return false;
+  comboMods(f).poisonRegen = 0.5;
+  return true;
+}
+
+/** fase 74.2 — combos por tipo/mecánica. */
+function applyComboRailMark(game) {
+  const f = game?.fortress;
+  if (!f) return false;
+  comboMods(f).railMark = 1;
+  return true;
+}
+
+function applyComboSwarmLink(game) {
+  const f = game?.fortress;
+  if (!f) return false;
+  comboMods(f).swarmMark = 1;
+  for (const d of f.drones ?? []) {
+    if (d) d.dmgMul = (d.dmgMul ?? 1) * 1.1;
+  }
+  return true;
+}
+
+function applyComboJudgment(game) {
+  const f = game?.fortress;
+  if (!f) return false;
+  comboMods(f).judgment = 1;
+  return true;
+}
+
+function applyComboConductor(game) {
+  const f = game?.fortress;
+  if (!f) return false;
+  comboMods(f).bounceElectric = 1;
+  return true;
+}
+
+function applyComboSharedPierce(game) {
+  const f = game?.fortress;
+  if (!f) return false;
+  comboMods(f).pierceBleed = 1;
+  return true;
+}
+
 function applyBlackHoleCard(game, key, value) {
   const f = game?.fortress;
   if (!f || !f.blackHoleUnlocked) return false;
@@ -983,10 +1132,11 @@ function applyBlackHoleCard(game, key, value) {
   if (key === 'durationAdd') f.blackHoleMods.durationAdd = (f.blackHoleMods.durationAdd ?? 0) + value;
   if (key === 'radiusMul') f.blackHoleMods.radiusMul = (f.blackHoleMods.radiusMul ?? 1) * value;
   if (key === 'endBurst') f.blackHoleMods.endBurst = (f.blackHoleMods.endBurst ?? 0) + value;
+  if (key === 'drain') f.blackHoleMods.drain = (f.blackHoleMods.drain ?? 0) + value;
   if (key === 'singularity') f.blackHoleMods.singularity = 1;
   return true;
 }
-// CATÁLOGO (70 cartas, schema §5 dev-4)
+// CATÁLOGO (81 cartas, schema §5 dev-4)
 // {id, name, desc, weight, rarity, dmgType?, minStage?, tower?, apply(game)}
 // dev-7 fase 49 - `dmgType` lo declara la carta que MEJORA EL DAÑO de una
 // unidad (sale de TOWERS/DRONES, la tabla que usa el combate). El HUD lo
@@ -1712,6 +1862,115 @@ export const CATALOG = [
     weight: 5,
     requiresBlackHole: true,
     apply: (g) => applyBlackHoleCard(g, 'endBurst', 150),
+  },
+  // fase 74.2 — combos de frío, lifesteal y tipo/mecánica.
+  {
+    id: 'combo_absolute_zero',
+    rarity: 'rare',
+    name: 'Cero Absoluto',
+    desc: 'Los enemigos ralentizados reciben +20% de daño de LUZ. Requiere Balas Gélidas y Beam o Láser.',
+    weight: 5,
+    requiresCards: ['tech_slow'],
+    requiresTags: ['light'],
+    apply: (g) => applyComboAbsoluteZero(g),
+  },
+  {
+    id: 'combo_fracture',
+    rarity: 'rare',
+    name: 'Fractura Criogénica',
+    desc: 'Contra enemigos ralentizados: +20% de crítico, +30% de daño crítico y 20% de congelarlos 0,5 s. Requiere Balas Gélidas y Ojo de Halcón.',
+    weight: 5,
+    requiresCards: ['tech_slow', 'tech_crit'],
+    apply: (g) => applyComboFracture(g),
+  },
+  {
+    id: 'combo_glacial_wave',
+    rarity: 'rare',
+    name: 'Onda Glacial',
+    desc: 'Las explosiones de Missile/Mortar aplican 25% de slow por 2 s; los ralentizados reciben +20% de daño de explosión. Requiere Balas Gélidas y Missile o Mortar.',
+    weight: 5,
+    requiresCards: ['tech_slow'],
+    requiresTags: ['blast'],
+    apply: (g) => applyComboGlacialWave(g),
+  },
+  {
+    id: 'combo_harvest',
+    rarity: 'rare',
+    name: 'Cosecha Explosiva',
+    desc: 'Missile y Mortar curan 2% del daño de sus explosiones. Requiere Balas Vampíricas y Missile o Mortar.',
+    weight: 5,
+    requiresCards: ['tech_lifesteal'],
+    requiresTags: ['blast'],
+    apply: (g) => applyComboHarvest(g),
+  },
+  {
+    id: 'combo_blood_pact',
+    rarity: 'rare',
+    name: 'Pacto de Sangre',
+    desc: 'El Black Hole cura 10% del daño que hace y dura +1 s. Requiere Balas Vampíricas y Black Hole desbloqueado.',
+    weight: 5,
+    requiresCards: ['tech_lifesteal'],
+    requiresBlackHole: true,
+    apply: (g) => applyComboBloodPact(g),
+  },
+  {
+    id: 'combo_transfusion',
+    rarity: 'rare',
+    name: 'Transfusión',
+    desc: 'Cada enemigo envenenado por las Avispas regenera 0,5 HP/s al escudo (tope 5 HP/s). Requiere Balas Vampíricas y el dron Avispas.',
+    weight: 5,
+    requiresCards: ['tech_lifesteal'],
+    requiresUnits: ['wasps'],
+    apply: (g) => applyComboTransfusion(g),
+  },
+  {
+    id: 'combo_rail_mark',
+    rarity: 'rare',
+    name: 'Marca de Riel',
+    desc: 'Los impactos del Gauss marcan 2 s; las balas del Guardian hacen +25% a los marcados. Requiere Guardian y Gauss.',
+    weight: 5,
+    requiresUnits: ['guardian', 'gauss'],
+    apply: (g) => applyComboRailMark(g),
+  },
+  {
+    id: 'combo_swarm_link',
+    rarity: 'rare',
+    name: 'Enlace de Enjambre',
+    desc: 'El dron marca 2 s; el Guardian hace +15% a los marcados y el dron gana +10% daño. Requiere Guardian y un dron.',
+    weight: 5,
+    requiresUnits: ['guardian'],
+    requiresTags: ['drone'],
+    apply: (g) => applyComboSwarmLink(g),
+  },
+  {
+    id: 'combo_judgment',
+    rarity: 'rare',
+    name: 'Juicio Final',
+    desc: 'Los enemigos aturdidos reciben +30% del Thunderstroke y su stun dura +0,1 s. Requiere Cabeza Aturdidora y Thunderstroke.',
+    weight: 5,
+    requiresCards: ['tech_stun_missile'],
+    requiresUnits: ['thunderstroke'],
+    apply: (g) => applyComboJudgment(g),
+  },
+  {
+    id: 'combo_conductor',
+    rarity: 'rare',
+    name: 'Rebote Conductor',
+    desc: 'Las balas rebotadas del Guardian descargan 50% de daño eléctrico en el nuevo objetivo. Requiere Rebote Magnético y Tesla.',
+    weight: 5,
+    requiresCards: ['tech_bounce'],
+    requiresUnits: ['tesla'],
+    apply: (g) => applyComboConductor(g),
+  },
+  {
+    id: 'combo_shared_pierce',
+    rarity: 'rare',
+    name: 'Perforación Compartida',
+    desc: 'Los enemigos atravesados por Guardian o Gauss sangran 0,5% de su HP máximo por segundo durante 2 s. Requiere Núcleos Perforantes y Gauss.',
+    weight: 5,
+    requiresCards: ['tech_pierce'],
+    requiresUnits: ['gauss'],
+    apply: (g) => applyComboSharedPierce(g),
   },
 ];
 

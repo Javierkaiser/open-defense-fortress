@@ -82,6 +82,10 @@ const REPEATABLE_CARDS = [
   'tech_wasps_venom', 'tech_forcefield_radius', 'tech_forcefield_regen',
   // fase 74: combos y Black Hole (tope 1).
   'combo_singularity', 'combo_chain_reactor', 'combo_light_prism',
+  'combo_absolute_zero', 'combo_fracture', 'combo_glacial_wave',
+  'combo_harvest', 'combo_blood_pact', 'combo_transfusion',
+  'combo_rail_mark', 'combo_swarm_link', 'combo_judgment',
+  'combo_conductor', 'combo_shared_pierce',
   'bh_horizon', 'bh_collapse',
   // dev-7 fase 50: las 4 cartas de CAZA DE FAMILIA.
   'hunt_rock', 'hunt_crystal', 'hunt_spore', 'hunt_virus',
@@ -126,10 +130,11 @@ test('CATALOG: toda carta tiene apply() y weight > 0', () => {
   }
 });
 
-test('CATALOG: 70 cartas (58 repetibles + 12 de un solo uso)', () => {
+test('CATALOG: 81 cartas (69 repetibles + 12 de un solo uso)', () => {
   // fase 74: +22 cartas (5 de tipo + 12 técnicas + 3 combos + 2 Black Hole).
-  assert.equal(CATALOG.length, 70);
-  assert.equal(REPEATABLE_CARDS.length, 58);
+  // fase 74.2: +11 combos de frío/lifesteal/tipo-mecánica.
+  assert.equal(CATALOG.length, 81);
+  assert.equal(REPEATABLE_CARDS.length, 69);
 });
 
 test('CAPS: TODA carta repetible del catálogo tiene tope (anti-stack infinito)', () => {
@@ -948,7 +953,16 @@ function toparTodo(f) {
   f.cadAllStacks = CAPS.cadence_up;
   f.typeStacks = { ballistic: 2, light: 2, blast: 2, electric: 2, drone: 2 };
   f.huntStacks = { rock: 1, crystal: 1, spore: 1, virus: 1 };
-  f.blackHoleMods = { durationAdd: 1.5, radiusMul: 1.2, endBurst: 150, singularity: 1 };
+  f.blackHoleMods = {
+    durationAdd: 1.5, radiusMul: 1.2, endBurst: 150, singularity: 1, drain: 0.1,
+  };
+  f.comboMods = {
+    slowLightVuln: 1.2, slowBlastVuln: 1.2,
+    slowCritChanceAdd: 0.2, slowCritDmgAdd: 0.3, slowFreezeChance: 0.2,
+    explosionSlowFrac: 0.25, explosionSlowTime: 2,
+    poisonRegen: 0.5, railMark: 1, swarmMark: 1, judgment: 1,
+    bounceElectric: 1, pierceBleed: 1, harvest: 1,
+  };
   for (const t of f.slots.filter(Boolean)) {
     t.dmgAllApps = CAPS.dmg_all;
     t.guardDmgApps = CAPS.dmg_guard;

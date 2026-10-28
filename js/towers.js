@@ -10,7 +10,7 @@
 // ============================================================
 
 import { CONFIG, LAYOUT, clamp, dist, rand, fallYAfter } from './engine.js';
-import { applyProjectileHit, applyPoison } from './enemies.js';
+import { applyProjectileHit, applyPoison, applySlow, applyMark } from './enemies.js';
 // dev-7 fase 28: `perkDmgFor` (DPS real de las espinas = thornDps del
 // perk × metaDmgMul) y `META_SLOW_CAP` (tope COMBINADO del slow del
 // Campo de Fuerza) viven en meta.js — se importan acá para no duplicar
@@ -78,6 +78,20 @@ function hurt(enemy, n, kind) {
  */
 function hurtP(enemy, n, kind, mods, game, enemies) {
   return applyPerkDamage(enemy, n, kind, mods, game, enemies);
+}
+
+/** fase 74.2 — Onda Glacial: las explosiones dejan slow en el área. */
+function applyExplosionCombo(game, x, y, R) {
+  const cm = game?.fortress?.comboMods;
+  if (!(cm?.explosionSlowFrac > 0)) return;
+  const list = game?.fortress?.enemies;
+  if (!Array.isArray(list)) return;
+  for (const e of list) {
+    if (!e || e.dead) continue;
+    if (dist(e.x, e.y, x, y) <= R + (e.r ?? 10)) {
+      applySlow(e, cm.explosionSlowFrac, cm.explosionSlowTime ?? 2);
+    }
+  }
 }
 
 // ---------- dev-7 fase 3: chasis reales por tipo de torre (sprites
@@ -630,6 +644,10 @@ export class Bullet {
     this.slowOnHit = opts.slowOnHit ?? 0;     // fase 17: slow al impactar
     this.stunChance = opts.stunChance ?? 0;   // fase 17: chance de stun 0.5 s
     this.critChance = opts.critChance ?? 0;   // fase 17: crítico propio
+    // fase 74.2: fuente y marcas de combo (Marca de Riel / Enlace).
+    this.source = opts.source ?? null;
+    this.markOnHit = opts.markOnHit ?? null;
+    this.markDuration = opts.markDuration ?? 2;
     Object.assign(this, pickOnHit(opts)); // fase 23
     this.critMul = opts.critMul ?? 2;
     // dev-7 fase 32: el TIPO de daño que lleva el proyectil (el
@@ -771,7 +789,8 @@ export class MortarShell {
       Array.isArray(this.game.fortress?.enemies) ? this.game.fortress.enemies : [],
       R,
     );
-    // fase 74 — Singularidad: el obús también deja un mini BH.
+    // fase 74.2 — Singularidad + Onda Glacial.
+    applyExplosionCombo(this.game, this.x, this.y, R);
     this.game.fortress?.spawnMiniBlackHole?.(this.x, this.y, this.game);
   }
 
@@ -884,7 +903,8 @@ export class HomingMissile {
         list,
         TOWERS.missile.splashR,
       );
-      // fase 74 — Singularidad: la explosión del misil deja un mini BH.
+      // fase 74.2 — Singularidad + Onda Glacial.
+      applyExplosionCombo(this.game, mx, my, TOWERS.missile.splashR);
       this.game.fortress?.spawnMiniBlackHole?.(mx, my, this.game);
     }
   }
@@ -1269,8 +1289,11 @@ export class Drone {
             if (!e || e.dead) continue;
             if (dist(e.x, e.y, this.x, this.y) <= e.r + contactPad) {
               hurtP(e, dps * dt, 'drone', fw, this.game, enemies);
-              if ((fw.slowOnHit ?? 0) > 0 && typeof e.slowFactor === 'number') {
-                e.slowFactor = Math.min(e.slowFactor ?? 1, 1 - fw.slowOnHit);
+              if ((fw.slowOnHit ?? 0) > 0) {
+                applySlow(e, fw.slowOnHit, 1.2);
+              }
+              if (this.game?.fortress?.comboMods?.swarmMark) {
+                applyMark(e, 'swarm', 2);
               }
               this._hitAcc.set(e, true); // marca para chispas esporádicas
               quemando = true;
@@ -1392,6 +1415,9 @@ export class Drone {
             if (venomDps > 0 && venomTime > 0) {
               applyPoison(w.target, venomDps, venomTime);
             }
+            if (this.game?.fortress?.comboMods?.swarmMark) {
+              applyMark(w.target, 'swarm', 2);
+            }
             w.cd = stingCd;
             // dev-7 fase 28: el sample del dron suena UNA vez por tick
             // de ataque (las 3 avispas que pican en el mismo frame
@@ -1503,7 +1529,10 @@ export class Drone {
             if (!e || e.dead) continue;
             if (Number.isFinite(e.x) && Number.isFinite(e.y)
               && dist(e.x, e.y, this.x, this.y) <= bubbleR + (e.r ?? 0)) {
-              e.slowFactor = 1 - slowFrac;
+              applySlow(e, slowFrac, 0.15);
+              if (this.game?.fortress?.comboMods?.swarmMark) {
+                applyMark(e, 'swarm', 2);
+              }
               inside += 1;
               // fase 23: "campo de espinas" — daña a TODO lo que está
               // adentro (y con eso heredan ejecutar/robo de vida/explosión).
@@ -1664,6 +1693,7 @@ export class BlackHoleFx {
     this.dps = opts.dps ?? BLACK_HOLE.dps;
     this.pull = opts.pull ?? BLACK_HOLE.pull;
     this.endBurst = opts.endBurst ?? 0;
+    this.drain = opts.drain ?? 0;
     this.mini = !!opts.mini;
     this.dead = false;
     this._spin = 0;
@@ -1710,7 +1740,16 @@ export class BlackHoleFx {
         e.baseX += (this.x - e.x) * k;         // el ancla de deriva sigue al punto
         e.x += (this.x - e.x) * k;
         e.y += (this.y - e.y) * k;
+        const hpBefore = e.hpDisplay ?? e.hp;
         hurt(e, this.dps * dt, 'blackhole');
+        if (this.drain > 0) {
+          const fort = this.game?.fortress;
+          const hpAfter = e.dead ? 0 : (e.hpDisplay ?? e.hp ?? 0);
+          const dealt = Math.max(0, hpBefore - hpAfter);
+          if (fort && Number.isFinite(fort.hp) && dealt > 0) {
+            fort.hp = Math.min(fort.maxHp ?? fort.hp, fort.hp + dealt * this.drain);
+          }
+        }
       }
     }
   }
@@ -2416,15 +2455,27 @@ export class Tower {
           const ramp = clamp(1 + this._beamTime * rampPerSec,
             1, d.beamRampMax ?? 4.5);
           const beamHit = (baseDmg) => {
-            // crítico propio del perk (critChanceAdd × critDmgMul)
-            if ((bm.critChanceAdd ?? 0) > 0 && Math.random() < bm.critChanceAdd) {
-              return Math.round(baseDmg * (bm.critDmgMul ?? 2));
+            // crítico propio del perk + Fractura Criogénica contra slow.
+            const cm = game?.fortress?.comboMods;
+            let chance = bm.critChanceAdd ?? 0;
+            let critMul = bm.critDmgMul ?? 2;
+            if ((tgt.slowTimer ?? 0) > 0) {
+              chance += cm?.slowCritChanceAdd ?? 0;
+              critMul += cm?.slowCritDmgAdd ?? 0;
+            }
+            chance = Math.min(1, Math.max(0, chance));
+            if (chance > 0 && Math.random() < chance) {
+              if ((tgt.slowTimer ?? 0) > 0 && (cm?.slowFreezeChance ?? 0) > 0
+                && Math.random() < cm.slowFreezeChance && typeof tgt.stun === 'number') {
+                tgt.stun = Math.max(tgt.stun ?? 0, 0.5);
+              }
+              return Math.round(baseDmg * critMul);
             }
             return baseDmg;
           };
           const slowBeam = (e) => {
-            if ((bm.slowOnHit ?? 0) > 0 && typeof e.slowFactor === 'number') {
-              e.slowFactor = Math.min(e.slowFactor ?? 1, 1 - bm.slowOnHit);
+            if ((bm.slowOnHit ?? 0) > 0) {
+              applySlow(e, bm.slowOnHit, 1.2);
             }
           };
           hurtP(tgt, beamHit(this.damage * ramp * dt), 'beam', bm, game, enemies); // objetivo: dps × ramp
@@ -2518,8 +2569,13 @@ export class Tower {
           };
 
           // 3) Daño pleno al principal + estallido a los vecinos.
-          hurtP(primary, this.damage, 'bolt', ptm, game, enemies);
-          stunHit(primary, d.stun ?? 0);
+          // fase 74.2 — Juicio Final: si el principal está aturdido, el
+          // Thunderstroke pega +30% y alarga el stun +0,1 s.
+          const cm = game?.fortress?.comboMods;
+          const judged = !!(cm?.judgment && (primary.stun ?? 0) > 0);
+          const mainDmg = judged ? Math.round(this.damage * 1.3) : this.damage;
+          hurtP(primary, mainDmg, 'bolt', ptm, game, enemies);
+          stunHit(primary, (d.stun ?? 0) + (judged ? 0.1 : 0));
           for (const { e } of area) {
             if (e.dead) continue;
             hurtP(e, areaDmg, 'bolt', ptm, game, enemies);
@@ -2637,6 +2693,9 @@ export class Tower {
             radius: 6,
             // dev-7 fase 32: el perdigón del Gauss es balístico.
             dmgType: this.dmgType ?? 'ballistic',
+            source: 'gauss',
+            markOnHit: 'rail',
+            markDuration: 2,
             bounce: gpm.bounceCount ?? 0,
             slowOnHit: gpm.slowOnHit ?? 0,
             stunChance: gpm.stunChance ?? 0,
@@ -2880,6 +2939,8 @@ export class Tower {
       // Guardian es balístico). El multiplicador contra la familia del
       // enemigo se aplica en enemies.js (takeDamage).
       dmgType: this.dmgType ?? 'ballistic',
+      // fase 74.2: fuente para combos de marca (Marca de Riel / Enlace).
+      source: 'guardian',
       // dev-7 fase 48: el Lv.5 del Guardian perfora +1 (la escalera de
       // niveles: 1..3 balas, Lv.4 multi-blanco, Lv.5 +1 perforación).
       pierce: (game?.fortress?.pierce ?? 0) + (pm.pierceCount ?? 0)

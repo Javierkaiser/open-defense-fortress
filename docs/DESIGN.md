@@ -60,7 +60,7 @@ openspec/specs/         specs de comportamiento
 | `enemies.js` | Tipos de enemigo, 7 variantes de élite, comportamiento y render. |
 | `towers.js` | 8 torres + 3 drones: targeting, disparo, stats y render. |
 | `player.js` | `Fortress`: base, slots, drones, HP/escudo, Black Hole y render de la plataforma. |
-| `cards.js` | 70 cartas, ofertas por nivel, tags/combos y topes. |
+| `cards.js` | 81 cartas, ofertas por nivel, tags/combos y topes. |
 | `perks.js` | Única implementación de perks en combate: remate, robo de vida (tope 10 %), explosión al matar y `perk:proc`. |
 | `meta.js` | Meta-juego de 100 niveles: fragmentos, oro, perks por torre, rangos. |
 | `progress.js` | Persistencia tolerante: desbloqueos, récords, modos, heat, daily. |
@@ -218,7 +218,7 @@ inmune: todo se puede matar, solo cambia el costo.
 - **XP**: escala con el `hpMul` de la etapa; al subir de nivel se ofrece 1 de 3
   cartas. La campaña reparte ~20 cartas por etapa; el tope es 21 en campaña y
   31 en supervivencia.
-- **Cartas**: 70; pueden desbloquear torres/drones, mejorar una unidad,
+- **Cartas**: 81; pueden desbloquear torres/drones, mejorar una unidad,
   agregar mecánicas, combos con prerrequisitos de tags o dar bonuses globales.
   Tienen topes por carta y por run. El daño global da +10 % por stack (×2) y
   el daño por tipo +20 % (×2); los combos exigen sus dos piezas.
@@ -275,7 +275,7 @@ inmune: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 906 tests (901 pass, 5 skip) en 27 archivos.
+- 918 tests (913 pass, 5 skip) en 27 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 
