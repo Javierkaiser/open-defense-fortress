@@ -49,7 +49,7 @@ import { renderEnemyIcon } from './enemies.js';
 // mientras el símbolo no exista. Con el namespace, si falta es
 // `undefined` y el bestiario simplemente no pinta la sección.
 import * as enemyModule from './enemies.js';
-// oleadas-dinámicas: `poolForStage` (sesgo de familia por etapa) para el
+// oleadas-dinámicas: `campaignPoolForStage` (sesgo real por etapa) para el
 // selector de etapa. Mismo criterio: namespace, porque el director lo
 // escribe WS-A y el HUD no puede romperse por un dato que aún no llega
 // (ver stageFamilyOf()).
@@ -326,7 +326,7 @@ export function buildStageGroups(stages = [], groupSize = STAGE_GROUP_SIZE) {
 // oleadas-dinámicas — EL SESGO DE FAMILIA DE LA ETAPA (design §Decisión 5)
 //
 // El director reparte los enemigos por FAMILIA con un lean por década
-// (los pesos de `poolForStage`, js/waves.js). Ese sesgo no se leía en
+// (los pesos de `campaignPoolForStage`, js/waves.js). Ese sesgo no se leía en
 // ninguna parte, y el jugador decide en el SELECTOR DE ETAPA contra qué
 // se va a enfrentar: ahí es donde tiene que verlo.
 // ============================================================
@@ -396,7 +396,7 @@ function stageFamilyTag(stage, familyOf) {
 
 /**
  * El sesgo de familia de un stage del selector, con las defensas de WS-A:
- * si el director todavía no expone `poolForStage` (o revienta con una
+ * si el director todavía no expone `campaignPoolForStage` (o revienta con una
  * etapa rara) el selector se pinta igual, sin la etiqueta. El HUD nunca se
  * rompe por un dato que falta.
  *
@@ -407,8 +407,11 @@ function stageFamilyTag(stage, familyOf) {
  * @returns {string|null} el sesgo o null
  */
 function stageFamilyOf(stage) {
-  if (typeof waves.poolForStage !== 'function') return null;
-  try { return stageFamilyText(waves.poolForStage(stage?.id)); } catch (_err) { return null; }
+  const poolOf = typeof waves.campaignPoolForStage === 'function'
+    ? waves.campaignPoolForStage
+    : waves.poolForStage;
+  if (typeof poolOf !== 'function') return null;
+  try { return stageFamilyText(poolOf(stage?.id)); } catch (_err) { return null; }
 }
 
 /**

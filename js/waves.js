@@ -447,10 +447,10 @@ export function waveCount(wave) {
  * de un tipo, esto es lo que hay que actualizar.
  */
 export const VEL_BANDS = {
-  rapido:  ['fragment'],        // 110 px/s
-  medio:   ['spore'],           // 90 px/s
-  lento:   ['meteor', 'crystal'], // 60 / 45 px/s
-  tanque:  ['miniBlob', 'blob'], // 42 / 35 px/s
+  rapido:  ['fragment', 'rockSwarm'],          // 110 / 100 px/s
+  medio:   ['spore', 'virusSwarm'],            // 90 / 80 px/s
+  lento:   ['meteor', 'crystalSwarm', 'crystal'], // 60 / 70 / 45 px/s
+  tanque:  ['miniBlob', 'blob', 'boulder', 'sporePod', 'geode'],
 };
 
 /**
@@ -485,7 +485,18 @@ export function bandSpeed(band) {
 export const OPEN_T = 40;
 
 /** Tipos ligeros farmables de la apertura (nunca miniBlob/blob). */
-const OPENING_POOL = ['spore', 'fragment', 'meteor', 'crystal'];
+const OPENING_POOL = [
+  'spore', 'rockSwarm', 'virusSwarm', 'crystalSwarm',
+  'fragment', 'meteor', 'crystal',
+];
+
+/** Enjambre canónico por familia (para la primera ola y la apertura). */
+export const SWARM_BY_FAMILY = {
+  rock: 'rockSwarm',
+  virus: 'virusSwarm',
+  spore: 'spore',
+  crystal: 'crystalSwarm',
+};
 
 // ------------------------------------------------------------
 // Fase 27 — ACOTE DE LA APERTURA POR MATABILIDAD.
@@ -633,9 +644,33 @@ function openingPoolForStage(id, lvl = 1, powerMul = 1, scale = scaleFor(id)) {
   const { hpMul, velMul } = scale;
   const pool = OPENING_POOL.filter((t) => {
     const data = ENEMY_TYPES[t];
-    return data && isKillableByGuardianLv1(data, hpMul, velMul, lvl, powerMul);
+    return data && (data.debut ?? 1) <= id
+      && isKillableByGuardianLv1(data, hpMul, velMul, lvl, powerMul);
   });
-  return pool.length ? pool : ['spore'];
+  if (!pool.length) return ['rockSwarm'];
+  // La apertura también enseña la familia de la década: el enjambre
+  // dominante pesa doble en el sorteo (sin excluir a los demás, que
+  // garantizan el XP y el crystal matable).
+  const dom = SWARM_BY_FAMILY[dominantFamilyForStage(id)];
+  return dom && pool.includes(dom) ? [...pool, dom] : pool;
+}
+
+/**
+ * Enjambre que abre una etapa: el de la familia dominante del bioma. Si su
+ * tope de matabilidad con el Guardian Lv1 es <2 (p. ej. la roca en S50),
+ * cae al enjambre más barato que sí pueda entrar en grupo. Así la primera
+ * ola siempre es un enjambre en vee, pero no siempre la misma espora.
+ */
+export function openingSwarmForStage(id, lvl = 1, powerMul = 1, scale = scaleFor(id)) {
+  const preferred = SWARM_BY_FAMILY[dominantFamilyForStage(id)] ?? 'spore';
+  const { hpMul, velMul } = scale;
+  const capOf = (type) => maxKillableInOpening(type, hpMul, velMul, lvl, powerMul);
+  const d = ENEMY_TYPES[preferred];
+  if (d && (d.debut ?? 1) <= id && capOf(preferred) >= 2) return preferred;
+  const candidates = OPENING_POOL
+    .filter((t) => ENEMY_TYPES[t]?.swarm && (ENEMY_TYPES[t].debut ?? 1) <= id)
+    .sort((a, b) => capOf(b) - capOf(a));
+  return candidates[0] ?? 'rockSwarm';
 }
 
 /**
@@ -748,9 +783,15 @@ function openingXpFloor() {
  */
 const FAV_PATTERN = {
   spore: 'vee',
+  rockSwarm: 'vee',
+  virusSwarm: 'vee',
+  crystalSwarm: 'vee',
   fragment: 'burst-diag',
   meteor: 'line',
   crystal: 'vee',
+  boulder: 'wall',
+  sporePod: 'wall',
+  geode: 'wall',
   miniBlob: 'wall',
   blob: 'wall',
 };
@@ -787,10 +828,23 @@ const FAV_PATTERN = {
  * ocupar cada rol. `cualquiera: null` = todo el pool del bioma (el
  * crystal queda fuera siempre: ya tiene su grupo garantizado).
  */
+const roleTypes = (role) => Object.entries(ENEMY_TYPES)
+  .filter(([, d]) => d && d.role === role && !d.boss)
+  .map(([type]) => type);
+
+/** Enjambres baratos de cada familia (el rol lo declara ENEMY_TYPES). */
+export const SWARM_TYPES = roleTypes('swarm');
+
+/**
+ * Roles del DIRECTOR, derivados del roster (no listas hardcodeadas que se
+ * desincronizan cuando entra un tipo nuevo). `cualquiera` sigue siendo el
+ * pool completo: el molde del arquetipo decide.
+ */
 const ROLE_TYPES = {
-  barato: ['spore', 'fragment'],            // 8/12 HP: enjambres y arroyos
-  tanque: ['miniBlob', 'blob'],             // 160/220 HP: el ancla lenta
-  cualquiera: null,                          // el molde lo pone el arquetipo
+  swarm: SWARM_TYPES,
+  barato: [...SWARM_TYPES, ...roleTypes('cheap')],
+  tanque: roleTypes('tank'),
+  cualquiera: null,
 };
 
 /**
@@ -826,16 +880,16 @@ export const WAVE_ARCHETYPES = {
   enjambre: {
     name: 'ENJAMBRE', desde: 6, densityMul: 1.00, flow: true,
     groups: [
-      { role: 'barato', budget: 1, pattern: 'vee', lane: 'centro',
+      { role: 'swarm', budget: 1, pattern: 'vee', lane: 'centro',
         minCount: 12, cap: 40, stagger: [0.06, 0.12] },
     ],
   },
   convoy: {
     name: 'CONVOY', desde: 8, densityMul: 0.55, flow: false,
     groups: [
-      { role: 'tanque', budget: 0.50, pattern: 'line', lane: 'centro', cap: 6 },
-      { role: 'barato', budget: 0.25, pattern: 'vee', lane: 'izq', cap: 16, delay: [1.5, 2.5] },
-      { role: 'barato', budget: 0.25, pattern: 'burst-diag', lane: 'der', cap: 16, delay: [1.5, 2.5] },
+      { role: 'tanque', budget: 0.55, pattern: 'line', lane: 'centro', cap: 6 },
+      { role: 'barato', budget: 0.225, pattern: 'vee', lane: 'izq', cap: 16, delay: [1.5, 2.5] },
+      { role: 'barato', budget: 0.225, pattern: 'burst-diag', lane: 'der', cap: 16, delay: [1.5, 2.5] },
     ],
   },
   'cuña': {
@@ -1136,47 +1190,61 @@ export function waveBudget(stage, t) {
  * scripts/probe-waves --familias: ~+40 % relativo).
  *
  * Cómo queda cada década en la MEDICIÓN (20 semillas, probe-waves; ver
- * `docs/BALANCE.md` §Fase 65):
- *   1-9    espora 48-50 %  (mezcla, tutorial implícito, sin variantes)
- *   10-19  roca   55 %     (roca + virus; el diseño pide "roca/virus" ✓)
- *   20-29  espora 50 %     (espora + cristal ✓)
- *   30-39  roca   52 %     (roca + virus: la década MÁS PESADA por enemigo
- *                           — el virus es el 34 % declarado y se lleva el
- *                           60-70 % del presupuesto con sus blobs)
- *   40-50  espora 50-51 %  (todo, con densidad máxima)
- * (Los números NO se copian a mano en el código: si se recalibra un bioma,
- * hay que volver a medir con la sonda y actualizar este comentario.)
+ * `docs/BALANCE.md` §Fase 65). Cada década tiene un enjambre y un tanque
+ * de su familia, así que el VIRUS también puede ser dominante en conteos
+ * (antes no podía: sus únicos tipos eran los tanques miniBlob/blob).
  *
- * OJO — el VIRUS no puede ser la familia dominante en CONTEOS: sus dos
- * tipos son los tanques (miniBlob 160 HP, blob 220 HP), así que un
- * 45-55 % de enemigos-blob obligaría a que el 90 % del presupuesto de HP
- * fuera a 2-3 enemigos por descarga (las cuentas se desplomarían y la
- * guarda del ±10 % de HP/etapa dejaría de ser alcanzable). Su identidad
- * se expresa en la MASA de HP y en los moldes que lo usan (convoy,
- * escolta, los flancos de la cuña): "la década de los blobs" se juega
- * como oleadas menos numerosas y mucho más duras. Ver el reporte de la
- * fase 65 en docs/BALANCE.md.
+ *   1-9    roca    45-90 % (tutorial del Guardian balístico; S1 es 90 %)
+ *   10-19  virus   46 %  (luz)
+ *   20-29  espora  45 %  (explosión)
+ *   30-39  cristal 45 %  (eléctrico)
+ *   40-50  roca    46-47 % (cierre con las 4 familias)
  *
- * Décadas CONSECUTIVAS nunca comparten familia dominante (espora → roca
- * → espora → roca → espora), y nunca >60 %: el arsenal del jugador se
- * decide por sorteo de cartas (docs/BALANCE.md fase 61/64), así que un bioma
- * demasiado sesgado convertiría la suerte en derrota.
+ * Décadas CONSECUTIVAS nunca comparten familia dominante
+ * (roca → virus → espora → cristal → roca), y nunca >60 %: el arsenal del
+ * jugador se decide por sorteo de cartas (docs/BALANCE.md fase 61/64), así
+ * que un bioma demasiado sesgado convertiría la suerte en derrota. Los
+ * números se recalibran con `scripts/probe-waves.mjs`, no a mano.
  */
 const BIOMES = [
-  { hasta: 9, familias: { spore: 50, rock: 22, virus: 14, crystal: 14 } },
-  { hasta: 19, familias: { rock: 35, virus: 24, spore: 20, crystal: 21 } },
-  { hasta: 29, familias: { spore: 36, rock: 30, virus: 26, crystal: 8 } },
-  { hasta: 39, familias: { rock: 44, virus: 34, spore: 10, crystal: 12 } },
-  { hasta: 50, familias: { spore: 42, virus: 24, rock: 22, crystal: 12 } },
+  { hasta: 9, familias: { rock: 58, virus: 16, crystal: 15, spore: 11 } },
+  { hasta: 19, familias: { virus: 59.5, rock: 20.5, spore: 12, crystal: 8 } },
+  { hasta: 29, familias: { spore: 58, rock: 18, virus: 16, crystal: 8 } },
+  { hasta: 39, familias: { crystal: 53, rock: 23, virus: 15, spore: 9 } },
+  { hasta: 50, familias: { rock: 56, virus: 22, crystal: 14, spore: 8 } },
 ];
 
 /** Reparto de cada familia entre sus tipos (peso relativo). */
 const FAMILY_TYPES = {
-  rock: [['meteor', 0.45], ['fragment', 0.55]],
-  crystal: [['crystal', 1]],
-  spore: [['spore', 1]],
-  virus: [['miniBlob', 0.5], ['blob', 0.5]],
+  rock: [['rockSwarm', 0.35], ['fragment', 0.25], ['meteor', 0.20], ['boulder', 0.20]],
+  crystal: [['crystalSwarm', 0.70], ['geode', 0.30]],
+  spore: [['spore', 0.75], ['sporePod', 0.25]],
+  virus: [['virusSwarm', 0.74], ['miniBlob', 0.13], ['blob', 0.13]],
 };
+
+/**
+ * Pool REAL de una tabla manual: pesos por conteo de enemigos (sin jefe).
+ * Lo usa `campaignPoolForStage(1..5)` para que el selector y la sonda
+ * muestren lo que la campaña juega de verdad, no el bioma generado de S6+.
+ */
+function poolFromWaves(waves) {
+  const counts = new Map();
+  for (const w of waves) {
+    for (const g of waveGroups(w)) {
+      if (!g?.type || g.type === 'boss') continue;
+      const d = ENEMY_TYPES[g.type];
+      if (!d) continue;
+      counts.set(g.type, (counts.get(g.type) ?? 0) + Math.max(1, g.count ?? 1));
+    }
+  }
+  const total = [...counts.values()].reduce((a, n) => a + n, 0);
+  if (total <= 0) return [];
+  return [...counts.entries()].map(([type, n]) => ({
+    type,
+    weight: (n / total) * 100,
+    family: ENEMY_TYPES[type].family,
+  }));
+}
 
 /**
  * Pool de tipos del bioma de la etapa: `[{ type, weight, family }]`.
@@ -1196,15 +1264,28 @@ export function poolForStage(stage) {
   const pool = [];
   for (const [family, famWeight] of Object.entries(biome.familias)) {
     for (const [type, typeWeight] of FAMILY_TYPES[family] ?? []) {
+      if ((ENEMY_TYPES[type]?.debut ?? 1) > id) continue;
       pool.push({ type, weight: famWeight * typeWeight, family });
     }
   }
   return pool;
 }
 
+/**
+ * Pool que DECLARA la campaña para una etapa: S1–S5 usan su tabla manual
+ * (lo que ve el selector y lo que mide la sonda); S6+ delegan en el bioma.
+ *
+ * Es distinto de `poolForStage` a propósito: Supervivencia y el director
+ * usan el bioma de la etapa virtual, no la tabla manual de la campaña.
+ */
+export function campaignPoolForStage(stage) {
+  const id = Math.max(1, Math.trunc(stage) || 1);
+  return STAGE_WAVES[id] ? poolFromWaves(STAGE_WAVES[id]) : poolForStage(id);
+}
+
 /** Familia dominante del bioma de una etapa ('rock' | 'virus' | ...). */
 export function dominantFamilyForStage(stage) {
-  const pool = poolForStage(stage);
+  const pool = campaignPoolForStage(stage);
   const byFam = new Map();
   for (const p of pool) byFam.set(p.family, (byFam.get(p.family) ?? 0) + p.weight);
   let best = null;
@@ -1689,6 +1770,50 @@ function tagManualWaves() {
   }
 }
 
+/**
+ * RETUNE de la campaña manual 1..5 (cambio de familias).
+ *
+ * Las tablas conservan tiempos, conteos y patrones; lo que cambia es el
+ * CAST de las esporas:
+ *   S1: spore → rockSwarm (roca + cristal).
+ *   S2: spore → rockSwarm; blob → boulder (roca + cristal, sin virus).
+ *   S3: spore → virusSwarm (entra virus; quedan miniBlob/blob).
+ *   S4: secuencia spore/rockSwarm (entra la espora).
+ *   S5: secuencia rockSwarm/spore/crystalSwarm (las 4 familias).
+ *
+ * Es una transformación determinista en el load, igual que `tagManualWaves`:
+ * los tests y el runtime leen la tabla YA retuneada.
+ */
+const MANUAL_CAST = {
+  1: { all: { spore: 'rockSwarm' } },
+  2: { all: { spore: 'rockSwarm', blob: 'boulder' } },
+  3: { all: { spore: 'virusSwarm' } },
+  4: { sequence: { spore: ['spore', 'rockSwarm'] } },
+  5: { sequence: { spore: ['rockSwarm', 'spore', 'crystalSwarm', 'rockSwarm', 'spore', 'rockSwarm'] } },
+};
+
+function retuneManualCampaign() {
+  for (const [idStr, plan] of Object.entries(MANUAL_CAST)) {
+    const table = STAGE_WAVES[Number(idStr)];
+    if (!table) continue;
+    let sporeSeen = 0;
+    for (const w of table) {
+      for (const g of waveGroups(w)) {
+        if (plan.all?.[g.type]) {
+          g.type = plan.all[g.type];
+          continue;
+        }
+        const seq = plan.sequence?.[g.type];
+        if (seq?.length) {
+          g.type = seq[sporeSeen % seq.length];
+          sporeSeen += 1;
+        }
+      }
+    }
+  }
+}
+
+retuneManualCampaign();
 tagManualWaves();
 
 /**
@@ -1776,6 +1901,7 @@ export function generateStageWaves(id, seed, opts = {}) {
   // Crystal reservado para la 2ª ola de la apertura (fase 27): se
   // descuenta del presupuesto en la ola 0 y se agrega en la siguiente.
   let pendingCrystal = 0;
+  let pendingCrystalReserve = 0; // HP ya descontado por el crystal reservado
   let t = 0.8 + rnd() * 1.6;
   let idx = 0;
   let crystalPlaced = false; // garantía: ≥1 cristal (XP+) dentro de la apertura
@@ -1897,6 +2023,7 @@ export function generateStageWaves(id, seed, opts = {}) {
         // se cuenta cuando el crystal entra de verdad (fase 28).
         openHpSpent += cHp + 40;
         pendingCrystal = 1;
+        pendingCrystalReserve = cHp;
       }
     }
 
@@ -1930,23 +2057,24 @@ export function generateStageWaves(id, seed, opts = {}) {
 
         // APERTURA: pool acotado por matabilidad + patrones del cono
         // (nunca rain/wall: las columnas laterales leakean fuera).
-        // La OLA 0 es siempre spore (el "primer XP garantizado" del doc).
+        // La OLA 0 es el enjambre de la familia dominante de la etapa
+        // (roca en S1–S9, virus en S10–19, etc.): el "primer XP garantizado"
+        // deja de ser siempre la misma espora.
         let type;
         if (isFirstWave) {
-          type = 'spore';
+          type = openingSwarmForStage(id, openPlayerLevel, powerMul, scale);
         } else if (!hpOk) {
-          // Se agotó el presupuesto de HP pero falta XP: entra el tipo más
-          // BARATO en HP (spore: 8 HP de base) para entregar experiencia
-          // sin comerse el DPS del Guardian.
-          type = 'spore';
+          // Se agotó el presupuesto de HP pero falta XP: entra el enjambre
+          // de la etapa, que es el más barato/identitario disponible.
+          type = openingSwarmForStage(id, openPlayerLevel, powerMul, scale);
         } else {
           type = openPool[(rnd() * openPool.length) | 0];
           while (type === usedType && openPool.length > 1) {
             type = openPool[(rnd() * openPool.length) | 0];
           }
         }
-        const pattern = (type === 'spore' || type === 'crystal') ? 'vee'
-          : type === 'fragment' ? 'burst-diag' : 'line';
+        const fav = FAV_PATTERN[type] ?? 'line';
+        const pattern = fav === 'wall' ? 'line' : fav;
         // dev-7 fase 27: LÍMITE POR ENEMIGO en la apertura. El presupuesto
         // de XP no alcanza: un solo grupo de 13 meteoritos (155 HP cada uno
         // en S30) son 130 XP que "rentan", pero el Guardian Lv1 no puede
@@ -2007,7 +2135,7 @@ export function generateStageWaves(id, seed, opts = {}) {
     const dominant = domOf(groups);
     const isOpeningCrystal = dominant?.type === 'crystal';
     if (dominant && !isOpeningCrystal && dominant.pattern === lastPattern && groups.length > 1) {
-      const alt = dominant.type === 'spore' ? 'vee'
+      const alt = SWARM_TYPES.includes(dominant.type) ? 'vee'
         : dominant.type === 'fragment' ? 'burst-diag'
           : dominant.type === 'meteor' ? 'line' : 'mixed-arc';
       if (alt !== dominant.pattern) dominant.pattern = alt;
@@ -2022,53 +2150,68 @@ export function generateStageWaves(id, seed, opts = {}) {
     // pendiente (que puede ser el dominante real de la descarga), así
     // que va más abajo, después de todos los ajustes de grupos.
 
-    // dev-7 fase 27: el crystal reservado en la ola 0 se agrega ahora
-    // (2ª ola de la apertura) — es el "primer XP garantizado" del doc.
-    if (isOpening && pendingCrystal > 0) {
-      const cap = maxKillableInOpening('crystal', hpMul, velMul, openPlayerLevel, powerMul);
-      if (cap >= 1) {
-        const cnt = Math.min(pendingCrystal, cap);
-        groups.push({ type: 'crystal', count: cnt, pattern: 'vee' });
-        crystalPlaced = true;
-        // dev-7 fase 28: el XP del crystal cuenta AHORA (antes estaba
-        // descontado por adelantado al reservarlo, lo que hacía que el
-        // piso real fuera 40 en vez de 105).
-        openHpSpent += (ENEMY_TYPES.crystal?.hp ?? 60) * hpMul * cnt;
-        openXpEarned += (ENEMY_TYPES.crystal?.score ?? 40) * cnt;
+    // dev-7 fase 27: el crystal reservado en la ola 0 se agrega en la 2ª
+    // ola de la apertura — es el "primer XP garantizado" del doc. La
+    // reserva de HP se libera SIEMPRE; si el bloque anterior ya colocó el
+    // crystal (`crystalPlaced`), no se agrega otro.
+    if (isOpening && isSecondOpenWave && pendingCrystal > 0) {
+      openHpSpent -= pendingCrystalReserve;
+      pendingCrystalReserve = 0;
+      if (!crystalPlaced) {
+        const cap = maxKillableInOpening('crystal', hpMul, velMul, openPlayerLevel, powerMul);
+        if (cap >= 1) {
+          const cnt = Math.min(pendingCrystal, cap);
+          groups.push({ type: 'crystal', count: cnt, pattern: 'vee' });
+          crystalPlaced = true;
+          // dev-7 fase 28: el XP del crystal cuenta AHORA (antes estaba
+          // descontado por adelantado al reservarlo, lo que hacía que el
+          // piso real fuera 40 en vez de 105).
+          openHpSpent += (ENEMY_TYPES.crystal?.hp ?? 60) * hpMul * cnt;
+          openXpEarned += (ENEMY_TYPES.crystal?.score ?? 40) * cnt;
+        }
       }
       pendingCrystal = 0;
     }
     // La 2ª ola de la apertura tiene garantizados al menos 2 enemigos
     // propios (aunque el presupuesto esté casi agotado): el doc garantiza
-    // que la apertura tenga ≥2 olas. Se usa el spore (el más barato) para
-    // que el HP siga dentro del presupuesto.
+    // que la apertura tenga ≥2 olas. Se usa el enjambre de la etapa para
+    // que el HP siga dentro del presupuesto y la identidad no se rompa.
     if (isSecondOpenWave && groups.length === 1) {
-      const cap = maxKillableInOpening('spore', hpMul, velMul, openPlayerLevel, powerMul);
+      const type = openingSwarmForStage(id, openPlayerLevel, powerMul, scale);
+      const cap = maxKillableInOpening(type, hpMul, velMul, openPlayerLevel, powerMul);
       const n = Math.min(2, cap);
-      groups.push({ type: 'spore', count: n, pattern: 'vee' });
-      openXpEarned += (ENEMY_TYPES.spore?.score ?? 5) * n;
-      openHpSpent += (ENEMY_TYPES.spore?.hp ?? 8) * hpMul * n;
+      groups.push({ type, count: n, pattern: 'vee' });
+      openXpEarned += (ENEMY_TYPES[type]?.score ?? 5) * n;
+      openHpSpent += (ENEMY_TYPES[type]?.hp ?? 8) * hpMul * n;
     }
 
-    // La ola 0 de la apertura: spore en vee (primer XP garantizado).
-    // El crystal garantizado va en un grupo aparte (nunca en la ola 0).
-    if (idx === 0) {
-      const sporeIdx = groups.findIndex((g) => g.type === 'spore');
-      if (sporeIdx > 0) {
-        // El spore no es el primero: se deja igual (el crystal conserva su
-        // lugar) — el test mira el TIPO del primer grupo, así que el spore
-        // tiene que ser el primero.
-        const sp = groups.splice(sporeIdx, 1)[0];
-        groups.unshift(sp);
+    // La ola 0 de la apertura: el enjambre de la familia dominante en vee
+    // (primer XP garantizado). El crystal garantizado va en un grupo
+    // aparte (nunca en la ola 0).
+    if (idx === 0 && groups.length) {
+      const type = openingSwarmForStage(id, openPlayerLevel, powerMul, scale);
+      const old = groups[0];
+      const oldD = ENEMY_TYPES[old.type];
+      const newD = ENEMY_TYPES[type];
+      const cap = maxKillableInOpening(type, hpMul, velMul, openPlayerLevel, powerMul);
+      const n = Math.max(1, Math.min(old.count, cap));
+      if (old.type !== type) {
+        // El forzado cambia HP/XP reales: se ajustan los contadores de la
+        // apertura (el modelo de matabilidad no puede quedar desfasado).
+        openHpSpent += ((newD?.hp ?? 1) * n - (oldD?.hp ?? 1) * old.count) * hpMul;
+        openXpEarned += ((newD?.score ?? 1) * n - (oldD?.score ?? 1) * old.count);
+        groups[0] = { type, count: n, pattern: 'vee' };
+      } else {
+        groups[0] = { ...old, pattern: 'vee' };
       }
-      groups[0] = { type: 'spore', count: groups[0].count, pattern: 'vee' };
     }
     // Garantía de cristal en la apertura (el doc la pide dentro de t<OPEN_T).
     // Sólo si el crystal NO acapara la ventana de tiro del Guardian Lv1
     // (canJoinOpening: ttk x 2 <= ventana): a partir de S16 el crystal
     // escalado se come el DPS del Guardian y su XP se pierde — el XP lo
     // dan entonces las esporas.
-    if (isOpening && !crystalPlaced && canJoinOpening('crystal', id, openPlayerLevel, powerMul, scale)) {
+    if (isOpening && !isFirstWave && !crystalPlaced
+      && canJoinOpening('crystal', id, openPlayerLevel, powerMul, scale)) {
       const cnt = Math.min(2, maxKillableInOpening('crystal', hpMul, velMul, openPlayerLevel, powerMul));
       groups.push({ type: 'crystal', count: cnt, pattern: 'vee' });
       crystalPlaced = true;
@@ -2142,10 +2285,10 @@ export function generateStageWaves(id, seed, opts = {}) {
           dom.count = Math.max(1, Math.round((dom.count * hpOld) / hpNew));
           dom.type = altType;
         }
+        const favAlt = FAV_PATTERN[altType] ?? 'line';
         dom.pattern = isOpening
-          ? ((altType === 'spore' || altType === 'crystal') ? 'vee'
-            : altType === 'fragment' ? 'burst-diag' : 'line')
-          : (FAV_PATTERN[altType] ?? 'line');
+          ? (favAlt === 'wall' ? 'line' : favAlt)
+          : favAlt;
       }
     };
     breakDominantRun();
@@ -2205,8 +2348,9 @@ export function generateStageWaves(id, seed, opts = {}) {
     // si no, la apertura no llega a entregar el XP mínimo (105) porque en
     // 40 s sólo entran 13 esporas de 5 XP. Con el intervalo corto entran
     // ~25 y el piso se alcanza.
+    const openingType = openingSwarmForStage(id, openPlayerLevel, powerMul, scale);
     const tightOpening = isOpening
-      && maxKillableInOpening('spore', hpMul, velMul, openPlayerLevel, powerMul) <= 2;
+      && maxKillableInOpening(openingType, hpMul, velMul, openPlayerLevel, powerMul) <= 2;
     t += isOpening
       ? (tightOpening ? 0.9 + rnd() * 1.1 : 2.2 + rnd() * 2.4)
       : 3 + rnd() * 4.2;
@@ -2217,6 +2361,23 @@ export function generateStageWaves(id, seed, opts = {}) {
     waves.push({ t: tEnd + 10, groups: [{ type: 'boss', count: 1, pattern: 'boss' }] });
   }
   return waves;
+}
+
+/**
+ * Tabla de olas que juega la CAMPAÑA para una etapa: las 1..5 usan su
+ * tabla manual (decorada con arquetipo/stagger) y 6..50 el generador
+ * procedural. Es la única fuente de verdad para el `WaveManager` y para
+ * las herramientas de medición: evita que la sonda mida un bioma
+ * generado que la campaña real nunca juega en S1–S5.
+ *
+ * @param {number} id etapa
+ * @param {number} [seed] semilla del generador (sólo 6..50)
+ * @param {object} [opts] opciones del generador (powerMul/runMods)
+ * @returns {Array<object>} olas de la etapa
+ */
+export function campaignWaves(id, seed, opts = {}) {
+  const stage = Math.max(1, Math.trunc(Number(id) || 1));
+  return STAGE_WAVES[stage] ?? generateStageWaves(stage, seed, opts);
 }
 
 const SPAWN_Y = -50; // Y de spawn sobre el borde superior (§1.4)
@@ -2304,8 +2465,7 @@ export class WaveManager {
     this.survivalWave = 0;  // última oleada NORMAL despachada (HUD)
     this.bossKind = opts.bossKind ?? null;
     this.bossName = opts.bossName ?? null;
-    this.queue = this.survival ? [] : [...(STAGE_WAVES[stage]
-      ?? generateStageWaves(stage, seed, opts))];
+    this.queue = this.survival ? [] : [...campaignWaves(stage, seed, opts)];
     // fase 65: SPAWNS DIFERIDOS. Al despachar una descarga, su agenda
     // (waveSchedule: puro y determinista) se encola acá y update() la
     // suelta cuando llega cada instante. Sin escalonado, todos los

@@ -145,7 +145,17 @@ Drones: Rueda de Fuego (contacto), Avispas (enjambre) y Campo de Fuerza
 
 ### Enemigos
 
-Tipos base: meteorito, fragmento, cristal, espora y blob (mediano/tanque).
+Cada familia tiene un **enjambre** barato y un **tanque** con mecánica
+propia:
+
+| Familia | Enjambre | Tanque | Mecánica |
+|---|---|---|---|
+| Roca | Enjambre pétreo | Roca maciza | Desmoronamiento (3 enjambres al morir) |
+| Virus | Enjambre viral | Blob / blob mediano | Cepa (+20 % velocidad a enjambres virus) |
+| Espora | Espora | Esporocarpo | Esporulación (2 esporas/6 s, tope 6) |
+| Cristal | Enjambre de astillas | Geoda | Placas (3 × 15 % HP; +10 % velocidad por rotura) |
+
+Tipos base históricos: meteorito, fragmento, cristal, espora y blob.
 Jefes por etapa: meteorito gigante, blob virus, blob necrótico, blindado,
 híbrido y primordial.
 
@@ -175,8 +185,9 @@ inmune: todo se puede matar, solo cambia el costo.
   33 HP × `densityMul`, repartido por `composeWave()`.
 - **Curva de presión**: apertura ×0,65 → picos ×1,30 → respiro ×0,62 → marea
   final ×1,35, normalizada a media 1,00.
-- **Biomas por década**: roca, virus, espora y mezclas; décadas consecutivas no
-  comparten dominante.
+- **Biomas por década**: roca (S1–9), virus (S10–19), espora (S20–29),
+  cristal (S30–39) y roca con mezcla (S40–50); décadas consecutivas no
+  comparten dominante y cada familia tiene su década.
 - **Crystal garantizado**: 1 por descarga, descontado del presupuesto.
 - **Escalonado**: `stagger`/`delay`/`lane` por grupo + `waveSchedule()` pura.
 - **Scheduler**: `WaveManager` usa una cola `pending[]`; el aviso de jefe la
@@ -258,7 +269,7 @@ inmune: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 857 tests (852 pass, 5 skip) en 25 archivos.
+- 876 tests (871 pass, 5 skip) en 25 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

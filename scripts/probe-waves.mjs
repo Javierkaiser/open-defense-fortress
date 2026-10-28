@@ -120,7 +120,7 @@ function metricsOf(waves, stage) {
 function stageRow(stage) {
   const runs = [];
   for (let s = 0; s < SEEDS; s++) {
-    runs.push(metricsOf(W.generateStageWaves(stage, 1000 + s * 7919 + stage), stage));
+    runs.push(metricsOf(W.campaignWaves(stage, 1000 + s * 7919 + stage), stage));
   }
   const avg = (k) => runs.reduce((a, r) => a + r[k], 0) / runs.length;
   const waves = runs[0].waves;
@@ -174,13 +174,14 @@ if (FAMILIAS) {
   console.log('|---|---|---|---|---|---|---|');
   for (const s of STAGES) {
     const runs = [];
-    for (let k = 0; k < SEEDS; k++) runs.push(metricsOf(W.generateStageWaves(s, 1000 + k * 7919 + s), s));
+    for (let k = 0; k < SEEDS; k++) runs.push(metricsOf(W.campaignWaves(s, 1000 + k * 7919 + s), s));
     const keys = ['rock', 'crystal', 'spore', 'virus'];
     const avg = Object.fromEntries(keys.map((f) => [f, Math.round(
       runs.reduce((a, r) => a + (r.famPct[f] ?? 0), 0) / runs.length,
     )]));
     const dom = keys.reduce((a, b) => (avg[b] > avg[a] ? b : a), keys[0]);
-    const pool = typeof W.poolForStage === 'function' ? W.poolForStage(s) : [];
+    const pool = typeof W.campaignPoolForStage === 'function'
+      ? W.campaignPoolForStage(s) : (typeof W.poolForStage === 'function' ? W.poolForStage(s) : []);
     const declared = {};
     for (const p of pool) declared[p.family] = (declared[p.family] ?? 0) + p.weight;
     const decStr = Object.entries(declared)

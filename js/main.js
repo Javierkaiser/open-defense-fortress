@@ -16,7 +16,7 @@ import { collideProjectiles } from './enemies.js';
 import { WaveManager, waveGroups } from './waves.js';
 import {
   xpForLevel, multForStreak, baseScoreForEnemy, speedMult, stageClearBonus,
-  xpForKill, applyXp, overflowScore, MAX_LEVEL_PER_STAGE,
+  xpForKill, applyXp, overflowScore, MAX_LEVEL_PER_STAGE, scoreWithCarry,
 } from './score.js';
 import { STAGES } from './stages.js';
 import {
@@ -73,6 +73,7 @@ export class Game {
     this.xpFrac = 0;     // fracción de barra XP (§2.7)
     this.timer = 0;      // cronómetro del stage (§6 decisión 7)
     this.score = 0;
+    this._spawnScoreCarry = 0; // fracción de score de crías de mecánicas
     this.streak = 0;     // kills consecutivos sin que la base reciba daño
     this.mult = 1;       // multiplicador de racha (D3)
     this.kills = 0;
@@ -814,6 +815,7 @@ export class Game {
     this.xpFrac = 0;
     this.timer = 0;
     this.score = 0;
+    this._spawnScoreCarry = 0;
     this.streak = 0;
     this.mult = 1;
     this.kills = 0;
@@ -940,6 +942,7 @@ export class Game {
     this.xpFrac = 0;
     this.timer = 0;
     this.score = 0;
+    this._spawnScoreCarry = 0;
     this.streak = 0;
     this.mult = 1;
     this.kills = 0;
@@ -1339,16 +1342,27 @@ export class Game {
     const base = baseScoreForEnemy(enemy);
     // Prima de Combate (scoreMul) se apila al multiplicador de racha y
     // al bonus de velocidad (§2.6 + cartas v3-1/7).
-    const gained = Math.max(1, Math.round(
-      base * this.mult * speedMult(this.engine.timeScale) * (this.fortress.scoreMul ?? 1),
-    ));
-    this.score += gained;
-    this.engine.floatText(
-      enemy?.x ?? CONFIG.BASE_X,
-      Math.min(enemy?.y ?? 300, CONFIG.CANVAS_H - 120),
-      `+${gained}`,
-      enemy?.isBoss ? '#FF9A3D' : '#FFD24A',
-    );
+    const raw = base * this.mult * speedMult(this.engine.timeScale)
+      * (this.fortress.scoreMul ?? 1);
+    let gained;
+    if (enemy?.fromSpawn) {
+      // Las crías pagan 10 %: con 0,5 de score, el carry paga 0 en la
+      // primera y 1 en la segunda (score entero, 10 % en agregado).
+      const r = scoreWithCarry(raw, this._spawnScoreCarry);
+      gained = r.gained;
+      this._spawnScoreCarry = r.carry;
+    } else {
+      gained = Math.max(1, Math.round(raw));
+    }
+    if (gained > 0) {
+      this.score += gained;
+      this.engine.floatText(
+        enemy?.x ?? CONFIG.BASE_X,
+        Math.min(enemy?.y ?? 300, CONFIG.CANVAS_H - 120),
+        `+${gained}`,
+        enemy?.isBoss ? '#FF9A3D' : '#FFD24A',
+      );
+    }
 
     // Estética (diseño base): destello "estrella" blanco-azul en el impacto.
     if (!enemy?.isBoss) {

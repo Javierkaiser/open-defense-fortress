@@ -23,6 +23,20 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 - `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1) y `THIRD_PARTY_NOTICES.md`.
 - `.editorconfig` y `.gitattributes` (LF en el repo, binarios sin conversión).
 
+### Enemigos por familia
+
+- Enjambres nuevos: `rockSwarm`, `virusSwarm` y `crystalSwarm`, con arte
+  procedural de cúmulo y silueta propia.
+- Tanques nuevos: `boulder`, `sporePod` y `geode`; `blob` queda como tanque
+  virus con la mecánica Cepa.
+- Mecánicas intrínsecas: Desmoronamiento, Cepa, Esporulación y Placas.
+- Campaña gradual: S1–2 roca + cristal, S3 virus, S4 espora, S5 las cuatro
+  familias; `sporePod` debuta en S20 y `geode` en S30.
+- Crías de mecánicas: 10 % de XP/score y sin recursión. El score usa carry
+  entero para no mostrar decimales ni pagar de más.
+- Bestiario: descripción y contra de cada tanque.
+- 876 tests (871 pass, 5 skip).
+
 ### Android base
 
 - Capacitor 8.5.3 + proyecto `mobile/android/` (`targetSdk 36`, `minSdk 24`).
@@ -30,7 +44,7 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 - Hooks nativos: back button, pausa/audio al background, keep-awake.
 - `js/native.js` puro + tests; sin plugins JS.
 - Safe areas y pulido táctil.
-- 857 tests (852 pass, 5 skip).
+- 876 tests (871 pass, 5 skip).
 
 ### Cambiado
 

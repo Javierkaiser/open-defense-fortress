@@ -138,7 +138,9 @@ test('fase 69 · Leva 3: el presupuesto de las descargas sube (topes de molde in
     const a = classicWaves(generateStageWaves(50, seed));
     const b = classicWaves(generateStageWaves(50, seed, { runMods: rm }));
     assert.ok(baseHpOf(b) > baseHpOf(a), `seed ${seed}: Leva mete más HP`);
-    assert.ok(countOf(b) > countOf(a), `seed ${seed}: Leva mete más enemigos`);
+    // El conteo POR SEMILLA puede bajar: más presupuesto puede cambiar un
+    // grupo barato por un tanque (el conteo no escala 1:1, ver
+    // docs/BALANCE.md). La dirección agregada (+3 %) se exige abajo.
     hp0 += baseHpOf(a);
     hpL += baseHpOf(b);
     n0 += countOf(a);

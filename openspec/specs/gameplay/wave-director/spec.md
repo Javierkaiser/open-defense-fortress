@@ -22,7 +22,12 @@ Cada descarga del tramo clásico (t ≥ `OPEN_T`) MUST pertenecer a un arquetipo
 #### Scenario: El convoy junta tanque y enjambre
 
 - **WHEN** una descarga es del arquetipo `convoy`
-- **THEN** incluye al menos un grupo de la banda de tanques (`miniBlob`/`blob`) y al menos un grupo de tipo ligero, y los ligeros entran después del tanque
+- **THEN** incluye al menos un grupo de la banda de tanques (`miniBlob`/`blob`/`boulder`/`sporePod`/`geode`) y al menos un grupo de tipo ligero, y los ligeros entran después del tanque
+
+#### Scenario: El arquetipo enjambre usa enjambres de familia
+
+- **WHEN** una descarga es del arquetipo `enjambre`
+- **THEN** sus grupos de combate usan tipos con rol `swarm` del bioma de la etapa (`rockSwarm`, `virusSwarm`, `spore` o `crystalSwarm`); el crystal de XP sigue siendo un grupo aparte
 
 ### Requirement: Presupuesto de HP y curva de presión
 
@@ -64,7 +69,15 @@ Los grupos de una descarga MUST poder declarar retardos (`delay`, `stagger`, `la
 
 ### Requirement: Biomas por década
 
-Cada etapa MUST tener un sesgo de familia por década (roca, cristal, espora, virus) con la familia dominante entre el 45 % y el 60 % de los enemigos. Décadas consecutivas MUST NOT compartir la misma familia dominante. El sesgo MUST ser visible en el selector de etapa.
+Cada etapa MUST tener un sesgo de familia por década (roca, cristal, espora, virus) con la familia dominante entre el 45 % y el 60 % de los enemigos. Décadas consecutivas MUST NOT compartir la misma familia dominante. Cada familia MUST ser dominante en al menos una década. El sesgo MUST ser visible en el selector de etapa.
+
+| Década | Dominante | Lectura |
+|---|---|---|
+| S1–9 | roca | tutorial del Guardian balístico |
+| S10–19 | virus | luz |
+| S20–29 | espora | explosión |
+| S30–39 | cristal | eléctrico |
+| S40–50 | roca | cierre con las cuatro familias |
 
 #### Scenario: Una década tiene identidad
 
@@ -75,6 +88,11 @@ Cada etapa MUST tener un sesgo de familia por década (roca, cristal, espora, vi
 
 - **WHEN** se comparan las familias dominantes de dos décadas consecutivas
 - **THEN** no son la misma
+
+#### Scenario: Todas las familias tienen su década
+
+- **WHEN** se recorren las cinco décadas
+- **THEN** roca, virus, espora y cristal son dominantes al menos una vez
 
 #### Scenario: El jugador puede anticiparlo
 
@@ -97,12 +115,23 @@ En el tramo clásico, cada descarga MUST incluir al menos un cristal. El cristal
 
 ### Requirement: Apertura intacta
 
-Los primeros `OPEN_T` segundos de una etapa MUST conservar sus garantías: al menos 2 descargas, la primera con espora en `vee`, al menos un cristal matable, sólo tipos matables por el jugador real, sólo patrones del cono y tope por enemigo. La apertura MUST NOT usar arquetipos de flujo ni variantes de élite.
+Los primeros `OPEN_T` segundos de una etapa MUST conservar sus garantías: al menos 2 descargas, la primera con un enjambre en `vee` (el de la familia dominante de la etapa; si su tope de matabilidad Lv1 es menor que 2, el enjambre más barato que sí pueda entrar en grupo), al menos un cristal matable, sólo tipos matables por el jugador real, sólo patrones del cono y tope por enemigo. La apertura MUST NOT usar arquetipos de flujo ni variantes de élite. Las tablas manuales 1..5 conservan su primera ola de enjambre como introducción explícita (S4 abre con espora).
 
 #### Scenario: La apertura sigue siendo farmable
 
 - **WHEN** se generan las olas de una etapa con la potencia real del jugador
 - **THEN** todo lo que entra en t < `OPEN_T` es matable dentro de su ventana de tiro y la apertura entrega el piso de XP
+
+#### Scenario: La primera ola es el enjambre de la etapa
+
+- **WHEN** se genera la primera descarga de S1–S9
+- **THEN** es `rockSwarm` en `vee`
+- **WHEN** se genera la primera descarga de S10–S19
+- **THEN** es `virusSwarm` en `vee`
+- **WHEN** se genera la primera descarga de S20–S29
+- **THEN** es `spore` en `vee`
+- **WHEN** se genera la primera descarga de S30–S39
+- **THEN** es `crystalSwarm` en `vee`
 
 #### Scenario: Sin variantes en la apertura
 

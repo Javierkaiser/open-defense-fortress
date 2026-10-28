@@ -127,13 +127,19 @@ export const ENEMY_FAMILY_IDS = ['rock', 'crystal', 'spore', 'virus'];
 export const ENEMY_FAMILY_BY_TYPE = {
   meteor: 'rock',
   fragment: 'rock',
+  rockSwarm: 'rock',
+  boulder: 'rock',
   boss: 'rock',
   armoredBlob: 'rock',
   hybridBoss: 'rock',
   crystal: 'crystal',
+  crystalSwarm: 'crystal',
+  geode: 'crystal',
   spore: 'spore',
+  sporePod: 'spore',
   blob: 'virus',
   miniBlob: 'virus',
+  virusSwarm: 'virus',
   blobBoss: 'virus',
   graveBlob: 'virus',
 };
@@ -287,8 +293,11 @@ export function buildDamageLegendHtml() {
  * estén en esta lista se agregan al final (así no se pierde ninguno).
  */
 export const BESTIARY_TYPE_IDS = [
-  'meteor', 'fragment', 'crystal', 'spore', 'blob', 'boss',
-  'blobBoss', 'miniBlob', 'graveBlob', 'armoredBlob', 'hybridBoss',
+  'rockSwarm', 'meteor', 'fragment', 'boulder',
+  'crystalSwarm', 'crystal', 'geode',
+  'spore', 'sporePod',
+  'virusSwarm', 'miniBlob', 'blob',
+  'boss', 'blobBoss', 'graveBlob', 'armoredBlob', 'hybridBoss',
 ];
 
 /** Escapa texto para interpolarlo como CONTENIDO HTML (no atributo). */
@@ -356,6 +365,10 @@ function bestiaryCardHtml(type) {
     + `<span class="bestiary-family-glyph" aria-hidden="true">${esc(famGlyph)}</span>${esc(famName)}`
     + `</span>`
     + `</div></div>`
+    + (typeof d.desc === 'string' && d.desc
+      ? `<p class="bestiary-desc">${esc(d.desc)}</p>` : '')
+    + (typeof d.counter === 'string' && d.counter
+      ? `<p class="bestiary-counter"><strong>Contra:</strong> ${esc(d.counter)}</p>` : '')
     + `<dl class="bestiary-stats">`
     + `<div class="bestiary-stat"><dt>HP</dt><dd>${num(d.hp)}</dd></div>`
     + `<div class="bestiary-stat"><dt>Vel</dt><dd>${num(d.vel)}</dd></div>`

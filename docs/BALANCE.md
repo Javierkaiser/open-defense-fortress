@@ -88,9 +88,11 @@ waveBudget = densidad × budgetFit × presión × 33 HP × densityMul
 
 - **Presión**: apertura ×0,65 → picos ×1,30 → respiro ×0,62 → marea final
   ×1,35, normalizada a media 1,00.
-- **Biomas por década**: S1–9 mezcla; S10–19 roca/virus; S20–29 espora;
-  S30–39 roca/virus pesada; S40–50 todo. Décadas consecutivas no comparten
-  dominante.
+- **Biomas por década**: S1–9 roca; S10–19 virus; S20–29 espora; S30–39
+  cristal; S40–50 roca con las cuatro familias. Décadas consecutivas no
+  comparten dominante y cada familia tiene su década. Las tablas manuales
+  1..5 usan su composición real (S1–2 roca + cristal, S3 virus, S4 espora,
+  S5 las cuatro).
 - **Crystal**: exactamente 1 por descarga, descontado del presupuesto. Antes
   era una lotería del 28–31 %; el crystal es la fuente de XP más importante.
 - **Escalonado**: `stagger`/`delay`/`lane` por grupo, `waveSchedule()` pura y
@@ -101,6 +103,36 @@ waveBudget = densidad × budgetFit × presión × 33 HP × densityMul
   >50 la probabilidad sube de 0,70 a 0,85.
 - **Guarda**: el HP por etapa se mantiene dentro del **±10 %** de la línea base,
   medido con 20 semillas. La cubre `tests/test-stages.mjs`.
+
+## Enjambres y tanques por familia
+
+El roster nuevo busca que cada familia tenga una **identidad de combate**,
+no sólo un multiplicador de daño:
+
+| Familia | Enjambre | Tanque | Mecánica del tanque |
+|---|---|---|---|
+| Roca | `rockSwarm` (12 HP) | `boulder` (190 HP) | Desmoronamiento: 3 `rockSwarm` al morir |
+| Virus | `virusSwarm` (10 HP) | `blob` (220 HP) / `miniBlob` (160 HP) | Cepa: +20 % velocidad a enjambres virus en 120 px |
+| Espora | `spore` (8 HP) | `sporePod` (190 HP) | Esporulación: 2 esporas/6 s, tope 6; 2 al morir |
+| Cristal | `crystalSwarm` (12 HP) | `geode` (240 HP) | Placas: 3 × 15 % del HP; cada rotura acelera +10 % |
+
+- **Crías de mecánicas**: 10 % de XP/score. La variante `divisor` conserva su
+  35 % y no se toca. El XP queda en 0,5 para una cría de 5 puntos; el score
+  usa carry entero (0,5 + 0,5 = 1) para no mostrar decimales ni pagar 20 %.
+- **Anti-recursión**: una cría de `divisor` o de una mecánica no activa
+  `spawner`/`deathSpawn`.
+- **HP efectivo**: `boulder` 190 + 36 = 226; `sporePod` 190 + hasta 48 + 16
+  = 254 si se lo deja madurar; `geode` 240 (las placas son parte del HP).
+  `effectiveHpOf()` y `tests/test-enemies.mjs` fijan el rango 220–254 para
+  que un cambio de `maxAlive`/`count` no quede invisible.
+- **Campaña**: S1–2 roca + cristal; S3 virus; S4 espora; S5 las cuatro.
+  `sporePod` debuta en S20 y `geode` en S30.
+- **Medición** (`probe-waves --seeds=20`): S1 90 % roca; S6 45 %; S10 46 %
+  virus; S20 45 % espora; S30 45 % cristal; S40 47 % y S50 46 % roca.
+  HP/etapa 22/28/52/67/76/94k contra la línea base 22/28/54/69/77/95k
+  (todo dentro de ±4 %). `balance-sim` no muestra una caída de win rate
+  atribuible a los spawns; las crías se cuentan aparte
+  (`spawnKills`/`spawnLeaks`/`splitLeaks`).
 
 ## Torres, cartas y meta
 

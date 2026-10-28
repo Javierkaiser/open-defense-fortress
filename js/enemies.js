@@ -40,37 +40,128 @@ const DMG_FLOAT_COLORS = {
 export const ENEMY_TYPES = {
   meteor: {
     family: 'rock', // fase 32: familia de daño (ver js/damagetypes.js)
+    role: 'special', debut: 1,
     name: 'Meteorito', hp: 30, vel: 60, score: 10, r: 16,
     drift: { amp: 30, freq: 0.8 }, // caída recta con deriva senoidal ±30 px
     body: '#0A0A0A', crater: '#FFFFFF', trail1: '#FF9A3D', trail2: '#FFD24A',
   },
   fragment: {
     family: 'rock', // fase 32: familia de daño
+    role: 'cheap', debut: 1,
     name: 'Fragmento', hp: 12, vel: 110, score: 15, r: 11,
     angleDeg: 25, // ráfagas en ángulo ±25°
     body: '#0E0E12', crack: '#FFFFFF', trail1: '#FF9A3D',
   },
+  rockSwarm: {
+    family: 'rock',
+    role: 'swarm', debut: 1, swarm: true,
+    name: 'Enjambre pétreo', hp: 12, vel: 100, score: 5, r: 10,
+    desc: 'Cúmulo de esquirlas rápido y frágil. El balístico lo deshace.',
+    counter: 'Fuego sostenido o área; no necesita una torre especial.',
+    drift: { amp: 16, freq: 1.4 },
+    body: '#5B6470', dark: '#22262C', accent: '#C9CDD3',
+    trail1: '#8A8F98', trail2: '#C9CDD3', drawTrail: false,
+    swarmArt: {
+      bodies: 5, spread: 7, size: 0.34, shape: 'rock',
+      palette: ['#4B5563', '#8B95A3', '#C9CDD3'],
+    },
+  },
+  boulder: {
+    family: 'rock',
+    role: 'tank', debut: 2,
+    name: 'Roca maciza', hp: 190, vel: 34, score: 60, r: 24,
+    desc: 'Al morir se desmorona en 3 enjambres pétreos.',
+    counter: 'El balístico la parte; matala lejos de la base o con área.',
+    drift: { amp: 26, freq: 0.6 },
+    body: '#4A4F57', dark: '#22262C', plate: '#8B95A3', dust: '#C9CDD3',
+    trail1: '#8A8F98', trail2: '#C9CDD3', drawTrail: false,
+    deathSpawn: { type: 'rockSwarm', count: 3, spread: 22, scoreMul: 0.1 },
+  },
   crystal: {
     family: 'crystal', // fase 32: familia de daño
+    role: 'special', debut: 1,
     name: 'Cristal rojo', hp: 60, vel: 45, score: 40, r: 13,
     dropXpBonusFrac: 0.15, // al morir suelta carta bonus (+15% energía, D12)
     body: '#E01818', shine: '#FFD0D0',
     incand: '#FFD24A', // núcleo incandescente: color de la estela (T1)
   },
+  crystalSwarm: {
+    family: 'crystal',
+    role: 'swarm', debut: 5, swarm: true,
+    name: 'Enjambre de astillas', hp: 12, vel: 70, score: 6, r: 10,
+    desc: 'Astillas de cristal que giran y brillan; la electricidad las conduce.',
+    counter: 'Eléctrico; el balístico rebota en el cristal.',
+    drift: { amp: 14, freq: 2.0 },
+    body: '#E01818', dark: '#8A1020', accent: '#FFD0D0',
+    trail1: '#FF6A6A', trail2: '#FFD0D0', drawTrail: false,
+    swarmArt: {
+      bodies: 4, spread: 8, size: 0.34, shape: 'crystal',
+      palette: ['#8A1020', '#E01818', '#FFB0B0'],
+    },
+  },
   spore: {
     family: 'spore', // fase 32: familia de daño
+    role: 'swarm', debut: 3, swarm: true,
     name: 'Espora', hp: 8, vel: 90, score: 5, r: 7,
     zigzag: { amp: 26, freq: 3.2 }, // grupos con formación V y zigzag
     body: '#141014', spike: '#FFFFFF', dots: '#FF9EC4',
   },
+  sporePod: {
+    family: 'spore',
+    role: 'tank', debut: 20,
+    name: 'Esporocarpo', hp: 190, vel: 30, score: 55, r: 23,
+    desc: 'Esporula 2 esporas cada 6 s (máx. 6) y 2 más al morir.',
+    counter: 'Explosión y foco: no lo dejes madurar; sus crías dan 10 % de XP.',
+    drift: { amp: 20, freq: 0.7 },
+    body: '#3B1F3A', dark: '#20101F', sac: '#9C4A7A', glow: '#FF9EC4',
+    trail1: '#FF9EC4', trail2: '#FFD0E4', drawTrail: false,
+    spawner: {
+      every: 6, type: 'spore', count: 2, maxAlive: 6, spread: 18, scoreMul: 0.1,
+    },
+    deathSpawn: { type: 'spore', count: 2, spread: 16, scoreMul: 0.1 },
+  },
   blob: {
     family: 'virus', // fase 32: familia de daño
+    role: 'tank', debut: 3,
     name: 'Blob tanque', hp: 220, vel: 35, score: 60, r: 24,
-    pushR: 70, pushSpeed: 40, // empuja a las esporas cercanas
+    desc: 'Cepa: acelera un 20 % a los enjambres virales en 120 px.',
+    counter: 'Priorizalo: la luz lo vaporiza y, sin él, el enjambre pierde el buff.',
+    pushR: 70, pushSpeed: 40, // empuja a los enjambres cercanos
+    hiveAura: {
+      radius: 120, family: 'virus', role: 'swarm',
+      speedMul: 1.20, refresh: 0.35, color: '#7BE07B',
+    },
     body: '#C81E1E', dark: '#3A0C0C',
+  },
+  virusSwarm: {
+    family: 'virus',
+    role: 'swarm', debut: 3, swarm: true,
+    name: 'Enjambre viral', hp: 10, vel: 80, score: 5, r: 10,
+    desc: 'Viriones erráticos que zigzaguean; la luz los vaporiza.',
+    counter: 'Luz o área; si hay un blob cerca, matalo primero para cortar la Cepa.',
+    zigzag: { amp: 30, freq: 3.6 },
+    body: '#2E7D4F', dark: '#173B27', accent: '#9CFF7A',
+    trail1: '#3FA55A', trail2: '#9CFF7A', drawTrail: false,
+    swarmArt: {
+      bodies: 4, spread: 8, size: 0.36, shape: 'virus',
+      palette: ['#1F6B3A', '#3FA55A', '#9CFF7A'],
+    },
+  },
+  geode: {
+    family: 'crystal',
+    role: 'tank', debut: 30,
+    name: 'Geoda', hp: 240, vel: 28, score: 65, r: 24,
+    desc: '3 placas de cristal; cada rotura la acelera un 10 %.',
+    counter: 'Eléctrico y burst: rompe las placas antes de que llegue a la línea.',
+    drift: { amp: 22, freq: 0.8 },
+    body: '#7A1020', dark: '#3A0810', crystal: '#E01818', shine: '#FFD0D0',
+    glow: '#FF6A6A',
+    trail1: '#FF6A6A', trail2: '#FFD0D0', drawTrail: false,
+    plates: { count: 3, hpFracEach: 0.15, speedMulPerBreak: 1.10 },
   },
   boss: {
     family: 'rock', // fase 32: el BOSS es un meteorito gigante
+    role: 'boss', debut: 1,
     name: 'BOSS', hp: 2600, vel: 22, score: 500, r: 85,
     boss: true, phaseHpFrac: 0.5, phaseVelMul: 1.4, phaseShedCount: 6,
     drift: { amp: 90, freq: 0.25 }, // deriva lenta lateral tras entrar
@@ -88,7 +179,7 @@ export const ENEMY_TYPES = {
 /** Blob virus gigante — Stage 2: suelta esporas al 66% y 33% (§2.9). */
 ENEMY_TYPES.blobBoss = {
   name: 'BLOB VIRUS', hp: 2800, vel: 20, score: 700, r: 78,
-  family: 'virus', // fase 32: familia de daño (ver js/damagetypes.js)
+  family: 'virus', role: 'boss', debut: 10, // fase 32: familia de daño (ver js/damagetypes.js)
   boss: true, visual: 'blob',
   drift: { amp: 80, freq: 0.28 },
   body: '#C81E1E', dark: '#3A0C0C', glow: '#FF5577',
@@ -107,7 +198,7 @@ ENEMY_TYPES.blobBoss = {
 /** Blob mediano — acompañante del jefe del Stage 3 (no es jefe). */
 ENEMY_TYPES.miniBlob = {
   name: 'Blob mediano', hp: 160, vel: 42, score: 35, r: 17,
-  family: 'virus', // fase 32: familia de daño
+  family: 'virus', role: 'tank', debut: 3, // fase 32: familia de daño
   drift: { amp: 40, freq: 1.1 },
   body: '#E05A5A', dark: '#5A1414',
 };
@@ -115,7 +206,7 @@ ENEMY_TYPES.miniBlob = {
 /** Cementerio: blob jefe + 2 miniBlobs al 50% + fragmentos blindados (§2.9). */
 ENEMY_TYPES.graveBlob = {
   name: 'BLOB NECRO', hp: 3700, vel: 19, score: 800, r: 82,
-  family: 'virus', // fase 32: familia de daño
+  family: 'virus', role: 'boss', debut: 20, // fase 32: familia de daño
   boss: true, visual: 'blob',
   drift: { amp: 70, freq: 0.26 },
   body: '#8A2BE2', dark: '#2A0A3A', glow: '#C77DFF',
@@ -132,7 +223,7 @@ ENEMY_TYPES.graveBlob = {
 /** Ciudad nocturna: blob gigante blindado + esporas veloces al 60%/30%. */
 ENEMY_TYPES.armoredBlob = {
   name: 'BLINDADO', hp: 4600, vel: 18, score: 900, r: 88,
-  family: 'rock', // fase 32: blindado de roca
+  family: 'rock', role: 'boss', debut: 30, // fase 32: blindado de roca
   boss: true, visual: 'armored',
   drift: { amp: 64, freq: 0.24 },
   body: '#37474F', dark: '#10181C', glow: '#90CAF9',
@@ -147,7 +238,7 @@ ENEMY_TYPES.armoredBlob = {
 /** Núcleo volcánico: METEORITO-BLOB híbrido con 3 fases (§2.9). */
 ENEMY_TYPES.hybridBoss = {
   name: 'HÍBRIDO', hp: 5600, vel: 20, score: 1000, r: 92,
-  family: 'rock', // fase 32: cuerpo de meteoro
+  family: 'rock', role: 'boss', debut: 40, // fase 32: cuerpo de meteoro
   boss: true, visual: 'meteor',
   drift: { amp: 76, freq: 0.27 },
   body: '#0A0A0A', crack: '#FFDD55', glow: '#FF4444',
@@ -161,6 +252,30 @@ ENEMY_TYPES.hybridBoss = {
       weakTo: 'blast', regen: 0.010, shed: { type: 'fragment', count: 8 } },
   ],
 };
+
+/**
+ * HP EFECTIVO de un tipo para las guardas de balance: su HP base más el HP
+ * de las crías que puede aportar su `deathSpawn` y el tope de su
+ * `spawner`. No es el HP que se paga de una vez, pero evita que un cambio
+ * de `maxAlive`/`count` quede invisible para la sonda y los tests.
+ *
+ * @param {string} type id de ENEMY_TYPES
+ * @returns {number} HP efectivo aproximado (0 si el tipo no existe)
+ */
+export function effectiveHpOf(type) {
+  const d = ENEMY_TYPES[type];
+  if (!d) return 0;
+  let hp = d.hp;
+  if (d.deathSpawn) {
+    const n = Math.max(1, Math.trunc(d.deathSpawn.count ?? 1));
+    hp += (ENEMY_TYPES[d.deathSpawn.type]?.hp ?? 0) * n;
+  }
+  if (d.spawner) {
+    const n = Math.max(0, Math.trunc(d.spawner.maxAlive ?? 0));
+    hp += (ENEMY_TYPES[d.spawner.type]?.hp ?? 0) * n;
+  }
+  return hp;
+}
 
 // ------------------------------------------------------------
 // OLEADAS DINÁMICAS — VARIANTES DE ÉLITE (design §Decisión 4).
@@ -384,6 +499,117 @@ function tracePoly(ctx, poly, r) {
   ctx.closePath();
 }
 
+/**
+ * Añade UNA forma de enjambre al path actual (sin beginPath/fill): el
+ * llamador agrupa las formas por color y hace un solo fill por capa.
+ * Mantiene el arte procedural barato: sin gradientes ni shadowBlur.
+ */
+function swarmBodyPath(ctx, shape, x, y, r, rot, seed) {
+  const TAU = Math.PI * 2;
+  if (shape === 'virus') {
+    ctx.moveTo(x + r, y);
+    ctx.arc(x, y, r, 0, TAU);
+    return;
+  }
+  if (shape === 'crystal') {
+    ctx.moveTo(x + Math.cos(rot) * r, y + Math.sin(rot) * r);
+    for (let i = 1; i < 4; i++) {
+      const a = rot + (TAU * i) / 4;
+      const rr = i % 2 === 0 ? r * 0.78 : r * 1.06;
+      ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+    }
+    ctx.closePath();
+    return;
+  }
+  // roca: pentágono irregular, cada cuerpo con su propio temblor
+  const n = 5;
+  for (let i = 0; i < n; i++) {
+    const a = rot + (TAU * i) / n;
+    const rr = r * (0.68 + 0.28 * Math.abs(Math.sin(seed + i * 2.13)));
+    const px = x + Math.cos(a) * rr;
+    const py = y + Math.sin(a) * rr;
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+}
+
+/**
+ * Dibuja un enjambre como CÚMULO de cuerpos chicos alrededor del centro.
+ * La hitbox sigue siendo `r` (una sola entidad); el cúmulo es identidad
+ * visual y legibilidad de familia.
+ */
+function drawSwarm(ctx, e) {
+  const art = e.data.swarmArt;
+  if (!art) return;
+  const TAU = Math.PI * 2;
+  const bodies = Math.max(1, Math.trunc(art.bodies ?? 4));
+  const spread = Math.max(0, art.spread ?? 7);
+  const size = Math.max(1, e.r * (art.size ?? 0.34));
+  const palette = art.palette ?? [e.data.body, e.data.accent, '#FFFFFF'];
+  const shape = art.shape ?? 'rock';
+  ctx.translate(e.x, e.y);
+  for (let ci = 0; ci < palette.length; ci++) {
+    ctx.fillStyle = palette[ci];
+    ctx.beginPath();
+    for (let i = 0; i < bodies; i++) {
+      if (i % palette.length !== ci) continue;
+      const a = (TAU * i) / bodies + e.phase + e.t * 0.9;
+      const orbit = spread * (0.85 + 0.15 * Math.sin(e.t * 2.2 + e.phase + i));
+      const bx = Math.cos(a) * orbit;
+      const by = Math.sin(a) * orbit;
+      swarmBodyPath(ctx, shape, bx, by, size * (0.88 + 0.12 * Math.sin(e.t * 3 + i)),
+        a + e.t * 1.6, e.phase + i * 1.7);
+    }
+    ctx.fill();
+  }
+  // Detalles de identidad: flagelos virales, brillos de cristal, polvo de roca.
+  if (shape === 'virus') {
+    ctx.strokeStyle = palette[palette.length - 1];
+    ctx.lineWidth = 1.2;
+    ctx.lineCap = 'round';
+    for (let i = 0; i < bodies; i++) {
+      const a = (TAU * i) / bodies + e.phase + e.t * 0.9;
+      const bx = Math.cos(a) * spread;
+      const by = Math.sin(a) * spread;
+      for (let k = 0; k < 2; k++) {
+        const sway = Math.sin(e.t * 5 + i * 2 + k * Math.PI) * size * 0.7;
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.quadraticCurveTo(
+          bx + Math.cos(a + k) * size * 1.4 + sway,
+          by + Math.sin(a + k) * size * 1.4,
+          bx + Math.cos(a + k) * size * 2.2 + sway * 0.5,
+          by + Math.sin(a + k) * size * 2.2,
+        );
+        ctx.stroke();
+      }
+    }
+  } else if (shape === 'crystal') {
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < bodies; i++) {
+      const a = (TAU * i) / bodies + e.phase + e.t * 0.9;
+      const bx = Math.cos(a) * spread;
+      const by = Math.sin(a) * spread;
+      ctx.beginPath();
+      ctx.moveTo(bx - size * 0.35, by + size * 0.55);
+      ctx.lineTo(bx + size * 0.35, by - size * 0.55);
+      ctx.stroke();
+    }
+  } else {
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    for (let i = 0; i < bodies; i++) {
+      const a = (TAU * i) / bodies + e.phase + e.t * 0.9;
+      const bx = Math.cos(a) * spread * 1.25;
+      const by = Math.sin(a) * spread * 1.25;
+      ctx.beginPath();
+      ctx.arc(bx, by, size * 0.16, 0, TAU);
+      ctx.fill();
+    }
+  }
+}
+
 // ------------------------------------------------------------
 // Enemy — una entidad de engine ({update(dt), draw(ctx), dead})
 // ------------------------------------------------------------
@@ -413,6 +639,7 @@ export class Enemy {
     this._sweepAcc = 0;                   // barrido lateral acumulado en la bajada
     this._sweepDir = opts.sweepDir ?? (Math.random() < 0.5 ? -1 : 1);
     const sc = opts.scale || { hpMul: 1, velMul: 1 }; // sin escala = stats base
+    this.scale = { hpMul: sc.hpMul, velMul: sc.velMul }; // para crías de mecánicas
     // fase 68 — AFIJOS (0..2). `opts.variant` se mantiene por
     // compatibilidad (iconos, tests, spawns viejos); `opts.variants`
     // habilita el doble afijo del Protocolo/Heat. Se deduplican y se
@@ -447,6 +674,33 @@ export class Enemy {
     for (const v of vdefs) this.vel *= v.velMul ?? 1;
     this.r = this.data.r;
     this.dead = false;
+
+    // Mecánicas intrínsecas de tanque (data-driven, ver ENEMY_TYPES).
+    // `speedMul` es un multiplicador TEMPORAL (Cepa) que se compone con la
+    // velocidad base sin tocar `vel` ni la escala de la etapa.
+    this.speedMul = 1;
+    this._hiveT = 0;
+    this._hiveSpeedMul = 1;
+    this._spawnAcc = 0;
+
+    // Geoda — las placas son parte del HP TOTAL, no un extra: cuerpo +
+    // placas = hpMax. Así la barra, la fuga y el score siguen usando el
+    // mismo HP máximo, y las placas se rompen antes de tocar el cuerpo.
+    const plateDef = this.data.plates ?? null;
+    this.plateMax = 0;
+    this.plateHp = 0;
+    this.platesLeft = 0;
+    this.bodyMax = this.hpMax; // tope de cura del cuerpo (geoda: hpMax - placas)
+    this._plateSpeedMul = plateDef?.speedMulPerBreak ?? 1;
+    if (plateDef) {
+      const n = Math.max(1, Math.trunc(plateDef.count ?? 3));
+      const fracEach = Math.max(0.01, Math.min(0.45, plateDef.hpFracEach ?? 0.15));
+      this.platesLeft = n;
+      this.plateMax = Math.max(1, Math.round(this.hpMax * fracEach));
+      this.plateHp = this.plateMax;
+      this.bodyMax = Math.max(1, this.hpMax - this.plateMax * n);
+      this.hp = this.bodyMax;
+    }
 
     // scoreMul: una élite PAGA. El XP sale del MISMO getter (`scoreReward`),
     // así que no hay dos fuentes de verdad. Tope ×2 para el doble afijo; las
@@ -490,6 +744,11 @@ export class Enemy {
     this._healAcc = 0;                         // reloj del aura del `sanador`
     this.fromSplit = opts.fromSplit === true; // cría del divisor (lo leen main/sim)
     this._fromSplit = this.fromSplit;         // alias interno del guard de recursión
+    // Cría de una mecánica (deathSpawn/spawner): paga 10 % y NO vuelve a
+    // disparar spawns. `spawnedBy` permite al pod contar sus hijas vivas.
+    this.fromSpawn = opts.fromSpawn === true;
+    this.spawnedBy = opts.spawnedBy ?? null;
+    this._icon = opts.icon === true; // el bestiario recorta el aura de 120 px
 
     // Patrón de entrada (§2.4): diagonal para fragmentos, senoidal para
     // meteoros/boss, zigzag para esporas, recto para cristal/blob.
@@ -544,7 +803,7 @@ export class Enemy {
    * balance no cambia (es la prueba de la fase 58).
    */
   get effVel() {
-    return this.vel * (this.y < LAYOUT.bandY ? LAYOUT.fallScale : 1);
+    return this.vel * (this.speedMul ?? 1) * (this.y < LAYOUT.bandY ? LAYOUT.fallScale : 1);
   }
 
   /**
@@ -578,6 +837,17 @@ export class Enemy {
     // (`baseScoreForEnemy` → `xpForKill`), así que score y XP no divergen.
     const mul = this._scoreOverride ?? this._scoreMul ?? 1;
     return base * mul;
+  }
+
+  /**
+   * HP que muestra la barra: cuerpo + placas vivas. Para cualquier enemigo
+   * sin placas es exactamente `hp`; para la geoda evita que la barra
+   * arranque por debajo del máximo sólo porque el cuerpo está detrás de
+   * las placas.
+   */
+  get hpDisplay() {
+    if (!this.platesLeft) return this.hp;
+    return Math.min(this.hpMax, this.hp + this.plateHp + (this.platesLeft - 1) * this.plateMax);
   }
 
   /**
@@ -661,8 +931,10 @@ export class Enemy {
     this.dead = true;
     // fase 68 — el `divisor` se parte ANTES de la explosión y del
     // `enemy:killed`, así las crías ya existen en la lista viva cuando
-    // main contabiliza la baja de la madre.
+    // main contabiliza la baja de la madre. Las mecánicas de tanque
+    // (Desmoronamiento/Esporulación) siguen el mismo orden.
     this._spawnSplit();
+    this._spawnDeathMinions();
     this.explode();
     this.game?.engine?.emit('enemy:killed', this);
   }
@@ -700,9 +972,113 @@ export class Enemy {
         scoreMul: def.scoreMul,
         fromSplit: true,
         straight: true, // sin la diagonal del tipo: las dos entran juntas
+        scale: this.scale,
       });
       eng.addEntity(cria);
       list.push(cria);
+    }
+  }
+
+  /**
+   * Mecánica de TANQUE — crías al morir (`deathSpawn`).
+   *
+   * Sólo corre al MATAR (no al fugar), no recursiona en crías de `divisor`
+   * ni en minions de otra mecánica, y las crías pagan el `scoreMul` del
+   * tipo (10 % por defecto). Es una mecánica intrínseca, no una variante.
+   */
+  _spawnDeathMinions() {
+    const def = this.data.deathSpawn;
+    // `divisor` y las mecánicas intrínsecas no se mezclan: una élite
+    // divisor se parte (35 %) y NO además se desmorona/esporula.
+    if (!def || this._splitDef || this._fromSplit || this.fromSpawn || this.isBoss) return;
+    if (!ENEMY_TYPES[def.type]) return;
+    const list = this.game?.fortress?.enemies;
+    const eng = this.game?.engine;
+    if (!Array.isArray(list) || !eng || typeof eng.addEntity !== 'function') return;
+    const count = Math.max(1, Math.trunc(def.count ?? 1));
+    const spread = Math.max(0, def.spread ?? 18);
+    const scoreMul = Number.isFinite(def.scoreMul) ? def.scoreMul : 0.1;
+    const half = (count - 1) / 2;
+    for (let i = 0; i < count; i++) {
+      const x = clamp(this.x + (i - half) * spread, 4, CONFIG.CANVAS_W - 4);
+      const e = new Enemy(def.type, x, {
+        game: this.game, y: this.y, scoreMul, fromSpawn: true, scale: this.scale,
+      });
+      e.spawnedBy = this;
+      eng.addEntity(e);
+      list.push(e);
+    }
+  }
+
+  /**
+   * Mecánica de TANQUE — esporulación (`spawner`).
+   *
+   * Libera `count` enemigos cada `every` segundos, con tope de `maxAlive`
+   * crías vivas de ESTE pod. Las crías no esporulan y pagan 10 %. Si el pod
+   * es cría de un `divisor`/spawn, no esporula (anti-exponencial).
+   */
+  _updateSpawner(dt) {
+    const def = this.data.spawner;
+    if (!def || this.dead || this._splitDef || this._fromSplit || this.fromSpawn) return;
+    this._spawnAcc = (this._spawnAcc ?? 0) + dt;
+    if (this._spawnAcc < (def.every ?? 6)) return;
+    this._spawnAcc = 0;
+    if (!ENEMY_TYPES[def.type]) return;
+    const list = this.game?.fortress?.enemies;
+    const eng = this.game?.engine;
+    if (!Array.isArray(list) || !eng || typeof eng.addEntity !== 'function') return;
+    let alive = 0;
+    for (const e of list) {
+      if (e && !e.dead && e.spawnedBy === this) alive += 1;
+    }
+    const room = Math.max(0, (def.maxAlive ?? 6) - alive);
+    if (room <= 0) return;
+    const count = Math.min(Math.max(1, Math.trunc(def.count ?? 1)), room);
+    const spread = Math.max(0, def.spread ?? 16);
+    const scoreMul = Number.isFinite(def.scoreMul) ? def.scoreMul : 0.1;
+    const half = (count - 1) / 2;
+    for (let i = 0; i < count; i++) {
+      const x = clamp(this.x + (i - half) * spread, 4, CONFIG.CANVAS_W - 4);
+      const e = new Enemy(def.type, x, {
+        game: this.game, y: this.y, scoreMul, fromSpawn: true, scale: this.scale,
+      });
+      e.spawnedBy = this;
+      eng.addEntity(e);
+      list.push(e);
+    }
+    // Pulso visible: las esporas salen del saco.
+    eng.spawnParticles?.(this.x, this.y + this.r * 0.3,
+      this.data.glow ?? this.data.body ?? '#FF9EC4', 8, {
+        speedMin: 20, speedMax: 80, gravity: -10,
+        lifeMin: 0.25, lifeMax: 0.55, sizeMin: 1.2, sizeMax: 2.8,
+      });
+  }
+
+  /**
+   * Mecánica de TANQUE — Cepa (`hiveAura`).
+   *
+   * Buffea sólo a los enjambres de la familia/rol declarados dentro del
+   * radio. No se buffea a sí misma, no apila (toma el mayor) y el buff
+   * expira solo cuando la cría sale del radio o muere el blob.
+   */
+  _updateHiveAura() {
+    const def = this.data.hiveAura;
+    if (!def || this.dead) return;
+    const list = this.game?.fortress?.enemies;
+    if (!Array.isArray(list)) return;
+    const radius = Math.max(1, def.radius ?? 120);
+    const refresh = Math.max(0.05, def.refresh ?? 0.35);
+    const mul = Math.max(1, def.speedMul ?? 1.2);
+    const r2 = radius * radius;
+    for (const e of list) {
+      if (!e || e === this || e.dead) continue;
+      if (def.family && e.family !== def.family) continue;
+      if (def.role && e.data?.role !== def.role) continue;
+      const dx = e.x - this.x;
+      const dy = e.y - this.y;
+      if (dx * dx + dy * dy > r2) continue;
+      e._hiveT = Math.max(e._hiveT ?? 0, refresh);
+      e._hiveSpeedMul = Math.max(e._hiveSpeedMul ?? 1, mul);
     }
   }
 
@@ -730,6 +1106,29 @@ export class Enemy {
       eng.spawnParticles(this.x, this.y, '#B01010', big ? 8 : 5, {
         speedMin: 30, speedMax: 120, gravity: 90,
         lifeMin: 0.35, lifeMax: 0.75, sizeMin: 1.6, sizeMax: 3,
+      });
+    }
+    // Paletas de muerte de los tipos nuevos: la familia se lee también al
+    // morir (polvo de roca, esporas, esquirlas de cristal, viriones).
+    if (this.type === 'boulder') {
+      eng.spawnParticles(this.x, this.y, this.data.dust ?? '#C9CDD3', 10, {
+        speedMin: 30, speedMax: 150, gravity: 80,
+        lifeMin: 0.3, lifeMax: 0.7, sizeMin: 1.5, sizeMax: 3.5,
+      });
+    } else if (this.type === 'sporePod') {
+      eng.spawnParticles(this.x, this.y, this.data.glow ?? '#FF9EC4', 10, {
+        speedMin: 20, speedMax: 100, gravity: -10,
+        lifeMin: 0.35, lifeMax: 0.8, sizeMin: 1.4, sizeMax: 3.2,
+      });
+    } else if (this.family === 'crystal') {
+      eng.spawnParticles(this.x, this.y, this.data.shine ?? '#FFD0D0', 7, {
+        speedMin: 50, speedMax: 190, gravity: 40,
+        lifeMin: 0.2, lifeMax: 0.5, sizeMin: 1.2, sizeMax: 2.8,
+      });
+    } else if (this.type === 'virusSwarm') {
+      eng.spawnParticles(this.x, this.y, this.data.accent ?? '#9CFF7A', 8, {
+        speedMin: 30, speedMax: 130, gravity: 60,
+        lifeMin: 0.25, lifeMax: 0.55, sizeMin: 1.2, sizeMax: 2.8,
       });
     }
     if (big) eng.shake(this.isBoss ? 8 : 4, this.isBoss ? 450 : 250); // D5: shake
@@ -797,6 +1196,14 @@ export class Enemy {
     // no eran fugas: medido, 2-3 enemigos de más por partida.
     if (this.dead) return;
     this.t += dt;
+    // Cepa del blob: el buff se refresca mientras el enjambre está dentro
+    // del aura; al salir (o morir el blob) expira solo.
+    if (this._hiveT > 0) {
+      this._hiveT = Math.max(0, this._hiveT - dt);
+      this.speedMul = this._hiveT > 0 ? Math.max(1, this._hiveSpeedMul ?? 1) : 1;
+    } else if (this.speedMul !== 1) {
+      this.speedMul = 1;
+    }
     // fase 68 — `tenaz`: neutraliza el CONTROL externo al inicio del frame.
     // El slow y el stun los escriben towers.js y los drones desde fuera; se
     // borran ANTES de consumirlos (unas líneas más abajo), así el afijo los
@@ -879,7 +1286,7 @@ export class Enemy {
     }
 
     // Estela de fuego (meteorito/fragmento/boss; el cristal no tiene)
-    if (d.trail1) {
+    if (d.trail1 && d.drawTrail !== false) {
       this._trailAcc += dt;
       while (this._trailAcc >= 1 / 45) {
         this._trailAcc -= 1 / 45;
@@ -921,13 +1328,17 @@ export class Enemy {
     // fase 68: el `sanador` cura a los ALIADOS del radio (no a sí mismo).
     if (this._healAura) this._updateHealAura(dt);
 
-    // Blob: empuje periódico hacia abajo de las esporas cercanas (§2.4)
+    // Mecánicas intrínsecas de tanque.
+    if (d.spawner) this._updateSpawner(dt);
+    if (d.hiveAura) this._updateHiveAura(dt);
+
+    // Blob: empuje periódico hacia abajo de los enjambres cercanos (§2.4)
     if (d.pushR) {
       this._pushAcc += dt;
       if (this._pushAcc >= 0.5) {
         this._pushAcc = 0;
         for (const e of this.game?.fortress?.enemies || []) {
-          if (!e || e === this || e.dead || e.type !== 'spore') continue;
+          if (!e || e === this || e.dead || !e.data?.swarm) continue;
           if (Math.hypot(e.x - this.x, e.y - this.y) <= d.pushR) {
             e.y += d.pushSpeed * 0.5; // medio pulso
           }
@@ -1060,6 +1471,19 @@ export class Enemy {
       applied += absorbed;
       if (this.shieldHp <= 0) this._breakShield();
     }
+    // Geoda — las placas absorben antes que el cuerpo. Un golpe grande
+    // puede romper VARIAS placas de una vez: el while no se corta en la
+    // primera. No regeneran.
+    while (this.platesLeft > 0 && rest > 0) {
+      const absorbed = Math.min(this.plateHp, rest);
+      this.plateHp -= absorbed;
+      rest -= absorbed;
+      applied += absorbed;
+      if (this.plateHp > 0) break;
+      this.platesLeft -= 1;
+      this._breakPlate();
+      if (this.platesLeft > 0) this.plateHp = this.plateMax;
+    }
     if (rest > 0 && this.armor > 0 && opts.armor !== false) {
       rest = Math.max(1, rest - this.armor);
     }
@@ -1112,16 +1536,46 @@ export class Enemy {
    * usa su propio contador (no comparten `_regenAcc`).
    */
   _updateVariantRegen(dt) {
-    if (!this._regenFrac || this.dead || this.hp <= 0 || this.hp >= this.hpMax) return;
-    this.hp = Math.min(this.hpMax, this.hp + this.hpMax * this._regenFrac * dt);
+    const cap = this.bodyMax ?? this.hpMax;
+    if (!this._regenFrac || this.dead || this.hp <= 0 || this.hp >= cap) return;
+    this.hp = Math.min(cap, this.hp + this.hpMax * this._regenFrac * dt);
     // Pulso visible: un +N verde cada 0,4 s (como el del jefe, fase 47).
     this._varRegenAcc += dt;
     if (this._varRegenAcc < 0.4) return;
     this._varRegenAcc = 0;
     this.game?.engine?.floatText?.(
       this.x + rand(-10, 10), this.y - this.r - 14,
-      `+${Math.round(this.hpMax * this._regenFrac * 0.4)}`, VARIANT_COLORS.regenerador, 0.9,
+      `+${Math.round(cap * this._regenFrac * 0.4)}`, VARIANT_COLORS.regenerador, 0.9,
     );
+  }
+
+  /**
+   * Geoda — rotura de una placa. Acelera el cuerpo (es un tanque que se
+   * aligera al perder blindaje) y deja un feedback visible con esquirlas
+   * del color del cristal. Sin engine (tests/iconos) sólo cambia el
+   * estado: los efectos son decorativos.
+   */
+  _breakPlate() {
+    const mul = this._plateSpeedMul ?? 1;
+    if (Number.isFinite(mul) && mul > 1) this.vel *= mul;
+    const eng = this.game?.engine;
+    if (!eng) return;
+    const col = this.data.crystal ?? this.data.body ?? '#FF6A6A';
+    eng.spawnParticles?.(this.x, this.y, col, 10, {
+      speedMin: 50, speedMax: 180, lifeMin: 0.2, lifeMax: 0.5,
+      sizeMin: 1.2, sizeMax: 3,
+    });
+    const R = this.r;
+    eng.addEffect?.({ life: 0.24, draw: (ctx, t) => {
+      ctx.save();
+      ctx.globalAlpha = t * 0.75;
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, R * (0.8 + (1 - t) * 1.2), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    } });
   }
 
   /**
@@ -1149,12 +1603,13 @@ export class Enemy {
     if (!Array.isArray(list)) return;
     const eng = this.game?.engine;
     for (const e of list) {
-      if (!e || e === this || e.dead || !(e.hp < e.hpMax)) continue;
+      const cap = e?.bodyMax ?? e?.hpMax;
+      if (!e || e === this || e.dead || !(e.hp < cap)) continue;
       if (!Number.isFinite(e.x) || !Number.isFinite(e.y)) continue;
       if (Math.hypot(e.x - this.x, e.y - this.y) > aura.radius) continue;
-      const heal = Math.min(e.hpMax - e.hp, e.hpMax * aura.fracPerSec * HEAL_TICK);
+      const heal = Math.min(cap - e.hp, e.hpMax * aura.fracPerSec * HEAL_TICK);
       if (!(heal > 0)) continue;
-      e.hp = Math.min(e.hpMax, e.hp + heal);
+      e.hp = Math.min(cap, e.hp + heal);
       // Feedback tenue sobre el aliado curado (no sobre el sanador): así se
       // lee QUIÉN recibe la vida y de dónde viene el vínculo del aura.
       eng?.floatText?.(e.x + rand(-6, 6), e.y - e.r - 10, `+${Math.round(heal)}`,
@@ -1249,6 +1704,7 @@ export class Enemy {
    * mide en RADIOS para que se lea igual en un fragmento y en un jefe.
    */
   _drawTrail(ctx) {
+    if (this.data.drawTrail === false) return;
     const col = incandColor(this.data);
     if (!col || this.stun > 0) return; // congelado: no hay estela
     // FASE 58: la dirección de la estela usa la velocidad EFECTIVA (la
@@ -1553,7 +2009,7 @@ export class Enemy {
     ctx.globalAlpha = 0.1 + 0.08 * p;
     for (const e of list) {
       if (!e || e === this || e.dead) continue;
-      if (!(e.hp < e.hpMax)) continue;
+      if (!(e.hp < (e.bodyMax ?? e.hpMax))) continue;
       if (!Number.isFinite(e.x) || !Number.isFinite(e.y)) continue;
       if (Math.hypot(e.x - this.x, e.y - this.y) > aura.radius) continue;
       ctx.beginPath();
@@ -1572,7 +2028,7 @@ export class Enemy {
     const showBar = this.r >= 20;
     if (showBar) {
       const w = this.r * 1.6;
-      const frac = clamp(this.hp / this.hpMax, 0, 1);
+      const frac = clamp(this.hpDisplay / this.hpMax, 0, 1);
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
       ctx.fillRect(this.x - w / 2, this.y - this.r - 12, w, 4);
       ctx.fillStyle = '#FF5555';
@@ -1613,7 +2069,7 @@ export class Enemy {
 
     // Estela de fuego DIBUJADA (dev-6): teardrop cálido tras la roca, visible
     // en el render aunque no haya partículas — fiel a los meteoros del diseño base.
-    if (d.trail1 && this.vel > 20) {
+    if (d.trail1 && d.drawTrail !== false && this.vel > 20) {
       const w = this.r * 0.75;
       const len = this.r * (1.7 + 0.35 * Math.sin(this.t * 13 + this.phase));
       const tipY = this.y - len; // arriba (opuesto a la caída)
@@ -1760,6 +2216,139 @@ export class Enemy {
         ctx.stroke();
         break;
       }
+      case 'rockSwarm':
+      case 'virusSwarm':
+      case 'crystalSwarm': {
+        // Enjambres por familia: un solo cuerpo lógico, un cúmulo visual.
+        drawSwarm(ctx, this);
+        break;
+      }
+      case 'boulder': { // roca maciza: placas frías, sin fuego, polvo
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.t * 0.18 + this.phase * 0.1);
+        const r = this.r;
+        ctx.fillStyle = d.dark;
+        tracePoly(ctx, this.poly, r);
+        ctx.fill();
+        ctx.fillStyle = d.body;
+        tracePoly(ctx, this.poly, r * 0.86);
+        ctx.fill();
+        ctx.strokeStyle = d.plate;
+        ctx.lineWidth = 3.5;
+        tracePoly(ctx, this.poly, r * 0.86);
+        ctx.stroke();
+        // Vetas/placas: tres arcos secos, sin glow.
+        ctx.strokeStyle = d.plate;
+        ctx.globalAlpha = 0.55;
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 3; i++) {
+          const a = this.phase + (Math.PI * 2 * i) / 3 + this.t * 0.08;
+          ctx.beginPath();
+          ctx.arc(0, 0, r * 0.55, a, a + 0.9);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+        // Polvo que se desprende del borde inferior.
+        ctx.fillStyle = d.dust;
+        ctx.globalAlpha = 0.45;
+        for (let i = 0; i < 4; i++) {
+          const a = this.phase + i * 1.9;
+          ctx.beginPath();
+          ctx.arc(Math.cos(a) * r * 0.95, Math.sin(a) * r * 0.95,
+            r * (0.08 + 0.04 * Math.sin(this.t * 2 + i)), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        break;
+      }
+      case 'sporePod': { // esporocarpo: sacos pulsantes + esporas
+        ctx.translate(this.x, this.y);
+        const r = this.r;
+        const pulse = 1 + 0.05 * Math.sin(this.t * 3 + this.phase);
+        ctx.fillStyle = d.dark;
+        ctx.beginPath();
+        ctx.arc(0, r * 0.08, r * pulse, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = d.body;
+        ctx.beginPath();
+        ctx.arc(0, r * 0.04, r * 0.82 * pulse, 0, Math.PI * 2);
+        ctx.fill();
+        // Tres sacos de esporas que respiran.
+        for (let i = 0; i < 3; i++) {
+          const a = this.phase + (Math.PI * 2 * i) / 3 + this.t * 0.35;
+          const sx = Math.cos(a) * r * 0.52;
+          const sy = Math.sin(a) * r * 0.52;
+          ctx.fillStyle = d.sac;
+          ctx.globalAlpha = 0.7 + 0.3 * Math.sin(this.t * 3 + i);
+          ctx.beginPath();
+          ctx.arc(sx, sy, r * (0.22 + 0.04 * Math.sin(this.t * 2 + i)), 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        // Esporas flotando alrededor.
+        ctx.fillStyle = d.glow;
+        for (let i = 0; i < 5; i++) {
+          const a = this.phase + i * 1.7 + this.t * 0.6;
+          const rr = r * (1.0 + 0.18 * Math.sin(this.t * 2 + i));
+          ctx.beginPath();
+          ctx.arc(Math.cos(a) * rr, Math.sin(a) * rr, r * 0.08, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        // Raíces cortas.
+        ctx.strokeStyle = d.dark;
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 4; i++) {
+          const a = Math.PI / 2 + (i - 1.5) * 0.4;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * r * 0.7, Math.sin(a) * r * 0.7);
+          ctx.lineTo(Math.cos(a + 0.15) * r * 1.05, Math.sin(a + 0.15) * r * 1.05);
+          ctx.stroke();
+        }
+        break;
+      }
+      case 'geode': { // geoda: cuerpo de cristal + placas orbitantes
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.t * 0.22 + this.phase * 0.2);
+        const r = this.r;
+        ctx.fillStyle = d.dark;
+        tracePoly(ctx, this.poly, r);
+        ctx.fill();
+        ctx.fillStyle = d.body;
+        tracePoly(ctx, this.poly, r * 0.82);
+        ctx.fill();
+        ctx.strokeStyle = d.crystal;
+        ctx.lineWidth = 3;
+        tracePoly(ctx, this.poly, r * 0.82);
+        ctx.stroke();
+        // Núcleo brillante.
+        ctx.fillStyle = d.shine;
+        ctx.globalAlpha = 0.55 + 0.35 * Math.sin(this.t * 3 + this.phase);
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.24, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        // Placas vivas: una por cada `platesLeft`.
+        const left = Math.max(0, this.platesLeft ?? 0);
+        for (let i = 0; i < left; i++) {
+          const a = this.phase + (Math.PI * 2 * i) / Math.max(1, this.platesLeft + (3 - left))
+            + this.t * 0.8;
+          const px = Math.cos(a) * r * 1.22;
+          const py = Math.sin(a) * r * 1.22;
+          ctx.save();
+          ctx.translate(px, py);
+          ctx.rotate(a + this.t * 1.4);
+          ctx.fillStyle = d.crystal;
+          ctx.beginPath();
+          ctx.moveTo(0, -r * 0.28);
+          ctx.lineTo(r * 0.18, 0);
+          ctx.lineTo(0, r * 0.28);
+          ctx.lineTo(-r * 0.18, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+        break;
+      }
       case 'blob': { // masa roja/negra con protuberancias pulsantes
         ctx.translate(this.x, this.y);
         const pulse = 1 + 0.06 * Math.sin(this.t * 4 + this.phase);
@@ -1835,6 +2424,19 @@ export class Enemy {
             by + Math.sin(a + sw * 2) * this.r * 0.95,
           );
           ctx.stroke();
+        }
+        // Cepa: el aura se ve como un aro discontinuo de baja opacidad.
+        if (d.hiveAura && !this._icon) {
+          const R = d.hiveAura.radius ?? 120;
+          ctx.globalAlpha = 0.10 + 0.04 * Math.sin(this.t * 2.4 + this.phase);
+          ctx.strokeStyle = d.hiveAura.color ?? d.body ?? '#C81E1E';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash?.([6, 8]);
+          ctx.beginPath();
+          ctx.arc(0, 0, R, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.setLineDash?.([]);
+          ctx.globalAlpha = 1;
         }
         break;
       }
@@ -1942,6 +2544,21 @@ export class Enemy {
         }
         break;
       }
+    }
+
+    // Cepa: marca verde sobre el enjambre acelerado (coordenadas locales:
+    // el caso del switch ya trasladó el contexto al centro del enemigo).
+    if ((this._hiveT ?? 0) > 0) {
+      const y = -this.r - 9;
+      ctx.fillStyle = '#9CFF7A';
+      ctx.globalAlpha = 0.75;
+      ctx.beginPath();
+      ctx.moveTo(-4, y + 4);
+      ctx.lineTo(0, y - 3);
+      ctx.lineTo(4, y + 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
     }
 
     // --- T2: realce del núcleo incandescente (alfa +0.15 en zona caliente)
@@ -2186,8 +2803,11 @@ export const ENEMY_ICON_SIZE = 64;
  */
 function enemyIconBox(data, variant = null) {
   const r = Math.max(1, data.r ?? 8);
-  const hasTrail = !!data.trail1;
-  const aura = r * (variant ? 1.6 : 1.2);      // holgura lateral y de abajo
+  const hasTrail = !!data.trail1 && data.drawTrail !== false;
+  // Los enjambres dibujan cuerpos alrededor del centro y la geoda placas
+  // orbitantes: la caja del icono tiene que incluir ese arte, no sólo `r`.
+  const artPad = data.plates ? 1.65 : data.swarmArt ? 1.65 : 1.2;
+  const aura = r * Math.max(variant ? 1.6 : 1.2, artPad); // holgura lateral y de abajo
   const halfW = aura;                          // polígono + tentáculos + aro
   const bottom = aura;
   // Arriba manda la estela de fuego, salvo que el rasgo de la variante
@@ -2228,7 +2848,7 @@ export function renderEnemyIcon(canvas, type, variant = null) {
     canvas.width = ENEMY_ICON_SIZE;
     canvas.height = ENEMY_ICON_SIZE;
     ctx.clearRect(0, 0, ENEMY_ICON_SIZE, ENEMY_ICON_SIZE);
-    const e = new Enemy(type, 0, { game: { engine: { _t: 0 } }, y: 0, variant });
+    const e = new Enemy(type, 0, { game: { engine: { _t: 0 } }, y: 0, variant, icon: true });
     const box = enemyIconBox(data, variant);
     const pad = 3;
     const avail = ENEMY_ICON_SIZE - pad * 2;

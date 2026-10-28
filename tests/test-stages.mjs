@@ -8,14 +8,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { STAGES, BASE_HP_BY_STAGE, scaleFor, isBossStage, LEAK_HP_FRAC, leakDamageFor } from '../js/stages.js';
 import {
-  STAGE_WAVES, generateStageWaves, OPEN_T, waveGroups, waveTypes, waveCount, openingHpBudget,
-  WaveManager, bossNameForStage, bossForStage,
+  STAGE_WAVES, generateStageWaves, campaignWaves, OPEN_T, waveGroups, waveTypes, waveCount, openingHpBudget,
+  WaveManager, bossNameForStage, bossForStage, SWARM_TYPES, openingSwarmForStage,
   WAVE_ARCHETYPES, ARCHETYPE_NAMES, archetypeOf, pickArchetype, waveSchedule, composeWave,
-  poolForStage, waveBudget, pressure, variantsForStage, assignVariant,
+  poolForStage, campaignPoolForStage, waveBudget, pressure, variantsForStage, assignVariant,
   VARIANT_DECADES, VARIANT_MAX_FRAC, VEL_BANDS,
 } from '../js/waves.js';
-import { ENEMY_TYPES, ENEMY_VARIANTS, Enemy } from '../js/enemies.js';
-import { ENEMY_FAMILY_BY_TYPE } from '../js/damagetypes.js';
+import { ENEMY_TYPES, ENEMY_VARIANTS, Enemy, effectiveHpOf } from '../js/enemies.js';
+import { ENEMY_FAMILY_BY_TYPE, ENEMY_FAMILY_IDS } from '../js/damagetypes.js';
 import { xpForLevel } from '../js/score.js';
 import { survivalWaveChunk } from '../js/survival.js';
 
@@ -154,11 +154,11 @@ test('generateStageWaves: la apertura (t<OPEN_T) es 100% farmable', () => {
         // Fase 27: la apertura puede tener VARIOS grupos, pero todos tienen
         // que cumplir las reglas del cono del Guardian.
         for (const g of waveGroups(w)) {
-          assert.ok(g.type !== 'miniBlob' && g.type !== 'blob',
-            `S${id} seed ${seed}: heavy '${g.type}' en apertura (t=${w.t})`);
+          assert.notEqual(ENEMY_TYPES[g.type]?.role, 'tank',
+            `S${id} seed ${seed}: tanque '${g.type}' en apertura (t=${w.t})`);
           assert.ok(g.pattern !== 'rain' && g.pattern !== 'wall',
             `S${id} seed ${seed}: patrón '${g.pattern}' en apertura (t=${w.t})`);
-          assert.ok(['spore', 'fragment', 'meteor', 'crystal'].includes(g.type),
+          assert.ok(FARMABLE_TYPES.includes(g.type),
             `S${id} seed ${seed}: tipo inesperado '${g.type}' en apertura`);
         }
       }
@@ -166,13 +166,16 @@ test('generateStageWaves: la apertura (t<OPEN_T) es 100% farmable', () => {
   }
 });
 
-test('generateStageWaves: la ola 0 es spore en vee (primer XP garantizado)', () => {
+test('generateStageWaves: la ola 0 es un enjambre en vee (primer XP garantizado)', () => {
   for (const id of GEN_IDS) {
     for (const seed of GEN_SEEDS) {
       const first = generateStageWaves(id, seed)[0];
       const g = waveGroups(first)[0];
-      assert.equal(g.type, 'spore', `S${id} seed ${seed}: ola 0 no es spore`);
+      assert.ok(SWARM_TYPES.includes(g.type),
+        `S${id} seed ${seed}: ola 0 no es un enjambre (${g.type})`);
       assert.equal(g.pattern, 'vee', `S${id} seed ${seed}: ola 0 no es vee`);
+      assert.ok(!waveGroups(first).some((x) => x.type === 'crystal'),
+        `S${id} seed ${seed}: el crystal reservado no debe caer en la ola 0`);
     }
   }
 });
@@ -263,7 +266,10 @@ test('generateStageWaves: en stages SIN jefe nunca aparece ola boss', () => {
 const MANUAL_IDS = [1, 2, 3, 4, 5];
 
 /** Tipos que el Guardian Lv1 puede matar dentro de su ventana de tiro. */
-const FARMABLE_TYPES = ['spore', 'fragment', 'meteor', 'crystal'];
+const FARMABLE_TYPES = [
+  'spore', 'rockSwarm', 'virusSwarm', 'crystalSwarm',
+  'fragment', 'meteor', 'crystal',
+];
 /** Patrones que caen dentro del cono del Guardian (nunca rain/wall). */
 const FARMABLE_PATTERNS = ['vee', 'line', 'burst-diag'];
 /**
@@ -342,10 +348,11 @@ test('tablas manuales 1..5: la apertura (t<OPEN_T) sólo usa tipos y patrones fa
   }
 });
 
-test('tablas manuales 1..5: la 1ª ola es spore en vee (primer XP garantizado)', () => {
+test('tablas manuales 1..5: la 1ª ola es un enjambre en vee (primer XP garantizado)', () => {
   for (const id of MANUAL_IDS) {
     const g = waveGroups(STAGE_WAVES[id][0])[0];
-    assert.equal(g.type, 'spore', `S${id}: la 1ª ola no es spore`);
+    assert.ok(SWARM_TYPES.includes(g.type),
+      `S${id}: la 1ª ola no es un enjambre (${g.type})`);
     assert.equal(g.pattern, 'vee', `S${id}: la 1ª ola no es vee`);
   }
 });
@@ -403,6 +410,135 @@ test('tablas manuales 1..5: la cuenta de enemigos por ola se conserva (monotoní
 });
 
 // ============================================================
+// CAMPAÑA POR FAMILIAS — enjambre + tanque y debuts
+// ============================================================
+
+test('campaña: cada familia tiene un enjambre y un tanque', () => {
+  for (const family of ENEMY_FAMILY_IDS) {
+    const types = Object.entries(ENEMY_TYPES)
+      .filter(([, d]) => d.family === family && !d.boss);
+    assert.ok(types.some(([, d]) => d.role === 'swarm'),
+      `la familia ${family} no tiene enjambre`);
+    assert.ok(types.some(([, d]) => d.role === 'tank'),
+      `la familia ${family} no tiene tanque`);
+  }
+});
+
+test('campaña S1–S5: roca → virus → espora → mezcla', () => {
+  const familyCounts = (id) => {
+    const out = {};
+    for (const w of STAGE_WAVES[id]) {
+      for (const g of waveGroups(w)) {
+        if (g.type === 'boss') continue;
+        const fam = ENEMY_FAMILY_BY_TYPE[g.type];
+        out[fam] = (out[fam] ?? 0) + g.count;
+      }
+    }
+    return out;
+  };
+  for (const id of [1, 2]) {
+    const f = familyCounts(id);
+    assert.equal(f.spore ?? 0, 0, `S${id}: no debe tener espora`);
+    assert.equal(f.virus ?? 0, 0, `S${id}: no debe tener virus`);
+    assert.ok((f.rock ?? 0) > 0, `S${id}: debe tener roca`);
+  }
+  const s3 = familyCounts(3);
+  assert.ok((s3.virus ?? 0) > 0, 'S3 debe introducir virus');
+  assert.equal(s3.spore ?? 0, 0, 'S3 todavía no debe tener espora');
+  const s4 = familyCounts(4);
+  assert.ok((s4.spore ?? 0) > 0, 'S4 debe introducir espora');
+  const s5 = familyCounts(5);
+  for (const fam of ENEMY_FAMILY_IDS) {
+    assert.ok((s5[fam] ?? 0) > 0, `S5 debe tener la familia ${fam}`);
+  }
+});
+
+test('poolForStage (bioma) y campaignPoolForStage (tabla manual) son distintos', () => {
+  const rockWeight = (pool) => pool
+    .filter((p) => p.family === 'rock')
+    .reduce((a, p) => a + p.weight, 0);
+  // S1 manual es casi todo roca; el bioma S1–9 es una mezcla con
+  // espora/virus/cristal (aunque los debuts filtran parte en S1).
+  assert.ok(rockWeight(campaignPoolForStage(1)) > rockWeight(poolForStage(1)) + 20,
+    'S1: la campaña debería declarar mucho más roca que el bioma');
+  // S4 manual no tiene boulder; el bioma S1–9 sí. Esto fija que
+  // Supervivencia (stage virtual 4) use el bioma y no la tabla manual.
+  assert.ok(poolForStage(4).some((p) => p.type === 'boulder'),
+    'el bioma de S4 debería incluir boulder');
+  assert.ok(!campaignPoolForStage(4).some((p) => p.type === 'boulder'),
+    'la tabla manual de S4 no tiene boulder');
+  // S6+ no tiene tabla manual: ambos caminos describen el mismo bioma.
+  assert.deepEqual(campaignPoolForStage(20), poolForStage(20));
+});
+
+test('campaña: los debuts se respetan en tablas manuales y en el pool', () => {
+  for (const [type, d] of Object.entries(ENEMY_TYPES)) {
+    const debut = d.debut ?? 1;
+    for (let id = 1; id < debut; id++) {
+      assert.ok(!campaignPoolForStage(id).some((p) => p.type === type),
+        `${type} aparece en el pool de S${id} antes de su debut S${debut}`);
+    }
+    for (const id of [1, 2, 3, 4, 5].filter((x) => x < debut)) {
+      for (const w of STAGE_WAVES[id]) {
+        assert.ok(!waveGroups(w).some((g) => g.type === type),
+          `${type} aparece en la tabla manual de S${id} antes de S${debut}`);
+      }
+    }
+  }
+});
+
+test('el arquetipo ENJAMBRE siempre usa enjambres de familia', () => {
+  for (const id of [6, 10, 20, 30, 40, 50]) {
+    for (const seed of GEN_SEEDS) {
+      for (const w of generateStageWaves(id, seed)) {
+        if (archetypeOf(w) !== 'enjambre') continue;
+        const gs = waveGroups(w).filter((g) => g.type !== 'crystal');
+        assert.ok(gs.length > 0, `S${id} seed ${seed}: enjambre vacío`);
+        for (const g of gs) {
+          assert.ok(SWARM_TYPES.includes(g.type),
+            `S${id} seed ${seed}: ENJAMBRE con tipo no-swarm '${g.type}'`);
+        }
+      }
+    }
+  }
+});
+
+test('el HP efectivo de las mecánicas no se dispara por etapa', () => {
+  for (const id of [6, 10, 20, 30, 40, 50]) {
+    let base = 0;
+    let eff = 0;
+    for (const seed of GEN_SEEDS) {
+      for (const w of generateStageWaves(id, seed)) {
+        for (const g of waveGroups(w)) {
+          if (g.type === 'boss') continue;
+          base += (ENEMY_TYPES[g.type]?.hp ?? 0) * g.count;
+          eff += effectiveHpOf(g.type) * g.count;
+        }
+      }
+    }
+    assert.ok(eff >= base, `S${id}: el HP efectivo no puede ser menor que el base`);
+    assert.ok(eff <= base * 1.15,
+      `S${id}: el HP efectivo (${Math.round(eff)}) supera en más del 15 % al base (${Math.round(base)})`);
+  }
+});
+
+test('campaignWaves usa la tabla manual en S1–5 y el generador en S6+', () => {
+  for (const id of MANUAL_IDS) {
+    assert.equal(campaignWaves(id, 1234), STAGE_WAVES[id],
+      `S${id}: la campaña no usa su tabla manual`);
+  }
+  assert.deepEqual(campaignWaves(6, 1234), generateStageWaves(6, 1234),
+    'S6: la campaña no usa el generador');
+});
+
+test('openingSwarmForStage elige el enjambre de la familia de la década', () => {
+  assert.equal(openingSwarmForStage(1), 'rockSwarm');
+  assert.equal(openingSwarmForStage(10), 'virusSwarm');
+  assert.equal(openingSwarmForStage(20), 'spore');
+  assert.equal(openingSwarmForStage(30), 'crystalSwarm');
+});
+
+// ============================================================
 // FASE 27 — VARIEDAD DE LAS OLAS
 //
 // El pedido: "caen hileras de varios enemigos del mismo tipo; en vez
@@ -416,15 +552,21 @@ test('tablas manuales 1..5: la cuenta de enemigos por ola se conserva (monotoní
 
 /** Velocidad base de un tipo (ENEMY_TYPES, js/enemies.js). */
 const VEL = {
-  meteor: 60, fragment: 110, crystal: 45, spore: 90, miniBlob: 42, blob: 35, boss: 22,
+  meteor: 60, fragment: 110, rockSwarm: 100, boulder: 34,
+  crystal: 45, crystalSwarm: 70, spore: 90, sporePod: 30,
+  miniBlob: 42, blob: 35, virusSwarm: 80, geode: 28, boss: 22,
 };
 /** HP base de un tipo (ENEMY_TYPES, js/enemies.js). */
 const HP_BASE = {
-  meteor: 30, fragment: 12, crystal: 60, spore: 8, miniBlob: 160, blob: 220, boss: 2600,
+  meteor: 30, fragment: 12, rockSwarm: 12, boulder: 190,
+  crystal: 60, crystalSwarm: 12, spore: 8, sporePod: 190,
+  miniBlob: 160, blob: 220, virusSwarm: 10, geode: 240, boss: 2600,
 };
 /** XP (= score) base de un tipo (ENEMY_TYPES, js/enemies.js). */
 const XP_BASE = {
-  meteor: 10, fragment: 15, crystal: 40, spore: 5, miniBlob: 35, blob: 60, boss: 500,
+  meteor: 10, fragment: 15, rockSwarm: 5, boulder: 60,
+  crystal: 40, crystalSwarm: 6, spore: 5, sporePod: 55,
+  miniBlob: 35, blob: 60, virusSwarm: 5, geode: 65, boss: 500,
 };
 /**
  * DPS del Guardian para el criterio de matabilidad de la apertura.

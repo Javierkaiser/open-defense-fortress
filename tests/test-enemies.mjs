@@ -26,7 +26,9 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ENEMY_TYPES, ENEMY_VARIANTS, Enemy, renderEnemyIcon } from '../js/enemies.js';
+import {
+  ENEMY_TYPES, ENEMY_VARIANTS, Enemy, renderEnemyIcon, effectiveHpOf,
+} from '../js/enemies.js';
 import { DAMAGE_TYPE_IDS, dmgMultiplier } from '../js/damagetypes.js';
 import { CONFIG } from '../js/engine.js';
 
@@ -200,8 +202,9 @@ test('sin `variant` las stats son EXACTAMENTE las de hoy (regresión)', () => {
     assert.equal(con.hpMax, Math.max(1, Math.round(d.hp * SCALE.hpMul)),
       `${type}: el HP escalado cambió`);
     assert.equal(con.vel, d.vel * SCALE.velMul, `${type}: la velocidad escalada cambió`);
-    assert.equal(con.hp, con.hpMax);
+    assert.equal(con.hpDisplay, con.hpMax, `${type}: el HP visible no arranca lleno`);
     assert.equal(sin.hpMax, Math.max(1, Math.round(d.hp)));
+    assert.equal(sin.hpDisplay, sin.hpMax, `${type}: el HP visible base no arranca lleno`);
     assert.equal(sin.vel, d.vel);
     // Y no aparece ningún estado de variante.
     assert.equal(sin.variant, null);
@@ -209,9 +212,11 @@ test('sin `variant` las stats son EXACTAMENTE las de hoy (regresión)', () => {
     assert.equal(sin.shieldMax, 0);
     assert.equal(sin.shieldHp, 0);
     // El daño sigue exactamente igual (mismo camino: matriz de familias).
-    const hp0 = sin.hp;
+    // `hpDisplay` incluye las placas de la geoda: lo que baja es el HP
+    // visible total, no el cuerpo escondido detrás del blindaje.
+    const hp0 = sin.hpDisplay;
     sin.takeDamage(4, 'electric');
-    assert.equal(sin.hp, hp0 - 4 * dmgMultiplier('electric', d.family),
+    assert.equal(sin.hpDisplay, hp0 - 4 * dmgMultiplier('electric', d.family),
       `${type}: el daño del enemigo base cambió`);
   }
 });
@@ -495,6 +500,212 @@ test('renderEnemyIcon acepta la variante: el icono del bestiario muestra el rasg
     'y muestra el aro del escudo');
   assert.equal(icono('meteor', 'inventada').ok, true, 'una variante desconocida no rompe');
   assert.equal(icono('no-existe', 'escudado').ok, false, 'un tipo desconocido sigue devolviendo false');
+});
+
+// ============================================================
+// MECÁNICAS INTRÍNSECAS DE TANQUE
+// ============================================================
+
+test('tanques: el HP efectivo de sus mecánicas queda en 220–254', () => {
+  const expected = {
+    boulder: ENEMY_TYPES.boulder.hp + 3 * ENEMY_TYPES.rockSwarm.hp,
+    sporePod: ENEMY_TYPES.sporePod.hp
+      + ENEMY_TYPES.spore.hp * ENEMY_TYPES.sporePod.spawner.maxAlive
+      + ENEMY_TYPES.spore.hp * ENEMY_TYPES.sporePod.deathSpawn.count,
+    geode: ENEMY_TYPES.geode.hp,
+    blob: ENEMY_TYPES.blob.hp,
+  };
+  for (const [type, hp] of Object.entries(expected)) {
+    assert.equal(effectiveHpOf(type), hp, `${type}: HP efectivo inesperado`);
+    assert.ok(hp >= 220 && hp <= 254, `${type}: HP efectivo ${hp} fuera de 220–254`);
+  }
+  assert.equal(effectiveHpOf('meteor'), ENEMY_TYPES.meteor.hp,
+    'un tipo sin mecánicas conserva su HP base');
+});
+
+test('boulder: Desmoronamiento — 3 enjambres al morir, 10 % de XP y sin recursión', () => {
+  const game = mkGame();
+  const boulder = new Enemy('boulder', 100, { game, y: 300 });
+  game.fortress.enemies.push(boulder);
+  boulder.die();
+  const kids = game.fortress.enemies.filter((e) => e !== boulder);
+  assert.equal(kids.length, 3, 'el boulder debe dejar 3 crías');
+  for (const kid of kids) {
+    assert.equal(kid.type, 'rockSwarm');
+    assert.equal(kid.fromSpawn, true);
+    assert.equal(kid.spawnedBy, boulder);
+    assert.equal(kid.scoreReward, 0.5, '10 % de 5 puntos = 0,5');
+    assert.equal(kid.dead, false);
+  }
+  assert.equal(boulder.dead, true);
+  // Las crías heredan la ESCALA de la etapa (si no, en S50 saldrían con
+  // stats base y serían decorativas).
+  const gameScale = mkGame();
+  const scaled = new Enemy('boulder', 100, { game: gameScale, y: 300, scale: { hpMul: 2, velMul: 1.5 } });
+  gameScale.fortress.enemies.push(scaled);
+  scaled.die();
+  const scaledKid = gameScale.fortress.enemies.find((e) => e !== scaled);
+  assert.equal(scaledKid.hpMax, ENEMY_TYPES.rockSwarm.hp * 2);
+  assert.equal(scaledKid.vel, ENEMY_TYPES.rockSwarm.vel * 1.5);
+
+  // Una cría de `divisor` no vuelve a desmoronarse (anti-exponencial).
+  const game2 = mkGame();
+  const splitBoulder = new Enemy('boulder', 100, { game: game2, y: 300, fromSplit: true });
+  game2.fortress.enemies.push(splitBoulder);
+  splitBoulder.die();
+  assert.equal(game2.fortress.enemies.length, 1,
+    'la cría de divisor no debe generar deathSpawn');
+
+  // La VARIANTE divisor se parte (35 %) pero no mezcla deathSpawn.
+  const game3 = mkGame();
+  const divisorBoulder = new Enemy('boulder', 100, { game: game3, y: 300, variant: 'divisor' });
+  game3.fortress.enemies.push(divisorBoulder);
+  divisorBoulder.die();
+  const inherited = game3.fortress.enemies.filter((e) => e !== divisorBoulder);
+  assert.equal(inherited.length, 2, 'el divisor debe dejar 2 boulders');
+  assert.ok(inherited.every((e) => e.type === 'boulder'),
+    'el divisor no debe convertir las crías en rockSwarm');
+});
+
+test('sporePod: Esporulación — 2 esporas/6 s, tope 6, 10 % de XP y sin recursión', () => {
+  const game = mkGame();
+  const pod = new Enemy('sporePod', 100, { game, y: 300 });
+  game.fortress.enemies.push(pod);
+  pod._spawnAcc = 5.99;
+  pod.update(0.02);
+  let kids = game.fortress.enemies.filter((e) => e !== pod);
+  assert.equal(kids.length, 2, 'la primera esporulación debe soltar 2 esporas');
+  for (const kid of kids) {
+    assert.equal(kid.type, 'spore');
+    assert.equal(kid.fromSpawn, true);
+    assert.equal(kid.spawnedBy, pod);
+    assert.equal(kid.scoreReward, 0.5, '10 % de 5 puntos = 0,5');
+  }
+  // El tope de 6 se respeta aunque pasen varios ciclos.
+  for (let i = 0; i < 5; i++) pod._updateSpawner(6);
+  kids = game.fortress.enemies.filter((e) => e !== pod);
+  assert.equal(kids.length, 6, 'el pod no debe pasar de 6 crías vivas');
+  // Las hijas no esporulan.
+  const before = game.fortress.enemies.length;
+  for (const kid of kids) kid.update(10);
+  assert.equal(game.fortress.enemies.length, before, 'las esporas hijas no deben esporular');
+
+  // Al morir suelta 2 más (aunque el tope ya esté lleno).
+  pod.die();
+  const afterDeath = game.fortress.enemies.filter((e) => e !== pod && e.fromSpawn);
+  assert.equal(afterDeath.length, 8, 'el pod debe soltar 2 esporas al morir');
+
+  // Una cría de divisor no esporula.
+  const game2 = mkGame();
+  const splitPod = new Enemy('sporePod', 100, { game: game2, y: 300, fromSplit: true });
+  game2.fortress.enemies.push(splitPod);
+  splitPod._updateSpawner(10);
+  assert.equal(game2.fortress.enemies.length, 1, 'la cría de divisor no debe esporular');
+
+  // La VARIANTE divisor no mezcla spawner/deathSpawn.
+  const game3 = mkGame();
+  const divisorPod = new Enemy('sporePod', 100, { game: game3, y: 300, variant: 'divisor' });
+  game3.fortress.enemies.push(divisorPod);
+  divisorPod._updateSpawner(10);
+  assert.equal(game3.fortress.enemies.length, 1, 'un pod divisor no debe esporular');
+  divisorPod.die();
+  const inherited = game3.fortress.enemies.filter((e) => e !== divisorPod);
+  assert.equal(inherited.length, 2, 'el pod divisor debe dejar 2 pods');
+  assert.ok(inherited.every((e) => e.type === 'sporePod'),
+    'el pod divisor no debe dejar esporas por deathSpawn');
+});
+
+test('blob: Cepa — buffea solo enjambres virus en radio, sin self ni stack', () => {
+  const game = mkGame();
+  const blob = new Enemy('blob', 100, { game, y: 300 });
+  const virus = new Enemy('virusSwarm', 140, { game, y: 300 });
+  const rock = new Enemy('rockSwarm', 120, { game, y: 300 });
+  const tank = new Enemy('miniBlob', 130, { game, y: 300 });
+  game.fortress.enemies.push(blob, virus, rock, tank);
+  blob._updateHiveAura();
+  assert.ok(virus._hiveT > 0, 'el enjambre virus debe recibir la Cepa');
+  assert.equal(rock._hiveT ?? 0, 0, 'otra familia no debe recibir la Cepa');
+  assert.equal(tank._hiveT ?? 0, 0, 'un tanque virus no debe recibir la Cepa');
+  assert.equal(blob._hiveT ?? 0, 0, 'el blob no se buffea a sí mismo');
+  virus.update(1 / 60);
+  assert.equal(virus.speedMul, 1.2, 'la Cepa acelera ×1,2');
+  virus._hiveT = 0.01;
+  virus.update(0.02);
+  assert.equal(virus.speedMul, 1, 'al expirar la Cepa la velocidad vuelve a 1');
+});
+
+test('drawTrail:false no emite la estela de partículas de los tipos viejos', () => {
+  const game = mkGame();
+  const swarm = new Enemy('rockSwarm', 100, { game, y: 300 });
+  swarm.update(0.1);
+  assert.equal(game.log.particles, 0, 'el enjambre no debe inundar de partículas');
+  const meteor = new Enemy('meteor', 100, { game, y: 300 });
+  meteor.update(0.1);
+  assert.ok(game.log.particles > 0, 'el meteorito conserva su estela');
+});
+
+test('blob: el empuje alcanza a los enjambres de cualquier familia, no a tanques', () => {
+  const game = mkGame();
+  const blob = new Enemy('blob', 100, { game, y: 300 });
+  const rock = new Enemy('rockSwarm', 120, { game, y: 290 });
+  const virus = new Enemy('virusSwarm', 80, { game, y: 290 });
+  const pod = new Enemy('sporePod', 110, { game, y: 290 });
+  game.fortress.enemies.push(blob, rock, virus, pod);
+  const y0 = { rock: rock.y, virus: virus.y, pod: pod.y };
+  blob._pushAcc = 0.6;
+  blob.update(0.01);
+  assert.ok(rock.y > y0.rock, 'el enjambre de roca debe ser empujado');
+  assert.ok(virus.y > y0.virus, 'el enjambre viral debe ser empujado');
+  assert.equal(pod.y, y0.pod, 'un tanque no debe ser empujado');
+});
+
+test('geode: Placas — absorben antes que el HP, no regeneran y aceleran al romperse', () => {
+  const game = mkGame();
+  const geode = new Enemy('geode', 100, { game, y: 300 });
+  game.fortress.enemies.push(geode);
+  assert.equal(geode.hpDisplay, geode.hpMax, 'la barra arranca llena');
+  assert.equal(geode.platesLeft, 3);
+  const body = geode.hp;
+  geode.takeDamage(20, 'electric'); // 20 × 1,5 = 30: 30 de placa
+  assert.equal(geode.hp, body, 'el cuerpo no baja mientras haya placas');
+  assert.ok(geode.plateHp < geode.plateMax, 'la placa absorbe el golpe');
+  assert.equal(geode.hpDisplay, geode.hpMax - 30, 'la barra refleja el daño absorbido');
+  // No regeneran: siguen dañadas tras un update largo (con la geoda viva).
+  const plateHp0 = geode.plateHp;
+  geode.update(10);
+  assert.equal(geode.plateHp, plateHp0, 'las placas no se regeneran');
+  const vel0 = geode.vel;
+  geode.takeDamage(200, 'electric');
+  assert.equal(geode.platesLeft, 0, 'un golpe grande puede romper todas las placas');
+  assert.ok(geode.vel > vel0, 'romper placas acelera la geoda');
+  assert.ok(geode.hp < body, 'el sobrante llega al cuerpo');
+});
+
+test('geode: el escudo de variante se rompe ANTES que las placas', () => {
+  const game = mkGame();
+  const geode = new Enemy('geode', 100, { game, y: 300, variant: 'escudado' });
+  game.fortress.enemies.push(geode);
+  const plates0 = geode.plateHp;
+  geode.takeDamage(10, 'electric'); // 15: entra al escudo (96)
+  assert.ok(geode.shieldHp < geode.shieldMax, 'el escudo absorbe primero');
+  assert.equal(geode.plateHp, plates0, 'las placas quedan intactas');
+});
+
+test('geode: las curas no sobrepasan el cuerpo ni las placas', () => {
+  const game = mkGame();
+  const regen = new Enemy('geode', 100, { game, y: 300, variant: 'regenerador' });
+  regen.hp = regen.bodyMax - 10;
+  regen._updateVariantRegen(10);
+  assert.ok(regen.hp <= regen.bodyMax, 'el regenerador no debe curar el cuerpo por encima del bodyMax');
+  assert.equal(regen.plateHp, regen.plateMax, 'las placas no se curan');
+
+  const healer = new Enemy('blob', 100, { game, y: 300, variant: 'sanador' });
+  const patient = new Enemy('geode', 120, { game, y: 300 });
+  patient.hp = patient.bodyMax - 10;
+  game.fortress.enemies.push(healer, patient);
+  healer._updateHealAura(1);
+  assert.ok(patient.hp <= patient.bodyMax, 'el sanador no debe curar el cuerpo por encima del bodyMax');
+  assert.equal(patient.plateHp, patient.plateMax, 'las placas no se curan');
 });
 
 // ============================================================

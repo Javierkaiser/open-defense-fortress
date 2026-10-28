@@ -6,7 +6,7 @@
 
 [![CI](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml/badge.svg)](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml)
 
-Defend a volcanic base from falling meteors, spores, crystals and blobs.
+Defend a volcanic base from falling meteors, rock/virus swarms, spores, crystals and family tanks.
 Towers fire automatically: you manage the run economy, time speed, the Ultimate
 and the upgrade cards offered on level-up. Every run is a roguelike.
 
@@ -17,7 +17,7 @@ and the upgrade cards offered on level-up. Every run is a roguelike.
 - 8 towers + 3 drones, 48 cards, 7 elite affixes, 5 visual themes.
 - No ads, no purchases, no accounts, no telemetry.
 - Canvas 2D + DOM/CSS + ES modules; no build step, no server, no network calls.
-- 857 Node tests.
+- 876 Node tests.
 
 ## Run it
 
@@ -26,7 +26,7 @@ and the upgrade cards offered on level-up. Every run is a roguelike.
 node scripts/serve.mjs 8080
 # open http://localhost:8080
 
-# tests (857) + static checks
+# tests (876) + static checks
 node --test "tests/**/*.mjs"
 node .github/scripts/ci-checks.mjs
 ```

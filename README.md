@@ -13,8 +13,9 @@
 
 ## Qué es
 
-Defendés una base volcánica de una lluvia de meteoritos, esporas, cristales y
-blobs. Las torres se disparan solas: vos gestionás la economía de la run, la
+Defendés una base volcánica de una lluvia de meteoritos, enjambres pétreos,
+esporas, cristales, virus y tanques de cada familia. Las torres se disparan
+solas: vos gestionás la economía de la run, la
 velocidad del tiempo, el Ultimate y las cartas de mejora que aparecen al subir
 de nivel. Cada partida es un roguelike: el arsenal, las cartas y las oleadas
 cambian.
@@ -63,10 +64,12 @@ La demo se publica sola: cada push a `main` corre el workflow de deploy
 - **Desafío diario** con semilla por fecha.
 - **Protocolo / Heat**: 11 condiciones, presets I–V y recompensas extra.
 - **8 torres + 3 drones**, 48 cartas, 7 afijos de élite y 5 temas visuales.
+- **4 familias de enemigos** con enjambre y tanque propios (roca, virus,
+  espora y cristal), cada una con su mecánica.
 - **Sin anuncios, sin compras, sin cuentas, sin telemetría.**
 - **Offline real**: fuentes, sprites y SFX locales.
 - **Calidad gráfica Alta/Baja** para equipos modestos.
-- **857 tests** en Node, sin DOM ni canvas.
+- **876 tests** en Node, sin DOM ni canvas.
 
 ## Controles
 
@@ -85,7 +88,7 @@ El disparo es automático: no hay apuntado ni joystick.
 ## Tests
 
 ```bash
-node --test "tests/**/*.mjs"            # 857 tests (852 pass, 5 skip, 0 fail)
+node --test "tests/**/*.mjs"            # 876 tests (871 pass, 5 skip, 0 fail)
 node .github/scripts/ci-checks.mjs   # checks estáticos (sintaxis, zero-dep, refs)
 ```
 

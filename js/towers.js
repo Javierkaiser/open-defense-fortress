@@ -463,7 +463,9 @@ export function pickByPolicy(enemies, game, tower, exclude = []) {
       // El más lejano = el de menor Y (el más arriba de la pantalla).
       if (e.y < best.y) best = e;
     } else if (policy === 'toughest') {
-      if (e.hp > best.hp) best = e;
+      // La geoda esconde el cuerpo detrás de las placas: para el targeting
+      // "más vida" cuenta el HP visible (cuerpo + placas).
+      if ((e.hpDisplay ?? e.hp) > (best.hpDisplay ?? best.hp)) best = e;
     } else {
       // 'nearest' = el más avanzado a la torre (mayor Y).
       if (e.y > best.y) best = e;
@@ -2673,7 +2675,7 @@ export class Tower {
         for (const e of enemies || []) {
           if (!e || e.dead) continue;
           if (Math.abs(e.x - this.x) > halfW) continue;
-          if (!tgt || e.hp > tgt.hp) tgt = e;
+          if (!tgt || (e.hpDisplay ?? e.hp) > (tgt.hpDisplay ?? tgt.hp)) tgt = e;
         }
       }
       // Reset del ramp: blanco CAMBIÓ o no quedó blanco

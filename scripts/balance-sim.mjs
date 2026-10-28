@@ -939,6 +939,10 @@ export async function runStage(stageId, mode = DEFAULT_MODE, seed = 1, opts = {}
       ? Math.max(0, totalEnemies - Math.floor(totalEnemies * (1 - opts.killRate / 100)))
       : Infinity;
     game._waveKills = 0;
+    game._waveLeaks = 0;
+    game._spawnKills = 0;
+    game._spawnLeaks = 0;
+    game._splitLeaks = 0;
 
     // ------------------------------------------------------------
     // fase 65 (tarea 5.1) — MÉTRICAS DEL DIRECTOR
@@ -1037,15 +1041,23 @@ export async function runStage(stageId, mode = DEFAULT_MODE, seed = 1, opts = {}
     };
     // fase 72: la base sólo cae por daño. `_leaks` es estadística; las
     // crías/escoltas también cuentan (igual que main.js).
-    game.engine.on('enemy:reached', () => {
+    game.engine.on('enemy:reached', (e) => {
       game._leaks += 1;
+      // Las crías de mecánicas (deathSpawn/spawner) son presión EXTRA:
+      // cuentan para la base y el timeline, pero no contra la cola del
+      // director (mismo criterio que las crías del divisor).
+      if (e?.fromSpawn) game._spawnLeaks += 1;
+      else if (e?.fromSplit) game._splitLeaks += 1;
+      else game._waveLeaks += 1;
       if (TIMELINE) bucketOf(game.timer).leaks += 1;
     });
 
     game.engine.on('enemy:killed', (e) => {
       // fase 68: las crías del divisor no son "bajas de la ola" (el
-      // denominador es la cola del director). Igual dan score/XP.
-      if (!e?.isBoss && !e?.fromSplit) game._waveKills += 1;
+      // denominador es la cola del director). Las crías de mecánicas
+      // tampoco: son extra. Igual dan score/XP (al 10 %).
+      if (e?.fromSpawn) game._spawnKills += 1;
+      else if (!e?.isBoss && !e?.fromSplit) game._waveKills += 1;
       if (TIMELINE) bucketOf(game.timer).kills += 1;
       pendingLevels.push(...onKill(game, e));
     });
@@ -1222,8 +1234,12 @@ export async function runStage(stageId, mode = DEFAULT_MODE, seed = 1, opts = {}
       enemies: totalEnemies,
       spawns: game.engine.__spawns ?? 0,
       waveKills: game._waveKills,     // bajas de la ola (sin jefe)
+      spawnKills: game._spawnKills,   // bajas de crías de mecánicas
+      waveLeaks: game._waveLeaks,     // fugas de la ola (sin crías)
+      spawnLeaks: game._spawnLeaks,   // fugas de crías de mecánicas
+      splitLeaks: game._splitLeaks,   // fugas de crías del divisor
       killPct: totalEnemies > 0 ? game._waveKills / totalEnemies : 0,
-      leakPct: totalEnemies > 0 ? game._leaks / totalEnemies : 0,
+      leakPct: totalEnemies > 0 ? game._waveLeaks / totalEnemies : 0,
       // Daño NETO que las fugas hicieron en la base (fase 72: la fuga vale
       // el HP MÁXIMO del enemigo). Es el dato con el que se calibra la vida
       // de la base por etapa (js/stages.js).

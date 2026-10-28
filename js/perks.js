@@ -168,16 +168,21 @@ export function applyPerkDamage(enemy, n, kind, mods, game, enemies, opts = {}) 
   // (haz, cadena, descarga).
   dmg *= familyHuntMul(mods, enemy);
   let executed = false;
+  // La geoda esconde el cuerpo detrás de las placas: el umbral de remate
+  // mira el HP VISIBLE (cuerpo + placas), no sólo el cuerpo.
+  const hpForThreshold = enemy.hpDisplay ?? enemy.hp;
   if (mods?.executeThreshold && enemy.hpMax
-    && enemy.hp <= enemy.hpMax * mods.executeThreshold) {
-    executed = dmg < enemy.hp; // solo cuenta si el remate hizo falta
-    dmg = Math.max(dmg, enemy.hp); // remate garantizado, sin REDUCIR el daño
+    && hpForThreshold <= enemy.hpMax * mods.executeThreshold) {
+    executed = dmg < hpForThreshold; // solo cuenta si el remate hizo falta
+    dmg = Math.max(dmg, hpForThreshold); // remate garantizado, sin REDUCIR el daño
   }
-  const hpBefore = enemy.hp;
+  const hpBefore = enemy.hpDisplay ?? enemy.hp;
   const killed = hurt(enemy, dmg, kind);
   // Daño REALMENTE hecho (acotado por la vida que le quedaba): el robo de
-  // vida cura sobre el daño efectivo, nunca sobre el sobredaño.
-  const dealt = Math.max(0, hpBefore - (killed ? 0 : (enemy.hp ?? 0)));
+  // vida cura sobre el daño efectivo, nunca sobre el sobredaño. `hpDisplay`
+  // incluye las placas de la geoda: romper blindaje también es daño hecho.
+  const hpAfter = killed ? 0 : (enemy.hpDisplay ?? enemy.hp ?? 0);
+  const dealt = Math.max(0, hpBefore - hpAfter);
   if (killed && executed) procFx(game, 'execute', enemy.x, enemy.y);
   // El robo de vida se aplica UNA vez por golpe/proyectil. En un área (splash
   // de N enemigos) cada blanco aporta su `dealt` y el total se cura una sola

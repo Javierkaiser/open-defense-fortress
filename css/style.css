@@ -3748,6 +3748,20 @@ html, body {
   line-height: 1;
 }
 
+/* Mecánica intrínseca de un tanque (sólo los tipos que la declaran). */
+.bestiary-desc,
+.bestiary-counter {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: 1.35;
+  color: var(--hud-ink-soft, #B8C7C2);
+}
+.bestiary-counter strong {
+  color: var(--hud-teal, #7FE8D0);
+  font-family: var(--font-mono);
+  font-weight: 700;
+}
+
 /* Las stats: HP / velocidad / puntos. */
 .bestiary-stats {
   display: flex;

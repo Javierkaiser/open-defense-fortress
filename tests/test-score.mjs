@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  xpForLevel, multForStreak, baseScoreForEnemy, speedMult,
+  xpForLevel, multForStreak, baseScoreForEnemy, speedMult, scoreWithCarry,
   stageClearBonus, applyXp, xpForKill, xpScaleForStage, levelScaleForStage,
   overflowScore, LEVEL_PRICE_PER_STAGE, OVERFLOW_SCORE_PER_XP,
   MAX_CARDS_PER_STAGE, MAX_LEVEL_PER_STAGE,
@@ -128,6 +128,16 @@ test('baseScoreForEnemy: soporta scoreReward número o función, y ausencia', ()
   assert.equal(baseScoreForEnemy({ scoreReward: () => 25 }), 25);
   assert.equal(baseScoreForEnemy({}), 0);
   assert.equal(baseScoreForEnemy(null), 0);
+});
+
+test('scoreWithCarry: las crías pagan 10 % exacto sin score decimal', () => {
+  const a = scoreWithCarry(0.5);
+  assert.deepEqual(a, { gained: 0, carry: 0.5 });
+  const b = scoreWithCarry(0.5, a.carry);
+  assert.deepEqual(b, { gained: 1, carry: 0 });
+  // Tolera basura y no acumula negativos.
+  assert.deepEqual(scoreWithCarry(Number.NaN, -3), { gained: 0, carry: 0 });
+  assert.deepEqual(scoreWithCarry(2.25, 0.25), { gained: 2, carry: 0.5 });
 });
 
 test('speedMult: solo premia x1.5 y x2, no valores intermedios', () => {

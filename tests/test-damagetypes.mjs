@@ -277,6 +277,18 @@ test('cada enemigo tiene una celda por cada tipo de daño con su multiplicador',
   }
 });
 
+test('el bestiario documenta la mecánica y la contra de los tanques', () => {
+  const html = buildBestiaryHtml(ENEMY_VARIANTS);
+  for (const type of ['boulder', 'blob', 'sporePod', 'geode']) {
+    const d = ENEMY_TYPES[type];
+    assert.ok(d.desc && d.counter, `${type}: falta desc/counter`);
+    assert.ok(html.includes(d.desc), `${type}: el bestiario no muestra su mecánica`);
+    assert.ok(html.includes(d.counter), `${type}: el bestiario no muestra su contra`);
+  }
+  assert.ok(html.includes('bestiary-desc'), 'falta el bloque visual de mecánica');
+  assert.ok(html.includes('bestiary-counter'), 'falta el bloque visual de contra');
+});
+
 test('el bestiario no tiene undefined ni NaN', () => {
   const html = buildBestiaryHtml();
   assert.ok(!html.includes('undefined'), 'el HTML no debe contener "undefined"');

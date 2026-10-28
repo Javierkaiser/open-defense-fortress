@@ -304,9 +304,10 @@ test('FASE 59: las métricas nuevas son coherentes', async () => {
   assert.ok(r.enemies > 0, 'la ola tiene enemigos');
   assert.ok(r.killPct >= 0 && r.killPct <= 1, `killPct fuera de rango: ${r.killPct}`);
   assert.ok(r.leakPct >= 0 && r.leakPct <= 1, `leakPct fuera de rango: ${r.leakPct}`);
-  // Las bajas + las fugas no pueden pasar de la ola (el jefe va aparte).
-  assert.ok(r.waveKills + r.leaks <= r.enemies + 1,
-    `${r.waveKills} bajas + ${r.leaks} fugas > ${r.enemies} enemigos`);
+  // Las bajas + las fugas DE LA OLA no pueden pasar del denominador (el
+  // jefe va aparte y las crías de mecánicas son presión extra).
+  assert.ok(r.waveKills + r.waveLeaks <= r.enemies + 1,
+    `${r.waveKills} bajas + ${r.waveLeaks} fugas de ola > ${r.enemies} enemigos`);
 });
 
 // ============================================================

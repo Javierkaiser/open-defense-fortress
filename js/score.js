@@ -130,6 +130,26 @@ export function baseScoreForEnemy(enemy) {
     : typeof raw === 'number' ? raw : 0;
 }
 
+/**
+ * Reparte un score fraccionario en PUNTOS ENTEROS con carry.
+ *
+ * Las crías de mecánicas pagan el 10 % de un tipo de 5 puntos = 0,5. Sumar
+ * 0,5 al score dejaría un HUD con decimales; redondear a 1 pagaría el 20 %.
+ * El carry acumula la fracción: la primera cría paga 0 y la segunda 1, o
+ * sea el 10 % exacto en agregado y el score sigue siendo entero.
+ *
+ * @param {number} raw score bruto (puede ser fraccionario)
+ * @param {number} [carry] fracción acumulada de bajas anteriores
+ * @returns {{gained:number, carry:number}}
+ */
+export function scoreWithCarry(raw, carry = 0) {
+  const r = Number.isFinite(Number(raw)) ? Math.max(0, Number(raw)) : 0;
+  const c = Number.isFinite(Number(carry)) ? Math.max(0, Number(carry)) : 0;
+  const total = r + c;
+  const gained = Math.floor(total);
+  return { gained, carry: total - gained };
+}
+
 // ------------------------------------------------------------
 // dev-7 fase 59.3 — LA ENERGÍA (XP) ESCALA CON EL STAGE
 // ------------------------------------------------------------
