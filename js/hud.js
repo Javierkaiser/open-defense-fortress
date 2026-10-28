@@ -1751,7 +1751,7 @@ export function buildMenuScreen({ theme = '', quality = '', confirmingReset = fa
       <p class="theme-picker-label">Calidad gráfica (probá "Baja" si el juego anda lento)</p>
       <p class="hint menu-hint">[P] pausa · [1][2][3] velocidad · [Espacio] ultimate · [B] black hole</p>
       ${resetBlock}
-      <p class="version">v1.0.0 · sin anuncios · 100% offline</p>
+      <p class="version">v1.1.0 · sin anuncios · 100% offline</p>
     </section>`;
 }
 

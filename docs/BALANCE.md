@@ -201,7 +201,7 @@ no sólo un multiplicador de daño:
 6. La suite tiene guardas de regresión de HP por etapa, apertura, jefes,
    variantes y supervivencia.
 
-## Estado actual (v1.0.0)
+## Estado actual (v1.1.0)
 
 - Campaña: 50 etapas, win 100 % con la trayectoria real de meta y cartas.
 - S50 sin heat: 100 % / 90 % de HP / 92 % de bajas.

@@ -6,6 +6,8 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-10-28
+
 ### Añadido
 
 - Pantalla **CRÉDITOS Y LICENCIAS** dentro del juego (menú principal → CRÉDITOS,
@@ -22,6 +24,11 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
   `config.yml` con links de seguridad y conducta.
 - `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1) y `THIRD_PARTY_NOTICES.md`.
 - `.editorconfig` y `.gitattributes` (LF en el repo, binarios sin conversión).
+- **Thunderstroke (fase 73)**: alcance global, un rayo principal de 65 y
+  estallido de mini rayos de área (50 % a hasta 3 vecinos en 130 px; los perks
+  `extraCount`/`chainFork` suman mini rayos). El build-up dibuja un enlace
+  suave al blanco con anillo de lock; al disparar, el rayo se intensifica y el
+  anillo de impacto marca el punto.
 
 ### Enemigos por familia
 
@@ -35,7 +42,7 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 - Crías de mecánicas: 10 % de XP/score y sin recursión. El score usa carry
   entero para no mostrar decimales ni pagar de más.
 - Bestiario: descripción y contra de cada tanque.
-- 876 tests (871 pass, 5 skip).
+- 890 tests (885 pass, 5 skip).
 
 ### Android base
 
@@ -44,7 +51,7 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 - Hooks nativos: back button, pausa/audio al background, keep-awake.
 - `js/native.js` puro + tests; sin plugins JS.
 - Safe areas y pulido táctil.
-- 876 tests (871 pass, 5 skip).
+- 890 tests (885 pass, 5 skip).
 
 ### Cambiado
 
@@ -54,6 +61,10 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
   badge de estado ahora es el de CI.
 - `SECURITY.md`: el reporte privado por GitHub Advisories es el canal preferido.
 - El comando de la suite pasa a `node --test "tests/**/*.mjs"`.
+- `Sensores Ampliados` ya no se ofrece solo con Thunderstroke: la torre pasó a
+  alcance global y la carta queda para Beam y Tesla.
+- `MAX_TOWER_REACH` queda como referencia histórica del layout (ya no es el
+  alcance máximo de una torre).
 
 ### Corregido
 
@@ -63,6 +74,10 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
   path se resolvía como directorio. Con el glob explícito corre igual en Linux,
   macOS y Windows. Detectado por la matriz de CI antes de abrir el repo.
 - `package.json`: se agregó el script `npm run check` para los checks estáticos.
+- **Guardian**: colisión barrida (CCD) para que las balas rápidas no se salten
+  esporas entre frames a 30 fps o 2×; separación de la ráfaga paralela 13 → 10 px.
+- **Thunderstroke**: el blanco se refresca durante el build-up; si muere, la
+  carga no se queda apuntando a un cadáver.
 
 ## [1.0.0] — 2026-10-26
 
