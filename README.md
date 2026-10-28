@@ -6,6 +6,7 @@
 [![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-3FD4FF.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-6DA55F.svg)](package.json)
 [![Tests](https://img.shields.io/badge/tests-857-3FD4FF.svg)](tests/)
+
 [Demo web](https://faint-desert-zjv5.here.now/) · [English summary](README.en.md) · [Diseño técnico](docs/DESIGN.md) · [Balance](docs/BALANCE.md) · [Testing](docs/TESTING.md) · [Créditos](docs/CREDITS.md) · [Cómo contribuir](CONTRIBUTING.md) · [Código de conducta](CODE_OF_CONDUCT.md)
 
 ![Menú principal](docs/screenshots/menu.webp)
@@ -66,6 +67,7 @@ La demo se publica sola: cada push a `main` corre el workflow de deploy
 - **Offline real**: fuentes, sprites y SFX locales.
 - **Calidad gráfica Alta/Baja** para equipos modestos.
 - **857 tests** en Node, sin DOM ni canvas.
+
 ## Controles
 
 | Acción | Teclado | Touch |

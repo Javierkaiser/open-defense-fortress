@@ -621,8 +621,6 @@ export class Game {
       },
       // v5 5a/5: volver al menú principal desde PAUSA (data-action="menu")
       menu: () => this.toMenu(),
-      // fase 72: la pantalla de créditos y licencias (atribución CC BY 3.0).
-      credits: () => this.toCredits(),
       // v3.5 meta-game: pantalla TORRETAS desde el menú / nav inferior
       torretas: () => this.toTorretas(),
       // fase 69: pantalla PROTOCOLO (heat) y sus ajustes. El handler recibe

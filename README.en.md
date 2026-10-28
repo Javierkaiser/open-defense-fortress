@@ -18,6 +18,7 @@ and the upgrade cards offered on level-up. Every run is a roguelike.
 - No ads, no purchases, no accounts, no telemetry.
 - Canvas 2D + DOM/CSS + ES modules; no build step, no server, no network calls.
 - 857 Node tests.
+
 ## Run it
 
 ```bash
