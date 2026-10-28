@@ -357,6 +357,13 @@ const TESLA_CHAIN_RADIUS = 170;
 const THUNDER_AREA_MAX = 12;
 
 /**
+ * fase 74.1 — VENTANA del enlace de carga del Thunderstroke: el rayo
+ * suave solo aparece en los últimos 0,5 s antes del disparo, NO durante
+ * todo el cooldown. El orbe del rig sigue creciendo aparte.
+ */
+const THUNDER_LINK_WINDOW = 0.5;
+
+/**
  * dev-7 fase 29 — COLOR DEL PROYECTIL de cada torre: el tiro dice de
  * qué torre salió. Se usa la FIRMA visual de la fase 28 (MUZZLE_ACCENT)
  * cuando existe y, si no, el `accent` canónico de la torre:
@@ -764,6 +771,8 @@ export class MortarShell {
       Array.isArray(this.game.fortress?.enemies) ? this.game.fortress.enemies : [],
       R,
     );
+    // fase 74 — Singularidad: el obús también deja un mini BH.
+    this.game.fortress?.spawnMiniBlackHole?.(this.x, this.y, this.game);
   }
 
   draw(ctx) {
@@ -875,6 +884,8 @@ export class HomingMissile {
         list,
         TOWERS.missile.splashR,
       );
+      // fase 74 — Singularidad: la explosión del misil deja un mini BH.
+      this.game.fortress?.spawnMiniBlackHole?.(mx, my, this.game);
     }
   }
 
@@ -1298,8 +1309,9 @@ export class Drone {
         const stingDmg = Math.round(d.stingDamage * metaMul
           * (waspMods.dmgMul ?? 1) * (this.dmgMul ?? 1));
         const venomDps = Math.round((d.venomDps ?? 0) * metaMul
-          * (waspMods.dmgMul ?? 1) * (this.dmgMul ?? 1));
-        const venomTime = d.venomTime ?? 0;
+          * (waspMods.dmgMul ?? 1) * (this.dmgMul ?? 1)
+          + (waspMods.venomDpsAdd ?? 0));
+        const venomTime = (d.venomTime ?? 0) + (waspMods.venomTimeAdd ?? 0);
         // El cooldown de picadura lo escalan el perk de cadencia del meta
         // (cadMul) y la carta `cadence_up` (this.cadMul, fase 30).
         const stingCd = Math.max(0.2,
@@ -1639,17 +1651,27 @@ export class Drone {
 export const BLACK_HOLE = { duration: 4, dps: 10, pull: 260, radius: 170 };
 
 export class BlackHoleFx {
-  constructor(game, x) {
+  constructor(game, xOrOpts = {}) {
     this.game = game;
-    this.x = x ?? rand(80, CONFIG.CANVAS_W - 80);
-    this.y = 380;                       // centro del vórtice (campo medio)
+    // Compatibilidad: new BlackHoleFx(game, x) (tests/viejo) o
+    // new BlackHoleFx(game, { x, y, duration, radius, dps, pull, ... }).
+    const opts = (xOrOpts && typeof xOrOpts === 'object') ? xOrOpts : { x: xOrOpts };
+    this.x = opts.x ?? rand(80, CONFIG.CANVAS_W - 80);
+    this.y = opts.y ?? 380;              // centro del vórtice (campo medio)
     this.t = 0;
-    this.life = BLACK_HOLE.duration;
+    this.life = opts.duration ?? BLACK_HOLE.duration;
+    this.radius = opts.radius ?? BLACK_HOLE.radius;
+    this.dps = opts.dps ?? BLACK_HOLE.dps;
+    this.pull = opts.pull ?? BLACK_HOLE.pull;
+    this.endBurst = opts.endBurst ?? 0;
+    this.mini = !!opts.mini;
     this.dead = false;
     this._spin = 0;
-    const eng = game?.engine;
-    eng?.emit('blackhole:start', { x: this.x });
-    eng?.sfxSafe?.('blackhole');
+    if (!this.mini) {
+      const eng = game?.engine;
+      eng?.emit('blackhole:start', { x: this.x });
+      eng?.sfxSafe?.('blackhole');
+    }
   }
 
   get active() { return !this.dead && this.t < this.life; }
@@ -1658,26 +1680,37 @@ export class BlackHoleFx {
     if (dt <= 0) return;
     this.t += dt;
     this._spin += dt * 3;
+    const list = this.game?.fortress?.enemies;
     if (this.t >= this.life) {
       this.dead = true;
-      this.game?.engine?.spawnParticles(this.x, this.y, '#B48CFF', 18, {
+      const eng = this.game?.engine;
+      eng?.spawnParticles(this.x, this.y, '#B48CFF', this.mini ? 10 : 18, {
         speedMin: 60, speedMax: 220, lifeMin: 0.3, lifeMax: 0.7,
         sizeMin: 1.5, sizeMax: 4,
       });
+      // fase 74 — Colapso: el vórtice principal explota al cerrarse.
+      if (this.endBurst > 0 && Array.isArray(list)) {
+        for (const e of list) {
+          if (!e || e.dead) continue;
+          if (Math.hypot(e.x - this.x, e.y - this.y) <= this.radius + (e.r ?? 10)) {
+            hurt(e, this.endBurst, 'splash');
+          }
+        }
+        eng?.shake?.(3, 180);
+      }
       return;
     }
     // Succión: arrastra a los enemigos vivos hacia el vórtice
-    const list = this.game?.fortress?.enemies;
     if (Array.isArray(list)) {
       for (const e of list) {
         if (!e || e.dead) continue;
         const d = Math.hypot(e.x - this.x, e.y - this.y);
-        if (d > BLACK_HOLE.radius) continue;
-        const k = Math.min(1, dt * (BLACK_HOLE.pull / Math.max(40, d)));
+        if (d > this.radius) continue;
+        const k = Math.min(1, dt * (this.pull / Math.max(40, d)));
         e.baseX += (this.x - e.x) * k;         // el ancla de deriva sigue al punto
         e.x += (this.x - e.x) * k;
         e.y += (this.y - e.y) * k;
-        hurt(e, BLACK_HOLE.dps * dt, 'blackhole');
+        hurt(e, this.dps * dt, 'blackhole');
       }
     }
   }
@@ -1691,18 +1724,23 @@ export class BlackHoleFx {
     ctx.translate(this.x, this.y);
     ctx.globalAlpha = 0.28 * fade;
     ctx.fillStyle = '#B48CFF';
-    ctx.beginPath(); ctx.arc(0, 0, BLACK_HOLE.radius, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
     // Disco negro + anillo violeta rotante
     ctx.globalAlpha = fade;
     ctx.fillStyle = '#050308';
-    ctx.beginPath(); ctx.arc(0, 0, 34, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, this.radius * 0.2, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = '#B48CFF';
     ctx.shadowColor = '#B48CFF';
     ctx.shadowBlur = 18;
     ctx.lineWidth = 3;
     for (let i = 0; i < 3; i++) {
       ctx.beginPath();
-      ctx.ellipse(0, 0, 44 + i * 14, 12 + i * 5, this._spin + i, 0, Math.PI * 2);
+      ctx.ellipse(
+        0, 0,
+        this.radius * (0.26 + i * 0.082),
+        this.radius * (0.07 + i * 0.03),
+        this._spin + i, 0, Math.PI * 2,
+      );
       ctx.stroke();
     }
     void t;
@@ -1778,7 +1816,7 @@ export class LaserStaticFx {
     this.aim = Number.isFinite(aim) ? aim : 0;
     this.dps = damagePerSec;              // getter de la torre (nivel × cartas × meta)
     this.mods = mods ?? null;             // mods de la torre (perks + cartas)
-    this.life = d.laserDuration ?? 3.2;
+    this.life = (d.laserDuration ?? 3.2) + (mods?.laserDurationAdd ?? 0);
     this.len = laserLengthToEdge(this.x, this.y, this.aim);
     this.color = d.beamColor ?? '#9DFF3C';
     this.core = d.coreColor ?? '#E8FFE8';
@@ -2373,9 +2411,10 @@ export class Tower {
         {
           const tgt = this._beamTarget;
           if (!tgt || tgt.dead) break; // sin blanco vivo → rayo apagado
-          const ramp = clamp(1 + this._beamTime * (d.beamRampPerSec ?? 0.8),
-            1, d.beamRampMax ?? 4.5);
           const bm = unitMods(this); // fase 17: sistemáticos del haz
+          const rampPerSec = (d.beamRampPerSec ?? 0.8) + (bm.beamRampPerSecAdd ?? 0);
+          const ramp = clamp(1 + this._beamTime * rampPerSec,
+            1, d.beamRampMax ?? 4.5);
           const beamHit = (baseDmg) => {
             // crítico propio del perk (critChanceAdd × critDmgMul)
             if ((bm.critChanceAdd ?? 0) > 0 && Math.random() < bm.critChanceAdd) {
@@ -2876,6 +2915,12 @@ export class Tower {
     const tgt = this.targets?.[0];
     const charge = Math.max(0, Math.min(1, this._charge ?? 0));
     if (!tgt || tgt.dead || charge <= 0.01) return;
+    // Solo en el BUILD-UP final: durante el cooldown inicial el enlace no
+    // se dibuja. `cooldownLeft` se resetea al disparar, así que en el frame
+    // del disparo desaparece y lo reemplaza el rayo principal de BoltFx.
+    const left = Number.isFinite(this.cooldownLeft) ? this.cooldownLeft : THUNDER_LINK_WINDOW;
+    if (left > THUNDER_LINK_WINDOW) return;
+    const build = Math.max(0, Math.min(1, 1 - left / THUNDER_LINK_WINDOW));
 
     const tx = tgt.x - this.x;
     const ty = tgt.y - this.y;
@@ -2887,7 +2932,7 @@ export class Tower {
     const t = this.game?.engine?._t ?? 0;
     const color = MUZZLE_ACCENT[this.data.kind] ?? this.data.accent;
     const core = this.data.coreColor ?? '#FFFFFF';
-    const wobble = 2.5 + 4.5 * charge;
+    const wobble = 2.5 + 4.5 * build;
     const steps = 7;
     const path = (c) => {
       c.beginPath();
@@ -2909,25 +2954,25 @@ export class Tower {
     // Halo suave.
     ctx.strokeStyle = color;
     ctx.shadowColor = color;
-    ctx.shadowBlur = 8 + 10 * charge;
-    ctx.globalAlpha = 0.05 + 0.20 * charge;
-    ctx.lineWidth = 1.4 + 2.2 * charge;
+    ctx.shadowBlur = 8 + 10 * build;
+    ctx.globalAlpha = 0.05 + 0.20 * build;
+    ctx.lineWidth = 1.4 + 2.2 * build;
     path(ctx);
     ctx.stroke();
     // Núcleo casi blanco, más fino.
     ctx.shadowBlur = 0;
     ctx.strokeStyle = core;
-    ctx.globalAlpha = 0.04 + 0.16 * charge;
-    ctx.lineWidth = 0.6 + 0.8 * charge;
+    ctx.globalAlpha = 0.04 + 0.16 * build;
+    ctx.lineWidth = 0.6 + 0.8 * build;
     path(ctx);
     ctx.stroke();
     // Anillo de LOCK: se cierra sobre el enemigo a medida que la carga
     // llega a 1 (radio target.r + 8 al final).
-    const ringR = (tgt.r ?? 10) + 8 + (1 - charge) * 14 + Math.sin(t * 6) * 1.5;
+    const ringR = (tgt.r ?? 10) + 8 + (1 - build) * 14 + Math.sin(t * 6) * 1.5;
     ctx.strokeStyle = color;
     ctx.shadowColor = color;
     ctx.shadowBlur = 6;
-    ctx.globalAlpha = 0.06 + 0.22 * charge;
+    ctx.globalAlpha = 0.06 + 0.22 * build;
     ctx.lineWidth = 1.1;
     ctx.beginPath();
     ctx.arc(tx, ty, ringR, 0, Math.PI * 2);

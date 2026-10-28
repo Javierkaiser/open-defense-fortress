@@ -148,8 +148,11 @@ no sólo un multiplicador de daño:
   perks `extraCount`/`chainFork` suman mini rayos, no rayos principales. DPS
   nominal ≈40,6 a un blanco y ≈102 contra un principal + 3 vecinos. Se
   diferencia de la Tesla, que encadena saltos con falloff.
-- **48 cartas** con topes por carta y por run; las mejoras ofrecidas se
-  relacionan con las unidades presentes.
+- **70 cartas** con topes por carta y por run; las mejoras ofrecidas se
+  relacionan con las unidades y tags presentes. Incluyen daño global (+10% ×2),
+  daño por tipo (+20% ×2), mecánicas por torre y combos con prerrequisitos
+  (Missile/Mortar para Balas Detonantes, Thunderstroke+Tesla, Beam+Láser,
+  Black Hole + explosivos).
 - **Meta**: 100 niveles; fragmentos por victoria (60, ×2 la primera vez),
   `fragCost(nivel) = 75 + 35·década`; el daño meta por nivel es +18 % (no +5 %).
   La trayectoria real llega a meta ~44 en S50.
@@ -201,10 +204,10 @@ no sólo un multiplicador de daño:
 6. La suite tiene guardas de regresión de HP por etapa, apertura, jefes,
    variantes y supervivencia.
 
-## Estado actual (v1.1.0)
+## Estado actual (v1.2.0)
 
 - Campaña: 50 etapas, win 100 % con la trayectoria real de meta y cartas.
-- S50 sin heat: 100 % / 90 % de HP / 92 % de bajas.
+- S50 sin heat: 100 % / 92 % de HP / 99 % de bajas.
 - Heat: la escalera 5→35 cae de 90 % a 30 % en S50.
 - ∞: la pared empieza alrededor de 60–70; el win cae con la profundidad.
 - Supervivencia: ~84 oleadas planas en el simulador; el número absoluto no es

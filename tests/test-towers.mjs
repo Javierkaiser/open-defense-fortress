@@ -1662,20 +1662,21 @@ test('fase 51: la carta de aturdimiento hace que el MISIL aturda', () => {
   assert.equal(misil2.stunChance, 0.2, 'con la carta el misil aturde un 20 %');
 });
 
-test('fase 51: la carta explosiva hace que la bala DETONE al matar', () => {
+test('fase 74: la carta explosiva hace que la bala DETONE al impactar', () => {
   const g = mkGameE48([mkE48(270, 700)]);
   const t = new Tower('guardian', 270, 1);
   t.game = g;
   t.fire(g.fortress.enemies, g, 0.016);
   const bala = g.engine.entities.find((e) => e.constructor?.name === 'Bullet');
-  assert.equal(bala.explodeOnKillChance, 0, 'sin carta la bala no detona');
+  assert.equal(bala.impactExplodeChance, 0, 'sin carta la bala no detona');
   aplicarCartaATorre(t, 'tech_explode');
   const g2 = mkGameE48([mkE48(270, 700)]);
   t.game = g2;
   t.fire(g2.fortress.enemies, g2, 0.016);
   const bala2 = g2.engine.entities.find((e) => e.constructor?.name === 'Bullet');
-  assert.equal(bala2.explodeOnKillChance, 0.3, 'con la carta la bala detona un 30 %');
-  assert.equal(bala2.explodeOnKillDmg, 30, 'y hace 30 de daño en la explosión');
+  assert.equal(bala2.impactExplodeChance, 1, 'con la carta la bala detona al impactar');
+  assert.equal(bala2.impactExplodeFrac, 0.4, 'y hace el 40 % del daño');
+  assert.equal(bala2.impactExplodeRadius, 70, 'en un radio de 70');
 });
 
 // ============================================================
@@ -1842,20 +1843,28 @@ test('fase 73: el blanco principal NO recibe también el daño de área', () => 
   assert.ok(vecino.hp < 1000, 'el vecino sí recibe el estallido');
 });
 
-test('fase 73: el Thunderstroke marca el blanco durante el build-up', () => {
+test('fase 73/74: el Thunderstroke marca el blanco solo en el build-up final', () => {
   const enemigo = mkAlvo(270, 200);
   const { t, juego } = mkTowerF66('thunderstroke', [enemigo]);
   t.cooldownLeft = 1.2;
   t.update(1 / 60, [enemigo], juego);
   assert.equal(t.targets[0], enemigo, 'adquiere el blanco durante la carga');
   assert.ok(t._charge > 0, 'la carga avanza');
+  // Cooldown inicial: NO se dibuja el enlace aunque `_charge` sea alto.
   t._charge = 0.9;
+  t.cooldownLeft = 1.2;
+  const cooldown = recCtx();
+  t.render(cooldown);
+  assert.equal(cooldown.arcs.some((a) => Math.abs(a.y + 630) < 3), false,
+    'durante el cooldown no hay enlace');
+  // Últimos 0,5 s: build-up, sí hay enlace y anillo de lock.
+  t.cooldownLeft = 0.1;
   const ctx = recCtx();
   t.render(ctx);
   const lock = ctx.arcs.find((a) => Math.abs(a.y + 630) < 3 && a.r > enemigo.r);
   assert.ok(lock, 'dibuja el anillo de lock sobre el blanco');
-  assert.ok(lock.alpha > 0.1, `el anillo se ve con carga alta (alpha ${lock.alpha})`);
-  // Sin carga no hay anillo de lock (la torre sigue dibujándose normal).
+  assert.ok(lock.alpha > 0.1, `el anillo se ve en el build-up (alpha ${lock.alpha})`);
+  // Sin carga no hay anillo (la torre sigue dibujándose normal).
   t._charge = 0;
   const sin = recCtx();
   t.render(sin);

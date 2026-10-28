@@ -8,9 +8,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   CATALOG, CAPS, CARD_OFFER_COUNT, isCardEligible, isRelevant, rollOffer,
-  applyCard, findTower, findDrone, dmgSynergyText, unlockWeightMul,
+  applyCard, findTower, findDrone, findUnit, dmgSynergyText, unlockWeightMul,
 } from '../js/cards.js';
-import { unitMods } from '../js/towers.js';
+import { unitMods, DRONES } from '../js/towers.js';
 
 // dev-7 fase 49: la matriz de tipos (la sinonergia se calcula con ella).
 import {
@@ -56,13 +56,15 @@ function rngFactory(seed = 42) {
 }
 
 /**
- * Las 32 cartas REPETIBLES del catálogo (las que se pueden volver a
- * ofrecer): todas tienen que tener tope en CAPS (la tabla anti-stack
- * infinito). Las 12 restantes son de un solo uso (desbloqueos + Black
- * Hole) o están limitadas por su propio estado (Abanico Ampliado → Lv.5).
+ * Las cartas REPETIBLES del catálogo (las que se pueden volver a ofrecer):
+ * todas tienen que tener tope en CAPS (la tabla anti-stack infinito).
+ * Las de un solo uso (desbloqueos + Black Hole) o limitadas por estado
+ * (Cañón de Ráfaga → Lv.5) quedan afuera.
  */
 const REPEATABLE_CARDS = [
   'dmg_all', 'dmg_guard',
+  'dmg_type_ballistic', 'dmg_type_light', 'dmg_type_blast',
+  'dmg_type_electric', 'dmg_type_drone',
   'dmg_missile', 'dmg_beam', 'dmg_thunder', 'dmg_tesla', 'dmg_mortar', 'dmg_gauss',
   'dmg_laser', 'dmg_firewheel', 'dmg_wasps', 'dmg_forcefield',
   'cadence_up', 'rapid_bullets', 'detect_up', 'pierce_up',
@@ -70,12 +72,18 @@ const REPEATABLE_CARDS = [
   'repair_500', 'armor_plate',
   // dev-7 fase 30: "Nido Ampliado" (+1 avispa del Dron Avispas).
   'swarm_grow',
-  // dev-7 fase 51: las 8 CARTAS DE TÉCNICA (mecánicas: rebote,
-  // perforación, explosión, slow, crítico, robo de vida, aturdir, remate).
+  // dev-7 fase 51: las CARTAS DE TÉCNICA.
   'tech_pierce', 'tech_bounce', 'tech_explode', 'tech_slow',
   'tech_crit', 'tech_lifesteal', 'tech_stun_missile', 'tech_exec_missile',
-  // dev-7 fase 50: las 4 cartas de CAZA DE FAMILIA (multiplicador extra
-  // contra roca/cristal/espora/virus; tope 1).
+  // fase 74: técnicas para el resto del arsenal.
+  'tech_missile_salvo', 'tech_tesla_jump', 'tech_thunder_area',
+  'tech_thunder_stun', 'tech_mortar_radius', 'tech_gauss_crit',
+  'tech_laser_split', 'tech_beam_focus', 'tech_firewheel_radius',
+  'tech_wasps_venom', 'tech_forcefield_radius', 'tech_forcefield_regen',
+  // fase 74: combos y Black Hole (tope 1).
+  'combo_singularity', 'combo_chain_reactor', 'combo_light_prism',
+  'bh_horizon', 'bh_collapse',
+  // dev-7 fase 50: las 4 cartas de CAZA DE FAMILIA.
   'hunt_rock', 'hunt_crystal', 'hunt_spore', 'hunt_virus',
 ];
 
@@ -100,37 +108,9 @@ function agotarPool(game) {
     f.addTower(t);
   }
   f.addDrone('firewheel');
-  f.addDrone('wasps');
   f.blackHoleUnlocked = true;
   f.blackHoleCharge = 1;
-  for (const t of f.slots.filter(Boolean)) {
-    t.dmgAllApps = 2; t.guardDmgApps = 2; t.exclusiveDmgApps = 2;
-    t.cadApps = 3; t.rapidApps = 2; t.level = 5;
-    // dev-7 fase 51: las CARTAS DE TÉCNICA (mecánicas) también tienen
-    // tope ×2 y su contador vive en la UNIDAD (`cardApps`): sin
-    // agotarlas el pool elegible no quedaría vacío.
-    t.cardApps = t.cardApps ?? {};
-    // dev-7 fase 50: las cartas de CAZA también tienen tope (1) y su
-  // contador vive en la unidad: hay que agotarlas para vaciar el pool.
-  for (const id of ['hunt_rock', 'hunt_crystal', 'hunt_spore', 'hunt_virus']) {
-    for (const t of f.slots.filter(Boolean)) t.cardApps[id] = 1;
-    for (const d of f.drones ?? []) d.cardApps[id] = 1;
-  }
-  for (const id of ['tech_pierce', 'tech_bounce', 'tech_explode', 'tech_slow',
-      'tech_crit', 'tech_lifesteal', 'tech_stun_missile', 'tech_exec_missile']) {
-      t.cardApps[id] = 2;
-    }
-  }
-  for (const d of f.drones) {
-    d.exclusiveDmgApps = 2;
-    // dev-7 fase 30: "Nido Ampliado" (swarm_grow) y el tope de cadencia
-    // también viven en el dron: hay que agotarlos para vaciar el pool.
-    d.swarmApps = 2;
-    d.cadApps = 3;
-  }
-  f.detectApps = 2; f.xpBoostApps = 2; f.scoreGainApps = 2; f.streakShieldApps = 2;
-  f.orbitalPowerApps = 2; f.repairApps = 3; f.armorApps = 1;
-  f.pierce = 3; f.pierceApps = 3; f.ultChargeApps = 1;
+  toparTodo(f);
   return game;
 }
 
@@ -146,13 +126,10 @@ test('CATALOG: toda carta tiene apply() y weight > 0', () => {
   }
 });
 
-test('CATALOG: 48 cartas (36 repetibles + 12 de un solo uso)', () => {
-  // dev-7 fase 30: +1 carta ("Nido Ampliado", +1 avispa del Dron Avispas).
-  // dev-7 fase 51: +8 cartas (las CARTAS DE TÉCNICA: mecánicas).
-  // dev-7 fase 50: +4 cartas (la CAZA DE FAMILIA: multiplicador extra
-  // contra una familia concreta de enemigo).
-  assert.equal(CATALOG.length, 48);
-  assert.equal(REPEATABLE_CARDS.length, 36);
+test('CATALOG: 70 cartas (58 repetibles + 12 de un solo uso)', () => {
+  // fase 74: +22 cartas (5 de tipo + 12 técnicas + 3 combos + 2 Black Hole).
+  assert.equal(CATALOG.length, 70);
+  assert.equal(REPEATABLE_CARDS.length, 58);
 });
 
 test('CAPS: TODA carta repetible del catálogo tiene tope (anti-stack infinito)', () => {
@@ -582,9 +559,8 @@ test('exclusivas: las 10 cartas de daño siguen el mismo patrón (peso 9, tope 2
 // ============================================================
 
 test('fase 30: "Munición Reforzada" (dmg_all) alcanza también a los drones', () => {
-  // Antes recorría sólo `fortress.slots`: la carta más valiosa del
-  // catálogo ("+30 % a TODAS las torres") no llegaba a las 3 unidades
-  // del arsenal extendido, que son torres en el meta.
+  // fase 74: +10% por stack (antes +30%); la carta sigue llegando a
+  // TODAS las unidades presentes.
   const game = makeRealGame();
   game.fortress.addTower('guardian');
   game.fortress.addDrone('firewheel');
@@ -593,10 +569,24 @@ test('fase 30: "Munición Reforzada" (dmg_all) alcanza también a los drones', (
   const dron = game.fortress.drones[0];
   const antes = dron.dmgMul ?? 1;
   applyCard(card, game);
-  assert.ok(Math.abs((dron.dmgMul ?? 1) / antes - 1.3) < 1e-9,
-    `el dron debe recibir el ×1.3 (${antes} → ${dron.dmgMul})`);
+  assert.ok(Math.abs((dron.dmgMul ?? 1) / antes - 1.1) < 1e-9,
+    `el dron debe recibir el ×1.1 (${antes} → ${dron.dmgMul})`);
   const torre = game.fortress.slots.find(Boolean);
-  assert.ok(Math.abs((torre.dmgMul ?? 1) - 1.3) < 1e-9, 'la torre también');
+  assert.ok(Math.abs((torre.dmgMul ?? 1) - 1.1) < 1e-9, 'la torre también');
+});
+
+test('fase 74: dmg_all alcanza a una torre desbloqueada DESPUÉS', () => {
+  const game = makeRealGame();
+  game.fortress.addTower('guardian');
+  const card = CATALOG.find((c) => c.id === 'dmg_all');
+  applyCard(card, game);
+  game.fortress.addTower('missile');
+  const ms = findTower(game, 'missile');
+  assert.ok(Math.abs((ms.dmgMul ?? 1) - 1.1) < 1e-9,
+    `la torre tardía debe heredar el stack (dmgMul=${ms.dmgMul})`);
+  applyCard(card, game); // 2º stack: 1.1 × 1.1 = 1.21
+  assert.ok(Math.abs((ms.dmgMul ?? 1) - 1.21) < 1e-9,
+    `el 2º stack debe componer ×1.21 (dmgMul=${ms.dmgMul})`);
 });
 
 test('fase 30: "Servos Acelerados" (cadence_up) reduce el cooldown de picadura del Avispas', () => {
@@ -637,19 +627,32 @@ test('fase 30: "Nido Ampliado" (swarm_grow) añade avispas al enjambre y sale de
 // pero en una partida): el canal cartas → unidad → combate.
 // =====================================================================
 
-/** Las 8 cartas de técnica: la unidad que necesitan y el mod que dan. */
+/** Las cartas de técnica: la unidad que necesitan y el mod que dan. */
 const TECH = [
   { id: 'tech_pierce', unit: 'guardian', key: 'pierceCount', valor: 1 },
   { id: 'tech_bounce', unit: 'guardian', key: 'bounceCount', valor: 1 },
-  { id: 'tech_explode', unit: 'guardian', key: 'explodeOnKillChance', valor: 0.3 },
+  { id: 'tech_explode', unit: 'guardian', key: 'impactExplodeChance', valor: 1 },
   { id: 'tech_slow', unit: 'guardian', key: 'slowOnHit', valor: 0.2 },
   { id: 'tech_crit', unit: 'guardian', key: 'critChanceAdd', valor: 0.2 },
   { id: 'tech_lifesteal', unit: 'guardian', key: 'lifesteal', valor: 0.01 },
   { id: 'tech_stun_missile', unit: 'missile', key: 'stunChance', valor: 0.2 },
   { id: 'tech_exec_missile', unit: 'missile', key: 'executeThreshold', valor: 0.12 },
+  // fase 74: técnicas del resto del arsenal.
+  { id: 'tech_missile_salvo', unit: 'missile', key: 'extraCount', valor: 1 },
+  { id: 'tech_tesla_jump', unit: 'tesla', key: 'extraCount', valor: 1 },
+  { id: 'tech_thunder_area', unit: 'thunderstroke', key: 'extraCount', valor: 1 },
+  { id: 'tech_thunder_stun', unit: 'thunderstroke', key: 'stunChance', valor: 0.15 },
+  { id: 'tech_mortar_radius', unit: 'mortar', key: 'areaMul', valor: 1.2 },
+  { id: 'tech_gauss_crit', unit: 'gauss', key: 'critChanceAdd', valor: 0.2 },
+  { id: 'tech_laser_split', unit: 'laser', key: 'extraCount', valor: 1 },
+  { id: 'tech_beam_focus', unit: 'beam', key: 'beamRampPerSecAdd', valor: 0.4 },
+  { id: 'tech_firewheel_radius', unit: 'firewheel', key: 'radiusAdd', valor: 8 },
+  { id: 'tech_wasps_venom', unit: 'wasps', key: 'venomDpsAdd', valor: 1 },
+  { id: 'tech_forcefield_radius', unit: 'forcefield', key: 'radiusAdd', valor: 20 },
+  { id: 'tech_forcefield_regen', unit: 'forcefield', key: 'bubbleRegen', valor: 1.5 },
 ];
 
-test('fase 51: las 8 cartas de técnica existen, con tope ×2 y peso > 0', () => {
+test('fase 51/74: las cartas de técnica existen, con tope ×2 y peso > 0', () => {
   for (const t of TECH) {
     const card = CATALOG.find((c) => c.id === t.id);
     assert.ok(card, `falta la carta ${t.id}`);
@@ -732,19 +735,28 @@ test('fase 51: unitMods FUSIONa los perks de meta con los mods de la carta', () 
   }
 });
 
-test('fase 51: cada carta de técnica da SU mod a SU unidad (y sólo a esa)', () => {
+test('fase 51/74: cada carta de técnica da SU mod a SU unidad (y sólo a esa)', () => {
   for (const t of TECH) {
     const game = makeRealGame({ stageId: 2 });
     game.fortress.addTower('guardian');
     game.fortress.addTower('missile');
+    if (DRONES[t.unit]) game.fortress.addDrone(t.unit);
+    else if (t.unit !== 'guardian' && t.unit !== 'missile') game.fortress.addTower(t.unit);
     const card = CATALOG.find((c) => c.id === t.id);
     applyCard(card, game);
-    const suyo = findTower(game, t.unit);
-    const otro = findTower(game, t.unit === 'guardian' ? 'missile' : 'guardian');
+    const suyo = findUnit(game, t.unit);
+    assert.ok(suyo, `${t.id}: falta la unidad ${t.unit}`);
     assert.equal(suyo.cardMods[t.key], t.valor,
       `${t.id} debería dar ${t.key}=${t.valor} a ${t.unit}`);
-    assert.equal(otro.cardMods?.[t.key], undefined,
-      `${t.id} NO debe tocar la otra torre`);
+    // Ninguna OTRA unidad puede haber recibido el mismo mod.
+    const otras = [
+      ...game.fortress.slots.filter((u) => u && u !== suyo),
+      ...(game.fortress.drones ?? []).filter((u) => u && u !== suyo),
+    ];
+    for (const otro of otras) {
+      assert.equal(otro.cardMods?.[t.key], undefined,
+        `${t.id} NO debe tocar a ${otro.type}`);
+    }
   }
 });
 
@@ -775,19 +787,20 @@ test('fase 49: la sinonergia marca la FORTALEZA con ▲ y la DEBILIDAD con ▼',
   assert.ok(texto.includes('▼cristal ×0,8'), `el cristal es la debilidad del balístico: ${texto}`);
 });
 
-test('fase 49: los 36 nombres del catálogo son DISTINTOS (las gemelas se distinguen)', () => {
+test('fase 49: los 70 nombres del catálogo son DISTINTOS (las gemelas se distinguen)', () => {
   const nombres = CATALOG.map((c) => c.name);
   const repetidos = nombres.filter((n, i) => nombres.indexOf(n) !== i);
   assert.deepEqual(repetidos, [], `nombres repetidos: ${repetidos.join(' | ')}`);
 });
 
-test('fase 49: solo las cartas que suben el daño declaran un tipo', () => {
+test('fase 49/74: solo las cartas que suben el daño declaran un tipo', () => {
   const conTipo = CATALOG.filter((c) => c.dmgType);
   for (const c of conTipo) {
     assert.ok(DAMAGE_TYPES[c.dmgType], `${c.id}: tipo desconocido ${c.dmgType}`);
   }
-  // Las 11 exclusivas + el Cañón de Ráfaga (Guardian) + el orbital.
-  assert.equal(conTipo.length, 13,
+  // Las 11 exclusivas + el Cañón de Ráfaga (Guardian) + el orbital + las
+  // 5 cartas de daño por tipo (fase 74).
+  assert.equal(conTipo.length, 18,
     `cartas con tipo: ${conTipo.map((c) => c.id).join(', ')}`);
 });
 
@@ -931,6 +944,11 @@ test('fase 61: el cupo de drones es 1, y los 3 siguen siendo alcanzables', () =>
 
 /** Deja TODAS las repetibles del catálogo en su tope (pool elegible vacío). */
 function toparTodo(f) {
+  f.dmgAllStacks = CAPS.dmg_all;
+  f.cadAllStacks = CAPS.cadence_up;
+  f.typeStacks = { ballistic: 2, light: 2, blast: 2, electric: 2, drone: 2 };
+  f.huntStacks = { rock: 1, crystal: 1, spore: 1, virus: 1 };
+  f.blackHoleMods = { durationAdd: 1.5, radiusMul: 1.2, endBurst: 150, singularity: 1 };
   for (const t of f.slots.filter(Boolean)) {
     t.dmgAllApps = CAPS.dmg_all;
     t.guardDmgApps = CAPS.dmg_guard;

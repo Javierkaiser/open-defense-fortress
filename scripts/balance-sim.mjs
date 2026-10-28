@@ -407,6 +407,8 @@ const CARD_BY_ID = new Map(CATALOG.map((c) => [c.id, c]));
  */
 export const CEILING_CARD_IDS = [
   'dmg_all',        // todas las torres
+  'dmg_type_ballistic', 'dmg_type_light', 'dmg_type_blast',
+  'dmg_type_electric', 'dmg_type_drone',
   'cadence_up',     // todas las torres
   'dmg_guard',      // solo Guardian
   'rapid_bullets',  // solo Guardian
@@ -576,10 +578,14 @@ function pickCard(offer, lv, mode, game, rng = Math.random) {
 const DAMAGE_CARDS = new Set([
   'dmg_all', 'dmg_guard', 'dmg_missile', 'dmg_beam', 'dmg_thunder', 'dmg_tesla',
   'dmg_mortar', 'dmg_gauss', 'dmg_laser', 'dmg_firewheel', 'dmg_wasps', 'dmg_forcefield',
+  'dmg_type_ballistic', 'dmg_type_light', 'dmg_type_blast',
+  'dmg_type_electric', 'dmg_type_drone',
   'cadence_up', 'rapid_bullets', 'bullets_5',
   'hunt_rock', 'hunt_crystal', 'hunt_spore', 'hunt_virus',
   'tech_crit', 'tech_exec_missile', 'tech_explode', 'tech_pierce', 'tech_bounce',
   'tech_stun_missile', 'tech_lifesteal',
+  'combo_chain_reactor', 'combo_light_prism', 'combo_singularity',
+  'bh_horizon', 'bh_collapse',
   'ult_power', 'black_hole',
 ]);
 
@@ -593,7 +599,7 @@ const DAMAGE_CARDS = new Set([
 export function cardDpsScore(card) {
   if (!card) return -1;
   if (card.tower || card.drone) return 950;   // una torre/dron nueva
-  if (card.id === 'dmg_all') return 900;       // ×1,3 a TODO
+  if (card.id === 'dmg_all') return 900;       // ×1,1 por stack a TODO
   if (DAMAGE_CARDS.has(card.id)) return 800;
   if (String(card.id).startsWith('tech_')) return 600;
   if (String(card.id).startsWith('hunt_')) return 750;

@@ -12,7 +12,7 @@
 // ============================================================
 
 import { CONFIG, SCENE, clamp, rand, TOWER_BAY } from './engine.js';
-import { Tower, TOWERS, Drone, MAX_DRONES, DRONES, BlackHoleFx } from './towers.js';
+import { Tower, TOWERS, Drone, MAX_DRONES, DRONES, BlackHoleFx, BLACK_HOLE } from './towers.js';
 // fase 60: la caja del ENCAJE de los slots vacíos sale del pad de las
 // torres (misma geometría para vacío y ocupado).
 import { TOWER_PAD, TOWER_VISUAL_SCALE } from './tower-art.js';
@@ -204,6 +204,17 @@ export class Fortress {
     this.blackHoleUnlocked = false;
     this.blackHoleCharge = 0;
     this.bhReady = false;     // medidor lleno → botón [B] habilitado
+    // fase 74: mods de las cartas de Black Hole (por instancia, no se
+    // muta la constante BLACK_HOLE compartida).
+    this.blackHoleMods = { durationAdd: 0, radiusMul: 1, endBurst: 0, singularity: 0 };
+    this._miniBhCd = 0;
+    // fase 74: stacks GLOBALES de cartas (dmg_all/cadence_up/tipo/caza).
+    // Se guardan acá para que las unidades desbloqueadas DESPUÉS hereden
+    // el buff (antes solo se aplicaba a las unidades presentes).
+    this.dmgAllStacks = 0;
+    this.cadAllStacks = 0;
+    this.typeStacks = {};
+    this.huntStacks = {};
     // Contadores de aplicaciones para caps de cartas repetibles:
     this.detectApps = 0;
     this.xpBoostApps = 0;
@@ -249,7 +260,40 @@ export class Fortress {
     const t = new Tower(type, this._slotX(target), 1, this._slotY(target));
     t.slotIndex = target;
     this.slots[target] = t;
+    this.applyGlobalCardMods(t);
     return t;
+  }
+
+  /**
+   * fase 74 — Aplica a una unidad RECIÉN creada los stacks globales de
+   * cartas elegidos antes de su desbloqueo. Sin esto, `dmg_all`,
+   * `cadence_up`, las cartas de tipo y `hunt_*` no llegaban a las torres
+   * que entraban después.
+   */
+  applyGlobalCardMods(unit) {
+    if (!unit) return unit;
+    const dmgStacks = this.dmgAllStacks ?? 0;
+    if (dmgStacks > 0) {
+      unit.dmgMul = (unit.dmgMul ?? 1) * Math.pow(1.1, dmgStacks);
+      unit.dmgAllApps = Math.max(unit.dmgAllApps ?? 0, dmgStacks);
+    }
+    const cadStacks = this.cadAllStacks ?? 0;
+    if (cadStacks > 0) {
+      unit.cadMul = (unit.cadMul ?? 1) * Math.pow(0.9, cadStacks);
+      unit.cadApps = Math.max(unit.cadApps ?? 0, cadStacks);
+    }
+    const type = unit?.data?.dmgType
+      ?? TOWERS[unit?.type]?.dmgType
+      ?? DRONES[unit?.type]?.dmgType;
+    const typeStacks = this.typeStacks?.[type] ?? 0;
+    if (typeStacks > 0) unit.dmgMul = (unit.dmgMul ?? 1) * Math.pow(1.2, typeStacks);
+    for (const [family, stacks] of Object.entries(this.huntStacks ?? {})) {
+      if (!stacks) continue;
+      const key = `fam${family[0].toUpperCase()}${family.slice(1)}Mul`;
+      unit.cardMods ??= {};
+      unit.cardMods[key] = (unit.cardMods[key] ?? 1) * Math.pow(1.8, stacks);
+    }
+    return unit;
   }
 
   /**
@@ -332,6 +376,7 @@ export class Fortress {
     if (!DRONES[type] || this.drones.length >= MAX_DRONES) return null;
     const d = new Drone(type, game, this.drones.length);
     this.drones.push(d);
+    this.applyGlobalCardMods(d);
     return d;
   }
 
@@ -345,10 +390,33 @@ export class Fortress {
     if (!this.canFireBlackHole() || !game?.engine) return false;
     this.blackHoleCharge = 0;
     this.bhReady = false;
-    const fx = new BlackHoleFx(game); // X aleatoria §2.3
+    const mods = this.blackHoleMods ?? {};
+    const fx = new BlackHoleFx(game, { // X aleatoria §2.3
+      duration: BLACK_HOLE.duration + (mods.durationAdd ?? 0),
+      radius: BLACK_HOLE.radius * (mods.radiusMul ?? 1),
+      endBurst: mods.endBurst ?? 0,
+    });
     game.engine.addEntity(fx);
     game.engine.emit('blackhole:fired', { ready: false });
     return true;
+  }
+
+  /**
+   * fase 74 — Mini agujero negro de la carta Singularidad. Se dispara
+   * desde las explosiones de Missile/Mortar/Balas Detonantes. Tiene un
+   * cooldown interno para que una salva de 3 misiles no llene la pantalla.
+   */
+  spawnMiniBlackHole(x, y, game = this.game) {
+    if (!this.blackHoleUnlocked) return null;
+    if (!(this.blackHoleMods?.singularity > 0)) return null;
+    if ((this._miniBhCd ?? 0) > 0) return null;
+    if (!game?.engine) return null;
+    this._miniBhCd = 2;
+    const fx = new BlackHoleFx(game, {
+      x, y, duration: 1.2, radius: 80, dps: 15, pull: 120, mini: true,
+    });
+    game.engine.addEntity(fx);
+    return fx;
   }
 
   /** ¿El medidor está lleno y disponible? (HUD muestra LISTO) — dev-7
@@ -378,7 +446,7 @@ export class Fortress {
 
   _blackHoleActive() {
     return !!this.game?.engine?.entities?.some(
-      (e) => e instanceof BlackHoleFx && !e.dead,
+      (e) => e instanceof BlackHoleFx && !e.dead && !e.mini,
     );
   }
 
@@ -555,6 +623,7 @@ export class Fortress {
     if (dt > 0) {
       if (this.invuln > 0) this.invuln -= dt;
       if (this.flash > 0) this.flash = Math.max(0, this.flash - dt * 2.5);
+      if (this._miniBhCd > 0) this._miniBhCd = Math.max(0, this._miniBhCd - dt);
       this._updateOrbital(dt, enemies);
     }
     for (const t of this.slots) {

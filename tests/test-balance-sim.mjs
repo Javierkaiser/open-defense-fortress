@@ -87,8 +87,9 @@ test('TECHO: usa los multiplicadores VIGENTES de cards.js (no los obsoletos)', (
   applyCeilingCards(game);
   const gw = game.fortress.slots.find((t) => t?.type === 'guardian');
   assert.ok(gw, 'el Guardian de arranque no está');
-  // dmg_all ×2 (cards.js: ×1.3 por stack) + dmg_guard ×2 (×1.6 por stack).
-  assert.ok(Math.abs(gw.dmgMul - 1.3 ** 2 * 1.6 ** 2) < 1e-9, `dmgMul=${gw.dmgMul}`);
+  // dmg_all ×2 (×1.1 por stack) + dmg_type_ballistic ×2 (×1.2) +
+  // dmg_guard ×2 (×1.6).
+  assert.ok(Math.abs(gw.dmgMul - 1.1 ** 2 * 1.2 ** 2 * 1.6 ** 2) < 1e-9, `dmgMul=${gw.dmgMul}`);
   // cadence_up ×3 (cards.js: ×0.9 por stack) — NO el ×0.85 obsoleto.
   assert.ok(Math.abs(gw.cadMul - 0.9 ** 3) < 1e-9, `cadMul=${gw.cadMul}`);
   // rapid_bullets ×2 (×1.25 por stack).

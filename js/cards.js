@@ -67,6 +67,14 @@ function offerCountFor(game) {
 // dev-7 fase 30: swarm_grow 2 (+1 avispa del Dron Avispas).
 export const CAPS = {
   dmg_all: 2,        // Munición Reforzada ×2 como máximo
+  // fase 74: cartas de DAÑO POR TIPO (afectan a todas las unidades de
+  // ese tipo, presentes y futuras). Son más angostas que dmg_all y más
+  // fuertes por stack (+20% vs +10%).
+  dmg_type_ballistic: 2,
+  dmg_type_light: 2,
+  dmg_type_blast: 2,
+  dmg_type_electric: 2,
+  dmg_type_drone: 2,
   dmg_guard: 2,      // Cañones Potenciados ×2
   // dev-7 fase 12: cartas exclusivas por torre (una por cada torre
   // además de Guardian) — mismo tope ×2 que dmg_guard, mismo patrón.
@@ -127,6 +135,26 @@ export const CAPS = {
   tech_lifesteal: 2,
   tech_stun_missile: 2,
   tech_exec_missile: 2,
+  // fase 74: técnicas para el resto del arsenal (mecánicas que el motor
+  // ya lee o que se agregan en esta fase).
+  tech_missile_salvo: 2,
+  tech_tesla_jump: 2,
+  tech_thunder_area: 2,
+  tech_thunder_stun: 2,
+  tech_mortar_radius: 2,
+  tech_gauss_crit: 2,
+  tech_laser_split: 2,
+  tech_beam_focus: 2,
+  tech_firewheel_radius: 2,
+  tech_wasps_venom: 2,
+  tech_forcefield_radius: 2,
+  tech_forcefield_regen: 2,
+  // fase 74: combos de dos piezas y cartas de Black Hole (1 sola vez).
+  combo_singularity: 1,
+  combo_chain_reactor: 1,
+  combo_light_prism: 1,
+  bh_horizon: 1,
+  bh_collapse: 1,
   // dev-7 fase 50: la caza de familia se aplica UNA vez (si se
   // aplicara dos, el multiplicador pasaria de x1,8 a x3,24).
   hunt_rock: 1,
@@ -230,6 +258,11 @@ export function findDrone(game, type) {
   return game?.fortress?.drones?.find((d) => d && d.type === type) ?? null;
 }
 
+/** fase 74 — Torre o dron por tipo (las técnicas ya pueden ir a drones). */
+export function findUnit(game, type) {
+  return findTower(game, type) ?? findDrone(game, type);
+}
+
 /** Tipos de torre poseídos (para exclusión de cartas de desbloqueo). */
 function ownedTypes(game) {
   const out = new Set();
@@ -239,22 +272,116 @@ function ownedTypes(game) {
   return out;
 }
 
+/**
+ * fase 74 — TAGS de unidad para los prerrequisitos de cartas.
+ * Los tags de TIPO salen de `dmgType` de la MISMA tabla que usa el
+ * combate (TOWERS/DRONES); los tags de mecánica son explícitos.
+ * Usar tags en vez de ids de torre permite que una torre futura del mismo
+ * tipo herede las cartas sin tocar el catálogo.
+ */
+const UNIT_TAGS = {
+  guardian: ['projectile'],
+  missile: ['projectile', 'explosive', 'area'],
+  beam: ['beam'],
+  thunderstroke: ['bolt', 'area'],
+  tesla: ['chain'],
+  mortar: ['explosive', 'area'],
+  gauss: ['projectile', 'rail'],
+  laser: ['beam', 'laser'],
+  firewheel: ['contact', 'area'],
+  wasps: ['swarm'],
+  forcefield: ['shield', 'area'],
+};
+
+/** Tipo de daño REAL de una torre o dron (duck-typed). */
+function unitDmgType(unit) {
+  return unit?.data?.dmgType
+    ?? TOWERS[unit?.type]?.dmgType
+    ?? DRONES[unit?.type]?.dmgType
+    ?? null;
+}
+
+/** Todas las unidades poseídas: torres + drones. */
+function allOwnedUnits(game) {
+  const f = game?.fortress;
+  return [
+    ...(f?.slots ?? []).filter(Boolean),
+    ...(f?.drones ?? []).filter(Boolean),
+  ];
+}
+
+/** Tags que posee el jugador AHORA (tipo + mecánica). */
+function ownedTags(game) {
+  const out = new Set();
+  for (const u of allOwnedUnits(game)) {
+    const type = unitDmgType(u);
+    if (type) out.add(type);
+    for (const tag of UNIT_TAGS[u?.type] ?? []) out.add(tag);
+  }
+  return out;
+}
+
+/** Cuántas unidades poseídas tienen cada tag (para combos de 2 piezas). */
+function ownedTagCounts(game) {
+  const out = new Map();
+  for (const u of allOwnedUnits(game)) {
+    const tags = new Set();
+    const type = unitDmgType(u);
+    if (type) tags.add(type);
+    for (const tag of UNIT_TAGS[u?.type] ?? []) tags.add(tag);
+    for (const tag of tags) out.set(tag, (out.get(tag) ?? 0) + 1);
+  }
+  return out;
+}
+
+/** ¿La carta cumple sus prerrequisitos de tags/unidades/Black Hole? */
+function meetsRequirements(card, game) {
+  const f = game?.fortress;
+  if (card.requiresBlackHole && !f?.blackHoleUnlocked) return false;
+  const tags = ownedTags(game);
+  if (card.requiresTags?.length && !card.requiresTags.some((t) => tags.has(t))) return false;
+  if (card.requiresAllTags?.length && !card.requiresAllTags.every((t) => tags.has(t))) return false;
+  if (card.requiresUnits?.length) {
+    const owned = new Set(allOwnedUnits(game).map((u) => u.type));
+    if (!card.requiresUnits.every((u) => owned.has(u))) return false;
+  }
+  if (card.requiresTagCount) {
+    const counts = ownedTagCounts(game);
+    for (const [tag, n] of Object.entries(card.requiresTagCount)) {
+      if ((counts.get(tag) ?? 0) < n) return false;
+    }
+  }
+  return true;
+}
+
 /** Aplicaciones previas de una carta repetible (cap por torre o global). */
 function appsOf(cardId, game) {
   const f = game?.fortress;
   if (!f) return 0;
   switch (cardId) {
-    case 'dmg_all': return Math.max(0, ...f.slots.filter(Boolean).map((t) => t.dmgAllApps ?? 0));
+    case 'dmg_all': return f.dmgAllStacks ?? Math.max(0, ...f.slots.filter(Boolean).map((t) => t.dmgAllApps ?? 0));
+    // fase 74: daño por tipo — un stack global por tipo (no por unidad).
+    case 'dmg_type_ballistic':
+    case 'dmg_type_light':
+    case 'dmg_type_blast':
+    case 'dmg_type_electric':
+    case 'dmg_type_drone': {
+      const type = cardId.slice('dmg_type_'.length);
+      return f.typeStacks?.[type] ?? 0;
+    }
     // dev-7 fase 50: la caza de familia se aplica a TODAS las unidades,
     // asi que su conteo es el maximo de las que hay en el campo.
     case 'hunt_rock':
     case 'hunt_crystal':
     case 'hunt_spore':
     case 'hunt_virus':
-      return Math.max(0, ...[
-        ...f.slots.filter(Boolean).map((t) => cardApps(t, cardId)),
-        ...(f.drones ?? []).map((d) => cardApps(d, cardId)),
-      ]);
+      return Math.max(
+        f.huntStacks?.[cardId.slice(5)] ?? 0,
+        ...[
+          ...f.slots.filter(Boolean).map((t) => cardApps(t, cardId)),
+          ...(f.drones ?? []).map((d) => cardApps(d, cardId)),
+        ],
+      );
     case 'dmg_guard': return findTower(game, 'guardian')?.guardDmgApps ?? 0;
     // dev-7 fase 26 (bug corregido): las 6 cartas EXCLUSIVAS por torre se
     // auto-limitan dentro de su `apply` (comparan `exclusiveDmgApps` contra
@@ -282,7 +409,7 @@ function appsOf(cardId, game) {
     // cooldown de picadura), así que el tope se cuenta sobre torres Y
     // drones: si sólo mirara las torres, la carta se seguiría ofreciendo
     // después de 3 usos (con un dron presente) sin efecto real.
-    case 'cadence_up': return Math.max(0,
+    case 'cadence_up': return f.cadAllStacks ?? Math.max(0,
       ...f.slots.filter(Boolean).map((t) => t.cadApps ?? 0),
       ...(f.drones ?? []).filter(Boolean).map((d) => d.cadApps ?? 0));
     case 'detect_up': return f.detectApps ?? 0;
@@ -296,13 +423,25 @@ function appsOf(cardId, game) {
     // dev-7 fase 26: contadores de las dos cartas de defensa (ver CAPS).
     case 'repair_500': return f.repairApps ?? 0;
     case 'armor_plate': return f.armorApps ?? 0;
+    // fase 74: combos de dos piezas / Black Hole.
+    case 'combo_chain_reactor': return Math.max(
+      cardApps(findTower(game, 'thunderstroke'), cardId),
+      cardApps(findTower(game, 'tesla'), cardId),
+    );
+    case 'combo_light_prism': return Math.max(
+      cardApps(findTower(game, 'beam'), cardId),
+      cardApps(findTower(game, 'laser'), cardId),
+    );
+    case 'combo_singularity': return f.blackHoleMods?.singularity ? 1 : 0;
+    case 'bh_horizon': return (f.blackHoleMods?.durationAdd ?? 0) > 0 ? 1 : 0;
+    case 'bh_collapse': return (f.blackHoleMods?.endBurst ?? 0) > 0 ? 1 : 0;
     // dev-7 fase 51: las CARTAS DE TÉCNICA cuentan sus aplicaciones en la
     // propia unidad (el contador vive en `unit.cardApps`, igual que
     // `exclusiveDmgApps`): sin esto la carta se seguiría ofreciendo con
     // el tope alcanzado y al elegirla no haría NADA.
     default: {
       const type = TECH_UNIT[cardId];
-      if (type) return cardApps(findTower(game, type), cardId);
+      if (type) return cardApps(findUnit(game, type), cardId);
       return 0;
     }
   }
@@ -318,7 +457,7 @@ function appsOf(cardId, game) {
  * @returns {boolean} true si la carta se aplicó
  */
 function applyTechCard(game, tech) {
-  const unit = findTower(game, tech.unit);
+  const unit = findUnit(game, tech.unit);
   if (!unit) return false;
   if (appsOf(tech.id, game) >= (CAPS[tech.id] ?? Infinity)) return false;
   return addCardMods(unit, tech.mods, tech.id);
@@ -370,6 +509,8 @@ const EXCLUSIVE_DMG_DRONE = {
 export function isRelevant(card, game) {
   const stage = game?.stageId ?? 1;
   if ((card.minStage ?? 1) > stage) return false;
+  // fase 74: prerrequisitos de tags/unidades/Black Hole (combos).
+  if (!meetsRequirements(card, game)) return false;
 
   const f = game?.fortress;
   if (card.tower) {
@@ -423,7 +564,7 @@ export function isRelevant(card, game) {
   // (mismo criterio que `pierce_up` con el Guardian): sería una carta
   // inútil en el pool, justo lo que el catálogo prohíbe.
   const techType = TECH_UNIT[card.id];
-  if (techType && !findTower(game, techType)) return false;
+  if (techType && !findUnit(game, techType)) return false;
   // dev-7 fase 30: "Nido Ampliado" sólo si el jugador tiene el dron
   // Avispas y su enjambre no está al tope.
   if (card.id === 'swarm_grow') {
@@ -478,7 +619,11 @@ function needsUnit(card) {
   return !!(card.tower || card.drone || card.id === 'black_hole'
     || EXCLUSIVE_DMG_TOWER[card.id] || EXCLUSIVE_DMG_DRONE[card.id]
     || TECH_UNIT[card.id] || card.id === 'swarm_grow'
-    || card.id === 'bullets_5' || card.id === 'detect_up');
+    || card.id === 'bullets_5' || card.id === 'detect_up'
+    // fase 74: combos y cartas condicionadas por tags/unidades/BH.
+    || card.requiresTags?.length || card.requiresAllTags?.length
+    || card.requiresUnits?.length || card.requiresTagCount
+    || card.requiresBlackHole);
 }
 
 // ------------------------------------------------------------
@@ -528,15 +673,16 @@ const TECH_CARDS = [
   {
     id: 'tech_explode',
     rarity: 'rare',
-    name: 'Bala Explosiva',
-    // OJO: el radio NO se da en la carta a propósito — el radio lo
-    // pone el perk (70 por defecto) y si la carta lo sumara, la 2ª
-    // aplicación dejaría la explosión en r=140 (casi toda la
-    // pantalla). La carta sube la PROBABILIDAD y el DAÑO.
-    desc: 'Las balas del Guardian detonan al morir (30 de daño en un radio de 70). Hasta 2 veces.',
+    name: 'Balas Detonantes',
+    // fase 74: rework. Antes era explosión AL MATAR; ahora el impacto
+    // detona (una vez por proyectil) y la carta exige una torre con tag
+    // `blast` (Missile o Mortar). `impactExplodeChance` se guarda en el
+    // proyectil; el daño de área lo aplica enemies.js.
+    desc: 'Las balas del Guardian detonan al IMPACTAR: 40% del daño en un radio de 70. Requiere Missile o Mortar. Hasta 2 veces.',
     weight: 6,
     unit: 'guardian',
-    mods: { explodeOnKillChance: 0.3, explodeOnKillDmg: 30 },
+    requiresTags: ['blast'],
+    mods: { impactExplodeChance: 1, impactExplodeFrac: 0.4, impactExplodeRadius: 70 },
   },
   {
     id: 'tech_slow',
@@ -585,6 +731,125 @@ const TECH_CARDS = [
     unit: 'missile',
     mods: { executeThreshold: 0.12 },
   },
+  // fase 74 — técnicas para el resto del arsenal. Todas usan mods que
+  // `unitMods()` ya lee (o que se agregan en esta fase) y exigen poseer
+  // la unidad por `TECH_UNIT`/`findUnit`.
+  {
+    id: 'tech_missile_salvo',
+    rarity: 'rare',
+    name: 'Salva de Misiles',
+    desc: 'El Misil lanza +1 misil por andanada (hasta 2 veces).',
+    weight: 5,
+    minStage: 2,
+    unit: 'missile',
+    mods: { extraCount: 1 },
+  },
+  {
+    id: 'tech_tesla_jump',
+    rarity: 'uncommon',
+    name: 'Salto de Cadena',
+    desc: 'La Tesla encadena +1 salto (hasta 2 veces).',
+    weight: 6,
+    unit: 'tesla',
+    mods: { extraCount: 1 },
+  },
+  {
+    id: 'tech_thunder_area',
+    rarity: 'uncommon',
+    name: 'Tormenta Ramificada',
+    desc: 'El Thunderstroke genera +1 mini rayo de área (hasta 2 veces).',
+    weight: 6,
+    unit: 'thunderstroke',
+    mods: { extraCount: 1 },
+  },
+  {
+    id: 'tech_thunder_stun',
+    rarity: 'uncommon',
+    name: 'Descarga Paralizante',
+    desc: 'El Thunderstroke tiene +15% de aturdir (hasta 2 veces).',
+    weight: 5,
+    unit: 'thunderstroke',
+    mods: { stunChance: 0.15 },
+  },
+  {
+    id: 'tech_mortar_radius',
+    rarity: 'uncommon',
+    name: 'Ojiva Expandida',
+    desc: 'El Mortar explota con +20% de radio (hasta 2 veces).',
+    weight: 6,
+    minStage: 2,
+    unit: 'mortar',
+    mods: { areaMul: 1.2 },
+  },
+  {
+    id: 'tech_gauss_crit',
+    rarity: 'rare',
+    name: 'Munición de Tungsteno',
+    desc: 'El Gauss tiene +20% de crítico (hasta 2 veces).',
+    weight: 6,
+    minStage: 2,
+    unit: 'gauss',
+    mods: { critChanceAdd: 0.2 },
+  },
+  {
+    id: 'tech_laser_split',
+    rarity: 'rare',
+    name: 'Láser Dividido',
+    desc: 'El Láser dispara +1 rayo simultáneo (hasta 2 veces).',
+    weight: 6,
+    minStage: 2,
+    unit: 'laser',
+    mods: { extraCount: 1 },
+  },
+  {
+    id: 'tech_beam_focus',
+    rarity: 'rare',
+    name: 'Foco Acelerado',
+    desc: 'El Beam acelera su ramp de foco +50% (hasta 2 veces).',
+    weight: 6,
+    unit: 'beam',
+    mods: { beamRampPerSecAdd: 0.4 },
+  },
+  {
+    id: 'tech_firewheel_radius',
+    rarity: 'uncommon',
+    name: 'Barrido Ancho',
+    desc: 'La Rueda de Fuego barre +8 px de radio (hasta 2 veces).',
+    weight: 5,
+    minStage: 2,
+    unit: 'firewheel',
+    mods: { radiusAdd: 8 },
+  },
+  {
+    id: 'tech_wasps_venom',
+    rarity: 'uncommon',
+    name: 'Veneno Concentrado',
+    desc: 'El veneno de las Avispas hace +1 de daño por segundo (hasta 2 veces).',
+    weight: 5,
+    minStage: 2,
+    unit: 'wasps',
+    mods: { venomDpsAdd: 1 },
+  },
+  {
+    id: 'tech_forcefield_radius',
+    rarity: 'uncommon',
+    name: 'Burbuja Expandida',
+    desc: 'El Campo de Fuerza gana +20 px de burbuja (hasta 2 veces).',
+    weight: 5,
+    minStage: 2,
+    unit: 'forcefield',
+    mods: { radiusAdd: 20 },
+  },
+  {
+    id: 'tech_forcefield_regen',
+    rarity: 'rare',
+    name: 'Burbuja Regenerativa',
+    desc: 'La burbuja del Campo de Fuerza regenera +1,5 HP/s por enemigo atrapado (hasta 2 veces).',
+    weight: 5,
+    minStage: 2,
+    unit: 'forcefield',
+    mods: { bubbleRegen: 1.5 },
+  },
 ];
 
 /** Carta de técnica → tipo de unidad que la lleva (tope y elegibilidad). */
@@ -630,6 +895,8 @@ function applyHuntCard(game, hunt) {
   if (appsOf(hunt.id, game) >= (CAPS[hunt.id] ?? Infinity)) return false;
   const key = `fam${hunt.family[0].toUpperCase()}${hunt.family.slice(1)}Mul`;
   const mods = { [key]: hunt.mul };
+  f.huntStacks ??= {};
+  f.huntStacks[hunt.family] = (f.huntStacks[hunt.family] ?? 0) + 1;
   let ok = false;
   for (const t of f.slots ?? []) {
     if (!t) continue;
@@ -641,7 +908,85 @@ function applyHuntCard(game, hunt) {
   }
   return ok;
 }
-// CATÁLOGO (48 cartas, schema §5 dev-4)
+
+/**
+ * fase 74 — daño por TIPO: afecta a todas las unidades del tipo, ahora y
+ * a las que se desbloqueen después (`Fortress.applyGlobalCardMods`).
+ */
+function applyTypeDamage(game, card) {
+  const f = game?.fortress;
+  if (!f) return false;
+  const type = card.type;
+  const cur = f.typeStacks?.[type] ?? 0;
+  if (cur >= (CAPS[card.id] ?? Infinity)) return false;
+  f.typeStacks ??= {};
+  f.typeStacks[type] = cur + 1;
+  for (const u of allOwnedUnits(game)) {
+    if (unitDmgType(u) === type) u.dmgMul = (u.dmgMul ?? 1) * 1.2;
+  }
+  return true;
+}
+
+/** fase 74 — Munición Reforzada global, con stacks persistentes. */
+function applyGlobalDamage(game) {
+  const f = game?.fortress;
+  if (!f) return false;
+  const cur = f.dmgAllStacks ?? 0;
+  if (cur >= CAPS.dmg_all) return false;
+  f.dmgAllStacks = cur + 1;
+  for (const u of allOwnedUnits(game)) {
+    u.dmgAllApps = Math.max(u.dmgAllApps ?? 0, f.dmgAllStacks);
+    u.dmgMul = (u.dmgMul ?? 1) * 1.1;
+  }
+  return true;
+}
+
+/** fase 74 — Servos Acelerados global, con stacks persistentes. */
+function applyGlobalCadence(game) {
+  const f = game?.fortress;
+  if (!f) return false;
+  const cur = f.cadAllStacks ?? 0;
+  if (cur >= CAPS.cadence_up) return false;
+  f.cadAllStacks = cur + 1;
+  for (const u of allOwnedUnits(game)) {
+    u.cadApps = Math.max(u.cadApps ?? 0, f.cadAllStacks);
+    u.cadMul = (u.cadMul ?? 1) * 0.9;
+  }
+  return true;
+}
+
+/** fase 74 — combos de dos piezas. */
+function applyComboChainReactor(game) {
+  const f = game?.fortress;
+  const th = findTower(game, 'thunderstroke');
+  const te = findTower(game, 'tesla');
+  if (!f || !th || !te) return false;
+  addCardMods(th, { extraCount: 1 }, 'combo_chain_reactor');
+  addCardMods(te, { extraCount: 1 }, 'combo_chain_reactor');
+  return true;
+}
+
+function applyComboLightPrism(game) {
+  const f = game?.fortress;
+  const beam = findTower(game, 'beam');
+  const laser = findTower(game, 'laser');
+  if (!f || !beam || !laser) return false;
+  addCardMods(beam, { beamRampPerSecAdd: 0.4 }, 'combo_light_prism');
+  addCardMods(laser, { laserDurationAdd: 0.6 }, 'combo_light_prism');
+  return true;
+}
+
+function applyBlackHoleCard(game, key, value) {
+  const f = game?.fortress;
+  if (!f || !f.blackHoleUnlocked) return false;
+  f.blackHoleMods ??= {};
+  if (key === 'durationAdd') f.blackHoleMods.durationAdd = (f.blackHoleMods.durationAdd ?? 0) + value;
+  if (key === 'radiusMul') f.blackHoleMods.radiusMul = (f.blackHoleMods.radiusMul ?? 1) * value;
+  if (key === 'endBurst') f.blackHoleMods.endBurst = (f.blackHoleMods.endBurst ?? 0) + value;
+  if (key === 'singularity') f.blackHoleMods.singularity = 1;
+  return true;
+}
+// CATÁLOGO (70 cartas, schema §5 dev-4)
 // {id, name, desc, weight, rarity, dmgType?, minStage?, tower?, apply(game)}
 // dev-7 fase 49 - `dmgType` lo declara la carta que MEJORA EL DAÑO de una
 // unidad (sale de TOWERS/DRONES, la tabla que usa el combate). El HUD lo
@@ -681,35 +1026,69 @@ export const CATALOG = [
     id: 'dmg_all',
     rarity: 'rare',
     name: 'Munición Reforzada',
-    // dev-7 fase 12 (pedido del usuario: "suavizar los efectos que
-    // mejoran todas las torres"): antes ×1.5 por stack (×2.25 al tope).
-    // Ahora ×1.3 (×1.69 al tope) — sigue siendo la mejora ofensiva más
-    // genérica del catálogo, pero ya no compite tan de cerca con las
-    // nuevas cartas exclusivas por torre (ver más abajo).
-    // dev-7 fase 49: esta carta NO tiene tipo de daño: sube el de TODAS
-    // las unidades, sea cual sea (por eso no lleva glifo en el modal).
-    desc: '+30% de daño en TODAS las torres y drones, del tipo que sea (acumulable hasta 2 veces).',
+    // fase 74: carta GLOBAL. +10% por stack (×1,1² = ×1,21 al tope).
+    // El stack vive en la fortaleza y se reaplica a las unidades que se
+    // desbloqueen DESPUÉS (Fortress.applyGlobalCardMods).
+    desc: '+10% de daño en TODAS las torres y drones, del tipo que sea (acumulable hasta 2 veces).',
     weight: 12,
-    apply: (g) => {
-      for (const t of g.fortress.slots) {
-        if (!t) continue;
-        if ((t.dmgAllApps ?? 0) < CAPS.dmg_all) {
-          t.dmgAllApps = (t.dmgAllApps ?? 0) + 1;
-          t.dmgMul = (t.dmgMul ?? 1) * 1.3;
-        }
-      }
-      // dev-7 fase 30: los DRONES también son torres del arsenal (tienen
-      // nivel de meta, perks y fragmentos) y la carta lo decía "TODAS".
-      // Antes sólo recorría `fortress.slots`: la carta más valiosa del
-      // catálogo no llegaba a las 3 unidades del arsenal extendido.
-      for (const d of g.fortress.drones ?? []) {
-        if (!d) continue;
-        if ((d.dmgAllApps ?? 0) < CAPS.dmg_all) {
-          d.dmgAllApps = (d.dmgAllApps ?? 0) + 1;
-          d.dmgMul = (d.dmgMul ?? 1) * 1.3;
-        }
-      }
-    },
+    apply: (g) => { applyGlobalDamage(g); },
+  },
+  // fase 74 — DAÑO POR TIPO: más angostas que dmg_all (+20% vs +10% por
+  // stack) y afectan a todas las unidades de ese tipo, presentes y futuras.
+  {
+    id: 'dmg_type_ballistic',
+    rarity: 'uncommon',
+    name: 'Munición Balística',
+    dmgType: 'ballistic',
+    desc: `+20% de daño BALÍSTICO a todas las unidades de ese tipo (hasta 2 veces).\n${dmgSynergyText('ballistic', 1.2)}`,
+    weight: 9,
+    type: 'ballistic',
+    requiresTags: ['ballistic'],
+    apply: (g) => applyTypeDamage(g, CARD_BY_ID.get('dmg_type_ballistic')),
+  },
+  {
+    id: 'dmg_type_light',
+    rarity: 'uncommon',
+    name: 'Prisma de Luz',
+    dmgType: 'light',
+    desc: `+20% de daño de LUZ a todas las unidades de ese tipo (hasta 2 veces).\n${dmgSynergyText('light', 1.2)}`,
+    weight: 9,
+    type: 'light',
+    requiresTags: ['light'],
+    apply: (g) => applyTypeDamage(g, CARD_BY_ID.get('dmg_type_light')),
+  },
+  {
+    id: 'dmg_type_blast',
+    rarity: 'uncommon',
+    name: 'Cargas de Demolición',
+    dmgType: 'blast',
+    desc: `+20% de daño de EXPLOSIÓN a todas las unidades de ese tipo (hasta 2 veces).\n${dmgSynergyText('blast', 1.2)}`,
+    weight: 9,
+    type: 'blast',
+    requiresTags: ['blast'],
+    apply: (g) => applyTypeDamage(g, CARD_BY_ID.get('dmg_type_blast')),
+  },
+  {
+    id: 'dmg_type_electric',
+    rarity: 'uncommon',
+    name: 'Sobrecarga de Red',
+    dmgType: 'electric',
+    desc: `+20% de daño ELÉCTRICO a todas las unidades de ese tipo (hasta 2 veces).\n${dmgSynergyText('electric', 1.2)}`,
+    weight: 9,
+    type: 'electric',
+    requiresTags: ['electric'],
+    apply: (g) => applyTypeDamage(g, CARD_BY_ID.get('dmg_type_electric')),
+  },
+  {
+    id: 'dmg_type_drone',
+    rarity: 'uncommon',
+    name: 'Núcleo de Dron',
+    dmgType: 'drone',
+    desc: `+20% de daño de DRON a todas las unidades de ese tipo (hasta 2 veces).\n${dmgSynergyText('drone', 1.2)}`,
+    weight: 9,
+    type: 'drone',
+    requiresTags: ['drone'],
+    apply: (g) => applyTypeDamage(g, CARD_BY_ID.get('dmg_type_drone')),
   },
   {
     id: 'dmg_guard',
@@ -931,25 +1310,7 @@ export const CATALOG = [
     // Ahora −10%/stack (×0.9³≈0.729, −27.1% al tope) — más suave.
     desc: '-10% de tiempo de recarga en todas las torres y en el Dron Avispas (hasta 3 veces).',
     weight: 10,
-    apply: (g) => {
-      for (const t of g.fortress.slots) {
-        if (!t) continue;
-        if ((t.cadApps ?? 0) < CAPS.cadence_up) {
-          t.cadApps = (t.cadApps ?? 0) + 1;
-          t.cadMul = (t.cadMul ?? 1) * 0.9;
-        }
-      }
-      // dev-7 fase 30: el Dron Avispas tiene cooldown (el de la picadura) y
-      // es la ÚNICA unidad del arsenal extendido con cadencia: la Rueda
-      // quema por contacto y el Campo de Fuerza no tiene ciclo.
-      for (const d of g.fortress.drones ?? []) {
-        if (!d || d.type !== 'wasps') continue;
-        if ((d.cadApps ?? 0) < CAPS.cadence_up) {
-          d.cadApps = (d.cadApps ?? 0) + 1;
-          d.cadMul = (d.cadMul ?? 1) * 0.9;
-        }
-      }
-    },
+    apply: (g) => { applyGlobalCadence(g); },
   },
   {
     id: 'pierce_up',
@@ -1300,6 +1661,58 @@ export const CATALOG = [
     ...tech,
     apply: (g) => { applyTechCard(g, tech); },
   })),
+  // fase 74 — COMBOS de dos piezas y cartas de Black Hole. No son
+  // repetibles: CAPS = 1. `requiresUnits`/`requiresTags`/`requiresBlackHole`
+  // los saca del pool si falta la pareja (no hay cartas muertas).
+  {
+    id: 'combo_chain_reactor',
+    rarity: 'rare',
+    name: 'Reactor de Cadena',
+    desc: 'Combo eléctrico: la Tesla gana +1 salto y el Thunderstroke +1 mini rayo. Requiere ambas torres.',
+    weight: 5,
+    requiresUnits: ['thunderstroke', 'tesla'],
+    apply: (g) => applyComboChainReactor(g),
+  },
+  {
+    id: 'combo_light_prism',
+    rarity: 'rare',
+    name: 'Prisma Compuesto',
+    desc: 'Combo de luz: el Beam acelera su foco +25% y el Láser dura +0,6 s. Requiere Beam y Láser.',
+    weight: 5,
+    requiresUnits: ['beam', 'laser'],
+    apply: (g) => applyComboLightPrism(g),
+  },
+  {
+    id: 'combo_singularity',
+    rarity: 'legendary',
+    name: 'Singularidad',
+    desc: 'Las explosiones de Missile, Mortar y Balas Detonantes dejan un mini agujero negro que atrae y quema. Requiere Black Hole y una torre explosiva.',
+    weight: 4,
+    requiresBlackHole: true,
+    requiresTags: ['blast'],
+    apply: (g) => applyBlackHoleCard(g, 'singularity', 1),
+  },
+  {
+    id: 'bh_horizon',
+    rarity: 'rare',
+    name: 'Horizonte de Sucesos',
+    desc: 'El Black Hole dura +1,5 s y tiene +20% de radio. Requiere Black Hole desbloqueado.',
+    weight: 5,
+    requiresBlackHole: true,
+    apply: (g) => {
+      applyBlackHoleCard(g, 'durationAdd', 1.5);
+      applyBlackHoleCard(g, 'radiusMul', 1.2);
+    },
+  },
+  {
+    id: 'bh_collapse',
+    rarity: 'rare',
+    name: 'Colapso',
+    desc: 'Al terminar, el Black Hole explota por 150 de daño en su radio. Requiere Black Hole desbloqueado.',
+    weight: 5,
+    requiresBlackHole: true,
+    apply: (g) => applyBlackHoleCard(g, 'endBurst', 150),
+  },
 ];
 
 const CARD_BY_ID = new Map(CATALOG.map((c) => [c.id, c]));
@@ -1537,7 +1950,12 @@ export function comboSummary(game) {
       name: d.data?.name ?? d.type,
       dmgType: d.data?.dmgType ?? null,
     })),
-    blackHoleCharge: f?.blackHoleCharge ?? 0, // 0..1 — medidor por kills (v4 4b/5)
+    blackHoleCharge: f?.blackHoleCharge ?? 0, // 0..1 - medidor por kills (v4 4b/5)
+    blackHoleUnlocked: !!f?.blackHoleUnlocked,
+    blackHoleMods: f?.blackHoleMods ?? null,
+    // fase 74: tags activos para que el panel de combos muestre qué
+    // sinergias están disponibles (eléctrico, explosivo, etc.).
+    tags: [...ownedTags(game)].sort(),
     pierce: f?.pierce ?? 0,
     xpMul: f?.xpMul ?? 1,
     scoreMul: f?.scoreMul ?? 1,

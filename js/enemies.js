@@ -2674,7 +2674,29 @@ function projectileStrike(p, e, kind, list) {
   //Fallback para los proyectiles sin tipo explícito.
   const dmgKind = p.dmgType ?? kind;
   // Los mods viajan en el propio proyectil (onHitOpts) — se pasan tal cual.
-  return applyPerkDamage(e, dmg, dmgKind, p, p.game, list);
+  const killed = applyPerkDamage(e, dmg, dmgKind, p, p.game, list);
+
+  // fase 74 — Balas Detonantes: explosión AL IMPACTAR, una vez por
+  // proyectil. Excluye al blanco directo (ya comió el daño pleno) y usa
+  // el radio/porcentaje que viajan en el proyectil. El tipo del estallido
+  // es `blast` aunque la bala sea balística.
+  if (kind === 'bullet' && !p._impactExploded && (p.impactExplodeChance ?? 0) > 0) {
+    if (Math.random() < Math.min(1, p.impactExplodeChance)) {
+      p._impactExploded = true;
+      const R = p.impactExplodeRadius ?? 70;
+      const splash = Math.round(dmg * (p.impactExplodeFrac ?? 0.4));
+      if (splash > 0) {
+        for (const other of list) {
+          if (!other || other.dead || other === e) continue;
+          if (Math.hypot(other.x - e.x, other.y - e.y) > R + (other.r ?? 10)) continue;
+          applyPerkDamage(other, splash, 'blast', p, p.game, list);
+        }
+      }
+      // Singularidad: las explosiones dejan un mini Black Hole.
+      p.game?.fortress?.spawnMiniBlackHole?.(e.x, e.y, p.game);
+    }
+  }
+  return killed;
 }
 
 /**

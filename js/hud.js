@@ -1751,7 +1751,7 @@ export function buildMenuScreen({ theme = '', quality = '', confirmingReset = fa
       <p class="theme-picker-label">Calidad gráfica (probá "Baja" si el juego anda lento)</p>
       <p class="hint menu-hint">[P] pausa · [1][2][3] velocidad · [Espacio] ultimate · [B] black hole</p>
       ${resetBlock}
-      <p class="version">v1.1.0 · sin anuncios · 100% offline</p>
+      <p class="version">v1.2.0 · sin anuncios · 100% offline</p>
     </section>`;
 }
 
@@ -3768,6 +3768,7 @@ export class HUD {
         <small>DMG ×${t.dmgMul}${t.cadMul !== 1 ? ` · REC ×${t.cadMul.toFixed(2)}` : ''}</small>
       </div>`).join('');
     const mods = [
+      ...(sum.tags ?? []).map((tag) => `<span>#${tag}</span>`),
       sum.pierce > 0 ? `<span>Perforación +${sum.pierce}</span>` : '',
       sum.xpMul !== 1 ? `<span>Energía ×${sum.xpMul.toFixed(2)}</span>` : '',
       sum.scoreMul !== 1 ? `<span>Score ×${sum.scoreMul.toFixed(2)}</span>` : '',

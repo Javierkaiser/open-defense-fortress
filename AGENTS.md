@@ -7,7 +7,7 @@ Documentación y comentarios en **español**.
 ## Comandos
 
 ```bash
-node --test "tests/**/*.mjs"                # suite completa (885 tests)
+node --test "tests/**/*.mjs"                # suite completa (906 tests)
 node --test tests/test-stages.mjs           # un archivo
 node .github/scripts/ci-checks.mjs          # checks estáticos
 node --check js/main.js                    # sintaxis de un módulo
@@ -34,7 +34,7 @@ En Windows/PS 5.1 el glob `js/*.js` no se expande solo; usá
 - `js/enemies.js` — tipos, enjambres/tanques, mecánicas y 7 variantes de élite.
 - `js/towers.js` — 8 torres + 3 drones.
 - `js/player.js` — `Fortress`: base, slots, drones, HP, Black Hole.
-- `js/cards.js` — 48 cartas y ofertas.
+- `js/cards.js` — 70 cartas y ofertas.
 - `js/perks.js` — única implementación de perks en combate.
 - `js/meta.js`, `js/progress.js`, `js/score.js` — meta, persistencia y fórmulas.
 - `js/hud.js` — HUD y overlays DOM.

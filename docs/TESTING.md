@@ -6,7 +6,7 @@
 node --test "tests/**/*.mjs"
 ```
 
-Estado actual: **885 tests** (880 pass, 5 skip, 0 fail) en **26 archivos**.
+Estado actual: **906 tests** (901 pass, 5 skip, 0 fail) en **27 archivos**.
 
 Requisitos: Node 22 o superior.
 
@@ -25,7 +25,7 @@ node --test tests/test-stages.mjs
 | Torres, targeting, disparo, daño, drones | `test-towers.mjs` |
 | Enemigos, variantes de élite, muerte, escolta | `test-enemies.mjs` |
 | Fortaleza, slots, HP, escudo, Black Hole | `test-player.mjs` |
-| Cartas y ofertas | `test-cards.mjs` |
+| Cartas y ofertas | `test-cards.mjs`, `test-card-rework.mjs` |
 | Perks (remate, lifesteal, explosión) | `test-perks.mjs` |
 | Tipos de daño y bestiario | `test-damagetypes.mjs` |
 | Score, XP, nivel, multiplicadores | `test-score.mjs` |

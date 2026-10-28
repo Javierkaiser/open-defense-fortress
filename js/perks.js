@@ -228,6 +228,10 @@ export function onHitOpts(mods, game) {
     explodeOnKillChance: mods?.explodeOnKillChance ?? 0,
     explodeOnKillDmg: mods?.explodeOnKillDmg ?? 20,
     explodeOnKillRadius: mods?.explodeOnKillRadius ?? 70,
+    // fase 74: explosión AL IMPACTAR (Balas Detonantes).
+    impactExplodeChance: mods?.impactExplodeChance ?? 0,
+    impactExplodeFrac: mods?.impactExplodeFrac ?? 0,
+    impactExplodeRadius: mods?.impactExplodeRadius ?? 0,
     // dev-7 fase 50: la CAZA DE FAMILIA (cartas "hunt_*"): un
     // multiplicador extra contra una familia concreta de enemigo.
     famRockMul: mods?.famRockMul ?? 1,
@@ -249,6 +253,10 @@ export function pickOnHit(o) {
     explodeOnKillChance: o.explodeOnKillChance ?? 0,
     explodeOnKillDmg: o.explodeOnKillDmg ?? 20,
     explodeOnKillRadius: o.explodeOnKillRadius ?? 70,
+    // fase 74: explosión al impactar (Balas Detonantes).
+    impactExplodeChance: o.impactExplodeChance ?? 0,
+    impactExplodeFrac: o.impactExplodeFrac ?? 0,
+    impactExplodeRadius: o.impactExplodeRadius ?? 0,
     // dev-7 fase 50: la caza de familia viaja con el proyectil.
     famRockMul: o.famRockMul ?? 1,
     famCrystalMul: o.famCrystalMul ?? 1,

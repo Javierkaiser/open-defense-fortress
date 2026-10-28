@@ -6,6 +6,42 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-10-28
+
+### Añadido
+
+- **Rework de cartas (fase 74)**: 22 cartas nuevas (70 en total).
+  - 5 cartas de daño por tipo: balístico, luz, explosión, eléctrico y dron.
+  - 12 cartas de técnica para el resto del arsenal (Missile, Tesla,
+    Thunderstroke, Mortar, Gauss, Láser, Beam, Rueda de Fuego, Avispas y
+    Campo de Fuerza).
+  - 3 combos nuevos: Reactor de Cadena, Prisma Compuesto y Singularidad;
+    Balas Detonantes se reworkea.
+  - 2 cartas de Black Hole: Horizonte de Sucesos y Colapso.
+- Sistema de **tags y prerrequisitos** (`requiresTags`, `requiresUnits`,
+  `requiresBlackHole`): las cartas de combo no se ofrecen si falta su pareja.
+- **Black Hole por instancia**: duración, radio, colapso y mini agujeros
+  negros de Singularidad.
+- El panel de combos muestra los tags activos.
+
+### Cambiado
+
+- `dmg_all` pasa de +30% a **+10% por stack** (×2): es global, no
+  específica.
+- `tech_explode` pasa a **explosión al impactar** (40% en radio 70) y exige
+  una torre explosiva (Missile o Mortar).
+- Los buffs globales (`dmg_all`, `cadence_up`, `hunt_*` y daño por tipo)
+  ahora se guardan en la fortaleza y alcanzan a las unidades desbloqueadas
+  después.
+- El enlace de carga del Thunderstroke solo se dibuja en los últimos 0,5 s
+  antes del disparo, no durante todo el cooldown.
+
+### Corregido
+
+- Las torres desbloqueadas después de una carta global ya no quedaban sin
+  el buff.
+- 906 tests (901 pass, 5 skip, 0 fail).
+
 ## [1.1.0] — 2026-10-28
 
 ### Añadido
