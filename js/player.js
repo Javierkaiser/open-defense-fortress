@@ -17,6 +17,7 @@ import { Tower, TOWERS, Drone, MAX_DRONES, DRONES, BlackHoleFx, BLACK_HOLE } fro
 // torres (misma geometría para vacío y ocupado).
 import { TOWER_PAD, TOWER_VISUAL_SCALE } from './tower-art.js';
 import { applyProjectileHit } from './enemies.js';
+import { healBase } from './base-heal.js';
 
 /**
  * fase 63 — Acento de una bahía LIBRE (el estado "acá podés construir").
@@ -482,7 +483,11 @@ export class Fortress {
    * parte de ese daño, pero no resucita una base en 0.
    */
   takeDamage(amount) {
-    if (amount <= 0) return false;
+    // fase 75: `NaN <= 0` es false, así que un solo NaN dejaba el HP en
+    // NaN y la base quedaba inmortal. Tampoco se cobra daño a una base
+    // ya destruida (evita base:damaged/base:destroyed repetidos).
+    if (!Number.isFinite(amount) || amount <= 0) return false;
+    if (!(this.hp > 0)) return false;
     // fase 69 — condición Asedio: cada fuga duele más (`leakMul`). Es el
     // ÚNICO punto de daño de fuga, así que el multiplicador entra antes
     // del redondeo y de la ventana de invuln. Un `leakMul` no finito se
@@ -650,8 +655,9 @@ export class Fortress {
           if (e && !e.dead && (e.poisonT ?? 0) > 0) poisoned += 1;
         }
         if (poisoned > 0) {
-          const heal = Math.min(5, poisoned * poisonRegen) * dt;
-          this.hp = Math.min(this.maxHp ?? this.hp, this.hp + heal);
+          // fase 75: misma guarda de no-resurrección que el robo de vida
+          // y el drenaje del Black Hole.
+          healBase(this.game, Math.min(5, poisoned * poisonRegen) * dt);
         }
       }
       this._updateOrbital(dt, enemies);

@@ -22,6 +22,7 @@ import { metaDmgMul, metaSlowFrac, perkMods, perkDmgFor, mergeMods, META_SLOW_CA
 // aplicaba por enemigo en el splash pero no en el resto). Ahora hay UNA
 // sola implementación en perks.js y las dos rutas la comparten.
 import { applyPerkDamage, onHitOpts, pickOnHit } from './perks.js';
+import { healBase } from './base-heal.js';
 // dev-7 fase 32: los tipos de daño (para el glifo bajo la torre y el
 // color del feedback). La MATRIZ se aplica en enemies.js (takeDamage).
 import { DAMAGE_TYPES } from './damagetypes.js';
@@ -89,7 +90,7 @@ function applyExplosionCombo(game, x, y, R) {
   for (const e of list) {
     if (!e || e.dead) continue;
     if (dist(e.x, e.y, x, y) <= R + (e.r ?? 10)) {
-      applySlow(e, cm.explosionSlowFrac, cm.explosionSlowTime ?? 2);
+      applySlow(e, cm.explosionSlowFrac, cm.explosionSlowTime ?? 2, 'explosion');
     }
   }
 }
@@ -720,6 +721,10 @@ export class MortarShell {
     // 6) — ponerla cambiaría la hitbox del obús (y el balance).
     this.tint = TOWERS.mortar.accent;
     this.dead = false;
+    // fase 75: el obús NO colisiona como una bala. Detona en `_explode()`
+    // con splash; antes `collideProjectiles` lo consumía al primer roce y
+    // el mortero perdía el área, el crítico y los perks.
+    this.areaProjectile = true;
     this._trail = 0;
     // dev-7 fase 34: último punto apuntado (si el blanco muere en vuelo,
     // el obús sigue su curso y estalla ahí, no en otro enemigo).
@@ -826,6 +831,9 @@ export class HomingMissile {
     Object.assign(this, pickOnHit(opts)); // fase 23
     this.critMul = opts.critMul ?? 2;
     this.dead = false;
+    // fase 75: igual que el obús, el misil detona en `_explode()`; no debe
+    // ser consumido por la colisión directa de proyectiles.
+    this.areaProjectile = true;
     this._smoke = 0;
   }
 
@@ -1290,7 +1298,7 @@ export class Drone {
             if (dist(e.x, e.y, this.x, this.y) <= e.r + contactPad) {
               hurtP(e, dps * dt, 'drone', fw, this.game, enemies);
               if ((fw.slowOnHit ?? 0) > 0) {
-                applySlow(e, fw.slowOnHit, 1.2);
+                applySlow(e, fw.slowOnHit, 1.2, 'drone');
               }
               if (this.game?.fortress?.comboMods?.swarmMark) {
                 applyMark(e, 'swarm', 2);
@@ -1454,8 +1462,10 @@ export class Drone {
             for (const e of alive) if (!best || e.y > best.y) best = e;
             this.fwTarget = best;
             this.fwState = 'advance';
+            this._wp = null; // fase 75: no perseguir un waypoint viejo
           }
           if (this.fwTarget) {
+            this._wp = null; // fase 75: el blanco manda sobre el waypoint
             const tg = this.fwTarget;
             const dx = tg.x - this.x, dy = tg.y - this.y;
             const distT = Math.hypot(dx, dy) || 1;
@@ -1465,7 +1475,10 @@ export class Drone {
               this.y += (dy / distT) * FIREWHEEL.speed * 0.7 * dt;
             } else if (this.fwState === 'advance') {
               this.fwState = 'sweep';
-              this._sweepT = FIREWHEEL.sweepTime * 1.6;
+              // fase 75: `sweepTime` no existe (daba NaN y el dron quedaba
+              // pegado al mismo blanco). `maxDwell` es el tope de seguridad
+              // documentado: 6 s con un mismo objetivo.
+              this._sweepT = FIREWHEEL.maxDwell;
               this._sweepA = Math.atan2(dy, dx);
             }
             if (this.fwState === 'sweep') {
@@ -1490,7 +1503,9 @@ export class Drone {
             };
             this.fwState = 'wander';
           }
-          if (this._wp) {
+          // fase 75: el waypoint solo se sigue cuando NO hay blanco. Antes
+          // se sumaban los dos desplazamientos (target + waypoint).
+          if (!this.fwTarget && this._wp) {
             const dx = this._wp.x - this.x, dy = this._wp.y - this.y;
             const distW = Math.hypot(dx, dy) || 1;
             this.x += (dx / distW) * FIREWHEEL.returnSpeed * 0.75 * dt;
@@ -1529,7 +1544,7 @@ export class Drone {
             if (!e || e.dead) continue;
             if (Number.isFinite(e.x) && Number.isFinite(e.y)
               && dist(e.x, e.y, this.x, this.y) <= bubbleR + (e.r ?? 0)) {
-              applySlow(e, slowFrac, 0.15);
+              applySlow(e, slowFrac, 0.15, 'forcefield');
               if (this.game?.fortress?.comboMods?.swarmMark) {
                 applyMark(e, 'swarm', 2);
               }
@@ -1548,9 +1563,8 @@ export class Drone {
           // `perkMods('beam')`), así la lectura queda pegada a su uso.
           {
             const fgr = unitMods(this);
-            const fort = this.game?.fortress;
-            if ((fgr.bubbleRegen ?? 0) > 0 && inside > 0 && fort && Number.isFinite(fort.hp)) {
-              fort.hp = Math.min(fort.maxHp ?? fort.hp, fort.hp + fgr.bubbleRegen * inside * dt);
+            if ((fgr.bubbleRegen ?? 0) > 0 && inside > 0) {
+              healBase(this.game, fgr.bubbleRegen * inside * dt);
             }
           }
         }
@@ -1737,18 +1751,21 @@ export class BlackHoleFx {
         const d = Math.hypot(e.x - this.x, e.y - this.y);
         if (d > this.radius) continue;
         const k = Math.min(1, dt * (this.pull / Math.max(40, d)));
-        e.baseX += (this.x - e.x) * k;         // el ancla de deriva sigue al punto
-        e.x += (this.x - e.x) * k;
-        e.y += (this.y - e.y) * k;
+        // fase 75: `baseX` se RECALCULA desde `entryX` para los enemigos con
+        // drift/zigzag, así que moverlo no servía: la succión se perdía.
+        // `entryX` es el ancla persistente; se mueve junto con la posición.
+        const pullX = (this.x - e.x) * k;
+        const pullY = (this.y - e.y) * k;
+        e.x += pullX;
+        e.y += pullY;
+        if (Number.isFinite(e.entryX)) e.entryX += pullX;
+        else if (Number.isFinite(e.baseX)) e.baseX += pullX;
         const hpBefore = e.hpDisplay ?? e.hp;
         hurt(e, this.dps * dt, 'blackhole');
         if (this.drain > 0) {
-          const fort = this.game?.fortress;
           const hpAfter = e.dead ? 0 : (e.hpDisplay ?? e.hp ?? 0);
           const dealt = Math.max(0, hpBefore - hpAfter);
-          if (fort && Number.isFinite(fort.hp) && dealt > 0) {
-            fort.hp = Math.min(fort.maxHp ?? fort.hp, fort.hp + dealt * this.drain);
-          }
+          if (dealt > 0) healBase(this.game, dealt * this.drain);
         }
       }
     }
@@ -2475,7 +2492,7 @@ export class Tower {
           };
           const slowBeam = (e) => {
             if ((bm.slowOnHit ?? 0) > 0) {
-              applySlow(e, bm.slowOnHit, 1.2);
+              applySlow(e, bm.slowOnHit, 1.2, 'beam');
             }
           };
           hurtP(tgt, beamHit(this.damage * ramp * dt), 'beam', bm, game, enemies); // objetivo: dps × ramp
@@ -2692,7 +2709,7 @@ export class Tower {
             pierce: 999 + (gpm.pierceCount ?? 0),
             radius: 6,
             // dev-7 fase 32: el perdigón del Gauss es balístico.
-            dmgType: this.dmgType ?? 'ballistic',
+            dmgType: this.data?.dmgType ?? 'ballistic',
             source: 'gauss',
             markOnHit: 'rail',
             markDuration: 2,
@@ -2938,7 +2955,7 @@ export class Tower {
       // dev-7 fase 32: el proyectil lleva su TIPO de daño (aquí el
       // Guardian es balístico). El multiplicador contra la familia del
       // enemigo se aplica en enemies.js (takeDamage).
-      dmgType: this.dmgType ?? 'ballistic',
+      dmgType: this.data?.dmgType ?? 'ballistic',
       // fase 74.2: fuente para combos de marca (Marca de Riel / Enlace).
       source: 'guardian',
       // dev-7 fase 48: el Lv.5 del Guardian perfora +1 (la escalera de

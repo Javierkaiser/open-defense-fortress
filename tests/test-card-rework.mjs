@@ -13,7 +13,9 @@ import {
 } from '../js/cards.js';
 import { Fortress } from '../js/player.js';
 import { Tower, TOWERS, unitMods } from '../js/towers.js';
-import { applyProjectileHit, Enemy, applySlow, applyMark, hasMark } from '../js/enemies.js';
+import {
+  applyProjectileHit, Enemy, applyPoison, applySlow, applyMark, hasMark,
+} from '../js/enemies.js';
 import { saveMeta } from '../js/meta.js';
 
 saveMeta({});
@@ -270,6 +272,40 @@ test('fase 74.2: el slow dura varios frames y expira', () => {
   assert.equal(e.slowFactor, 1, 'al expirar vuelve a 1');
 });
 
+test('fase 75: el veneno letal corta el update (no se mueve ni dispara fases)', () => {
+  const game = mkGame([]);
+  const boss = new Enemy('boss', 270, { game, y: 500 });
+  boss.hp = 1;
+  applyPoison(boss, 100, 1);
+  const y0 = boss.y;
+  boss.update(0.02);
+  assert.equal(boss.dead, true, 'el veneno debe matar al jefe');
+  assert.equal(boss.y, y0, 'un muerto por veneno no sigue cayendo');
+  assert.equal(boss._phaseIdx, 0, 'un jefe muerto no dispara fases');
+});
+
+test('fase 75: el DPS del veneno no se hereda después de expirar', () => {
+  const game = mkGame([]);
+  const e = new Enemy('spore', 270, { game, y: 500 });
+  applyPoison(e, 100, 0.01);
+  e.update(0.02);
+  assert.equal(e.poisonDps, 0, 'al expirar el DPS debe volver a 0');
+  applyPoison(e, 1, 2);
+  assert.equal(e.poisonDps, 1, 'el veneno nuevo usa SU DPS, no el viejo');
+});
+
+test('fase 75: un slow fuerte y corto no se hereda al débil y largo', () => {
+  const game = mkGame([]);
+  const e = new Enemy('spore', 270, { game, y: 500 });
+  applySlow(e, 0.75, 0.01, 'strong');
+  applySlow(e, 0.2, 2, 'weak');
+  assert.ok(Math.abs(e.slowFrac - 0.25) < 1e-9, 'mientras vive el fuerte manda el fuerte');
+  e.update(0.02);
+  assert.ok(Math.abs(e.slowFrac - 0.8) < 1e-9,
+    `al expirar el fuerte queda el débil (quedó ${e.slowFrac})`);
+  assert.equal(e.slowFactor, 0.8);
+});
+
 test('fase 74.2: las marcas duran y expiran', () => {
   const game = mkGame([]);
   const e = new Enemy('spore', 270, { game, y: 500 });
@@ -330,6 +366,10 @@ test('fase 74.2: Pacto de Sangre hace que el Black Hole cure', () => {
   game.fortress.hp = 500;
   bh.update(0.1);
   assert.ok(game.fortress.hp > 500, `el vórtice debe curar (hp ${game.fortress.hp})`);
+  // fase 75: el drenaje no puede resucitar una base ya destruida.
+  game.fortress.hp = 0;
+  bh.update(0.1);
+  assert.equal(game.fortress.hp, 0, 'el Black Hole no revive una base en 0');
 });
 
 test('fase 74.2: Transfusión regenera por enemigos envenenados', () => {
@@ -344,6 +384,9 @@ test('fase 74.2: Transfusión regenera por enemigos envenenados', () => {
   game.fortress.hp = 500;
   game.fortress.update(1, [e]);
   assert.ok(game.fortress.hp > 500, `debe regenerar (hp ${game.fortress.hp})`);
+  game.fortress.hp = 0;
+  game.fortress.update(1, [e]);
+  assert.equal(game.fortress.hp, 0, 'Transfusión no revive una base en 0');
 });
 
 test('fase 74.2: Marca de Riel da +25% del Guardian a marcados', () => {

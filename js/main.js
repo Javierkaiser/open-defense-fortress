@@ -50,6 +50,7 @@ import {
 // módulo sólo aporta el director y las cuentas, no el estado de la run.
 import {
   SURVIVAL, survivalStage, survivalScale, survivalWaveChunk, survivalTheme,
+  xpStageForRun,
   survivalBossKind, survivalBossName, survivalReward,
 } from './survival.js';
 import { NATIVE_EVENTS, backAction } from './native.js';
@@ -1392,7 +1393,7 @@ export class Game {
     // El cristal suma su bonus de energía (§2.4/D12); el Acelerador de
     // Energía multiplica la energía ganada.
     const bonusFrac = enemy?.data?.dropXpBonusFrac ?? 0;
-    this._gainXp(xpForKill(enemy, this.stageId ?? 1)
+    this._gainXp(xpForKill(enemy, this._xpStageNow())
       * (1 + bonusFrac) * (this.fortress.xpMul ?? 1));
 
     // Ultimate: carga SOLO por kills (§2.8); el boss suma cargas extra
@@ -1447,8 +1448,24 @@ export class Game {
    * tope matar tiene que seguir significando algo. El techo es de la
    * ETAPA (el nivel arranca en 1 en cada una), no de la campaña.
    */
+  /**
+   * fase 75 — Stage virtual que paga el XP de la run.
+   *
+   * En Supervivencia `stageId` se queda en 1 (curva del S1) mientras
+   * `survivalWave` avanza: usar `stageId` para XP hacía que la oleada 40
+   * pagara energía de stage 1. El manager actualiza `survivalWave` al
+   * despachar cada ola; éste es el stage que corresponde a esa ola.
+   */
+  _xpStageNow() {
+    return xpStageForRun({
+      mode: this.mode,
+      survivalWave: this.waveManager?.survivalWave,
+      stageId: this.stageId,
+    });
+  }
+
   _gainXp(amount) {
-    const stage = this.stageId ?? 1;
+    const stage = this._xpStageNow();
     // fase 70/71: la Supervivencia reparte 30 cartas (31 niveles); la
     // campaña y el ∞ se quedan en el tope de etapa. `maxLevel` es la
     // fuente ÚNICA (también la lee el HUD).

@@ -15,18 +15,23 @@
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { readdirSync } from "node:fs";
-import { join, dirname, resolve } from "node:path";
+import { join, dirname, resolve, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const errors = [];
 const notes = [];
 
-const rel = (p) => p.replace(ROOT + "/", "").replace(ROOT + "\\", "");
+// Normaliza SIEMPRE a `/`: en Windows `relative()` devuelve `\` y los
+// patrones de abajo usan `/` (rompía el check de binarios y de artefactos).
+const rel = (p) => relative(ROOT, p).replace(/\\/g, "/");
 
 function walk(dir, out = []) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === ".git" || entry.name === "node_modules") continue;
+    // `.codegraph/` es un índice local (gitignored) de la herramienta de
+    // análisis: no es un artefacto del repo y puede superar los 2 MB.
+    if (entry.name === ".git" || entry.name === "node_modules"
+      || entry.name === ".codegraph") continue;
     const full = join(dir, entry.name);
     if (entry.isDirectory()) walk(full, out);
     else out.push(full);

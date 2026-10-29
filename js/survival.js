@@ -54,6 +54,21 @@ export function survivalStage(wave) {
   return SURVIVAL.baseStage + w * SURVIVAL.stagePerWave;
 }
 
+/**
+ * fase 75 — Stage que paga el XP de la run.
+ *
+ * En Supervivencia `stageId` se queda en 1 (curva de arranque) mientras
+ * `survivalWave` avanza; usar `stageId` para XP hacía que la oleada 40
+ * pagara energía de stage 1. En campaña/∞ manda `stageId`.
+ *
+ * @param {{mode?:string, survivalWave?:number, stageId?:number}} run
+ * @returns {number}
+ */
+export function xpStageForRun(run = {}) {
+  if (run.mode === 'survival') return survivalStage(run.survivalWave ?? 0);
+  return run.stageId ?? 1;
+}
+
 /** Escala EFECTIVA de la oleada (stage virtual × Protocolo). */
 export function survivalScale(wave, runMods = null) {
   const base = scaleFor(survivalStage(wave));

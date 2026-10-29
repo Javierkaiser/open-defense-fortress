@@ -11,9 +11,11 @@ import {
   TOWERS, DRONES, Tower, Drone, Bullet, HomingMissile, MUZZLE_ACCENT,
   LaserStaticFx, projectileColor, levelPips, MAX_TOWER_LEVEL, WASPS, FIREWHEEL,
   TARGETING, targetingFor, pickByPolicy, targetInRange,
-  MortarShell, beamAimAngle,
+  MortarShell, BlackHoleFx, beamAimAngle,
 } from '../js/towers.js';
-import { applyProjectileHit, projectileRadius } from '../js/enemies.js';
+import {
+  applyProjectileHit, collideProjectiles, projectileRadius, Enemy,
+} from '../js/enemies.js';
 import { CATALOG, applyCard } from '../js/cards.js';
 import { PERKS } from '../js/meta.js';
 import { saveMeta, META_SLOW_CAP, perkDmgFor, metaDmgMul } from '../js/meta.js';
@@ -205,6 +207,62 @@ test('HomingMissile: homingStrength escala el turnRate (fase 17)', () => {
   const m0 = new HomingMissile(0, 0, null, {}, null, { homing: 0 });
   const m1 = new HomingMissile(0, 0, null, {}, null, { homing: 2 });
   assert.ok(m1.turnRate > m0.turnRate, 'el misil con homing debe girar más rápido');
+});
+
+test('fase 75: mortero y misil no se consumen como balas directas', () => {
+  const enemies = [mkEnemy(100, 480, 100), mkEnemy(110, 490, 100)];
+  const game = {
+    engine: {
+      entities: [],
+      spawnParticles() {}, addEffect() {}, shake() {},
+      addEntity(e) { this.entities.push(e); },
+    },
+    fortress: { enemies, spawnMiniBlackHole() {} },
+  };
+  const shell = new MortarShell(100, 500, enemies[0], game, 45, 150, null);
+  game.engine.entities.push(shell);
+  collideProjectiles(game.engine, enemies);
+  assert.equal(shell.dead, false, 'el obús debe seguir vivo hasta detonar');
+  assert.equal(enemies[0].hp, 100, 'no debe pegar como bala directa');
+
+  shell.t = 1;
+  shell.update(0.01); // fuerza la detonación
+  assert.equal(shell.dead, true);
+  assert.ok(enemies[0].hp < 100 && enemies[1].hp < 100,
+    'la explosión debe dañar a ambos enemigos del radio');
+
+  const missile = new HomingMissile(100, 500, enemies[0], game, 45, {});
+  game.engine.entities.push(missile);
+  collideProjectiles(game.engine, enemies);
+  assert.equal(missile.dead, false, 'el misil tampoco debe consumirse al rozar');
+});
+
+test('fase 75: el Campo de Fuerza usa un dwell finito y no persigue waypoint con blanco', () => {
+  const juego = mkGame();
+  const dr = new Drone('forcefield', juego, 0);
+  const e = mkTank(dr.x, dr.y);
+  juego.fortress.enemies = [e];
+  dr.fwTarget = e;
+  dr.fwState = 'advance';
+  dr.x = e.x;
+  dr.y = e.y;
+  dr._wp = { x: e.x + 1000, y: e.y };
+  dr.update(0.016, [e]);
+  assert.ok(Number.isFinite(dr._sweepT) && dr._sweepT > 0,
+    `el dwell debe ser finito (quedó en ${dr._sweepT})`);
+  assert.equal(dr._wp, null, 'con blanco no debe conservar un waypoint viejo');
+});
+
+test('fase 75: el Black Hole arrastra también el ancla de drift/zigzag', () => {
+  const juego = mkGame();
+  const e = new Enemy('meteor', 200, { game: juego, y: 400 });
+  juego.fortress.enemies = [e];
+  const bh = new BlackHoleFx(juego, {
+    x: 100, y: 400, duration: 4, radius: 170, pull: 260,
+  });
+  bh.update(0.1);
+  assert.ok(e.entryX < 200, `entryX debe acercarse al vórtice (quedó en ${e.entryX})`);
+  assert.ok(e.x < 200, `x debe acercarse al vórtice (quedó en ${e.x})`);
 });
 
 test('HomingMissile._explode: splash propaga los debuffs/crit de perks', () => {

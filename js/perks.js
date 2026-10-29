@@ -28,6 +28,7 @@
 // ============================================================
 
 import { dist } from './engine.js';
+import { healBase } from './base-heal.js';
 
 /** Daño a un blanco duck-typed (tolera dummies de test sin takeDamage). */
 function hurt(enemy, n, kind) {
@@ -87,17 +88,9 @@ export const LIFESTEAL_CAP = 0.10;
 function applyLifesteal(game, dealt, rate) {
   const capped = Math.max(0, Math.min(LIFESTEAL_CAP, Number(rate) || 0));
   if (!(capped > 0) || !(dealt > 0)) return 0;
-  const fort = game?.fortress;
-  if (!fort || !Number.isFinite(fort.hp) || fort.hp <= 0) return 0;
-  const heal = Math.min(dealt * capped, Math.max(0, (fort.maxHp ?? fort.hp) - fort.hp));
-  if (!(heal > 0)) return 0;
-  fort.hp = Math.min(fort.maxHp ?? fort.hp, fort.hp + heal);
-  game?.engine?.emit?.('base:healed', {
-    amount: heal,
-    hp: fort.hp,
-    maxHp: fort.maxHp ?? fort.hp,
-  });
-  return heal;
+  // fase 75: una sola implementación de curación con las guardas comunes
+  // (no resucita una base en 0, no supera maxHp, emite base:healed).
+  return healBase(game, dealt * capped);
 }
 
 /**

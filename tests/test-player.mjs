@@ -19,6 +19,7 @@ import {
 } from '../js/player.js';
 import { CONFIG } from '../js/engine.js';
 import { GUARDIAN_SLOT } from '../js/towers.js';
+import { healBase } from '../js/base-heal.js';
 
 function makeGame() {
   const game = { engine: { emit() {}, addEntity() {} }, audio: { sfx() {} } };
@@ -188,6 +189,27 @@ test('takeDamage: daños íntegros se respetan', () => {
   fortress.invuln = 0;
   fortress.takeDamage(10);
   assert.equal(fortress.hp, 990);
+});
+
+test('takeDamage (fase 75): un NaN no deja la base inmortal', () => {
+  const { fortress } = makeGame();
+  fortress.maxHp = 1000;
+  fortress.hp = 1000;
+  assert.equal(fortress.takeDamage(NaN), false);
+  assert.equal(fortress.hp, 1000, 'el HP debe quedar intacto');
+  assert.equal(fortress.takeDamage(Infinity), false);
+  assert.equal(fortress.hp, 1000);
+});
+
+test('healBase (fase 75): no revive una base en 0 y respeta el máximo', () => {
+  const game = makeGame();
+  game.fortress.hp = 0;
+  assert.equal(healBase(game, 100), 0, 'una base destruida no se resucita');
+  assert.equal(game.fortress.hp, 0);
+  game.fortress.maxHp = 100;
+  game.fortress.hp = 90;
+  assert.equal(healBase(game, 100), 10, 'cura solo el faltante');
+  assert.equal(game.fortress.hp, game.fortress.maxHp);
 });
 
 test('takeDamage (fase 69, Asedio): leakMul multiplica el daño de fuga', () => {

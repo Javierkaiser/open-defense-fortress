@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import {
   SURVIVAL, survivalStage, survivalScale, survivalWaveChunk,
   survivalTheme, survivalBossKind, survivalBossName, survivalReward,
+  xpStageForRun,
 } from '../js/survival.js';
 import { heatMods } from '../js/heat.js';
 import { waveGroups } from '../js/waves.js';
@@ -34,6 +35,13 @@ test('survival: la escala crece y aplica Vigor/Prisa del Protocolo', () => {
   const s20h = survivalScale(20, rm);
   assert.equal(s20h.hpMul, s20.hpMul * 1.06);
   assert.equal(s20h.velMul, s20.velMul * 1.05);
+});
+
+test('fase 75: el XP de Supervivencia usa el stage de la oleada, no el 1 fijo', () => {
+  assert.equal(xpStageForRun({ mode: 'survival', survivalWave: 0, stageId: 1 }), 1);
+  assert.equal(xpStageForRun({ mode: 'survival', survivalWave: 20, stageId: 1 }), survivalStage(20));
+  assert.equal(xpStageForRun({ mode: 'survival', survivalWave: 40, stageId: 1 }), 121);
+  assert.equal(xpStageForRun({ mode: 'campaign', survivalWave: 20, stageId: 7 }), 7);
 });
 
 test('survival: el bloque es determinista, tiene 5 olas y un jefe al final', () => {

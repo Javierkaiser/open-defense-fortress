@@ -452,9 +452,45 @@ export function applyPoison(enemy, dps, seconds) {
   if (!enemy || enemy.dead) return false;
   if (!Number.isFinite(dps) || dps <= 0) return false;
   if (!Number.isFinite(seconds) || seconds <= 0) return false;
+  // fase 75: si el veneno anterior ya expiró, su DPS no puede contaminar
+  // al nuevo. Antes `poisonDps` quedaba pegado y un veneno débil heredaba
+  // el DPS fuerte de una aplicación corta anterior.
+  if (!((enemy.poisonT ?? 0) > 0)) enemy.poisonDps = 0;
   enemy.poisonT = Math.max(enemy.poisonT ?? 0, seconds);
   enemy.poisonDps = Math.max(enemy.poisonDps ?? 0, dps);
   return true;
+}
+
+/** Recalcula el slow efectivo a partir de sus fuentes activas. */
+function recomputeSlow(enemy) {
+  let timer = 0;
+  let frac = 1;
+  const sources = enemy.slowSources;
+  if (sources) {
+    for (const key of Object.keys(sources)) {
+      const s = sources[key];
+      if (!s || !(s.remaining > 0)) { delete sources[key]; continue; }
+      timer = Math.max(timer, s.remaining);
+      frac = Math.min(frac, s.factor);
+    }
+  }
+  enemy.slowTimer = timer;
+  enemy.slowFrac = frac;
+  enemy.slowFactor = enemy._slowImmune ? undefined : frac;
+}
+
+/** Avanza los timers de slow y recalcula la fracción vigente. */
+function tickSlow(enemy, dt) {
+  const sources = enemy.slowSources;
+  if (sources) {
+    for (const key of Object.keys(sources)) {
+      const s = sources[key];
+      if (!s) { delete sources[key]; continue; }
+      s.remaining -= dt;
+      if (s.remaining <= 0) delete sources[key];
+    }
+  }
+  recomputeSlow(enemy);
 }
 
 /**
@@ -462,19 +498,25 @@ export function applyPoison(enemy, dps, seconds) {
  * guard de los proyectiles fallaba (Enemy.update limpia `slowFactor`):
  * Balas Gélidas no hacía nada. `applySlow` fija `slowTimer` + `slowFrac`
  * y mantiene `slowFactor` por compatibilidad con el lead/render.
+ *
+ * fase 75 — FUENTES: un slow fuerte y corto (p. ej. 75 % durante 0,01 s)
+ * no debe extender su fracción con el timer de un slow débil y largo. El
+ * slow efectivo es el mínimo de las fuentes activas; `source` agrupa los
+ * refrescos de una misma mecánica (forcefield, projectile, beam…).
  * @param {object} enemy
  * @param {number} frac 0.20 = 20% slower
  * @param {number} seconds duración
+ * @param {string} [source] identificador de la fuente
  * @returns {boolean}
  */
-export function applySlow(enemy, frac, seconds = 1.5) {
+export function applySlow(enemy, frac, seconds = 1.5, source = 'default') {
   if (!enemy || enemy.dead || enemy._slowImmune) return false;
   if (!Number.isFinite(frac) || frac <= 0) return false;
   if (!Number.isFinite(seconds) || seconds <= 0) return false;
   const f = Math.min(0.9, frac);
-  enemy.slowTimer = Math.max(enemy.slowTimer ?? 0, seconds);
-  enemy.slowFrac = Math.min(enemy.slowFrac ?? 1, 1 - f);
-  enemy.slowFactor = enemy.slowFrac;
+  enemy.slowSources ??= {};
+  enemy.slowSources[source] = { factor: 1 - f, remaining: seconds };
+  recomputeSlow(enemy);
   return true;
 }
 
@@ -805,6 +847,7 @@ export class Enemy {
     this.slowTimer = 0;
     this.slowFrac = 1;
     this.slowFactor = 1;  // compatibilidad con lead/render
+    this.slowSources = {}; // fase 75: una entrada por mecánica de slow
     this.marks = {};
     // dev-7 fase 30: VENENO (picadura del Dron Avispas). Es un DoT: hace
     // daño por segundo durante un tiempo, así que la picadura sigue
@@ -1261,6 +1304,7 @@ export class Enemy {
     // borran ANTES de consumirlos (unas líneas más abajo), así el afijo los
     // ignora sin tocar esas torres ni el comportamiento de las otras élites.
     if (this._slowImmune) {
+      this.slowSources = {};
       this.slowTimer = 0;
       this.slowFrac = 1;
       this.slowFactor = undefined;
@@ -1278,25 +1322,34 @@ export class Enemy {
     // pasa por `die()` (el MISMO camino que un golpe normal: score, XP,
     // partículas y el evento 'enemy:killed').
     if (this.poisonT > 0 && !this.dead) {
-      this.poisonT -= dt;
+      // El tick se acota al tiempo restante: no se cobra veneno después
+      // de que el efecto expiró.
+      const tick = Math.min(dt, this.poisonT);
+      this.poisonT = Math.max(0, this.poisonT - dt);
       // Oleadas dinámicas: el veneno es daño, así que también pasa por el
       // escudo del `escudado` (que absorbe TODO el daño antes que el hp).
       // fase 68: `{ armor: false }` — la armadura del `acorazado` es PLANA
       // POR GOLPE; aplicada al DoT por frame lo anularía (cada tick caería
       // bajo el mínimo de 1), o sea una inmunidad escondida al veneno.
-      this._absorbDamage(this.poisonDps * dt, { armor: false });
+      this._absorbDamage(this.poisonDps * tick, { armor: false });
       if (this.hp <= 0) {
         this.hp = 0;
         this.die();
+        // fase 75: un enemigo muerto por veneno no sigue moviéndose,
+        // no cuenta fuga y un jefe no dispara fases después de morir.
+        this.poisonT = 0;
+        this.poisonDps = 0;
+        return;
+      }
+      if (this.poisonT <= 0) {
+        this.poisonT = 0;
+        this.poisonDps = 0; // no contaminar el próximo veneno
       }
     }
-    // fase 74.2: slow con DURACIÓN. El Campo de Fuerza lo refresca cada
-    // frame; Balas Gélidas lo aplica por 1,5 s. `slowFactor` se mantiene
-    // para el lead predictivo.
-    if (this.slowTimer > 0) {
-      this.slowTimer = Math.max(0, this.slowTimer - dt);
-      if (this.slowTimer <= 0) this.slowFrac = 1;
-    }
+    // fase 74.2/75: slow con DURACIÓN y por FUENTE. El Campo de Fuerza lo
+    // refresca cada frame; Balas Gélidas lo aplica por 1,5 s. `slowFactor`
+    // se mantiene para el lead predictivo.
+    tickSlow(this, dt);
     const sf = this.slowTimer > 0 ? (this.slowFrac ?? 1) : 1;
     this.slowFactor = this._slowImmune ? undefined : sf;
     if (this.stun > 0) this.stun -= dt; // paralizado: no avanza este frame
@@ -1450,6 +1503,7 @@ export class Enemy {
     // dejar pasar un tanque maltrecho ya no es gratis y la base cae por
     // daño acumulado, sin la regla del 25 %. Fortress aplica flash + invuln
     // visual (0.4 s); la invuln NO anula el golpe.
+    if (this.dead) return; // fase 75: murió en este frame (veneno)
     if (this.y >= baseImpactY()) {
       this.explode(); // chispa visual del impacto (la lógica de escudo vive en player.js)
       this.game?.fortress?.takeDamage(leakDamageFor(this));
@@ -1715,6 +1769,7 @@ export class Enemy {
    * NO los declara: sigue siendo el jefe sencillo de la primera partida.
    */
   _updateBossPhases() {
+    if (this.dead) return; // fase 75: nunca después de morir
     const d = this.data;
     if (!this._phaseList) {
       // Se arma UNA vez: lista canónica de umbrales {atFrac, velMul, shed, spawn}
@@ -2714,7 +2769,7 @@ function rollProjectileCrit(p, e = null) {
  *  previo). Sin claves → no toca nada (comportamiento histórico). */
 function applyProjectileDebuffs(p, e) {
   if ((p.slowOnHit ?? 0) > 0) {
-    applySlow(e, p.slowOnHit, p.slowDuration ?? 1.5);
+    applySlow(e, p.slowOnHit, p.slowDuration ?? 1.5, 'projectile');
   }
   if ((p.stunChance ?? 0) > 0 && typeof e.stun === 'number' && Math.random() < p.stunChance) {
     e.stun = Math.max(e.stun ?? 0, 0.5);
@@ -2786,7 +2841,7 @@ function projectileStrike(p, e, kind, list) {
           applyPerkDamage(other, splash, 'blast', p, p.game, list);
           const cm = p.game?.fortress?.comboMods;
           if (cm?.explosionSlowFrac > 0) {
-            applySlow(other, cm.explosionSlowFrac, cm.explosionSlowTime ?? 2);
+            applySlow(other, cm.explosionSlowFrac, cm.explosionSlowTime ?? 2, 'explosion');
           }
         }
       }
@@ -2846,6 +2901,11 @@ export function applyProjectileHit(p, enemies, radiusOverride = undefined) {
     }
     return hitAny;
   }
+
+  // Los proyectiles de área (mortero/misil) NO tienen impacto directo:
+  // detonan en su propio update y aplican splash una sola vez. Sin este
+  // guard, `collideProjectiles` los consumía al primer roce.
+  if (p.areaProjectile) return false;
 
   // Impacto directo: el más cercano al origen del disparo (Y mayor)
   const swept = Number.isFinite(p._px) && Number.isFinite(p._py);
@@ -2924,6 +2984,8 @@ export function applyProjectileHit(p, enemies, radiusOverride = undefined) {
 export function collideProjectiles(engine, enemies) {
   for (const p of engine.entities) {
     if (p instanceof Enemy) continue; // los enemigos son blanco, no proyectil
+    // fase 75: el mortero/misil detona en su update; no se consume acá.
+    if (p.areaProjectile) continue;
     if (applyProjectileHit(p, enemies)) p.dead = true;
   }
 }
