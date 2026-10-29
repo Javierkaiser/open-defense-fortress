@@ -214,25 +214,27 @@ export function applyPerkDamage(enemy, n, kind, mods, game, enemies, opts = {}) 
  * Campos de "al golpear" de los perks (fase 23) que viajan en el
  * proyectil — los lee la ruta de proyectil (enemies.js).
  */
-export function onHitOpts(mods, game) {
+function hitOptBase(o) {
   return {
-    executeThreshold: mods?.executeThreshold ?? 0,
-    lifesteal: mods?.lifesteal ?? 0,
-    explodeOnKillChance: mods?.explodeOnKillChance ?? 0,
-    explodeOnKillDmg: mods?.explodeOnKillDmg ?? 20,
-    explodeOnKillRadius: mods?.explodeOnKillRadius ?? 70,
+    executeThreshold: o?.executeThreshold ?? 0,
+    lifesteal: o?.lifesteal ?? 0,
+    explodeOnKillChance: o?.explodeOnKillChance ?? 0,
+    explodeOnKillDmg: o?.explodeOnKillDmg ?? 20,
+    explodeOnKillRadius: o?.explodeOnKillRadius ?? 70,
     // fase 74: explosión AL IMPACTAR (Balas Detonantes).
-    impactExplodeChance: mods?.impactExplodeChance ?? 0,
-    impactExplodeFrac: mods?.impactExplodeFrac ?? 0,
-    impactExplodeRadius: mods?.impactExplodeRadius ?? 0,
-    // dev-7 fase 50: la CAZA DE FAMILIA (cartas "hunt_*"): un
-    // multiplicador extra contra una familia concreta de enemigo.
-    famRockMul: mods?.famRockMul ?? 1,
-    famCrystalMul: mods?.famCrystalMul ?? 1,
-    famSporeMul: mods?.famSporeMul ?? 1,
-    famVirusMul: mods?.famVirusMul ?? 1,
-    game,
+    impactExplodeChance: o?.impactExplodeChance ?? 0,
+    impactExplodeFrac: o?.impactExplodeFrac ?? 0,
+    impactExplodeRadius: o?.impactExplodeRadius ?? 0,
+    // dev-7 fase 50: la CAZA DE FAMILIA (cartas "hunt_*").
+    famRockMul: o?.famRockMul ?? 1,
+    famCrystalMul: o?.famCrystalMul ?? 1,
+    famSporeMul: o?.famSporeMul ?? 1,
+    famVirusMul: o?.famVirusMul ?? 1,
   };
+}
+
+export function onHitOpts(mods, game) {
+  return { ...hitOptBase(mods), game };
 }
 
 /**
@@ -240,23 +242,9 @@ export function onHitOpts(mods, game) {
  * (HomingMissile setea this.game en su constructor).
  */
 export function pickOnHit(o) {
-  return {
-    executeThreshold: o.executeThreshold ?? 0,
-    lifesteal: o.lifesteal ?? 0,
-    explodeOnKillChance: o.explodeOnKillChance ?? 0,
-    explodeOnKillDmg: o.explodeOnKillDmg ?? 20,
-    explodeOnKillRadius: o.explodeOnKillRadius ?? 70,
-    // fase 74: explosión al impactar (Balas Detonantes).
-    impactExplodeChance: o.impactExplodeChance ?? 0,
-    impactExplodeFrac: o.impactExplodeFrac ?? 0,
-    impactExplodeRadius: o.impactExplodeRadius ?? 0,
-    // dev-7 fase 50: la caza de familia viaja con el proyectil.
-    famRockMul: o.famRockMul ?? 1,
-    famCrystalMul: o.famCrystalMul ?? 1,
-    famSporeMul: o.famSporeMul ?? 1,
-    famVirusMul: o.famVirusMul ?? 1,
-    ...(o.game ? { game: o.game } : {}),
-  };
+  const out = hitOptBase(o);
+  if (o?.game) out.game = o.game;
+  return out;
 }
 
 // ============================================================

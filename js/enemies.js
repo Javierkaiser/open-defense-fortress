@@ -22,6 +22,8 @@ import { applyPerkDamage } from './perks.js';
 // dev-7 fase 32: los tipos de daño y las familias de enemigo (la matriz
 // tipo × familia se aplica en Enemy.takeDamage).
 import { DAMAGE_TYPES, dmgTypeFor, dmgMultiplier } from './damagetypes.js';
+import { pointSegmentDistance, withAlpha } from './geometry.js';
+import { applyStun, rollCrit, tryFreeze } from './combat-crit.js';
 
 /** Estética v3.1 (§2.2): paleta de floats de daño por tipo de enemigo
  * (eye-of-the-void: rojos por defecto, cálidos en meteoritos). */
@@ -547,13 +549,6 @@ function threatPulse(t) {  if (t <= THREAT_ZONE) return 0;
  *  y los blobs sueltos van sin estela: son rápidos y ligeros. */
 function incandColor(d) {
   return d.incand ?? d.trail1 ?? d.glow ?? null;
-}
-
-/** '#RRGGBB' + alfa → 'rgba(r,g,b,a)' (halos con caída suave). */
-function withAlpha(color, a) {
-  if (typeof color !== 'string' || !/^#[0-9a-f]{6}$/i.test(color)) return color;
-  const n = parseInt(color.slice(1), 16);
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }
 
 /** Polígono irregular determinista por entidad (§4.2: NO regenerar por frame). */
@@ -2757,10 +2752,9 @@ function rollProjectileCrit(p, e = null) {
     chance += cm?.slowCritChanceAdd ?? 0;
     critMul += cm?.slowCritDmgAdd ?? 0;
   }
-  chance = Math.min(1, Math.max(0, chance));
-  const crit = chance > 0 && Math.random() < chance;
+  const { crit, mul } = rollCrit(chance, critMul);
   p._lastCrit = crit;
-  return crit ? Math.round(p.damage * critMul) : p.damage;
+  return crit ? Math.round(p.damage * mul) : p.damage;
 }
 
 /** Debuffs de impacto de un proyectil (perks sistemáticos, fase 17):
@@ -2771,8 +2765,8 @@ function applyProjectileDebuffs(p, e) {
   if ((p.slowOnHit ?? 0) > 0) {
     applySlow(e, p.slowOnHit, p.slowDuration ?? 1.5, 'projectile');
   }
-  if ((p.stunChance ?? 0) > 0 && typeof e.stun === 'number' && Math.random() < p.stunChance) {
-    e.stun = Math.max(e.stun ?? 0, 0.5);
+  if ((p.stunChance ?? 0) > 0 && Math.random() < p.stunChance) {
+    applyStun(e, 0.5);
   }
 }
 
@@ -2819,10 +2813,8 @@ function projectileStrike(p, e, kind, list) {
   // fase 74.2 — Fractura Criogénica: un crítico contra un enemigo
   // ralentizado puede congelarlo.
   const cm = p.game?.fortress?.comboMods;
-  if (p._lastCrit && !killed && e && (e.slowTimer ?? 0) > 0
-    && (cm?.slowFreezeChance ?? 0) > 0
-    && Math.random() < cm.slowFreezeChance && typeof e.stun === 'number') {
-    e.stun = Math.max(e.stun ?? 0, 0.5);
+  if (p._lastCrit && !killed && e && (e.slowTimer ?? 0) > 0) {
+    tryFreeze(e, cm?.slowFreezeChance, 0.5);
   }
 
   // fase 74 — Balas Detonantes: explosión AL IMPACTAR, una vez por
@@ -2858,16 +2850,6 @@ function projectileStrike(p, e, kind, list) {
  * Es el equivalente a barrer un círculo (la bala) contra el círculo del
  * enemigo: el radio de captura se suma aparte en `applyProjectileHit`.
  */
-function segmentPointDist(px, py, x, y, cx, cy) {
-  const dx = x - px;
-  const dy = y - py;
-  const len2 = dx * dx + dy * dy;
-  if (len2 <= 1e-9) return Math.hypot(cx - px, cy - py);
-  let t = ((cx - px) * dx + (cy - py) * dy) / len2;
-  t = Math.max(0, Math.min(1, t));
-  return Math.hypot(cx - (px + t * dx), cy - (py + t * dy));
-}
-
 /**
  * Aplica el daño de un proyectil sobre la lista viva de enemigos.
  * Bala recta: primer enemigo alcanzado (más cercano a la torre).
@@ -2913,7 +2895,7 @@ export function applyProjectileHit(p, enemies, radiusOverride = undefined) {
   for (const e of list) {
     if (!e || e.dead || e === p._lastHit) continue; // fase 17: no repetir tras rebote
     const d = swept
-      ? segmentPointDist(p._px, p._py, p.x, p.y, e.x, e.y)
+      ? pointSegmentDistance(e.x, e.y, p._px, p._py, p.x, p.y)
       : Math.hypot(e.x - p.x, e.y - p.y);
     if (d > (e.r ?? 10) + projectileRadius(p)) continue;
     if (!best || e.y > best.y) best = e;

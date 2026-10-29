@@ -10,6 +10,8 @@
 // ============================================================
 
 import { CONFIG, LAYOUT, clamp, dist, rand, fallYAfter } from './engine.js';
+import { closestPointOnSegment, pointSegmentDistance, withAlpha } from './geometry.js';
+import { applyStun, rollCrit, tryFreeze } from './combat-crit.js';
 import { applyProjectileHit, applyPoison, applySlow, applyMark } from './enemies.js';
 // dev-7 fase 28: `perkDmgFor` (DPS real de las espinas = thornDps del
 // perk × metaDmgMul) y `META_SLOW_CAP` (tope COMBINADO del slow del
@@ -577,15 +579,6 @@ const TRAVERSE = {
 
 /** La tabla de traverse, exportada para los tests (fuente única). */
 export const TRAVERSE_AIM = TRAVERSE;
-
-/** '#RRGGBB' + alpha → 'rgba(r,g,b,a)' (gradientes y glows). */
-function withAlpha(hex, a) {
-  const h = String(hex ?? '').replace('#', '');
-  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
-  const n = parseInt(full, 16);
-  if (!Number.isFinite(n)) return hex;
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
-}
 
 /**
  * dev-7 fase 29 — Gradiente longitudinal de un haz: el color se apaga en
@@ -1922,22 +1915,12 @@ export class LaserStaticFx {
 
   /** Distancia del punto P al SEGMENTO del rayo (proyección acotada). */
   _distToSegment(px, py) {
-    const dx = this.ex - this.x, dy = this.ey - this.y;
-    const len2 = dx * dx + dy * dy;
-    if (len2 <= 0) return Math.hypot(px - this.x, py - this.y);
-    let u = ((px - this.x) * dx + (py - this.y) * dy) / len2;
-    if (u < 0) u = 0; else if (u > 1) u = 1;
-    return Math.hypot(px - (this.x + u * dx), py - (this.y + u * dy));
+    return pointSegmentDistance(px, py, this.x, this.y, this.ex, this.ey);
   }
 
   /** Proyección del punto sobre el segmento (lugar del destello). */
   _clampToSegment(px, py) {
-    const dx = this.ex - this.x, dy = this.ey - this.y;
-    const len2 = dx * dx + dy * dy;
-    if (len2 <= 0) return [this.x, this.y];
-    let u = ((px - this.x) * dx + (py - this.y) * dy) / len2;
-    if (u < 0) u = 0; else if (u > 1) u = 1;
-    return [this.x + u * dx, this.y + u * dy];
+    return closestPointOnSegment(px, py, this.x, this.y, this.ex, this.ey);
   }
 
   draw(ctx) {
@@ -2464,19 +2447,15 @@ export class Tower {
             const cm = game?.fortress?.comboMods;
             let chance = bm.critChanceAdd ?? 0;
             let critMul = bm.critDmgMul ?? 2;
-            if ((tgt.slowTimer ?? 0) > 0) {
+            const slowed = (tgt.slowTimer ?? 0) > 0;
+            if (slowed) {
               chance += cm?.slowCritChanceAdd ?? 0;
               critMul += cm?.slowCritDmgAdd ?? 0;
             }
-            chance = Math.min(1, Math.max(0, chance));
-            if (chance > 0 && Math.random() < chance) {
-              if ((tgt.slowTimer ?? 0) > 0 && (cm?.slowFreezeChance ?? 0) > 0
-                && Math.random() < cm.slowFreezeChance && typeof tgt.stun === 'number') {
-                tgt.stun = Math.max(tgt.stun ?? 0, 0.5);
-              }
-              return Math.round(baseDmg * critMul);
-            }
-            return baseDmg;
+            const { crit, mul } = rollCrit(chance, critMul);
+            if (!crit) return baseDmg;
+            if (slowed) tryFreeze(tgt, cm?.slowFreezeChance, 0.5);
+            return Math.round(baseDmg * mul);
           };
           const slowBeam = (e) => {
             if ((bm.slowOnHit ?? 0) > 0) {
@@ -2564,12 +2543,9 @@ export class Tower {
           }
 
           const stunHit = (e, base) => {
-            if (base > 0 && typeof e.stun === 'number') {
-              e.stun = Math.max(e.stun ?? 0, base);
-            }
-            if ((ptm.stunChance ?? 0) > 0 && typeof e.stun === 'number'
-              && Math.random() < ptm.stunChance) {
-              e.stun = Math.max(e.stun ?? 0, 0.5);
+            applyStun(e, base);
+            if ((ptm.stunChance ?? 0) > 0 && Math.random() < ptm.stunChance) {
+              applyStun(e, 0.5);
             }
           };
 
