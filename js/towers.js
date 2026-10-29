@@ -45,14 +45,14 @@ import {
   guardianLeadAim,
 } from './towers-targeting.js';
 import { Bullet, MortarShell, HomingMissile } from './towers-projectiles.js';
-import { BLACK_HOLE, BlackHoleFx, LaserStaticFx, BeamFx, BoltFx } from './towers-fx.js';
+import { BLACK_HOLE, BlackHoleFx, CraterFx, LaserStaticFx, BeamFx, BoltFx } from './towers-fx.js';
 import { MAX_DRONES, Drone, forcefieldBubbleR } from './towers-drones.js';
 import { onMechanicHit, onMechanicTick } from './tower-mechanics.js';
 export {
   unitMods, hurtP, applyExplosionCombo, TARGETING, TRAVERSE, TRAVERSE_AIM,
   targetingFor, targetInRange, pickByPolicy, beamAimAngle, traverseAim,
   beamGradient, detectWidth, guardianLeadAim, Bullet, MortarShell,
-  HomingMissile, BLACK_HOLE, BlackHoleFx, LaserStaticFx, BeamFx, BoltFx,
+  HomingMissile, BLACK_HOLE, BlackHoleFx, CraterFx, LaserStaticFx, BeamFx, BoltFx,
   MAX_DRONES, Drone, forcefieldBubbleR,
 };
 
@@ -845,11 +845,14 @@ export class Tower {
             critChance: mm.critChanceAdd ?? 0,
             critMul: mm.critDmgMul ?? 2,
             // Identidad del Mortar: el impacto deja un CRÁTER de 3 s que
-            // quema y frena; los perks alargan/refuerzan esa zona.
-            craterDps: (d.mech?.dps ?? 8) + (mm.craterDpsAdd ?? 0),
-            craterTime: (d.mech?.duration ?? 3) + (mm.craterTimeAdd ?? 0),
-            craterSlow: d.mech?.slow ?? 0.10,
-            craterRadius: blastR,
+            // quema y frena; los perks alargan/refuerzan esa zona. Va en un
+            // objeto propio porque pickOnHit() filtra los mods de impacto.
+            crater: {
+              dps: (d.mech?.dps ?? 8) + (mm.craterDpsAdd ?? 0),
+              time: (d.mech?.duration ?? 3) + (mm.craterTimeAdd ?? 0),
+              slow: d.mech?.slow ?? 0.10,
+              radius: blastR,
+            },
           }));
           // dev-7 fase 28: UN 'mortar:fire' por obús lanzado.
           game?.engine?.emit?.('mortar:fire', { x: this.x, y: top });

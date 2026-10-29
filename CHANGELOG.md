@@ -6,6 +6,20 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 
 ## [Unreleased]
 
+## [1.5.2] — 2026-10-29
+
+### Corregido
+
+- **Cráter del Mortar**: `MortarShell` perdía `craterDps/time/radius/slow`
+  porque `pickOnHit()` filtra los mods de impacto. Ahora el cráter viaja en
+  un objeto `crater` propio y `_explode()` sí instancia `CraterFx`.
+- Indicador visual nuevo: terreno chamuscado, anillo ámbar pulsante en el
+  radio real, anillo interior punteado y brasas animadas.
+- Tests del camino real `Tower.fire → MortarShell → CraterFx`, de daño/slow
+  dentro del radio y del dibujo. **973 tests, 0 skip**.
+- S50: 100 % win / 92 % HP / 99 % bajas (20 semillas).
+- Versión 1.5.2 / Android `versionCode 9`.
+
 ## [1.5.1] — 2026-10-29
 
 ### Cambiado

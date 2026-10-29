@@ -203,10 +203,10 @@ no sólo un multiplicador de daño:
 6. La suite tiene guardas de regresión de HP por etapa, apertura, jefes,
    variantes y supervivencia.
 
-## Estado actual (v1.5.1)
+## Estado actual (v1.5.2)
 
 - Campaña: 50 etapas, win 100 % con la trayectoria real de meta y cartas.
-- S50 sin heat: 100 % / 91 % de HP / 99 % de bajas (20 semillas).
+- S50 sin heat: 100 % / 92 % de HP / 99 % de bajas (20 semillas).
 - Heat: la escalera 5→35 cae de 90 % a 30 % en S50.
 - ∞: la pared empieza alrededor de 60–70; el win cae con la profundidad.
 - Supervivencia: ~84 oleadas planas en el simulador; el número absoluto no es
@@ -219,5 +219,8 @@ no sólo un multiplicador de daño:
   190 (antes llegaba a 311); la Rueda de Fuego patrulla el campo en vez de
   volver a la base. El S50 queda en 91 % HP / 99 % bajas: el nerf de cobertura
   y el buff de uptime se compensan.
+- Cráter del Mortar (1.5.2): el fix de parámetros recupera el DoT/slow de zona
+  que antes no se instanciaba. El S50 sube a 92 % HP / 99 % bajas, dentro del
+  margen; no hizo falta tocar `craterDps`.
 - El balance sigue siendo un trabajo abierto: el simulador es una herramienta
   de comparación, no un oráculo.

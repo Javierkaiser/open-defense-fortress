@@ -94,6 +94,23 @@ torre dentro de `Enemy.takeDamage`:
 - **WHEN** un enemigo envenenado por las Avispas muere
 - **THEN** hasta 2 vecinos en 110 px reciben el 50 % del DPS de veneno
 
+### Requirement: El cráter del Mortar es visible
+
+El impacto del Mortar MUST crear un `CraterFx` con el radio real de la
+explosión, un anillo ámbar visible y una duración igual a la configurada.
+MUST seguir haciendo daño y aplicando slow a todo enemigo que entre en el
+radio mientras viva.
+
+#### Scenario: Impacto sin enemigos alrededor
+
+- **WHEN** el obús detona y no hay enemigos dentro del radio
+- **THEN** el cráter igual queda dibujado en el suelo durante su duración
+
+#### Scenario: Enemigo que entra después
+
+- **WHEN** un enemigo entra en el radio del cráter después de la explosión
+- **THEN** recibe el DoT y el slow del cráter
+
 ### Requirement: Combos legibles
 
 Cada combo MUST tener dos piezas reales y cambiar comportamiento (target,

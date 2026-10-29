@@ -11,7 +11,7 @@ import {
   TOWERS, DRONES, Tower, Drone, Bullet, HomingMissile, MUZZLE_ACCENT,
   LaserStaticFx, projectileColor, levelPips, MAX_TOWER_LEVEL, WASPS, FIREWHEEL,
   TARGETING, targetingFor, pickByPolicy, targetInRange,
-  MortarShell, BlackHoleFx, beamAimAngle, forcefieldBubbleR,
+  MortarShell, BlackHoleFx, CraterFx, beamAimAngle, forcefieldBubbleR,
 } from '../js/towers.js';
 import {
   applyProjectileHit, collideProjectiles, projectileRadius, Enemy,
@@ -1541,6 +1541,54 @@ test('fase 34: el obús CAE donde iba si su blanco muere en vuelo', () => {
   // Estalló donde apuntaba (x≈270, y≈300), NO en el otro enemigo (x=60).
   assert.ok(Math.abs(obus.x - 270) < 12, `x del obús = ${Math.round(obus.x)}`);
   assert.ok(Math.abs(obus.y - 300) < 60, `y del obús = ${Math.round(obus.y)}`);
+});
+
+test('fase 76.2: el Mortar conserva la config del cráter al disparar', () => {
+  const target = mkAlvo(270, 500);
+  const game = mkGameEnemies([target]);
+  const entities = [];
+  game.engine.entities = entities;
+  game.engine.addEntity = (e) => entities.push(e);
+  const t = new Tower('mortar', 270, 1, 0);
+  t.game = game;
+  t.fire([target], game, 1 / 60);
+  const shell = entities.find((e) => e.constructor?.name === 'MortarShell');
+  assert.ok(shell, 'el obús se lanzó');
+  assert.ok(shell.crater, 'el cráter viaja en el obús (no lo filtra pickOnHit)');
+  assert.equal(shell.crater.dps, TOWERS.mortar.mech.dps);
+  assert.equal(shell.crater.time, TOWERS.mortar.mech.duration);
+  assert.equal(shell.crater.radius, shell.blastR);
+});
+
+test('fase 76.2: al detonar, el Mortar agrega un CraterFx visible', () => {
+  const entities = [];
+  const game = mkGameEnemies([]);
+  game.engine.entities = entities;
+  game.engine.addEntity = (e) => entities.push(e);
+  const shell = new MortarShell(100, 500, null, game, 45, 150, {
+    crater: { dps: 12, time: 3, radius: 150, slow: 0.1 },
+  });
+  shell._explode();
+  const crater = entities.find((e) => e.constructor?.name === 'CraterFx');
+  assert.ok(crater, 'el impacto debe dejar un CraterFx en el campo');
+  assert.equal(crater.dps, 12);
+  assert.equal(crater.life, 3);
+  assert.equal(crater.radius, 150);
+  assert.equal(crater.slow, 0.1);
+});
+
+test('fase 76.2: el cráter dibuja un anillo visible sin romper el frame', () => {
+  const game = { engine: { _t: 0 }, fortress: { enemies: [] } };
+  const crater = new CraterFx(game, 0, 0, { radius: 150, dps: 8, life: 3, slow: 0.1 });
+  const calls = [];
+  const ctx = {
+    save() {}, restore() {}, beginPath() {},
+    arc() { calls.push('arc'); }, fill() { calls.push('fill'); }, stroke() { calls.push('stroke'); },
+    setLineDash() {}, createRadialGradient() { return { addColorStop() {} }; },
+  };
+  assert.doesNotThrow(() => crater.draw(ctx));
+  assert.ok(calls.includes('stroke'), 'el anillo exterior se dibuja');
+  assert.ok(calls.includes('arc'), 'el dibujo usa el radio del área');
 });
 
 test('fase 34: el haz adquiere un blanco FUERA de la antigua ventana de ±80 px', () => {

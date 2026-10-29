@@ -1,6 +1,6 @@
 {
   "name": "open-defense-fortress",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "private": true,
   "type": "module",
   "description": "Tower defense roguelike offline, 100% estático (HTML5 + Canvas).",

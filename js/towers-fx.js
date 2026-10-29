@@ -361,29 +361,64 @@ export class CraterFx {
   }
 
   draw(ctx) {
-    const k = 1 - this.t / Math.max(0.001, this.life);
+    const k = Math.max(0, 1 - this.t / Math.max(0.001, this.life)); // 1 → 0
+    const pulse = 0.5 + 0.5 * Math.sin(this.t * 6.5);
+    const R = this.radius;
     ctx.save();
-    ctx.globalAlpha = 0.16 + 0.14 * k;
-    ctx.fillStyle = '#2A160C';
+
+    // 1) Terreno chamuscado: relleno suave para no tapar a los enemigos.
+    ctx.globalAlpha = 0.10 + 0.08 * k;
+    ctx.fillStyle = '#1A0D06';
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.arc(this.x, this.y, R, 0, Math.PI * 2);
     ctx.fill();
-    ctx.globalAlpha = 0.35 + 0.25 * k;
+
+    // 2) Halo cálido pegado al borde: es lo que hace que el área "brille"
+    // sobre el fondo oscuro sin convertir el cráter en un disco opaco.
+    if (typeof ctx.createRadialGradient === 'function') {
+      const g = ctx.createRadialGradient(this.x, this.y, R * 0.55, this.x, this.y, R);
+      g.addColorStop(0, 'rgba(255, 150, 60, 0)');
+      g.addColorStop(0.78, `rgba(255, 140, 45, ${0.10 + 0.08 * pulse})`);
+      g.addColorStop(1, 'rgba(255, 190, 80, 0)');
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, R, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    // 3) Anillo EXTERIOR sólido: marca exactamente el radio que hace daño.
+    ctx.globalAlpha = 0.60 + 0.30 * k;
     ctx.strokeStyle = this.color;
-    ctx.lineWidth = 2;
-    ctx.setLineDash([6, 7]);
+    ctx.lineWidth = 2.8;
+    ctx.shadowColor = this.color;
+    ctx.shadowBlur = 14;
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius * (0.92 + 0.06 * k), 0, Math.PI * 2);
+    ctx.arc(this.x, this.y, R * (0.96 + 0.035 * pulse), 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 4) Anillo interior punteado que gira: lee como "zona activa".
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 0.32 + 0.25 * k;
+    ctx.lineWidth = 1.3;
+    ctx.setLineDash([5, 8]);
+    ctx.lineDashOffset = -this.t * 18;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, R * 0.72, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
-    // Brasas: 3 motas deterministas por frame (sin estado extra).
-    ctx.globalAlpha = 0.5 * k;
-    ctx.fillStyle = this.color;
-    for (let i = 0; i < 3; i++) {
-      const a = this.t * 1.2 + i * 2.1;
-      const rr = this.radius * (0.25 + 0.55 * ((i + 1) / 3));
+    ctx.lineDashOffset = 0;
+
+    // 5) Brasas: 5 motas deterministas por frame (sin estado extra).
+    ctx.globalAlpha = 0.55 * k;
+    ctx.fillStyle = '#FFD24A';
+    for (let i = 0; i < 5; i++) {
+      const a = this.t * 1.2 + i * 1.7;
+      const rr = R * (0.22 + 0.58 * ((i + 1) / 5));
       ctx.beginPath();
-      ctx.arc(this.x + Math.cos(a) * rr, this.y + Math.sin(a) * rr, 1.6, 0, Math.PI * 2);
+      ctx.arc(this.x + Math.cos(a) * rr, this.y + Math.sin(a) * rr, 1.8, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();

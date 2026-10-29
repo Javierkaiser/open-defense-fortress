@@ -94,6 +94,19 @@ export class Bullet {
 export class MortarShell {
   constructor(x, y, target, game, damage = null, blastR = null, hitOpts = null) {
     this.x = x; this.y = y;
+    // El cráter NO es un mod de impacto genérico: `pickOnHit` filtra por
+    // lista blanca (hitOptBase) y perdería craterDps/time/radius/slow. Se
+    // guarda APARTE antes del filtro; también acepta la forma vieja con
+    // los campos sueltos para no romper llamadas externas.
+    const crater = hitOpts?.crater ?? (hitOpts?.craterDps
+      ? {
+        dps: hitOpts.craterDps,
+        time: hitOpts.craterTime,
+        radius: hitOpts.craterRadius,
+        slow: hitOpts.craterSlow,
+      }
+      : null);
+    this.crater = crater ? { ...crater } : null;
     this.hitOpts = hitOpts ? { ...pickOnHit(hitOpts), slowOnHit: hitOpts.slowOnHit ?? 0,
       stunChance: hitOpts.stunChance ?? 0, critChance: hitOpts.critChance ?? 0,
       critMul: hitOpts.critMul ?? 2 } : null; // fase 23
@@ -188,12 +201,13 @@ export class MortarShell {
     // fase 74.2 — Singularidad + Onda Glacial.
     applyExplosionCombo(this.game, this.x, this.y, R);
     // Identidad del Mortar: el cráter queda en el suelo y sigue castigando.
-    if ((this.hitOpts?.craterDps ?? 0) > 0) {
+    // Se lee de `this.crater` (guardado antes de pickOnHit), no de hitOpts.
+    if ((this.crater?.dps ?? 0) > 0) {
       g.addEntity(new CraterFx(this.game, this.x, this.y, {
-        radius: this.hitOpts.craterRadius ?? R,
-        dps: this.hitOpts.craterDps,
-        life: this.hitOpts.craterTime ?? 3,
-        slow: this.hitOpts.craterSlow ?? 0.10,
+        radius: this.crater.radius ?? R,
+        dps: this.crater.dps,
+        life: this.crater.time ?? 3,
+        slow: this.crater.slow ?? 0.10,
         mods: this.hitOpts,
       }));
     }
