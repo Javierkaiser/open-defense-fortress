@@ -6,6 +6,21 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 
 ## [Unreleased]
 
+## [1.5.1] — 2026-10-29
+
+### Cambiado
+
+- **Campo de Fuerza (nerf)**: burbuja base 140→120 y tope duro 190. Los perks
+  de radio bajan de +14/+25 a +6/+10 y la técnica de +20 a +10; el máximo real
+  pasa de 311 px (115 % del canvas) a 190 (70 %).
+- `forcefieldBubbleR()` centraliza el radio efectivo: `update()` y `draw()`
+  usan el mismo valor con el cap aplicado.
+- **Rueda de Fuego**: sin enemigos patrulla el campo con waypoints cercanos en
+  vez de volver a la base y orbitar; elimina el viaje de ida y vuelta entre
+  oleadas.
+- **970 tests, 0 skip**; S50 100 % win / 91 % HP / 99 % bajas (20 semillas).
+- Versión 1.5.1 / Android `versionCode 8`.
+
 ## [1.5.0] — 2026-10-29
 
 ### Añadido

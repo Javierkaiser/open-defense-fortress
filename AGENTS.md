@@ -7,7 +7,7 @@ Documentación y comentarios en **español**.
 ## Comandos
 
 ```bash
-node --test "tests/test-*.mjs"                # suite completa (968 tests)
+node --test "tests/test-*.mjs"                # suite completa (970 tests)
 node --test tests/test-stages.mjs           # un archivo
 node .github/scripts/ci-checks.mjs          # checks estáticos
 node --check js/main.js                    # sintaxis de un módulo

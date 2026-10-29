@@ -168,8 +168,9 @@ El Thunderstroke dibuja un enlace suave con su blanco durante el build-up
 (con anillo de lock); al disparar, el rayo principal se engrosa y el anillo
 de impacto marca dónde cayó.
 
-Drones: Rueda de Fuego (ignición por contacto), Avispas (veneno que se
-propaga al morir) y Campo de Fuerza (burbuja: slow, sostén y marca). La
+Drones: Rueda de Fuego (ignición por contacto; sin blancos patrulla el campo,
+no vuelve a la base), Avispas (veneno que se propaga al morir) y Campo de
+Fuerza (burbuja: slow, sostén y marca; base 120 px y tope duro 190). La
 plataforma tiene **5 slots**; por run entran **5 torres + 1 dron**. Las torres
 entran por cartas.
 
@@ -310,7 +311,7 @@ inmune: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 968 tests (968 pass, 0 skip) en 33 archivos.
+- 970 tests (970 pass, 0 skip) en 33 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

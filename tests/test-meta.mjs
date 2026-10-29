@@ -886,6 +886,29 @@ function bloquesDeMetodo(nombre) {
   return out;
 }
 
+/**
+ * Bloques de una FUNCIÓN de módulo (no método). El helper
+ * `forcefieldBubbleR` centraliza el radio de la burbuja y es el único
+ * sitio que lee `radiusAdd`; sin incluirlo, el escáner lo vería muerto.
+ */
+function bloquesDeFuncion(nombre) {
+  const re = new RegExp(`^\\s*(?:export\\s+)?function\\s+${nombre}\\s*\\(`);
+  const out = [];
+  LINEAS_TOWERS.forEach((line, i) => {
+    if (!re.test(line)) return;
+    const indent = (line.match(/^\s*/) ?? [''])[0].length;
+    let fin = i + 1;
+    while (fin < LINEAS_TOWERS.length) {
+      const l = LINEAS_TOWERS[fin];
+      const ind = (l.match(/^\s*/) ?? [''])[0].length;
+      if (l.trim() && ind === indent && l.trim().startsWith('}')) break;
+      fin += 1;
+    }
+    out.push([i, fin]);
+  });
+  return out;
+}
+
 test('PERKS: TODO mod de TODA opción lo consume el combate de esa torre (nada de perks muertos)', () => {
   // Esta es la red que faltaba: hasta ahora un perk podía pedir "pierceCount"
   // en una torre cuyo proyectil ya atravesaba TODO (pierce: 999) y no
@@ -907,7 +930,8 @@ test('PERKS: TODO mod de TODA opción lo consume el combate de esa torre (nada d
       ...(t.type === 'guardian' ? bloquesDeMetodo('_spawnBullet') : []),
       // El enjambre de las Avispas (extraCount del perk).
       ...(t.type === 'wasps' ? bloquesDeMetodo('rebuildSwarm') : []),
-      // El dibujado del dron (radio de la burbuja del Campo de Fuerza).
+      // El radio de la burbuja se lee en el helper único (update y draw).
+      ...(t.type === 'forcefield' ? bloquesDeFuncion('forcefieldBubbleR') : []),
       ...(t.type === 'forcefield' ? bloquesDeMetodo('draw') : []),
       // El Láser lee sus mods en la entidad del rayo (js/towers.js
       // LaserStaticFx), que sigue leyendo los perks por su cuenta. La

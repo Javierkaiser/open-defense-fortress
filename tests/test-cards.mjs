@@ -684,7 +684,7 @@ const TECH = [
   { id: 'tech_beam_focus', unit: 'beam', key: 'beamRampPerSecAdd', valor: 0.4 },
   { id: 'tech_firewheel_radius', unit: 'firewheel', key: 'radiusAdd', valor: 8 },
   { id: 'tech_wasps_venom', unit: 'wasps', key: 'venomDpsAdd', valor: 1 },
-  { id: 'tech_forcefield_radius', unit: 'forcefield', key: 'radiusAdd', valor: 20 },
+  { id: 'tech_forcefield_radius', unit: 'forcefield', key: 'radiusAdd', valor: 10 },
   { id: 'tech_forcefield_regen', unit: 'forcefield', key: 'bubbleRegen', valor: 1.5 },
 ];
 

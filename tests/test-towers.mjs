@@ -11,7 +11,7 @@ import {
   TOWERS, DRONES, Tower, Drone, Bullet, HomingMissile, MUZZLE_ACCENT,
   LaserStaticFx, projectileColor, levelPips, MAX_TOWER_LEVEL, WASPS, FIREWHEEL,
   TARGETING, targetingFor, pickByPolicy, targetInRange,
-  MortarShell, BlackHoleFx, beamAimAngle,
+  MortarShell, BlackHoleFx, beamAimAngle, forcefieldBubbleR,
 } from '../js/towers.js';
 import {
   applyProjectileHit, collideProjectiles, projectileRadius, Enemy,
@@ -251,6 +251,48 @@ test('fase 75: el Campo de Fuerza usa un dwell finito y no persigue waypoint con
   assert.ok(Number.isFinite(dr._sweepT) && dr._sweepT > 0,
     `el dwell debe ser finito (quedó en ${dr._sweepT})`);
   assert.equal(dr._wp, null, 'con blanco no debe conservar un waypoint viejo');
+});
+
+test('fase 76.1: la burbuja del Campo de Fuerza tiene base 120 y tope duro 190', () => {
+  setPerks({});
+  const juego = mkGame();
+  const dr = new Drone('forcefield', juego, 0);
+  assert.equal(forcefieldBubbleR(dr), 120, 'la base bajó de 140 a 120');
+  // Aunque el canal de cartas/perks sume muchísimo, el radio no pasa el tope.
+  dr.cardMods = { radiusAdd: 500 };
+  assert.equal(forcefieldBubbleR(dr), 190);
+  assert.equal(dr.data.maxBubbleR, 190);
+  delete dr.cardMods;
+});
+
+test('fase 76.1: la Rueda de Fuego patrulla sin volver a la base', () => {
+  setPerks({});
+  const juego = mkGame();
+  const dr = new Drone('firewheel', juego, 0);
+  dr.x = 120;
+  dr.y = 220;
+  // Waypoint cercano y hacia arriba: si volviera a la base, y subiría.
+  dr._wp = { x: 120, y: 170 };
+  juego.fortress.enemies = [];
+  dr.update(0.2, []);
+  assert.equal(dr.fwState, 'patrol');
+  assert.ok(dr.y < 220, `debe patrullar hacia el waypoint, no hacia la base (y=${dr.y})`);
+  assert.ok(dr.y >= 120, 'la patrulla no sale del campo de batalla');
+  assert.notEqual(dr.fwState, 'orbit', 'ya no existe la órbita de regreso');
+
+  // Al aparecer un enemigo, deja el waypoint y avanza desde donde está.
+  const e = mkTank(dr.x, 100);
+  juego.fortress.enemies = [e];
+  dr.update(0.01, [e]);
+  assert.equal(dr.fwState, 'advance');
+  assert.equal(dr._wp, null, 'el blanco manda sobre la patrulla');
+
+  // Cuando el blanco muere, vuelve a patrullar sin ir a la base.
+  e.dead = true;
+  const yAntes = dr.y;
+  dr.update(0.2, [e]);
+  assert.equal(dr.fwState, 'patrol');
+  assert.ok(Math.abs(dr.y - yAntes) < 200, 'se queda cerca del último combate');
 });
 
 test('fase 75: el Black Hole arrastra también el ancla de drift/zigzag', () => {

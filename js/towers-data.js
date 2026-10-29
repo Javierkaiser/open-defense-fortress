@@ -205,7 +205,10 @@ export const DRONES = {
   forcefield: {
     name: 'Dron Campo de Fuerza', kind: 'forcefield',
     dmgType: 'drone', // fase 32: tipo de daño
-    bubbleR: 140, slowFrac: 0.30, // reduce 30% la velocidad de caída
+    // Fase 76.1 — NERF de cobertura: base 140 → 120 y tope duro 190.
+    // Antes el máximo real era 140 + 131 de perks + 40 de técnicas = 311 px
+    // (115 % del ancho del canvas): la burbuja cubría toda la pantalla.
+    bubbleR: 120, maxBubbleR: 190, slowFrac: 0.30,
     accent: '#7FDFFF', bodyColor: '#10181C',
     // Identidad: control y sostén. La burbuja marca `bubble` a lo atrapado
     // (combos de Tesla/Mortar) y es la única fuente intrínseca de slow.
@@ -253,9 +256,9 @@ export const WASPS = {
  * se queda orbitando la base: con enemigos vivos SALE hacia el más avanzado
  * (mayor Y, el que está más cerca de la base), lo sobrevuela con un barrido
  * circular chico (daño por contacto) y luego elige el siguiente. Sin
- * enemigos en pantalla vuelve a la base y retoma la órbita clásica.
- * Números: avance ~140 px/s (spec 120-160), barrido a r = r_enemigo + 8
- * (contacto garantizado: toca a r ≤ r+14), 0.9 s por sobrevuelo.
+ * enemigos en pantalla PATRULLA el campo: no vuelve a la base (fase 76.1).
+ * Números: avance 180 px/s, barrido a r = r_enemigo + 8 (contacto
+ * garantizado: toca a r ≤ r+14), patrulla a 120 px/s en waypoints cercanos.
  */
 export const FIREWHEEL = {
   // dev-7 fase 31: la velocidad de vuelo subió de 140 a 180 px/s. El
@@ -264,7 +267,15 @@ export const FIREWHEEL = {
   // no es daño. Con 180 el DPS realizado sube del 74-83 % al 88-99 %
   // del nominal.
   speed: 180,        // px/s de avance hacia el blanco
-  returnSpeed: 170,  // px/s de regreso a la base (sin blancos)
+  // `returnSpeed` lo sigue usando el Campo de Fuerza para su patrulla;
+  // la Rueda de Fuego ya no vuelve a la base.
+  returnSpeed: 170,
+  // Fase 76.1 — PATRULLA: sin blancos la rueda se queda en el campo,
+  // eligiendo waypoints cercanos a su posición actual. Antes volvía a la
+  // base y perdía el viaje de ida y vuelta entre oleadas.
+  patrolSpeed: 120,  // px/s de patrulla sin enemigos
+  patrolRadius: 140, // px: radio máximo del waypoint alrededor de la rueda
+  patrolEps: 18,     // px: distancia para considerar alcanzado el waypoint
   sweepOmega: 3.4,   // rad/s del barrido circular sobre el blanco
   // dev-7 fase 31: `sweepTime` (0.9 s) era el tiempo MÁXIMO que la rueda
   // pasaba con cada blanco: al cumplirse, la abandonaba AUNQUE SIGUIERA
@@ -277,7 +288,6 @@ export const FIREWHEEL = {
   maxDwell: 6,       // s máximos con un mismo blanco antes de cambiar
   sweepPad: 8,       // radio del barrido = r del blanco + pad
   engageRange: 22,   // dist. blanco que dispara el barrido (= r + pad)
-  orbitEps: 26,      // dist. al centro de la base para retomar la órbita
   // dev-7 fase 31: si aparece un enemigo claramente MÁS AVANZADO
   // (más cerca de la base) mientras la rueda quema a otro, cambia de
   // blanco: si no, podía terminar con un blob lento mientras un fragmento

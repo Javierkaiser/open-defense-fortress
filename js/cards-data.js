@@ -339,11 +339,11 @@ export const TECH_CARDS = [
     id: 'tech_forcefield_radius',
     rarity: 'uncommon',
     name: 'Burbuja Expandida',
-    desc: 'El Campo de Fuerza gana +20 px de burbuja (hasta 2 veces).',
+    desc: 'El Campo de Fuerza gana +10 px de burbuja (hasta 2 veces).',
     weight: 5,
     minStage: 2,
     unit: 'forcefield',
-    mods: { radiusAdd: 20 },
+    mods: { radiusAdd: 10 },
   },
   {
     id: 'tech_forcefield_regen',

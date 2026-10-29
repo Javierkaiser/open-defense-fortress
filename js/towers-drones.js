@@ -2,7 +2,7 @@
 // towers-drones.js — drones orbitales
 // =============================================================================
 
-import { CONFIG, dist, rand } from './engine.js';
+import { CONFIG, clamp, dist, rand } from './engine.js';
 import { DRONES, WASPS, FIREWHEEL } from './towers-data.js';
 import { metaDmgMul, metaSlowFrac, perkDmgFor, META_SLOW_CAP } from './meta.js';
 import { applyPoison, applySlow, applyMark } from './enemies.js';
@@ -25,6 +25,24 @@ function droneY() { return CONFIG.TOWER_Y - 80; } // 700 (v3 3h/7: sigue a la ba
  * el limitador de towers.js no se come pulsos que el audio sí oiría.
  */
 const DRONE_SFX_GAP = 0.2;
+
+/**
+ * Radio EFECTIVO de la burbuja del Campo de Fuerza.
+ *
+ * Única fuente de verdad para el hitbox (`update`) y el dibujo (`draw`):
+ * antes cada uno hacía `bubbleR + radiusAdd` por su cuenta y un cap los
+ * habría desincronizado. La base y el tope viven en `DRONES.forcefield`.
+ *
+ * @param {object} unit dron con `data` y `cardMods` (duck-typed)
+ * @returns {number} px, nunca menor que 0 ni mayor que `maxBubbleR`
+ */
+export function forcefieldBubbleR(unit) {
+  if (!unit?.data) return 0;
+  const base = unit.data.bubbleR ?? 0;
+  const add = unitMods(unit).radiusAdd ?? 0;
+  const max = unit.data.maxBubbleR ?? Infinity;
+  return Math.min(max, Math.max(0, base + add));
+}
 
 /** Stats canónicas §2.3 — números EXACTOS del doc. */
 ;
@@ -69,15 +87,33 @@ export class Drone {
     this._bobT = Math.random() * Math.PI * 2;
     this._glowAcc = 0;
     // v3 3f/7 — rueda de fuego: máquina de vuelo hacia los enemigos.
-    this.fwState = 'orbit';          // orbit | advance | sweep | return
+    // fase 76.1: sin blancos PATRULLA el campo; ya no vuelve a la base.
+    this.fwState = 'patrol';         // patrol | advance | sweep
     this.fwTarget = null;            // enemigo vivo elegido (el más avanzado)
     this._sweepT = 0;                // s restantes de sobrevuelo
     this._sweepA = 0;                // ángulo del barrido sobre el blanco
+    this._wp = null;                 // waypoint de patrulla (sin blancos)
   }
 
-  /** Centro de la órbita: la base (§2.3: orbita la base). */
+  /** Centro de la base: referencia de la Fortress y de los drones. */
   _center() {
     return { x: CONFIG.BASE_X, y: droneY() };
+  }
+
+  /**
+   * Waypoint de patrulla de la Rueda de Fuego. Se elige CERCA de la
+   * posición actual (no en la base) y clampeado al campo de batalla, para
+   * que la rueda quede cerca de la próxima oleada en vez de hacer el viaje
+   * base → frente cada vez que se queda sin blancos.
+   * @returns {{x:number, y:number}}
+   */
+  _pickPatrolPoint() {
+    const ang = rand(0, Math.PI * 2);
+    const rad = rand(40, FIREWHEEL.patrolRadius);
+    return {
+      x: clamp(this.x + Math.cos(ang) * rad, 40, CONFIG.CANVAS_W - 40),
+      y: clamp(this.y + Math.sin(ang) * rad, 120, CONFIG.TOWER_Y - 160),
+    };
   }
 
   /**
@@ -144,8 +180,10 @@ export class Drone {
       case 'firewheel': {
         // v3 3f/7 — el dron SALE hacia los enemigos: con blancos vivos
         // avanza (180 px/s) al más avanzado (mayor Y) y lo sobrevuela con
-        // un barrido circular chico; sin enemigos vuelve a la base y
-        // retoma la órbita r=120. DPS 25/s escalado por meta (+5 %/nivel,
+        // un barrido circular chico. Fase 76.1: sin enemigos PATRULLA el
+        // campo con waypoints cercanos; no vuelve a la base (el viaje de
+        // ida y vuelta entre oleadas era tiempo sin daño).
+        // DPS 25/s escalado por meta (+5 %/nivel,
         // META_DMG_PER_LEVEL en meta.js — el comentario viejo decía
         // "+10 %/nivel" y mentía) y por la carta exclusiva del dron
         // (dmg_firewheel escribe `this.dmgMul`).
@@ -176,6 +214,7 @@ export class Drone {
           this.fwTarget = best;
           this.fwState = 'advance';
           this._sweepT = 0;
+          this._wp = null; // el blanco manda sobre la patrulla
         }
         // dev-7 fase 31: la rueda cambia de blanco si aparece uno
         // CLARAMENTE más avanzado (más cerca de la base). Sin esto podía
@@ -187,6 +226,7 @@ export class Drone {
               this.fwTarget = e;
               this.fwState = 'advance';
               this._sweepT = 0;
+              this._wp = null;
               break;
             }
           }
@@ -224,19 +264,20 @@ export class Drone {
               this._sweepT = 0;
             }
           }
-        } else if (this.fwState !== 'orbit') {
-          // Sin enemigos: regreso a la base y órbita (respaldo §spec 3f)
-          const dc = Math.hypot(c.x - this.x, c.y - this.y);
-          if (dc > FIREWHEEL.orbitEps) {
-            this.x += ((c.x - this.x) / dc) * FIREWHEEL.returnSpeed * dt;
-            this.y += ((c.y - this.y) / dc) * FIREWHEEL.returnSpeed * dt;
-          } else {
-            this.fwState = 'orbit';
+        } else {
+          // Sin enemigos: PATRULLA. Se queda volando por el campo con
+          // waypoints cercanos a su posición actual; nunca vuelve a la base.
+          this.fwState = 'patrol';
+          if (!this._wp
+            || dist(this.x, this.y, this._wp.x, this._wp.y) <= FIREWHEEL.patrolEps) {
+            this._wp = this._pickPatrolPoint();
           }
-        }
-        if (this.fwState === 'orbit') {
-          this.x = c.x + Math.cos(this.angle) * d.radius;
-          this.y = c.y + Math.sin(this.angle) * d.radius * 0.35; // elipse sutil
+          const dx = this._wp.x - this.x;
+          const dy = this._wp.y - this.y;
+          const dc = Math.hypot(dx, dy) || 1;
+          const step = Math.min(dc, FIREWHEEL.patrolSpeed * dt);
+          this.x += (dx / dc) * step;
+          this.y += (dy / dc) * step;
         }
         {
           const fw = unitMods(this); // fase 17: slowOnHit del dron
@@ -494,7 +535,9 @@ export class Drone {
             (metaSlowFrac('forcefield') ?? d.slowFrac)
             + (unitMods(this).slowOnHit ?? 0));
           const ffm = unitMods(this);
-          const bubbleR = d.bubbleR + (ffm.radiusAdd ?? 0); // dev-7 fase 10: perks propios
+          // Radio EFECTIVO (base + perks/cartas, con tope duro) desde el
+          // helper único: el hitbox y el dibujo no pueden divergir.
+          const bubbleR = forcefieldBubbleR(this);
           // dev-7 fase 28: las espinas son el ÚNICO daño del Campo de
           // Fuerza. `perkDmgFor` = thornDps del perk × metaDmgMul (la
           // curva +5 %/nivel del meta y el bonus de HITOS): antes se usaba
@@ -560,7 +603,8 @@ export class Drone {
 
   draw(ctx) {
     const d = this.data;
-    const bubbleR = d.bubbleR + (unitMods(this).radiusAdd ?? 0); // dev-7 fase 10: perks propios
+    // Mismo radio que el hitbox de update(): el tope se aplica una sola vez.
+    const bubbleR = forcefieldBubbleR(this);
     const t = this.game?.engine?._t ?? this._bobT;
     ctx.save();
     ctx.translate(this.x, this.y);
