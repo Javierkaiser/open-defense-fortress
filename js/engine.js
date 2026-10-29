@@ -2533,22 +2533,10 @@ export class Engine {
   }
 
   _drawFog(ctx) {
-    // Niebla: bandas grises con alpha del tema, drift lento (§1.4)
+    // Toda la niebla (bandas ambientales + capas densas) vive en el cache
+    // de 3 frames: antes las 7 bandas ambientales creaban un gradiente
+    // radial POR FRAME además de las 8 capas cacheadas.
     const th = this.theme ?? THEMES.volcanic;
-    for (const f of this.fogBands) {
-      const xoff = Math.sin(this._t * f.sp + f.ph) * 30;
-      ctx.save();
-      ctx.translate(CONFIG.CANVAS_W / 2 + xoff, f.y);
-      ctx.scale(1, f.ry / f.rx);
-      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, f.rx);
-      g.addColorStop(0, `rgba(${th.fog}, ${f.a})`);
-      g.addColorStop(1, `rgba(${th.fog}, 0)`);
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(0, 0, f.rx, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
     // Niebla Densa envolvente (estética v3.1 delta C): capas bajas que
     // abrazan la plataforma de la que EMERGEN los enemigos (referencia
     // Stage 1). El diseño base la muestra BLANQUECINA y LUMINOSA
@@ -2596,6 +2584,24 @@ export class Engine {
   /** Dibuja la niebla directamente (usado para llenar el cache). */
   _drawFogDirect(ctx, th) {
     const fMul = th.fogMul ?? 1;
+    // Bandas ambientales (drift lento): mismo cache que las densas.
+    for (const f of this.fogBands) {
+      const xoff = Math.sin(this._t * f.sp + f.ph) * 30;
+      ctx.save();
+      ctx.translate(CONFIG.CANVAS_W / 2 + xoff, f.y);
+      ctx.scale(1, f.ry / f.rx);
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, f.rx);
+      g.addColorStop(0, `rgba(${th.fog}, ${f.a})`);
+      g.addColorStop(1, `rgba(${th.fog}, 0)`);
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(0, 0, f.rx, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    // Las capas densas siguen la plataforma dinámica (antes usaban y fijas
+    // y en móvil quedaban ~385 px arriba de la plataforma).
+    const off = SCENE.PLATFORM_Y - 810;
     const dense = [
       // v3 3h/7: capas +50 px, abrazando la plataforma baja (810) y el
       // punto de impacto (BASE_Y 850) sin invadir el área de juego.
@@ -2612,7 +2618,7 @@ export class Engine {
       const xoff = Math.sin(this._t * f.sp + f.ph) * 26;
       const fcol = f.col ?? th.fog;
       ctx.save();
-      ctx.translate(CONFIG.CANVAS_W / 2 + xoff, f.y);
+      ctx.translate(CONFIG.CANVAS_W / 2 + xoff, f.y + off);
       ctx.scale(1, f.ry / f.rx);
       const g = ctx.createRadialGradient(0, 0, 0, 0, 0, f.rx);
       g.addColorStop(0, `rgba(${fcol}, ${(f.a * fMul).toFixed(3)})`);

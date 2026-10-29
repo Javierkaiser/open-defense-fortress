@@ -47,6 +47,8 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 - Menos trabajo por frame: snapshot del HUD solo si está visible, poda de
   enemigos in-place, Fortress no simula con `dt=0`, DPS cacheado 0,25 s,
   `_flushPending` por prefijo y `bh-count` cacheado.
+- La niebla completa (bandas ambientales + capas densas) se cachea cada
+  3 frames; las capas densas siguen el alto lógico en móvil.
 - Audio: reanuda el contexto suspendido, tolera `resume()` sin Promise y
   re-sincroniza el scheduler tras una suspensión.
 - Se eliminaron `lerp`, `spreadDegNow`, `orbitalStrikes`, `_speedDirty`,
