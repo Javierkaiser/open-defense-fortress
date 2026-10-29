@@ -1602,13 +1602,6 @@ test('fase 48: el tope de 3 aguanta aunque el perk sume balas', () => {
   assert.ok(t.bulletsPerBurst <= 3, `con Lv.5 el Guardian no puede pasar de 3 (va ${t.bulletsPerBurst})`);
 });
 
-test('fase 48: el abanico desaparece (las balas no se dispersan)', () => {
-  const g = mkGameE48();
-  const t = new Tower('guardian', 270, 5);
-  t.game = g;
-  assert.equal(t.spreadDegNow, 0, 'sin abanico: el spread es 0 en todos los niveles');
-});
-
 test('fase 48: del Lv.4 las balas van a BLANCOS DISTINTOS (multi-blanco)', () => {
   const enemigos = [mkE48(270, 700), mkE48(200, 500), mkE48(340, 500), mkE48(270, 200)];
   const g = mkGameE48(enemigos);

@@ -28,6 +28,7 @@ import { rigBox } from './tower-art.js';
 // fase 67: la recompensa del infinito escala con la profundidad (reglas
 // puras en endless.js — este módulo NO las reimplementa).
 import { isEndless, endlessRewardMul } from './endless.js';
+import { safeLocalStorage } from './storage.js';
 
 const KEY = 'gdf_meta';
 
@@ -61,9 +62,6 @@ export const META_MAX_LEVEL = 100;
  * base: ×3,15 → ×7,9 con los mismos fragmentos de siempre.
  */
 export const META_DMG_PER_LEVEL = 0.18;
-/** +0.01% de DAÑO CRÍTICO por nivel meta TOTAL (v6: 1100 niveles máx
- *  (11 torretas/drones × Nvl.100) → 11%). */
-export const META_CRIT_PCT_PER_LEVEL = 0.01;
 /** Dron de Interferencia: +1 p.p. de slow por nivel meta (parte de 30%). */
 export const META_SLOW_PER_LEVEL = 0.01;
 /** Slow base del Campo de Fuerza (Nvl.1): 30%. */
@@ -92,8 +90,6 @@ export const META_SLOW_CAP = 0.75;
 export const META_MILESTONES = [25, 50, 75, 100];
 /** Bonus de daño por hito alcanzado (2% cada uno, acumulable). */
 export const META_MILESTONE_DMG_PER_HIT = 0.02;
-/** Marcas de cada hito (unicode plano, sin assets nuevos), en orden. */
-export const META_MILESTONE_MARKS = ['★', '✦', '♦', '🏆'];
 /** Perks meta: un efecto especial por torre cada 10 niveles (v6, JK 28-08). */
 export const PERK_EVERY = 10;
 /** Cantidad de tiers de perks por torreta (10 décadas hasta Nvl.100). */
@@ -976,22 +972,6 @@ export function perkDmgFor(type, meta = currentMeta()) {
   return base * metaDmgMul(type, meta);
 }
 
-/**
- * @deprecated Banner DAÑO CRÍTICO: +0.01% por nivel meta TOTAL (v6 — máx
- * 1100 niveles = 11%). dev-7 fase 18: sacado de la UI (hud.js) al
- * confirmar que sigue sin conectarse al crítico real (`critChanceAdd`/
- * `critDmgMul` de los perks elegidos, en towers.js/enemies.js — fórmula
- * totalmente aparte). Se mostraba un número prominente sin ningún
- * efecto, el mismo "recurso sin usar" que reportó el usuario. No se
- * borra por si sirve de base para algo real más adelante.
- */
-export function critBonusPct(meta = currentMeta()) {
-  const m = normalizeMeta(meta);
-  let sum = 0;
-  for (const t of META_TOWERS) sum += m.levels[t.key] ?? 1;
-  return +Math.round(sum * META_CRIT_PCT_PER_LEVEL * 100) / 100;
-}
-
 /** Saldo de oro almacenado (fase 16: ya no es derivado — se gana y se gasta). */
 export function metaGold(meta = currentMeta()) {
   return normalizeMeta(meta).gold;
@@ -1362,10 +1342,3 @@ export function renderTowerIcon(canvas, metaKey) {
   ctx.restore();
 }
 
-// localStorage puede no existir (tests Node / navegadores privados).
-function safeLocalStorage() {
-  try {
-    if (typeof localStorage !== 'undefined') return localStorage;
-  } catch (_err) { /* acceso denegado */ }
-  return { getItem: () => null, setItem: () => {} };
-}

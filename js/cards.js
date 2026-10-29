@@ -21,6 +21,10 @@ import { perkMods } from './meta.js';
 // multiplicadores. Los mods se acumulan en `unit.cardMods` y los lee
 // `unitMods()` (js/towers.js), que los fusiona con los perks de meta.
 import { addCardMods, cardApps } from './perks.js';
+import { createComboMods } from './combo-mods.js';
+import {
+  GLOBAL_DMG_MUL, GLOBAL_CAD_MUL, TYPE_DMG_MUL, HUNT_DMG_MUL,
+} from './card-constants.js';
 
 // dev-7 fase 49: los TIPOS DE DAÑO (js/damagetypes.js). Las cartas que
 // suben el daño de una unidad toman SU tipo (TOWERS/DRONES) y su
@@ -329,21 +333,7 @@ function ownsCard(game, cardId) {
 
 /** Asegura el contenedor de flags de combos (tests duck-typed incluidos). */
 function comboMods(f) {
-  f.comboMods ??= {
-    slowLightVuln: 1,
-    slowBlastVuln: 1,
-    slowCritChanceAdd: 0,
-    slowCritDmgAdd: 0,
-    slowFreezeChance: 0,
-    explosionSlowFrac: 0,
-    explosionSlowTime: 0,
-    poisonRegen: 0,
-    railMark: 0,
-    swarmMark: 0,
-    judgment: 0,
-    bounceElectric: 0,
-    pierceBleed: 0,
-  };
+  f.comboMods ??= createComboMods();
   return f.comboMods;
 }
 
@@ -930,22 +920,22 @@ const TECH_UNIT = Object.fromEntries(TECH_CARDS.map((c) => [c.id, c.unit]));
 // aplican a TODAS las unidades (torres y drones).
 const HUNT_CARDS = [
   {
-    id: 'hunt_rock', name: 'Caza de Rocas', family: 'rock', mul: 1.8,
+    id: 'hunt_rock', name: 'Caza de Rocas', family: 'rock', mul: HUNT_DMG_MUL,
     rarity: 'rare', weight: 6, minStage: 2,
     desc: 'Todas las torres hacen ×1,8 contra la ROCA (meteoritos, fragmentos y blindados).',
   },
   {
-    id: 'hunt_crystal', name: 'Caza de Cristales', family: 'crystal', mul: 1.8,
+    id: 'hunt_crystal', name: 'Caza de Cristales', family: 'crystal', mul: HUNT_DMG_MUL,
     rarity: 'rare', weight: 6, minStage: 2,
     desc: 'Todas las torres hacen ×1,8 contra el CRISTAL (los cristales rojos).',
   },
   {
-    id: 'hunt_spore', name: 'Caza de Esporas', family: 'spore', mul: 1.8,
+    id: 'hunt_spore', name: 'Caza de Esporas', family: 'spore', mul: HUNT_DMG_MUL,
     rarity: 'rare', weight: 6, minStage: 2,
     desc: 'Todas las torres hacen ×1,8 contra la ESPORA (las esporas y los blobs).',
   },
   {
-    id: 'hunt_virus', name: 'Caza de Virus', family: 'virus', mul: 1.8,
+    id: 'hunt_virus', name: 'Caza de Virus', family: 'virus', mul: HUNT_DMG_MUL,
     rarity: 'rare', weight: 6, minStage: 2,
     desc: 'Todas las torres hacen ×1,8 contra el VIRUS (los blobs y sus jefes).',
   },
@@ -985,7 +975,7 @@ function applyTypeDamage(game, card) {
   f.typeStacks ??= {};
   f.typeStacks[type] = cur + 1;
   for (const u of allOwnedUnits(game)) {
-    if (unitDmgType(u) === type) u.dmgMul = (u.dmgMul ?? 1) * 1.2;
+    if (unitDmgType(u) === type) u.dmgMul = (u.dmgMul ?? 1) * TYPE_DMG_MUL;
   }
   return true;
 }
@@ -999,7 +989,7 @@ function applyGlobalDamage(game) {
   f.dmgAllStacks = cur + 1;
   for (const u of allOwnedUnits(game)) {
     u.dmgAllApps = Math.max(u.dmgAllApps ?? 0, f.dmgAllStacks);
-    u.dmgMul = (u.dmgMul ?? 1) * 1.1;
+    u.dmgMul = (u.dmgMul ?? 1) * GLOBAL_DMG_MUL;
   }
   return true;
 }
@@ -1013,7 +1003,7 @@ function applyGlobalCadence(game) {
   f.cadAllStacks = cur + 1;
   for (const u of allOwnedUnits(game)) {
     u.cadApps = Math.max(u.cadApps ?? 0, f.cadAllStacks);
-    u.cadMul = (u.cadMul ?? 1) * 0.9;
+    u.cadMul = (u.cadMul ?? 1) * GLOBAL_CAD_MUL;
   }
   return true;
 }

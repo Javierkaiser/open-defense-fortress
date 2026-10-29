@@ -15,6 +15,8 @@
 // mayoría de motores de canvas 2D, carísimo en GPUs viejas/integradas.
 // ============================================================
 
+import { safeLocalStorage } from './storage.js';
+
 const KEY = 'gdf_quality';
 
 export const QUALITY_LEVELS = [
@@ -99,9 +101,4 @@ export function applyQualityToDom(quality, root = undefined) {
   el.classList.toggle('gdf-lowq', normalizeQuality(quality) === 'baja');
 }
 
-function safeLocalStorage() {
-  try {
-    if (typeof localStorage !== 'undefined') return localStorage;
-  } catch (_err) { /* acceso denegado */ }
-  return { getItem: () => null, setItem: () => {} };
-}
+

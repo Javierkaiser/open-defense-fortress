@@ -1,9 +1,8 @@
 // ============================================================
 // stages.js — datos STAGES 1..50 + escalado (dev-5 → v6, JK 28-08)
 // Módulo de DATOS: no importa nada (regla de dependencias §1.1).
-// STAGES[n-1]: id, name, theme (clave de THEMES en engine.js),
-// baseHp, unlockAfter, waveSet (1..5 = tablas manuales de waves.js;
-// null = generador procedural) y boss (stage de jefe).
+// STAGES[n-1]: id, name, theme (clave de THEMES en engine.js), baseHp y
+// boss (stage de jefe). Las olas viven en waves.js (STAGE_WAVES + generador).
 // v6: campaña ampliada a 50 stages — bosses SOLO en 1, 10, 20, 30,
 // 40, 50; el resto termina al completar las olas (WaveManager
 // onWavesDone). Tema y HP escalan por etapas; la variación de olas
@@ -40,13 +39,13 @@ export function baseHpForStage(stage) {
 const BASE_HP_BASE = 2000;
 const BASE_HP_PER_STAGE = 480;
 
-/** @type {Array<{id:number,name:string,theme:string,baseHp:number,unlockAfter:number,waveSet:number|null,boss:boolean}>} */
+/** @type {Array<{id:number,name:string,theme:string,baseHp:number,boss:boolean}>} */
 export const STAGES = [
-  { id: 1, name: 'Normal Stage 1', theme: 'volcanic',   baseHp: 2000, unlockAfter: 0, waveSet: 1, boss: true },
-  { id: 2, name: 'Normal Stage 2', theme: 'volcanic2',  baseHp: 2500, unlockAfter: 1, waveSet: 2, boss: false },
-  { id: 3, name: 'Normal Stage 3', theme: 'graveyard',  baseHp: 2900, unlockAfter: 2, waveSet: 3, boss: false },
-  { id: 4, name: 'Normal Stage 4', theme: 'nightcity',  baseHp: 3400, unlockAfter: 3, waveSet: 4, boss: false },
-  { id: 5, name: 'Normal Stage 5', theme: 'core',       baseHp: 3800, unlockAfter: 4, waveSet: 5, boss: false },
+  { id: 1, name: 'Normal Stage 1', theme: 'volcanic',   baseHp: 2000, boss: true },
+  { id: 2, name: 'Normal Stage 2', theme: 'volcanic2',  baseHp: 2500, boss: false },
+  { id: 3, name: 'Normal Stage 3', theme: 'graveyard',  baseHp: 2900, boss: false },
+  { id: 4, name: 'Normal Stage 4', theme: 'nightcity',  baseHp: 3400, boss: false },
+  { id: 5, name: 'Normal Stage 5', theme: 'core',       baseHp: 3800, boss: false },
 ];
 
 // v6: stages 6..50 generados en código (temas en ciclo; la vida de la base
@@ -59,8 +58,6 @@ for (let id = 6; id <= 50; id++) {
     name: `Normal Stage ${id}`,
     theme: THEME_CYCLE[(id - 1) % THEME_CYCLE.length],
     baseHp: baseHpForStage(id),
-    unlockAfter: id - 1,
-    waveSet: null,               // olas procedurales (generateStageWaves)
     boss: id % 10 === 0,         // 10, 20, 30, 40, 50
   });
 }

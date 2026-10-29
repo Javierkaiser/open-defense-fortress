@@ -22,6 +22,7 @@ import { STAGES, scaleFor } from './stages.js';
 import {
   poolForStage, pickArchetype, composeWave, assignVariant,
 } from './waves.js';
+import { HEAT_MAX_TOTAL, heatRewardMul } from './heat.js';
 
 /** Constantes de la run (diales de calibración). */
 export const SURVIVAL = {
@@ -178,8 +179,8 @@ export function survivalReward(wave, bestWave = 0, heat = 0) {
   const w = Math.max(0, Math.trunc(Number(wave) || 0));
   const best = Math.max(0, Math.trunc(Number(bestWave) || 0));
   const nuevas = Math.max(0, w - best);
-  const h = Math.max(0, Math.min(49, Number(heat) || 0));
-  const mul = 1 + 0.08 * h;
+  const h = Math.max(0, Math.min(HEAT_MAX_TOTAL, Number(heat) || 0));
+  const mul = heatRewardMul(h);
   return {
     frags: Math.round(8 * nuevas * mul),
     gold: Math.round(2 * nuevas * mul),

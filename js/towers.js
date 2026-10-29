@@ -2295,18 +2295,6 @@ export class Tower {
     return Math.min(3, this.level + (unitMods(this).extraCount ?? 0));
   }
 
-  /** Spread del volley actual en grados: 0 en Lv.1-3 (bala dirigida /
-   *  paralelas, sin dispersión); desde Lv.4 abanico PROPORCIONAL al nivel
-   *  (14° en Lv.4 → 28° en Lv.5) — coherente con "puede terminar en
-   *  abanico según las mejoras elegidas". */
-  get spreadDegNow() {
-    // dev-7 fase 48: el ABANICO desaparece. Las balas se dispersaban y
-    // fallaban; desde el Lv.4 el Guardian reparte su ráfaga entre 3
-    // BLANCOS DISTINTOS (ver fire(), caso 'fan'). Se mantiene el getter
-    // (0) por si algo lo consulta.
-    return 0;
-  }
-
   /**
    * dev-7 fase 33 — ADQUISICIÓN STICKY del blanco.
    *
@@ -2387,8 +2375,8 @@ export class Tower {
         // v3 3b/7 (corrección canónica JK 26-08): SIEMPRE apunta al enemigo
         // más cercano (sin blanco → vertical). Lv.1: 1 bala dirigida sin
         // dispersión; Lv.2+: balas PARALELAS (mismo ángulo, separación
-        // uniforme en X, spread 0); Lv.4+: abanico ±spreadDegNow alrededor
-        // del ángulo al blanco. TODO el volley sale en el mismo frame.
+        // uniforme en X); Lv.4+: la ráfaga se reparte entre varios blancos.
+        // TODO el volley sale en el mismo frame.
         const tgt = this._primaryTarget(enemies, game, 1);
         const n = this.bulletsPerBurst;
         // v5 5c/5: aim con LEAD (punto de impacto estimado, no la posición

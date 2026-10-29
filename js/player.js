@@ -18,6 +18,10 @@ import { Tower, TOWERS, Drone, MAX_DRONES, DRONES, BlackHoleFx, BLACK_HOLE } fro
 import { TOWER_PAD, TOWER_VISUAL_SCALE } from './tower-art.js';
 import { applyProjectileHit } from './enemies.js';
 import { healBase } from './base-heal.js';
+import { createComboMods } from './combo-mods.js';
+import {
+  GLOBAL_DMG_MUL, GLOBAL_CAD_MUL, TYPE_DMG_MUL, HUNT_DMG_MUL,
+} from './card-constants.js';
 
 /**
  * fase 63 — Acento de una bahía LIBRE (el estado "acá podés construir").
@@ -217,21 +221,9 @@ export class Fortress {
     this.typeStacks = {};
     this.huntStacks = {};
     // fase 74.2: flags de COMBOS (frío, sustain, marcas, etc.).
-    this.comboMods = {
-      slowLightVuln: 1,
-      slowBlastVuln: 1,
-      slowCritChanceAdd: 0,
-      slowCritDmgAdd: 0,
-      slowFreezeChance: 0,
-      explosionSlowFrac: 0,
-      explosionSlowTime: 0,
-      poisonRegen: 0,
-      railMark: 0,
-      swarmMark: 0,
-      judgment: 0,
-      bounceElectric: 0,
-      pierceBleed: 0,
-    };
+    // fase 75: schema único en combo-mods.js (antes estaba duplicado acá
+    // y en cards.js; un combo nuevo exigía tocar los dos sitios).
+    this.comboMods = createComboMods();
     // Contadores de aplicaciones para caps de cartas repetibles:
     this.detectApps = 0;
     this.xpBoostApps = 0;
@@ -247,8 +239,6 @@ export class Fortress {
     this.enemies = [];
 
     // Ultimate (dev-4, §2.8): carga SOLO por kills — sin cooldown pasivo.
-    /** @type {Array<{t:number,x:number,fired:boolean}>} */
-    this.orbitalStrikes = [];
     this._orbitalTimer = 0;   // s restantes de la lluvia activa
     this._spawnedOrbitals = 0;
     // fase 75: el engine dibuja tantas bahías como la Fortress activa.
@@ -297,24 +287,24 @@ export class Fortress {
     if (!unit) return unit;
     const dmgStacks = this.dmgAllStacks ?? 0;
     if (dmgStacks > 0) {
-      unit.dmgMul = (unit.dmgMul ?? 1) * Math.pow(1.1, dmgStacks);
+      unit.dmgMul = (unit.dmgMul ?? 1) * Math.pow(GLOBAL_DMG_MUL, dmgStacks);
       unit.dmgAllApps = Math.max(unit.dmgAllApps ?? 0, dmgStacks);
     }
     const cadStacks = this.cadAllStacks ?? 0;
     if (cadStacks > 0) {
-      unit.cadMul = (unit.cadMul ?? 1) * Math.pow(0.9, cadStacks);
+      unit.cadMul = (unit.cadMul ?? 1) * Math.pow(GLOBAL_CAD_MUL, cadStacks);
       unit.cadApps = Math.max(unit.cadApps ?? 0, cadStacks);
     }
     const type = unit?.data?.dmgType
       ?? TOWERS[unit?.type]?.dmgType
       ?? DRONES[unit?.type]?.dmgType;
     const typeStacks = this.typeStacks?.[type] ?? 0;
-    if (typeStacks > 0) unit.dmgMul = (unit.dmgMul ?? 1) * Math.pow(1.2, typeStacks);
+    if (typeStacks > 0) unit.dmgMul = (unit.dmgMul ?? 1) * Math.pow(TYPE_DMG_MUL, typeStacks);
     for (const [family, stacks] of Object.entries(this.huntStacks ?? {})) {
       if (!stacks) continue;
       const key = `fam${family[0].toUpperCase()}${family.slice(1)}Mul`;
       unit.cardMods ??= {};
-      unit.cardMods[key] = (unit.cardMods[key] ?? 1) * Math.pow(1.8, stacks);
+      unit.cardMods[key] = (unit.cardMods[key] ?? 1) * Math.pow(HUNT_DMG_MUL, stacks);
     }
     return unit;
   }
@@ -625,8 +615,7 @@ export class Fortress {
       && this._orbitalTimer <= ORBITAL.duration
         * ((ORBITAL.count - this._spawnedOrbitals) / ORBITAL.count)) {
       const x = rand(50, CONFIG.CANVAS_W - 50);
-      const strike = { x, firedAt: 0 };
-      this.orbitalStrikes.push(strike);
+      const strike = { x };
       this._spawnedOrbitals += 1;
       // Impacto: explosión + daño en área inmediato (§2.8)
       const eng = this.game?.engine;
@@ -661,7 +650,6 @@ export class Fortress {
         ORBITAL.radius,
       );
     }
-    if (this._orbitalTimer <= 0) this.orbitalStrikes.length = 0;
   }
 
   update(dt, enemies = this.enemies) {

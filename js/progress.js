@@ -12,7 +12,8 @@
 // ============================================================
 
 import { ENDLESS_START, endlessOpen, isEndless, nextEndlessStage } from './endless.js';
-import { HEAT_MILESTONES, normalizeHeatMods } from './heat.js';
+import { HEAT_MILESTONES, HEAT_MAX_TOTAL, normalizeHeatMods } from './heat.js';
+import { safeLocalStorage } from './storage.js';
 
 const KEY = 'gdf_progress';
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -77,7 +78,7 @@ function normalizeEndless(raw) {
 function normalizeHeatState(raw) {
   const h = raw && typeof raw === 'object' ? raw : {};
   const bestRaw = Number(h.best);
-  const best = Number.isFinite(bestRaw) ? Math.max(0, Math.min(49, Math.trunc(bestRaw))) : 0;
+  const best = Number.isFinite(bestRaw) ? Math.max(0, Math.min(HEAT_MAX_TOTAL, Math.trunc(bestRaw))) : 0;
 
   const byStage = {};
   if (h.byStage && typeof h.byStage === 'object') {
@@ -86,7 +87,7 @@ function normalizeHeatState(raw) {
       const n = Number(v);
       if (!Number.isInteger(id) || id < 1 || id > 200) continue;
       if (!Number.isFinite(n) || n <= 0) continue;
-      byStage[id] = Math.min(49, Math.trunc(n));
+      byStage[id] = Math.min(HEAT_MAX_TOTAL, Math.trunc(n));
     }
   }
 
@@ -96,7 +97,7 @@ function normalizeHeatState(raw) {
     for (const [k, v] of Object.entries(h.endless)) {
       const heat = Number(k);
       const depth = Number(v);
-      if (!Number.isInteger(heat) || heat < 0 || heat > 49) continue;
+      if (!Number.isInteger(heat) || heat < 0 || heat > HEAT_MAX_TOTAL) continue;
       if (!Number.isFinite(depth) || depth < 1) continue;
       endless[heat] = Math.min(9999, Math.trunc(depth));
     }
@@ -126,7 +127,7 @@ function normalizeSurvival(raw) {
     for (const [k, v] of Object.entries(s.byHeat)) {
       const heat = Number(k);
       const wave = Number(v);
-      if (!Number.isInteger(heat) || heat < 0 || heat > 49) continue;
+      if (!Number.isInteger(heat) || heat < 0 || heat > HEAT_MAX_TOTAL) continue;
       if (!Number.isFinite(wave) || wave < 0) continue;
       byHeat[heat] = Math.min(9999, Math.trunc(wave));
     }
@@ -152,7 +153,7 @@ function normalizeSurvival(raw) {
  */
 export function recordHeatRun(progress, { heat = 0, stageId = null, endlessDepth = null } = {}) {
   const p = normalizeProgress(progress);
-  const h = Math.max(0, Math.min(49, Math.trunc(Number(heat) || 0)));
+  const h = Math.max(0, Math.min(HEAT_MAX_TOTAL, Math.trunc(Number(heat) || 0)));
   if (h <= 0) return p;
   p.heat.best = Math.max(p.heat.best, h);
   const sid = Number(stageId);
@@ -178,7 +179,7 @@ export function recordSurvival(progress, { wave = 0, score = 0, heat = 0 } = {})
   const p = normalizeProgress(progress);
   const w = Math.max(0, Math.trunc(Number(wave) || 0));
   const s = Math.max(0, Math.trunc(Number(score) || 0));
-  const h = Math.max(0, Math.min(49, Math.trunc(Number(heat) || 0)));
+  const h = Math.max(0, Math.min(HEAT_MAX_TOTAL, Math.trunc(Number(heat) || 0)));
   p.survival.bestWave = Math.max(p.survival.bestWave, w);
   p.survival.bestScore = Math.max(p.survival.bestScore, s);
   p.survival.runs += 1;
@@ -291,10 +292,4 @@ export function recordDaily(progress, dateKey, score) {
   return p;
 }
 
-// localStorage puede no existir (tests Node / navegadores privados).
-function safeLocalStorage() {
-  try {
-    if (typeof localStorage !== 'undefined') return localStorage;
-  } catch (_err) { /* acceso denegado */ }
-  return { getItem: () => null, setItem: () => {} };
-}
+

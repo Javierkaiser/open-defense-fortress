@@ -15,7 +15,7 @@ import { CONFIG, rand } from './engine.js';
 // MATABILIDAD real (hp/vel base de cada tipo) — ver openingPoolForStage().
 // waves.js ya importaba de enemies.js (Enemy), así que no es un ciclo nuevo.
 import { Enemy, ENEMY_TYPES } from './enemies.js';
-import { scaleFor } from './stages.js';
+import { isBossStage, scaleFor } from './stages.js';
 
 /** Duración de WARNING antes de que entre el boss (§2.5/D10). */
 export const WARNING_SECONDS = 2;
@@ -359,11 +359,6 @@ export function bossNameForStage(id) {
   return BOSS_NAMES[id] ?? BOSS_NAME_FALLBACK;
 }
 
-/** true si el stage termina con jefe (v6). */
-export function isBossStage(id) {
-  return id === 1 || id % 10 === 0;
-}
-
 // ------------------------------------------------------------
 // v6 — GENERADOR PROCEDURAL de olas (stages 6..50, JK 28-08:
 // "stages un poco más random, 50 nuevos sin muchos cambios").
@@ -515,8 +510,6 @@ export const SWARM_BY_FAMILY = {
 // apertura sólo si su tiempo-para-matar cabe en su ventana de tiro.
 // ------------------------------------------------------------
 
-/** Velocidad de la bala del Guardian (px/s) — js/towers.js TOWERS.guardian. */
-const GUARDIAN_BULLET_SPEED = 920;
 /**
  * DPS del Guardian para el criterio de MATABILIDAD de la apertura.
  *
@@ -573,7 +566,7 @@ function levelForXp(xp) {
  * injugable. Con `powerMul` el modelo usa la potencia REAL.
  */
 function guardianDpsForLevel(level, powerMul = 1) {
-  return (8 * (1 + 0.25 * Math.max(0, level - 1))) / 0.23 * (powerMul || 1);
+  return OPENING_DPS * (1 + 0.25 * Math.max(0, level - 1)) * (powerMul || 1);
 }
 
 /**

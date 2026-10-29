@@ -48,7 +48,7 @@ export function isEndless(id) {
  * MÁS FÁCIL que la 50 (25 500). Por eso la definición lo trae calculado.
  *
  * @param {number} id
- * @returns {{id:number,name:string,theme:string,baseHp:number,unlockAfter:number|null,waveSet:number|null,boss:boolean,endless?:boolean}|null}
+ * @returns {{id:number,name:string,theme:string,baseHp:number,boss:boolean,endless?:boolean}|null}
  */
 export function stageDef(id) {
   const n = Math.trunc(Number(id));
@@ -60,8 +60,6 @@ export function stageDef(id) {
     name: `∞ Stage ${n}`,
     theme,
     baseHp: baseHpForStage(n),
-    unlockAfter: ENDLESS_START - 1,
-    waveSet: null,            // olas procedurales (generateStageWaves)
     boss: isBossStage(n),     // cada múltiplo de 10
     endless: true,
   };

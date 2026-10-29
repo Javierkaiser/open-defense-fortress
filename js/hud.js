@@ -10,6 +10,7 @@
 // ============================================================
 
 import { AudioManager } from './audio.js';
+import { VERSION } from './version.js';
 import { STAGES } from './stages.js';
 // fase 72: los créditos y los TEXTOS LEGALES embebidos. Módulo de datos puro
 // (cero imports, cero DOM): la pantalla CREDITS se arma sin payload y sin red.
@@ -1752,7 +1753,7 @@ export function buildMenuScreen({ theme = '', quality = '', confirmingReset = fa
       <p class="theme-picker-label">Calidad gráfica (probá "Baja" si el juego anda lento)</p>
       <p class="hint menu-hint">[P] pausa · [1][2][3] velocidad · [Espacio] ultimate · [B] black hole</p>
       ${resetBlock}
-      <p class="version">v1.3.0 · sin anuncios · 100% offline</p>
+      <p class="version">v${VERSION} · sin anuncios · 100% offline</p>
     </section>`;
 }
 
@@ -2189,8 +2190,6 @@ export class HUD {
       statDps: null,
       // T9: banner de aviso de JEFE (se crea bajo demanda).
       bossWarning: null,
-      // dev-7 fase 47: banner de cambio de FASE del jefe (idem, bajo demanda).
-      bossPhase: null,
     };
     this._timerSecs = -1;
     this._lastScoreShown = null;
@@ -2219,7 +2218,6 @@ export class HUD {
     this._focusBeforeCombo = null;
 
     // Barra de jefe (D11): DOM creado bajo demanda en render()
-    this.boss = null;
     this._bossHidden = true;
 
     // T4 — anti-doble-toque del modal de cartas: oferta VIVA (estable
@@ -2240,12 +2238,10 @@ export class HUD {
     // T9 — aviso de JEFE (banner WARNING de 2 s que docs/DESIGN.md promete y
     // que no existía en el DOM). El engine emite 'boss:warning' cuando
     // el jefe se acerca (waves.js) → el HUD muestra el banner.
-    this._bossWarningT = null;
     this.engine?.on?.('boss:warning', (data) => this.showBossWarning(data?.name));
     // dev-7 fase 47: el jefe avisa de su cambio de fase (y con ella, de
     // la regla nueva: a qué tipo le pega más). El evento ya lo emitía el
     // enemigo desde la fase 28, pero nadie lo escuchaba.
-    this._bossPhaseT = null;
     this.engine?.on?.('boss:phase2', (enemy) => this.showBossPhase(enemy?._phase));
     // oleadas-dinámicas: el director anuncia el ARQUETIPO que ESTÁ
     // entrando ("¡CONVOY!"). Sin preview de la próxima ola (decisión del
@@ -3015,7 +3011,7 @@ export class HUD {
    * dev-7 fase 18 (pedido del usuario, sigue vigente tras el trabajo
    * externo de fases 16-17 — confirmado con perks-choice-torretas.png):
    * el banner de arriba mostraba "Incremento Total del DAÑO Crítico" con
-   * `critBonusPct()` — un número que NUNCA se lee en el combate real (el
+   * el viejo `critBonusPct()` — un número que NUNCA se lee en el combate real (el
    * crítico de verdad ahora sale de los perks elegidos, `critChanceAdd`/
    * `critDmgMul` en towers.js/enemies.js — completamente aparte). Sigue
    * siendo el mismo "recurso sin usar" que el usuario reportó, con perks
@@ -4042,8 +4038,6 @@ export class HUD {
 
   /** Oculta el aviso de JEFE (lo llama el timeout o un cambio de estado). */
   hideBossWarning() {
-    clearTimeout(this._bossWarningT);
-    this._bossWarningT = null;
     const el = this.el.bossWarning;
     if (!el) return;
     // dev-7 fase 52: el aviso vive en la pila común, así que se
@@ -4114,7 +4108,6 @@ export class HUD {
     // dev-7 fase 43: la etiqueta de RECOMPENSA acompaña al "×2": a secas
     // el jugador lo leía como multiplicador de DAÑO. El CSS decide si hay
     // sitio para el texto (en un marco angosto lo oculta).
-    this.el.bossMultLabel = div.querySelector('.boss-mult-label');
     this._lastBossPct = -1;
     this._lastBossName = '';
     this._bossHidden = true; // evita re-escribir la clase cada frame

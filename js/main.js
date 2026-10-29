@@ -68,7 +68,6 @@ export class Game {
     // Estado de run (§2.6/§2.7/§2.8)
     this.stageId = null;
     this.stageName = 'Normal Stage 1';
-    this.progress = 0;   // 0..1 — progreso de olas (WaveManager dev-3)
     this.lv = 1;
     this.xp = 0;
     this.xpFrac = 0;     // fracción de barra XP (§2.7)
@@ -218,7 +217,6 @@ export class Game {
     });
 
     engine.on('timescale:changed', () => {
-      this._refreshSpeed();
       // dev-7 fase 28: la velocidad ELEGIDA por el jugador se recuerda
       // entre stages (antes cada stage arrancaba a x1).
       const r = this.engine.resumeSpeed;
@@ -814,7 +812,6 @@ export class Game {
     // dev-7 fase 28: meta fresca — la potencia del Guardian (multiplicador
     // de meta) se usa para modelar la apertura del stage.
     this.meta = loadMeta();
-    this.progress = 0;
     this.lv = 1;        // el Lv arranca en 1 cada stage (roguelike §2.7)
     this.xp = 0;
     this.xpFrac = 0;
@@ -935,13 +932,12 @@ export class Game {
     this.survivalSeed = Number.isFinite(seed) ? (seed >>> 0) : ((Math.random() * 1e9) | 0);
     // fase 70: el reintento rejuega la MISMA run (las olas son deterministas
     // por semilla), igual que el diario. `survival: true` marca el modo.
-    this._runOpts = { seed: this.survivalSeed, survival: true };
+    this._runOpts = { seed: this.survivalSeed };
     this.stageId = SURVIVAL.baseStage; // stage virtual de la oleada 0 (curva del S1)
     this.stageName = 'Supervivencia';
     this.engine.setTheme(survivalTheme(1));
     // Mismo reset de run que startStage: cada run es una partida nueva.
     this.meta = loadMeta();
-    this.progress = 0;
     this.lv = 1;
     this.xp = 0;
     this.xpFrac = 0;
@@ -1349,10 +1345,6 @@ export class Game {
     // setState() es no-op con el mismo estado: re-render manual (mismo
     // patrón que toSelectStage/toTorretas/toRecords).
     this.hud.showScreen('CREDITS');
-  }
-
-  _refreshSpeed() {
-    this._speedDirty = true; // el label del botón se refresca en update()
   }
 
   // ---------- Economía de kills (§2.6/§2.7/§2.8) ----------

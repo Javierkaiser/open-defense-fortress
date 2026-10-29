@@ -329,7 +329,6 @@ const PAUSE_STATES = ['PAUSED', 'CARD_CHOICE'];
 
 // Helpers puros
 export const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-export const lerp = (a, b, t) => a + (b - a) * t;
 export const dist = (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1);
 export const rand = (min = 0, max = 1) => min + Math.random() * (max - min);
 
@@ -633,7 +632,7 @@ export class Engine {
         for (const p of c.pts) best = Math.min(best, Math.hypot(p.x - lx, p.y - ly));
         return best;
       }));
-      if (nearCrack < 58 && this._lavaLakes.length < 10) {
+      if (nearCrack < 58) {
         this._lavaLakes.push({ x: lx, y: ly, lobes });
       }
     }
@@ -649,7 +648,7 @@ export class Engine {
       this._lavaFlows.push({ pts: flow.pts, w: rand(7, 13), speed: rand(0.8, 1.6), phase: rand(0, Math.PI * 2) });
     }
     this._hotSpots = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 5; i++) {
       this._hotSpots.push({
         x: 70 + i * 80 + rand(-14, 14),
         y: rand(170, 295),
@@ -2585,7 +2584,7 @@ export class Engine {
       this._fogDirty = false;
       const fctx = this._fogCache.ctx;
       fctx.clearRect(0, 0, CONFIG.CANVAS_W, CONFIG.CANVAS_H);
-      this._drawFogDirect(fctx, th, true);
+      this._drawFogDirect(fctx, th);
     }
     ctx.drawImage(this._fogCache.canvas, 0, 0, CONFIG.CANVAS_W, CONFIG.CANVAS_H);
     // La silueta de la ciudad va DETRÁS de la plataforma: se dibuja aquí,
@@ -2595,7 +2594,7 @@ export class Engine {
   }
 
   /** Dibuja la niebla directamente (usado para llenar el cache). */
-  _drawFogDirect(ctx, th, isCache = false) {
+  _drawFogDirect(ctx, th) {
     const fMul = th.fogMul ?? 1;
     const dense = [
       // v3 3h/7: capas +50 px, abrazando la plataforma baja (810) y el

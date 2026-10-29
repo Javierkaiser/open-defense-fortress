@@ -12,6 +12,8 @@
 // inyectable, testeable desde Node.
 // ============================================================
 
+import { safeLocalStorage } from './storage.js';
+
 const KEY = 'gdf_theme';
 
 /**
@@ -134,10 +136,4 @@ export function applyThemeToGame(id, engine = null) {
   }
 }
 
-// localStorage puede no existir (tests Node / navegadores privados).
-function safeLocalStorage() {
-  try {
-    if (typeof localStorage !== 'undefined') return localStorage;
-  } catch (_err) { /* acceso denegado */ }
-  return { getItem: () => null, setItem: () => {} };
-}
+
