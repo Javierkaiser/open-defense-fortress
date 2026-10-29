@@ -27,8 +27,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ENEMY_TYPES, ENEMY_VARIANTS, Enemy, renderEnemyIcon, effectiveHpOf,
+  ENEMY_TYPES, ENEMY_VARIANTS, Enemy, effectiveHpOf,
 } from '../js/enemies.js';
+import { renderEnemyIcon } from '../js/enemies-bestiary.js';
 import { DAMAGE_TYPE_IDS, dmgMultiplier } from '../js/damagetypes.js';
 import { CONFIG } from '../js/engine.js';
 

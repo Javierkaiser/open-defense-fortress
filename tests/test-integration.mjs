@@ -10,7 +10,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { collideProjectiles } from '../js/enemies.js';
 import { Fortress } from '../js/player.js';
-import { WaveManager, waveGroups } from '../js/waves.js';
+import { WaveManager } from '../js/waves-manager.js';
+import { waveGroups } from '../js/waves.js';
 import { BASE_HP_BY_STAGE } from '../js/stages.js';
 // fase 67: la etapa ∞ la define endless.js (no STAGES).
 import { stageDef } from '../js/endless.js';

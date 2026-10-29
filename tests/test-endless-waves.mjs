@@ -13,8 +13,9 @@ import assert from 'node:assert/strict';
 import {
   OPEN_T, ENDLESS_FIT_SLOPE, ENDLESS_FIT_QUAD, budgetFit, waveBudget,
   bossNameForStage, BOSS_NAMES, variantChanceFor, assignVariant,
-  generateStageWaves, waveGroups, waveCount, WaveManager,
+  generateStageWaves, waveGroups, waveCount,
 } from '../js/waves.js';
+import { WaveManager } from '../js/waves-manager.js';
 import { ENEMY_TYPES } from '../js/enemies.js';
 
 /** Semillas de la sonda del director (las mismas que usa test-stages.mjs). */

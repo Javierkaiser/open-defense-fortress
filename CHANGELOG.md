@@ -6,6 +6,27 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 
 ## [Unreleased]
 
+## [1.4.1] — 2026-10-29
+
+### Añadido
+
+- `js/economy.js`: economía de una baja compartida por `Game`, `balance-sim` y
+  `probe-s6`, con carry de crías y `maxLevel` correctos.
+- `tests/test-economy.mjs` y **952 tests, 0 skip**.
+- Job `verify` en el deploy: publica solo si pasan suite y `ci-checks`.
+
+### Cambiado
+
+- `towers.js` 2.942→1.307: `towers-core`, `towers-targeting`,
+  `towers-projectiles`, `towers-fx` y `towers-drones`.
+- `enemies.js` 2.766→2.362: `enemies-status`, `enemies-combat` y
+  `enemies-bestiary`.
+- `waves.js` 2.671→2.197: `WaveManager` y entrada de jefes en
+  `waves-manager.js`.
+- Los tests de perks escanean todos los módulos de combate, no solo
+  `towers.js`/`enemies.js`.
+- Versión 1.4.1 / Android `versionCode 6`.
+
 ## [1.4.0] — 2026-10-29
 
 ### Añadido

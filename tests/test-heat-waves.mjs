@@ -17,9 +17,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  OPEN_T, generateStageWaves, waveGroups, waveCount, WaveManager, bossForStage,
+  OPEN_T, generateStageWaves, waveGroups, waveCount, bossForStage,
   assignVariant, variantsForStage, VARIANT_MAX_FRAC,
 } from '../js/waves.js';
+import { WaveManager } from '../js/waves-manager.js';
 import { ENEMY_TYPES, ENEMY_VARIANTS } from '../js/enemies.js';
 import { scaleFor } from '../js/stages.js';
 import { heatMods } from '../js/heat.js';

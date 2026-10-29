@@ -9,6 +9,9 @@
 #
 # REQUISITO: secret de repo/org `HERENOW_API_KEY` con la API key de here.now.
 #
+# El job `verify` corre la suite y los checks estáticos: si algo falla, `deploy`
+# no se ejecuta y no se publica nada.
+#
 # Si usás otra rama por defecto, cambiá "main" en `branches`.
 
 name: Deploy here.now
@@ -26,11 +29,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  verify:
+    name: verify
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Tests (node --test)
+        run: node --test "tests/test-*.mjs"
+
+      - name: Checks estáticos (sintaxis, zero-dep, referencias)
+        run: node .github/scripts/ci-checks.mjs
+
+  deploy:
+    name: deploy
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
 
       - name: Deploy a here.now (staging + js_vSHA)
         env:

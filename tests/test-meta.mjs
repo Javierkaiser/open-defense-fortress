@@ -703,8 +703,15 @@ function leerJs(nombre) {
     return '';
   }
 }
-const SRC_TOWERS = leerJs('towers.js');
-const SRC_ENEMIES = leerJs('enemies.js');
+// El combate se partió en módulos (fase 75): el escáner anti-perks-muertos
+// tiene que leer todos los que contienen call-sites de mods.
+const SRC_TOWERS = [
+  leerJs('towers.js'), leerJs('towers-drones.js'),
+  leerJs('towers-fx.js'), leerJs('towers-projectiles.js'),
+].join('\n');
+const SRC_ENEMIES = [
+  leerJs('enemies.js'), leerJs('enemies-combat.js'), leerJs('enemies-status.js'),
+].join('\n');
 const SRC_PERKS = leerJs('perks.js');
 const SRC_PLAYER = leerJs('player.js');
 /** Todo el código de combate que puede consumir un mod de perk. */

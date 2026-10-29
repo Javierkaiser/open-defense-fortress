@@ -10,11 +10,15 @@ import { HUD, fortressDps, findStageHighlights } from './hud.js';
 import { Fortress, ULT_BOSS_CHARGES, BLACK_HOLE_BOSS_CHARGES } from './player.js';
 import { TOWERS, GUARDIAN_SLOT } from './towers.js';
 import { collideProjectiles } from './enemies.js';
-import { WaveManager, waveGroups } from './waves.js';
+import { WaveManager } from './waves-manager.js';
+import { waveGroups } from './waves.js';
 import {
-  xpForLevel, multForStreak, baseScoreForEnemy, speedMult, stageClearBonus,
-  xpForKill, applyXp, overflowScore, MAX_LEVEL_PER_STAGE, scoreWithCarry,
+  xpForLevel, multForStreak, stageClearBonus,
+  applyXp, overflowScore, MAX_LEVEL_PER_STAGE,
 } from './score.js';
+// La economía de una baja vive en economy.js (la comparten Game y los scripts
+// de medición: antes cada uno tenía su copia y divergían).
+import { resolveKillScore, resolveKillXp } from './economy.js';
 import { STAGES } from './stages.js';
 import {
   stageDef, isEndless, endlessOpen, bestDepth, nextEndlessStage, isMilestone,
@@ -1349,21 +1353,17 @@ export class Game {
   /** Un enemigo murió: score ×mult ×velocidad, float, XP, racha, ultimate. */
   _onKill(enemy) {
     this.kills += 1;
-    const base = baseScoreForEnemy(enemy);
-    // Prima de Combate (scoreMul) se apila al multiplicador de racha y
-    // al bonus de velocidad (§2.6 + cartas v3-1/7).
-    const raw = base * this.mult * speedMult(this.engine.timeScale)
-      * (this.fortress.scoreMul ?? 1);
-    let gained;
-    if (enemy?.fromSpawn) {
-      // Las crías pagan 10 %: con 0,5 de score, el carry paga 0 en la
-      // primera y 1 en la segunda (score entero, 10 % en agregado).
-      const r = scoreWithCarry(raw, this._spawnScoreCarry);
-      gained = r.gained;
-      this._spawnScoreCarry = r.carry;
-    } else {
-      gained = Math.max(1, Math.round(raw));
-    }
+    // Base × racha × velocidad × Prima de Combate (economy.js). Las crías de
+    // mecánicas pagan 10 % con carry: la primera paga 0 y la segunda 1, así
+    // el score sigue entero y el agregado es exacto.
+    const reward = resolveKillScore(enemy, {
+      mult: this.mult,
+      timeScale: this.engine.timeScale,
+      scoreMul: this.fortress.scoreMul ?? 1,
+      carry: this._spawnScoreCarry,
+    });
+    this._spawnScoreCarry = reward.carry;
+    const gained = reward.gained;
     if (gained > 0) {
       this.score += gained;
       this.engine.floatText(
@@ -1391,7 +1391,7 @@ export class Game {
     // que cae hacia la base; al rozarla se recoge (float "+N" + sfx).
     // El bonus XP directo de _gainXp NO cambia: el orbe replica el mismo
     // número como score al recogerse (solo visual + juice).
-    dropEnergyOrb(this, enemy, base);
+    dropEnergyOrb(this, enemy, reward.base);
 
     // Racha → multiplicador visible (D3; el badge hace pop al cambiar)
     this.streak += 1;
@@ -1401,9 +1401,11 @@ export class Game {
     // `xpForKill`) — el SCORE sigue plano (es la leaderboard por etapa).
     // El cristal suma su bonus de energía (§2.4/D12); el Acelerador de
     // Energía multiplica la energía ganada.
-    const bonusFrac = enemy?.data?.dropXpBonusFrac ?? 0;
-    this._gainXp(xpForKill(enemy, this._xpStageNow())
-      * (1 + bonusFrac) * (this.fortress.xpMul ?? 1));
+    this._gainXp(resolveKillXp(enemy, {
+      stage: this._xpStageNow(),
+      bonusFrac: enemy?.data?.dropXpBonusFrac ?? 0,
+      xpMul: this.fortress.xpMul ?? 1,
+    }));
 
     // Ultimate: carga SOLO por kills (§2.8); el boss suma cargas extra
     this.fortress.chargeUltimate(enemy?.isBoss ? ULT_BOSS_CHARGES : 1);

@@ -12,11 +12,12 @@
 
 import { Enemy, collideProjectiles } from '../js/enemies.js';
 import { Fortress, ULT_BOSS_CHARGES, BLACK_HOLE_BOSS_CHARGES } from '../js/player.js';
-import { WaveManager } from '../js/waves.js';
+import { WaveManager } from '../js/waves-manager.js';
 import {
-  multForStreak, baseScoreForEnemy, speedMult, xpForKill,
-  applyXp, overflowScore,
+  multForStreak, applyXp, overflowScore, MAX_LEVEL_PER_STAGE,
 } from '../js/score.js';
+// La economía de una baja (score + XP) la comparte con Game._onKill.
+import { resolveKillScore, resolveKillXp } from '../js/economy.js';
 import { BASE_HP_BY_STAGE } from '../js/stages.js';
 import { rollOffer, applyCard } from '../js/cards.js';
 import { saveMeta, META_TOWERS } from '../js/meta.js';
@@ -80,24 +81,30 @@ function makeRng(seed) {
   };
 }
 
-// ---------- economía de kill (réplica de Game._onKill, main.js) ----------
+// ---------- economía de kill (misma implementación que Game._onKill) ----------
 function onKill(game, enemy) {
   game.kills += 1;
-  const base = baseScoreForEnemy(enemy);
-  game.score += Math.max(1, Math.round(
-    base * game.mult * speedMult(game.engine.timeScale) * (game.fortress.scoreMul ?? 1),
-  ));
+  const reward = resolveKillScore(enemy, {
+    mult: game.mult,
+    timeScale: game.engine.timeScale,
+    scoreMul: game.fortress.scoreMul ?? 1,
+    carry: game._spawnScoreCarry,
+  });
+  game._spawnScoreCarry = reward.carry;
+  game.score += reward.gained;
   game.streak += 1;
   game.mult = multForStreak(game.streak);
-  const bonusFrac = enemy?.data?.dropXpBonusFrac ?? 0;
   // dev-7 fase 64: la economía viva, sin copias locales — `xpForKill` (el XP
   // escala con el stage desde la 59.3) y el bucle de level-up con `applyXp`
   // (tope de cartas de la etapa + score de desborde), igual que main.js.
   // ANTES acá se usaba el `base` plano y `xpForLevel(lv)` SIN stage: este
   // probe medía una curva que el juego ya no usa, así que sus tablas
   // históricas (fase 28) NO son comparables con lo que imprima ahora.
-  const xp = xpForKill(enemy, game.stageId) * (1 + bonusFrac) * (game.fortress.xpMul ?? 1);
-  const r = applyXp(game.lv, game.xp, xp, game.stageId);
+  const r = applyXp(game.lv, game.xp, resolveKillXp(enemy, {
+    stage: game.stageId,
+    bonusFrac: enemy?.data?.dropXpBonusFrac ?? 0,
+    xpMul: game.fortress.xpMul ?? 1,
+  }), game.stageId, game.maxLevel);
   game.lv = r.lv;
   game.xp = r.xp;
   if (r.overflow > 0) game.score += overflowScore(r.overflow, game.stageId);
@@ -139,6 +146,10 @@ function runStage(stageId, mode, seed) {
   const game = {
     engine, stageId, lv: 1, xp: 0, score: 0, streak: 0, mult: 1, kills: 0,
     timer: 0, _leaks: 0,
+    // Mismos topes que la run real: tope de cartas de la etapa y la fracción
+    // de score que arrastran las crías (economy.js).
+    maxLevel: MAX_LEVEL_PER_STAGE,
+    _spawnScoreCarry: 0,
   };
   game.fortress = new Fortress(game);
   game.fortress.maxHp = BASE_HP_BY_STAGE[stageId] ?? 3000;

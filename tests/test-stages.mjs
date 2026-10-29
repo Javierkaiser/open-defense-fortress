@@ -9,11 +9,12 @@ import assert from 'node:assert/strict';
 import { STAGES, BASE_HP_BY_STAGE, scaleFor, isBossStage, LEAK_HP_FRAC, leakDamageFor } from '../js/stages.js';
 import {
   STAGE_WAVES, generateStageWaves, campaignWaves, OPEN_T, waveGroups, waveTypes, waveCount, openingHpBudget,
-  WaveManager, bossNameForStage, bossForStage, SWARM_TYPES, openingSwarmForStage,
+  bossNameForStage, bossForStage, SWARM_TYPES, openingSwarmForStage,
   WAVE_ARCHETYPES, ARCHETYPE_NAMES, archetypeOf, pickArchetype, waveSchedule, composeWave,
   poolForStage, campaignPoolForStage, waveBudget, pressure, variantsForStage, assignVariant,
   VARIANT_DECADES, VARIANT_MAX_FRAC, VEL_BANDS,
 } from '../js/waves.js';
+import { WaveManager } from '../js/waves-manager.js';
 import { ENEMY_TYPES, ENEMY_VARIANTS, Enemy, effectiveHpOf } from '../js/enemies.js';
 import { ENEMY_FAMILY_BY_TYPE, ENEMY_FAMILY_IDS } from '../js/damagetypes.js';
 import { xpForLevel } from '../js/score.js';

@@ -50,7 +50,7 @@ import { MAX_LEVEL_PER_STAGE } from './score.js';
 import { DAMAGE_TYPES, ENEMY_FAMILIES, buildDamageLegendHtml, buildBestiaryHtml } from './damagetypes.js';
 // dev-7 fase 40: el bestiario dibuja al ENEMIGO de verdad (el mismo
 // render que la partida) en un canvasito.
-import { renderEnemyIcon } from './enemies.js';
+import { renderEnemyIcon } from './enemies-bestiary.js';
 // oleadas-dinámicas: `ENEMY_VARIANTS` (las variantes de élite) para el
 // bestiario. Va por NAMESPACE a propósito: la tabla la escribe WS-B, y un
 // `import { ENEMY_VARIANTS }` reventaría el módulo ENTERO al enlazar

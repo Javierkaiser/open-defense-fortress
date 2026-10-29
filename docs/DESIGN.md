@@ -53,16 +53,25 @@ openspec/specs/         specs de comportamiento
 | `main.js` | BOOT del navegador: crea Engine/HUD/Game, aplica calidad/tema y cablea el lifecycle. |
 | `game.js` | `Game`: FSM, economía de la run, wiring de eventos y ciclo de partida (testeable sin DOM). |
 | `engine.js` | Loop rAF+dt, canvas, `CONFIG`/`SCENE`, helpers (`clamp`, `dist`, `rand`), fondo, partículas, input, render y `EventBus`. |
-| `waves.js` | Director de olas: presupuesto de HP, curva de presión, biomas, variantes, `waveSchedule`, `WaveManager` y cola `pending[]`. |
+| `waves.js` | Director de olas: presupuesto de HP, presión, biomas, variantes, `waveSchedule`, composición y `pending[]`. |
+| `waves-manager.js` | `WaveManager`, entrada de jefes y cola de spawns. |
 | `waves-data.js` | Tablas manuales de olas de la campaña (stages 1..5), data pura. |
 | `stages.js` | 50 etapas de campaña: nombre, tema, HP de base, desbloqueo, jefe. |
 | `endless.js` | Modo infinito (51+): `stageDef`, profundidad, hitos, recompensas y desafío diario. |
 | `survival.js` | Supervivencia: olas infinitas, presupuesto lineal, jefes cada 5, temas y recompensas. |
 | `heat.js` | Protocolo: 11 condiciones, presets, `heatMods()`, recompensas e hitos. |
-| `enemies.js` | Comportamiento, colisiones y render de enemigos. |
+| `enemies.js` | `Enemy`: comportamiento, movimiento y render. |
 | `enemies-data.js` | Tipos, jefes, 7 variantes de élite y HP efectivo. |
-| `towers.js` | 8 torres + 3 drones: targeting, disparo, proyectiles, FX y render. |
+| `enemies-status.js` | Veneno, slow por fuente y marcas temporales. |
+| `enemies-combat.js` | Colisión y daño de proyectiles (CCD, crítico, rebote, perforación). |
+| `enemies-bestiary.js` | Icono real del enemigo para el bestiario. |
+| `towers.js` | `Tower` + fachada de torres/drones/proyectiles/FX. |
 | `towers-data.js` | Stats canónicas de torres, drones, avispas y rueda de fuego. |
+| `towers-core.js` | Mods efectivos, daño duck-typed y slow de explosiones. |
+| `towers-targeting.js` | Targeting, aim, traverse y geometría de haz. |
+| `towers-projectiles.js` | Bala, obús y misil. |
+| `towers-fx.js` | Black Hole, Láser, Beam y Bolt. |
+| `towers-drones.js` | Drones orbitales y enjambre de avispas. |
 | `player.js` | `Fortress`: base, slots, drones, HP/escudo, Black Hole y render de la plataforma. |
 | `cards.js` | 81 cartas, efectos, combos, ofertas y topes. |
 | `cards-data.js` | Topes, tags de unidad, técnicas y cazas de familia. |
@@ -76,6 +85,7 @@ openspec/specs/         specs de comportamiento
 | `progress.js` | Persistencia tolerante: desbloqueos, récords, modos, heat, daily. |
 | `storage.js` | Acceso tolerante a `localStorage` compartido por meta/progress/theme/quality. |
 | `score.js` | Fórmulas puras: score, XP, precio de nivel, multiplicadores, resumen de combo. |
+| `economy.js` | Economía de una baja compartida por `Game`, `balance-sim` y `probe-s6`. |
 | `hud.js` | Fachada pública del HUD (reexporta builders + clase). |
 | `hud-builders.js` | Markup y helpers puros del HUD (pantallas, modales, tarjetas, formato). |
 | `hud-core.js` | Clase `HUD`: DOM, eventos, render por frame y modales. |
@@ -289,7 +299,7 @@ inmune: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 947 tests (947 pass, 0 skip) en 31 archivos.
+- 952 tests (952 pass, 0 skip) en 32 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

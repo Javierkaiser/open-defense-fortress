@@ -222,9 +222,10 @@ import { familyFor, ENEMY_FAMILY_IDS } from '../js/damagetypes.js';
 import { Fortress, ULT_BOSS_CHARGES, BLACK_HOLE_BOSS_CHARGES } from '../js/player.js';
 import { TOWERS, DRONES, MAX_DRONES } from '../js/towers.js';
 import {
-  multForStreak, baseScoreForEnemy, speedMult, xpForKill,
-  applyXp, overflowScore,
+  multForStreak, applyXp, overflowScore,
 } from '../js/score.js';
+// La economía de una baja (score + XP) la comparte con Game._onKill.
+import { resolveKillScore, resolveKillXp } from '../js/economy.js';
 import { BASE_HP_BY_STAGE, baseHpForStage } from '../js/stages.js';
 import {
   heatMods, heatTotal, normalizeHeatMods, presetMods, HEAT_PRESETS,
@@ -475,7 +476,7 @@ function syncCeiling(game) {
   }
 }
 
-// ---------- economía de kill (réplica de Game._onKill, main.js, SOLO números) ----------
+// ---------- economía de kill (misma implementación que Game._onKill) ----------
 // dev-7 fase 59.3: `stage` — el XP por kill y el precio del nivel escalan
 // con la etapa (score.js: xpForKill / xpForLevel).
 //
@@ -485,6 +486,10 @@ function syncCeiling(game) {
 // `overflowScore`, igual que main.js. Este es el instrumento de medición de
 // la calibración de `LEVEL_PRICE_PER_STAGE`: si tuviera su propia copia del
 // bucle mediría una curva que el juego no usa.
+//
+// El score y el XP salen de economy.js: el sim no puede tener una copia
+// propia (la tenía, y le faltaba el carry de las crías: pagaba score mínimo 1
+// a TODAS las bajas, incluidas las de `fromSpawn`).
 function gainXp(game, amount) {
   const stage = game.stageId;
   const r = applyXp(game.lv, game.xp, amount, stage, game.maxLevel);
@@ -496,18 +501,25 @@ function gainXp(game, amount) {
 
 function onKill(game, enemy) {
   game.kills += 1;
-  const base = baseScoreForEnemy(enemy);
-  game.score += Math.max(1, Math.round(
-    base * game.mult * speedMult(game.engine.timeScale) * (game.fortress.scoreMul ?? 1),
-  ));
+  const reward = resolveKillScore(enemy, {
+    mult: game.mult,
+    timeScale: game.engine.timeScale,
+    scoreMul: game.fortress.scoreMul ?? 1,
+    carry: game._spawnScoreCarry,
+  });
+  // Las crías pagan 10 % con carry, igual que en Game: la fracción que no
+  // llega a 1 punto queda para la próxima.
+  game._spawnScoreCarry = reward.carry;
+  game.score += reward.gained;
   game.streak += 1;
   game.mult = multForStreak(game.streak);
-  const bonusFrac = enemy?.data?.dropXpBonusFrac ?? 0;
   // dev-7 fase 59.3: el XP escala con el stage (xpForKill) — el SCORE
-  // sigue plano (leaderboard). Es la línea que hay que cablear también
-  // en main.js (`this._gainXp(xpForKill(enemy, this.stageId) * ...)`).
-  const xp = xpForKill(enemy, game.stageId);
-  const levels = gainXp(game, xp * (1 + bonusFrac) * (game.fortress.xpMul ?? 1));
+  // sigue plano (leaderboard).
+  const levels = gainXp(game, resolveKillXp(enemy, {
+    stage: game.stageId,
+    bonusFrac: enemy?.data?.dropXpBonusFrac ?? 0,
+    xpMul: game.fortress.xpMul ?? 1,
+  }));
   game.fortress.chargeUltimate(enemy?.isBoss ? ULT_BOSS_CHARGES : 1);
   game.fortress.chargeBlackHole(enemy?.isBoss ? BLACK_HOLE_BOSS_CHARGES : 1);
   return levels;
@@ -736,6 +748,7 @@ export function createGame(stageId, { metaLv = DEFAULT_META_LV, perks = DEFAULT_
   const game = {
     engine, stageId, lv: 1, xp: 0, score: 0, streak: 0, mult: 1, kills: 0,
     timer: 0, _leaks: 0, _ultFires: 0, _bhFires: 0,
+    _spawnScoreCarry: 0, // fracción de score de crías (ver onKill/economy.js)
     runMods, // fase 69: Protocolo/Heat (null = heat 0)
   };
   game.fortress = new Fortress(game);
@@ -861,8 +874,11 @@ export async function runStage(stageId, mode = DEFAULT_MODE, seed = 1, opts = {}
     // así que reutilizar la instancia haría que el stage N dependiera de
     // los stages corridos antes (no reproducible al comparar dos órdenes
     // de corrida distintos).
-    const wavesMod = await import(`../js/waves.js?run=${++runCounter}`);
-    const { WaveManager, waveGroups } = wavesMod;
+    const runQuery = ++runCounter;
+    const wavesMod = await import(`../js/waves.js?run=${runQuery}`);
+    const managerMod = await import(`../js/waves-manager.js?run=${runQuery}`);
+    const { WaveManager } = managerMod;
+    const { waveGroups } = wavesMod;
     // fase 65 (tarea 5.1): el ARQUETIPO de una descarga lo etiqueta el
     // director (`archetypeOf`, contrato del cambio 'oleadas-dinamicas').
     // Uso DEFENSIVO: si el módulo todavía no lo exporta, la métrica queda

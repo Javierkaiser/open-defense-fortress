@@ -16,8 +16,9 @@ import { TOWERS, DRONES, Tower, unitMods } from '../js/towers.js';
 import { CATALOG, CAPS } from '../js/cards.js';
 import { applyPerkDamage } from '../js/perks.js';
 import {
-  ENEMY_TYPES, Enemy, renderEnemyIcon, ENEMY_ICON_SIZE, ENEMY_VARIANTS,
+  ENEMY_TYPES, Enemy, ENEMY_ICON_SIZE, ENEMY_VARIANTS,
 } from '../js/enemies.js';
+import { renderEnemyIcon } from '../js/enemies-bestiary.js';
 
 test('la matriz tiene 5 tipos y 4 familias, sin huecos', () => {
   assert.equal(DAMAGE_TYPE_IDS.length, 5);
