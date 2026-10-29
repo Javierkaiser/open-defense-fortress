@@ -6,6 +6,7 @@ import { pointSegmentDistance } from './geometry.js';
 import { applyStun, rollCrit, tryFreeze } from './combat-crit.js';
 import { applyPerkDamage } from './perks.js';
 import { applyPoison, applySlow, applyMark, hasMark } from './enemies-status.js';
+import { onMechanicHit } from './tower-mechanics.js';
 
 export function projectileRadius(p) {
   if (typeof p.splashR === 'number') return p.splashR;      // HomingMissile (área)
@@ -83,6 +84,56 @@ function projectileStrike(p, e, kind, list) {
   const dmgKind = p.dmgType ?? kind;
   // Los mods viajan en el propio proyectil (onHitOpts) — se pasan tal cual.
   const killed = applyPerkDamage(e, dmg, dmgKind, p, p.game, list);
+  // Identidad de la unidad que disparó (tower-mechanics.js): Supresión del
+  // Guardian, marca de riel del Gauss, etc. Va DESPUÉS del daño base para
+  // que la marca no buffee su propio disparo.
+  if (p.source) {
+    onMechanicHit(p.source, e, p.game, { p, dmg, killed, list, mods: p });
+  }
+  // Fase 76 — combos que se disparan en el IMPACTO. Todos consumen una
+  // marca o cambian el número de blancos; ninguno es un multiplicador pasivo.
+  const combo = p.game?.fortress?.comboMods;
+  if (combo && !killed) {
+    // Arco del Guardian: la Tesla cargó al enemigo; la bala descarga.
+    if (combo.arcGuard && p.source === 'guardian' && hasMark(e, 'charged')) {
+      e.marks.charged = 0;
+      const splash = Math.round(dmg * 0.4);
+      let n = 0;
+      for (const other of list) {
+        if (!other || other.dead || other === e) continue;
+        if (Math.hypot(other.x - e.x, other.y - e.y) > 90 + (other.r ?? 10)) continue;
+        applyPerkDamage(other, splash, 'electric', p, p.game, list);
+        applyStun(other, 0.2);
+        if (++n >= 2) break;
+      }
+      p.game?.engine?.spawnParticles?.(e.x, e.y, '#9A6CFF', 8, {
+        speedMin: 40, speedMax: 140, lifeMin: 0.15, lifeMax: 0.3,
+      });
+    }
+    // Ignición compartida: la bala detona el burn que dejó la Rueda.
+    if (combo.ignition && p.source === 'guardian'
+      && e.poisonKind === 'burn' && (e.poisonT ?? 0) > 0) {
+      const splash = Math.round(dmg * 0.3);
+      let n = 0;
+      for (const other of list) {
+        if (!other || other.dead || other === e) continue;
+        if (Math.hypot(other.x - e.x, other.y - e.y) > 80 + (other.r ?? 10)) continue;
+        applyPerkDamage(other, splash, 'drone', p, p.game, list);
+        applyPoison(other, e.poisonDps, 1.5, 'burn');
+        if (++n >= 2) break;
+      }
+    }
+    // Fusión del riel: el Gauss contra un blanco fundido propaga `rail`.
+    if (combo.meltRail && p.source === 'gauss' && hasMark(e, 'melt')) {
+      let n = 0;
+      for (const other of list) {
+        if (!other || other.dead || other === e) continue;
+        if (Math.hypot(other.x - e.x, other.y - e.y) > 90 + (other.r ?? 10)) continue;
+        applyMark(other, 'rail', 2);
+        if (++n >= 2) break;
+      }
+    }
+  }
 
   // fase 74.2 — Fractura Criogénica: un crítico contra un enemigo
   // ralentizado puede congelarlo.

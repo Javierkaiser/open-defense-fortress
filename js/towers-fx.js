@@ -6,10 +6,12 @@ import { CONFIG, clamp, dist, rand } from './engine.js';
 import { TOWERS } from './towers-data.js';
 import { closestPointOnSegment, pointSegmentDistance, withAlpha } from './geometry.js';
 import { applyProjectileHit } from './enemies.js';
+import { applyMark, applyPoison, applySlow } from './enemies-status.js';
 import { perkMods } from './meta.js';
 import { healBase } from './base-heal.js';
 import { hurt, hurtP, applyExplosionCombo } from './towers-core.js';
 import { beamGradient } from './towers-targeting.js';
+import { onMechanicHit } from './tower-mechanics.js';
 
 export const BLACK_HOLE = { duration: 4, dps: 10, pull: 260, radius: 170 };
 
@@ -228,6 +230,9 @@ export class LaserStaticFx {
       const d2 = this._distToSegment(e.x, e.y);
       if (d2 > reach) continue;
       hurtP(e, this.dps * dt, 'laser', lpm, this.game, list);
+      // Identidad del Láser: Corte. Cada tick del rayo marca al enemigo
+      // (+8 % de daño de cualquier fuente) sin ramp ni ejecución.
+      onMechanicHit('laser', e, this.game, { dmg: this.dps * dt, mods: lpm });
       if (tick === this._sparkTick) continue;
       // Destello en el punto de contacto (spawnParticles recicla FIFO
       // sobre MAX_PARTICLES 400 — nunca lo supera)
@@ -298,6 +303,93 @@ export class LaserStaticFx {
  * (×1 → ×1,87 al tope: el haz ya es ancho y a niveles altos +8 px del
  * perk) y el brillo es el que hace el resto (10 → 24 px de glow).
  */
+/**
+ * Cráter del Mortar: zona persistente que quema y frena. Es una entidad del
+ * engine (update/draw/dead) para que el área siga existiendo aunque el obús
+ * ya haya detonado y entren enemigos nuevos.
+ */
+export class CraterFx {
+  constructor(game, x, y, opts = {}) {
+    this.game = game;
+    this.x = x;
+    this.y = y;
+    this.radius = opts.radius ?? TOWERS.mortar.blastR;
+    this.dps = opts.dps ?? TOWERS.mortar.mech?.dps ?? 8;
+    this.life = opts.life ?? TOWERS.mortar.mech?.duration ?? 3;
+    this.slow = opts.slow ?? TOWERS.mortar.mech?.slow ?? 0.10;
+    this.mods = opts.mods ?? null;
+    this.t = 0;
+    this.dead = false;
+    this._acc = 0;
+    this.color = TOWERS.mortar.accent;
+  }
+
+  update(dt) {
+    if (dt <= 0 || this.dead) return;
+    this.t += dt;
+    if (this.t >= this.life) { this.dead = true; return; }
+    this._acc += dt;
+    const step = 0.25;
+    if (this._acc < step) return;
+    const window = this._acc;
+    this._acc = 0;
+    const list = this.game?.fortress?.enemies;
+    if (!Array.isArray(list)) return;
+    const cm = this.game?.fortress?.comboMods;
+    const inside = [];
+    for (const e of list) {
+      if (!e || e.dead) continue;
+      if (dist(e.x, e.y, this.x, this.y) <= this.radius + (e.r ?? 10)) {
+        inside.push(e);
+        hurtP(e, this.dps * window, 'blast', this.mods, this.game, list);
+        if (this.slow > 0) applySlow(e, this.slow, 1, 'crater');
+        // Sincronía de Asedio: el cráter marca para que el Misil sume
+        // proyectiles contra los marcados.
+        if (cm?.siegeSync) applyMark(e, 'siege', 2);
+      }
+    }
+    // Concha de Veneno: si hay un envenenado dentro, el cráter convierte
+    // la zona en una nube que sostiene el veneno en todos los atrapados.
+    if (cm?.venomShell && inside.length) {
+      const fuente = inside.find((e) => (e.poisonDps ?? 0) > 0);
+      if (fuente) {
+        for (const e of inside) {
+          applyPoison(e, Math.max(1, Math.round(fuente.poisonDps * 0.5)), 2, 'poison');
+        }
+      }
+    }
+  }
+
+  draw(ctx) {
+    const k = 1 - this.t / Math.max(0.001, this.life);
+    ctx.save();
+    ctx.globalAlpha = 0.16 + 0.14 * k;
+    ctx.fillStyle = '#2A160C';
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.35 + 0.25 * k;
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 7]);
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius * (0.92 + 0.06 * k), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Brasas: 3 motas deterministas por frame (sin estado extra).
+    ctx.globalAlpha = 0.5 * k;
+    ctx.fillStyle = this.color;
+    for (let i = 0; i < 3; i++) {
+      const a = this.t * 1.2 + i * 2.1;
+      const rr = this.radius * (0.25 + 0.55 * ((i + 1) / 3));
+      ctx.beginPath();
+      ctx.arc(this.x + Math.cos(a) * rr, this.y + Math.sin(a) * rr, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+}
+
 export class BeamFx {
   constructor(game, x, top, tx, ty, extra = 0, ramp = 1) {
     this.x = x; this.y = top; this.tx = tx; this.ty = ty;

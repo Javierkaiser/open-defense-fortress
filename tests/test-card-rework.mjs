@@ -178,26 +178,24 @@ test('fase 74: Balas Detonantes exige una torre explosiva', () => {
 // Combos
 // ------------------------------------------------------------
 
-test('fase 74: Reactor de Cadena exige ambas torres y suma a las dos', () => {
+test('fase 76: Sobrecarga exige Thunderstroke y Tesla, y activa el combo', () => {
   const game = mkGame(['thunderstroke', 'tesla']);
-  const c = card('combo_chain_reactor');
+  const c = card('combo_overload');
   assert.equal(isCardEligible(c, game), true);
   applyCard(c, game);
-  assert.equal(unitMods(findTower(game, 'thunderstroke')).extraCount, 1);
-  assert.equal(unitMods(findTower(game, 'tesla')).extraCount, 1);
+  assert.equal(game.fortress.comboMods.overload, 1);
   const sinPar = mkGame(['tesla']);
   assert.equal(isCardEligible(c, sinPar), false, 'sin Thunderstroke no se ofrece');
 });
 
-test('fase 74: Prisma Compuesto exige Beam y Láser', () => {
+test('fase 76: Bucle de Prisma exige Beam y Láser, y activa el combo', () => {
   const game = mkGame(['beam']);
-  const c = card('combo_light_prism');
+  const c = card('combo_prism_loop');
   assert.equal(isCardEligible(c, game), false);
   game.fortress.addTower('laser');
   assert.equal(isCardEligible(c, game), true);
   applyCard(c, game);
-  assert.equal(unitMods(findTower(game, 'beam')).beamRampPerSecAdd, 0.4);
-  assert.equal(unitMods(findTower(game, 'laser')).laserDurationAdd, 0.6);
+  assert.equal(game.fortress.comboMods.prismLoop, 1);
 });
 
 // ------------------------------------------------------------
@@ -347,11 +345,12 @@ test('fase 74.2: Fractura Criogénica suma crítico contra ralentizados', () => 
   assert.equal(e.hp, 977, '10 × (2 + 0,3) = 23 de daño');
 });
 
-test('fase 74.2: Cosecha Explosiva da lifesteal a Missile y Mortar', () => {
-  const game = mkGame(['guardian', 'missile']);
-  applyCard(card('tech_lifesteal'), game);
-  applyCard(card('combo_harvest'), game);
-  assert.equal(unitMods(findTower(game, 'missile')).lifesteal, 0.02);
+test('fase 76: Sincronía de Asedio exige Misil y Mortar y activa el flag', () => {
+  const game = mkGame(['missile', 'mortar']);
+  applyCard(card('combo_siege_sync'), game);
+  assert.equal(game.fortress.comboMods.siegeSync, 1);
+  const sinPar = mkGame(['missile']);
+  assert.equal(isCardEligible(card('combo_siege_sync'), sinPar), false);
 });
 
 test('fase 74.2: Pacto de Sangre hace que el Black Hole cure', () => {
@@ -401,44 +400,71 @@ test('fase 74.2: Marca de Riel da +25% del Guardian a marcados', () => {
   assert.equal(e.hp, 987, '10 × 1,25 = 12,5 → 13 de daño');
 });
 
-test('fase 74.2: Enlace de Enjambre sube drones y da +15% del Guardian', () => {
+test('fase 76: Ignición Compartida detona el burn sobre los vecinos', () => {
   const game = mkGame(['guardian']);
   game.fortress.addDrone('firewheel');
-  applyCard(card('combo_swarm_link'), game);
-  assert.ok(Math.abs(game.fortress.drones[0].dmgMul - 1.1) < 1e-9);
+  applyCard(card('combo_ignition'), game);
   const e = mkEnemy(100, 500, 1000);
-  applyMark(e, 'swarm', 2);
+  e.poisonKind = 'burn'; e.poisonT = 2; e.poisonDps = 5;
+  const near = mkEnemy(130, 500, 1000);
   const p = {
     x: 100, y: 500, damage: 10, critChance: 0, game, source: 'guardian', dead: false,
   };
-  applyProjectileHit(p, [e]);
-  assert.equal(e.hp, 988, '10 × 1,15 = 11,5 → 12 de daño');
+  applyProjectileHit(p, [e, near]);
+  assert.ok(near.hp < 1000, 'el vecino recibe el estallido de fuego');
+  assert.equal(near.poisonKind, 'burn', 'y queda prendido');
 });
 
-test('fase 74.2: Juicio Final da +30% del Thunderstroke a aturdidos', () => {
-  const game = mkGame(['guardian', 'missile', 'thunderstroke']);
-  applyCard(card('tech_stun_missile'), game);
-  applyCard(card('combo_judgment'), game);
-  const t = findTower(game, 'thunderstroke');
-  const e = mkEnemy(270, 700, 1000);
-  e.stun = 1;
+test('fase 76: Golpe de Gracia sube el remate del Misil a 30% contra Juicio', () => {
+  const game = mkGame(['missile', 'thunderstroke']);
+  applyCard(card('combo_coup'), game);
+  const e = mkEnemy(270, 500, 1000);
+  applyMark(e, 'judgment', 2);
+  const t = findTower(game, 'missile');
   t.fire([e], game, 1 / 60);
-  assert.equal(e.hp, 915, '65 × 1,3 = 84,5 → 85 de daño');
+  const misil = game.engine.entities.find((x) => x.constructor?.name === 'HomingMissile');
+  assert.ok(misil, 'el misil se lanzó');
+  assert.equal(misil.executeThreshold, 0.30);
 });
 
-test('fase 74.2: Rebote Conductor descarga electricidad al rebotar', () => {
+test('fase 76: Arco del Guardian consume `charged` y descarga a 2 vecinos', () => {
   const game = mkGame(['guardian', 'tesla']);
-  applyCard(card('tech_bounce'), game);
-  applyCard(card('combo_conductor'), game);
-  const e1 = mkEnemy(100, 500, 1000);
-  const e2 = mkEnemy(100, 470, 1000);
+  applyCard(card('combo_arc_guard'), game);
+  const e = mkEnemy(100, 500, 1000);
+  applyMark(e, 'charged', 2);
+  const near = mkEnemy(130, 500, 1000);
   const p = {
-    x: 100, y: 500, damage: 10, vx: 0, vy: -100,
-    source: 'guardian', bounce: 1, game, dead: false,
+    x: 100, y: 500, damage: 10, critChance: 0, game, source: 'guardian', dead: false,
   };
-  applyProjectileHit(p, [e1, e2]);
-  assert.equal(e1.hp, 990);
-  assert.equal(e2.hp, 995, '50% de 10 = 5 eléctrico');
+  applyProjectileHit(p, [e, near]);
+  assert.ok(near.hp < 1000, 'el vecino recibe 40% eléctrico');
+  assert.equal(near.stun, 0.2, 'y queda aturdido 0,2 s');
+  assert.equal(hasMark(e, 'charged'), false, 'la marca se consume');
+});
+
+test('fase 76: Tormenta de Riel consume la marca y alarga el stun', () => {
+  const game = mkGame(['gauss', 'thunderstroke']);
+  applyCard(card('combo_railstorm'), game);
+  const e = mkEnemy(270, 500, 5000);
+  applyMark(e, 'rail', 2);
+  const vecinos = [1, 2, 3, 4, 5].map((i) => mkEnemy(270 + i * 8, 500, 5000));
+  const t = findTower(game, 'thunderstroke');
+  t.fire([e, ...vecinos], game, 1 / 60);
+  assert.equal(hasMark(e, 'rail'), false, 'el rayo consume el riel');
+  assert.ok(e.stun >= 0.5, `el stun base 0,2 + 0,35 del combo (dio ${e.stun})`);
+});
+
+test('fase 76: Fusión del Riel propaga `rail` desde un blanco fundido', () => {
+  const game = mkGame(['beam', 'gauss']);
+  applyCard(card('combo_melt_rail'), game);
+  const e = mkEnemy(100, 500, 1000);
+  applyMark(e, 'melt', 2);
+  const near = mkEnemy(140, 500, 1000);
+  const p = {
+    x: 100, y: 500, damage: 10, critChance: 0, game, source: 'gauss', dead: false,
+  };
+  applyProjectileHit(p, [e, near]);
+  assert.equal(hasMark(near, 'rail'), true);
 });
 
 test('fase 74.2: Perforación Compartida aplica sangrado al atravesar', () => {

@@ -16,7 +16,7 @@ import {
 } from './towers-data.js';
 export { TOWERS, DRONES, WASPS, FIREWHEEL, MAX_TOWER_LEVEL };
 import { applyStun, rollCrit, tryFreeze } from './combat-crit.js';
-import { applyProjectileHit, applyPoison, applySlow, applyMark } from './enemies.js';
+import { applyProjectileHit, applyPoison, applySlow, applyMark, hasMark } from './enemies.js';
 // dev-7 fase 28: `perkDmgFor` (DPS real de las espinas = thornDps del
 // perk × metaDmgMul) y `META_SLOW_CAP` (tope COMBINADO del slow del
 // Campo de Fuerza) viven en meta.js — se importan acá para no duplicar
@@ -47,6 +47,7 @@ import {
 import { Bullet, MortarShell, HomingMissile } from './towers-projectiles.js';
 import { BLACK_HOLE, BlackHoleFx, LaserStaticFx, BeamFx, BoltFx } from './towers-fx.js';
 import { MAX_DRONES, Drone } from './towers-drones.js';
+import { onMechanicHit, onMechanicTick } from './tower-mechanics.js';
 export {
   unitMods, hurtP, applyExplosionCombo, TARGETING, TRAVERSE, TRAVERSE_AIM,
   targetingFor, targetInRange, pickByPolicy, beamAimAngle, traverseAim,
@@ -525,7 +526,14 @@ export class Tower {
         // v6 perk (missile): +1 misil simultáneo por cada 10 niveles meta —
         // los N misiles se reparten entre los N enemigos más avanzados.
         {
-          const n = 1 + (unitMods(this).extraCount ?? 0);
+          const cm = game?.fortress?.comboMods;
+          let n = 1 + (unitMods(this).extraCount ?? 0);
+          // Sincronía de Asedio: el Misil suma un misil por cada enemigo
+          // marcado `siege` por el cráter del Mortar (máx. +2).
+          if (cm?.siegeSync) {
+            const marked = (enemies || []).filter((e) => e && !e.dead && hasMark(e, 'siege')).length;
+            n += Math.min(2, marked);
+          }
           // dev-7 fase 33: los N blancos son STICKY (no cambian hasta que
           // se destruyen) y se eligen por la política de la torre (el más
           // avanzado). Antes se re-elegían los N más avanzados en cada
@@ -533,13 +541,24 @@ export class Tower {
           const targets = this._acquireTargets(enemies, game, n);
           if (!targets.length) targets.push(null); // respaldo: sale igual (histórico)
           const mpm = unitMods(this); // fase 17: sistemáticos del Penetrador
+          const execBase = Math.max(mpm.executeThreshold ?? 0, d.mech?.threshold ?? 0);
           for (const tg of targets) {
+            // Golpe de Gracia: contra un blanco con Juicio el umbral de
+            // remate del Misil sube a 30 %, no es un +X% de daño.
+            const exec = cm?.coup && hasMark(tg, 'judgment')
+              ? Math.max(execBase, 0.30)
+              : execBase;
             game.engine.addEntity(new HomingMissile(
               this.x, top, tg, game, this.damage,
               { homing: mpm.homingStrength ?? 0,
                 slowOnHit: mpm.slowOnHit ?? 0,
                 stunChance: mpm.stunChance ?? 0,
                 ...onHitOpts(mpm, game),
+                // Identidad del Misil: umbral de ejecución INTRÍNSECO (6 %)
+                // que los perks/cartas suben. El resto del arsenal ya no
+                // tiene executeThreshold (test-tower-identity lo verifica).
+                executeThreshold: exec,
+                source: 'missile',
                 critChance: mpm.critChanceAdd ?? 0,
                 critMul: mpm.critDmgMul ?? 2 },
             ));
@@ -564,9 +583,11 @@ export class Tower {
           const tgt = this._beamTarget;
           if (!tgt || tgt.dead) break; // sin blanco vivo → rayo apagado
           const bm = unitMods(this); // fase 17: sistemáticos del haz
+          const combo = game?.fortress?.comboMods;
           const rampPerSec = (d.beamRampPerSec ?? 0.8) + (bm.beamRampPerSecAdd ?? 0);
-          const ramp = clamp(1 + this._beamTime * rampPerSec,
-            1, d.beamRampMax ?? 4.5);
+          // Bucle de Prisma: el Láser encendido sostiene el foco y sube el tope.
+          const rampMax = (d.beamRampMax ?? 4.5) + (combo?.prismLoop ? 0.5 : 0);
+          const ramp = clamp(1 + this._beamTime * rampPerSec, 1, rampMax);
           const beamHit = (baseDmg) => {
             // crítico propio del perk + Fractura Criogénica contra slow.
             const cm = game?.fortress?.comboMods;
@@ -589,6 +610,9 @@ export class Tower {
           };
           hurtP(tgt, beamHit(this.damage * ramp * dt), 'beam', bm, game, enemies); // objetivo: dps × ramp
           slowBeam(tgt);
+          // Identidad del Beam: Fusión. El foco sostenido acumula `melt`
+          // (máx. 3 stacks; +4 % de daño por stack sobre el blanco).
+          onMechanicTick('beam', tgt, game, { dt, unit: this, mods: bm });
           // El MANTO del haz es SOLO VISUAL (fase 66): el grosor del perk
           // (`rangeAdd`, +8 px cada 10 niveles) engorda el DIBUJO, no el
           // daño — el haz daña únicamente a su blanco (decisión del usuario:
@@ -627,6 +651,7 @@ export class Tower {
         // Los perks `extraCount` y `chainFork` suman objetivos de ÁREA
         // (mini rayos), no rayos principales: se mantiene el "solo 1 rayo".
         const ptm = unitMods(this);
+        const cm = game?.fortress?.comboMods;
         const primary = this._acquireTargets(enemies, game, 1)[0] ?? null;
         if (primary) {
           const accent = MUZZLE_ACCENT[d.kind] ?? d.accent;
@@ -636,10 +661,21 @@ export class Tower {
           const impact = { x: primary.x, y: primary.y };
           const areaR = d.areaR ?? 130;
           const areaDmg = Math.round(this.damage * (d.areaFrac ?? 0.5));
+          // Combos de control: Sobrecarga (Tesla+Thunder) y Tormenta de
+          // Riel (Gauss+Thunder) agrandan el estallido. El de riel CONSUME
+          // la marca: la sinergia pide prepared el blanco con el Gauss.
+          // Sobrecarga: el área extra sólo se abre si el racimo ya está
+          // ionizado por la Tesla (la sinergia pide preparar el blanco).
+          let areaBonus = (cm?.overload && hasMark(primary, 'ion')) ? 2 : 0;
+          let stunBonus = 0;
+          if (cm?.railstorm && hasMark(primary, 'rail')) {
+            primary.marks.rail = 0;
+            areaBonus += 2;
+            stunBonus += 0.35;
+          }
           const maxArea = Math.min(
             THUNDER_AREA_MAX,
-            Math.max(0, (d.areaTargets ?? 3)
-              + (ptm.extraCount ?? 0) + (ptm.chainFork ?? 0)),
+            Math.max(0, (d.areaTargets ?? 3) + (ptm.areaTargetsAdd ?? 0) + areaBonus),
           );
           // La lista se resuelve ANTES de dañar: el punto de impacto es la
           // posición actual del principal, y los vecinos se ordenan por
@@ -668,24 +704,28 @@ export class Tower {
           }
 
           const stunHit = (e, base) => {
-            applyStun(e, base);
+            const dur = base + (ptm.stunDurationAdd ?? 0);
+            applyStun(e, dur);
             if ((ptm.stunChance ?? 0) > 0 && Math.random() < ptm.stunChance) {
-              applyStun(e, 0.5);
+              applyStun(e, 0.5 + (ptm.stunDurationAdd ?? 0));
             }
           };
 
           // 3) Daño pleno al principal + estallido a los vecinos.
           // fase 74.2 — Juicio Final: si el principal está aturdido, el
           // Thunderstroke pega +30% y alarga el stun +0,1 s.
-          const cm = game?.fortress?.comboMods;
           const judged = !!(cm?.judgment && (primary.stun ?? 0) > 0);
           const mainDmg = judged ? Math.round(this.damage * 1.3) : this.damage;
           hurtP(primary, mainDmg, 'bolt', ptm, game, enemies);
-          stunHit(primary, (d.stun ?? 0) + (judged ? 0.1 : 0));
+          stunHit(primary, (d.stun ?? 0) + (judged ? 0.1 : 0) + stunBonus);
+          // Identidad del Thunderstroke: Juicio. El stun marca al enemigo
+          // (2 s) y el próximo rayo eléctrico le hace +15 %.
+          onMechanicHit('thunderstroke', primary, game, { dmg: mainDmg, mods: ptm });
           for (const { e } of area) {
             if (e.dead) continue;
             hurtP(e, areaDmg, 'bolt', ptm, game, enemies);
             stunHit(e, d.areaStun ?? 0);
+            onMechanicHit('thunderstroke', e, game, { dmg: areaDmg, mods: ptm });
           }
 
           // 4) Lectura del impacto: anillo ámbar + chispas + sacudida.
@@ -729,17 +769,25 @@ export class Tower {
         // quedaba con UN solo golpe. Ahora la descarga sigue al enjambre.
         // fase 17: chainFork del perk bifurca la cadena (más saltos, ×(1+fork)).
         const pem = unitMods(this);
-        const n = (d.jumps + (pem.extraCount ?? 0)) * (1 + (pem.chainFork ?? 0));
+        const cm = game?.fortress?.comboMods;
+        // Sobrecarga: la Tesla gana un eslabón extra cuando comparte build
+        // con el Thunderstroke (la sinergia es de conducción, no de daño).
+        const n = (d.jumps + (pem.extraCount ?? 0)) * (1 + (pem.chainFork ?? 0))
+          + (cm?.overload ? 1 : 0);
+        const chainRadius = TESLA_CHAIN_RADIUS + (pem.chainRangeAdd ?? 0);
         const primary = this._acquireTargets(enemies, game, 1)[0] ?? null;
         const inRange = primary ? [primary] : [];
         // Sin blanco principal no hay cadena (el bucle necesita un nodo).
         while (inRange.length && inRange.length < Math.max(1, n)) {
           const last = inRange[inRange.length - 1];
           let next = null;
-          let bestD = TESLA_CHAIN_RADIUS;
+          let bestD = chainRadius;
           for (const e of enemies || []) {
             if (!e || e.dead || inRange.includes(e)) continue;
             const dd = dist(e.x, e.y, last.x, last.y);
+            // Cadena de Burbuja: lo atrapado por el Campo de Fuerza es
+            // siempre alcanzable, sin importar la distancia al eslabón.
+            if (cm?.bubbleChain && hasMark(e, 'bubble')) { next = e; break; }
             if (dd < bestD) { bestD = dd; next = e; }
           }
           if (!next) break; // sin vecinos dentro del radio local: corta acá
@@ -754,7 +802,14 @@ export class Tower {
           let dmg = this.damage;
           for (const e of inRange) {
             hurtP(e, Math.round(dmg), 'chain', pem, game, enemies);
-            dmg *= d.falloff;
+            // Identidad de la Tesla: Ionización. Cada eslabón deja `ion`
+            // (2 s); el racimo marcado recibe +10 % de daño eléctrico.
+            onMechanicHit('tesla', e, game, { dmg: Math.round(dmg), mods: pem });
+            // Arco del Guardian: la cadena carga al enemigo para que la
+            // próxima bala del Guardian lo detone.
+            if (cm?.arcGuard) applyMark(e, 'charged', 2);
+            // La burbuja conduce sin pérdida; el resto cae ×0.75.
+            if (!(cm?.bubbleChain && hasMark(e, 'bubble'))) dmg *= d.falloff;
           }
           // dev-7 fase 28: UN 'chain:fire' por cadena (los 3 saltos son
           // una sola descarga, no 3).
@@ -767,14 +822,35 @@ export class Tower {
         // Arsenal §2.3: obús en arco hacia el blanco más cercano a la
         // base dentro del ancho de detección (× sensores). v3.5: escala
         // con la torre (nivel × cartas × meta).
-        const mt = this.findTarget(enemies, game);
+        let mt = this.findTarget(enemies, game);
+        // Asedio Lento: con ≥2 enemigos dentro de la burbuja, el Mortar
+        // apunta al CENTRO de la burbuja (cambia la selección de blanco).
+        const mortarCombo = game?.fortress?.comboMods;
+        if (mortarCombo?.slowSiege) {
+          const atrapados = (enemies || []).filter((e) => e && !e.dead && hasMark(e, 'bubble'));
+          if (atrapados.length >= 2) {
+            const ax = atrapados.reduce((s, e) => s + e.x, 0) / atrapados.length;
+            const ay = atrapados.reduce((s, e) => s + e.y, 0) / atrapados.length;
+            mt = { x: ax, y: ay, r: 0 };
+          }
+        }
         if (mt) {
           // v6 perk (mortar): +15% de radio de explosión por cada 10 niveles
-          const blastR = d.blastR * (unitMods(this).areaMul ?? 1);
-          game.engine.addEntity(new MortarShell(this.x, top, mt, game, this.damage, blastR, (() => {
-            const mm = unitMods(this);
-            return { ...onHitOpts(mm, game), slowOnHit: mm.slowOnHit ?? 0, stunChance: mm.stunChance ?? 0, critChance: mm.critChanceAdd ?? 0, critMul: mm.critDmgMul ?? 2 };
-          })()));
+          const mm = unitMods(this);
+          const blastR = d.blastR * (mm.areaMul ?? 1);
+          game.engine.addEntity(new MortarShell(this.x, top, mt, game, this.damage, blastR, {
+            ...onHitOpts(mm, game),
+            slowOnHit: mm.slowOnHit ?? 0,
+            stunChance: mm.stunChance ?? 0,
+            critChance: mm.critChanceAdd ?? 0,
+            critMul: mm.critDmgMul ?? 2,
+            // Identidad del Mortar: el impacto deja un CRÁTER de 3 s que
+            // quema y frena; los perks alargan/refuerzan esa zona.
+            craterDps: (d.mech?.dps ?? 8) + (mm.craterDpsAdd ?? 0),
+            craterTime: (d.mech?.duration ?? 3) + (mm.craterTimeAdd ?? 0),
+            craterSlow: d.mech?.slow ?? 0.10,
+            craterRadius: blastR,
+          }));
           // dev-7 fase 28: UN 'mortar:fire' por obús lanzado.
           game?.engine?.emit?.('mortar:fire', { x: this.x, y: top });
           this.firing = true;
@@ -1017,8 +1093,12 @@ export class Tower {
           if (!tgt || (e.hpDisplay ?? e.hp) > (tgt.hpDisplay ?? tgt.hp)) tgt = e;
         }
       }
-      // Reset del ramp: blanco CAMBIÓ o no quedó blanco
-      if (tgt !== old) this._beamTime = 0;
+      // Reset del ramp: blanco CAMBIÓ o no quedó blanco. Bucle de Prisma:
+      // mientras un Láser esté encendido, el Beam conserva el foco al
+      // re-adquirir (la sinergia es de sostén, no de daño).
+      const prismLoop = game?.fortress?.comboMods?.prismLoop
+        && (game?.engine?.entities ?? []).some((e) => e instanceof LaserStaticFx && !e.dead);
+      if (tgt !== old && !prismLoop) this._beamTime = 0;
       this._beamTarget = tgt;
       this.active = !!tgt; // rayo encendido mientras persigue a alguien
     }

@@ -62,18 +62,19 @@ openspec/specs/         specs de comportamiento
 | `heat.js` | Protocolo: 11 condiciones, presets, `heatMods()`, recompensas e hitos. |
 | `enemies.js` | `Enemy`: comportamiento, movimiento y render. |
 | `enemies-data.js` | Tipos, jefes, 7 variantes de élite y HP efectivo. |
-| `enemies-status.js` | Veneno, slow por fuente y marcas temporales. |
+| `enemies-status.js` | Veneno/quemadura, slow por fuente y marcas temporales. |
 | `enemies-combat.js` | Colisión y daño de proyectiles (CCD, crítico, rebote, perforación). |
 | `enemies-bestiary.js` | Icono real del enemigo para el bestiario. |
 | `towers.js` | `Tower` + fachada de torres/drones/proyectiles/FX. |
-| `towers-data.js` | Stats canónicas de torres, drones, avispas y rueda de fuego. |
+| `towers-data.js` | Stats canónicas + `mech` (identidad firma) de cada unidad. |
+| `tower-mechanics.js` | Registro de mecánicas firma y hooks (`onMechanicHit/Tick/Kill`, multiplicadores de marca). |
 | `towers-core.js` | Mods efectivos, daño duck-typed y slow de explosiones. |
 | `towers-targeting.js` | Targeting, aim, traverse y geometría de haz. |
 | `towers-projectiles.js` | Bala, obús y misil. |
-| `towers-fx.js` | Black Hole, Láser, Beam y Bolt. |
-| `towers-drones.js` | Drones orbitales y enjambre de avispas. |
+| `towers-fx.js` | Black Hole, Láser, Beam, Bolt y cráter del Mortar. |
+| `towers-drones.js` | Drones orbitales: ignición, veneno y burbuja. |
 | `player.js` | `Fortress`: base, slots, drones, HP/escudo, Black Hole y render de la plataforma. |
-| `cards.js` | 81 cartas, efectos, combos, ofertas y topes. |
+| `cards.js` | 86 cartas, efectos, combos, ofertas y topes. |
 | `cards-data.js` | Topes, tags de unidad, técnicas y cazas de familia. |
 | `card-constants.js` | Multiplicadores compartidos por cartas y unidades futuras. |
 | `combo-mods.js` | Schema único de los flags de combos. |
@@ -152,24 +153,30 @@ MENU ⇄ CREDITS
 
 ### Torres (8) y drones (3)
 
-| Torre | Rol |
-|---|---|
-| Guardian | Abanico de balas; tracking global |
-| Missile | Misiles homing con explosión |
-| Beam | Láser continuo que atraviesa; alcance lateral |
-| Thunderstroke | Rayo único de alcance total al enemigo más lejano; estalla en mini rayos de área; stun breve |
-| Tesla | Cadena eléctrica entre enemigos; anti-enjambre de banda |
-| Mortar | Obús de área |
-| Gauss | Perdigón perforante rápido |
-| Láser | Haz continuo de daño alto |
+| Torre | Identidad | Mecánica firma |
+|---|---|---|
+| Guardian | Supresión balística | 3 impactos consecutivos al mismo blanco detonan foco (+45 %); crítico y rebote |
+| Missile | Cazador de una amenaza | Homing + remate intrínseco bajo 6 %, ampliable |
+| Beam | Foco térmico de un blanco | Ramp de foco + `melt` (hasta 3 stacks); robo de vida y slow |
+| Thunderstroke | Tormenta de control | Stun que marca `judgment` (+15 % eléctrico) y estallido de área |
+| Tesla | Conducción local | Cadena con `ion` (+10 % eléctrico) y bifurcación |
+| Mortar | Artillería de zona | Cráter persistente que quema y frena |
+| Gauss | Riel anti-blindaje | Marca `rail`: las OTRAS torres hacen +10 % balístico |
+| Láser | Corte estático | Marca `cut`: +8 % de daño de cualquier fuente; penetra la línea |
 
 El Thunderstroke dibuja un enlace suave con su blanco durante el build-up
 (con anillo de lock); al disparar, el rayo principal se engrosa y el anillo
 de impacto marca dónde cayó.
 
-Drones: Rueda de Fuego (contacto), Avispas (enjambre) y Campo de Fuerza
-(escudo/curación). La plataforma tiene **5 slots**; por run entran **5 torres +
-1 dron**. Las torres entran por cartas.
+Drones: Rueda de Fuego (ignición por contacto), Avispas (veneno que se
+propaga al morir) y Campo de Fuerza (burbuja: slow, sostén y marca). La
+plataforma tiene **5 slots**; por run entran **5 torres + 1 dron**. Las torres
+entran por cartas.
+
+La identidad vive en `TOWERS[type].mech` y se ejecuta en `tower-mechanics.js`.
+El contrato está en `openspec/specs/gameplay/tower-identity/spec.md` y lo
+protege `tests/test-tower-identity.mjs`: una mecánica por unidad, claves
+genéricas sólo en su dueño y combos de dos piezas reales.
 
 ### Enemigos
 
@@ -200,10 +207,14 @@ inmune: todo se puede matar, solo cambia el costo.
 
 ### Perks
 
-- Remate: ejecuta enemigos por debajo de un umbral.
-- Robo de vida: cura sobre daño efectivo, con tope del 10 %.
-- Explosión al matar.
+- **Remate**: sólo el Misil (umbral intrínseco 6 %, perks hasta 20 %).
+- **Robo de vida**: sólo Beam y Avispas, con tope del 10 %.
+- **Explosión al matar**: sólo la Rueda de Fuego.
+- **Stun**: sólo Thunderstroke; **slow**: sólo Beam (el Campo de Fuerza lo
+  tiene intrínseco); **rebote**: sólo Guardian; **crítico**: Guardian y Gauss.
 - La señal `perk:proc` la consume `main.js` para sonido y feedback.
+- `PERK_SCHEMA_VERSION` invalida las elecciones A/B de saves viejos cuando
+  cambia el significado de un tier; nivel, fragmentos y oro se conservan.
 
 ## 8. Director de olas
 
@@ -299,7 +310,7 @@ inmune: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 952 tests (952 pass, 0 skip) en 32 archivos.
+- 968 tests (968 pass, 0 skip) en 33 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

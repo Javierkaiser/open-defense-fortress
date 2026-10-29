@@ -71,18 +71,20 @@ const REPEATABLE_CARDS = [
   'swarm_grow',
   // dev-7 fase 51: las CARTAS DE TÉCNICA.
   'tech_pierce', 'tech_bounce', 'tech_explode', 'tech_slow',
-  'tech_crit', 'tech_lifesteal', 'tech_stun_missile', 'tech_exec_missile',
+  'tech_crit', 'tech_lifesteal', 'tech_missile_homing', 'tech_exec_missile',
   // fase 74: técnicas para el resto del arsenal.
   'tech_missile_salvo', 'tech_tesla_jump', 'tech_thunder_area',
   'tech_thunder_stun', 'tech_mortar_radius', 'tech_gauss_crit',
   'tech_laser_split', 'tech_beam_focus', 'tech_firewheel_radius',
   'tech_wasps_venom', 'tech_forcefield_radius', 'tech_forcefield_regen',
-  // fase 74: combos y Black Hole (tope 1).
-  'combo_singularity', 'combo_chain_reactor', 'combo_light_prism',
+  // fase 76: combos de identidad y Black Hole (tope 1).
+  'combo_singularity', 'combo_overload', 'combo_prism_loop',
   'combo_absolute_zero', 'combo_fracture', 'combo_glacial_wave',
-  'combo_harvest', 'combo_blood_pact', 'combo_transfusion',
-  'combo_rail_mark', 'combo_swarm_link', 'combo_judgment',
-  'combo_conductor', 'combo_shared_pierce',
+  'combo_siege_sync', 'combo_ignition', 'combo_venom_shell',
+  'combo_bubble_chain', 'combo_railstorm', 'combo_melt_rail',
+  'combo_slow_siege', 'combo_coup', 'combo_arc_guard',
+  'combo_blood_pact', 'combo_transfusion', 'combo_rail_mark',
+  'combo_shared_pierce',
   'bh_horizon', 'bh_collapse',
   // dev-7 fase 50: las 4 cartas de CAZA DE FAMILIA.
   'hunt_rock', 'hunt_crystal', 'hunt_spore', 'hunt_virus',
@@ -127,11 +129,12 @@ test('CATALOG: toda carta tiene apply() y weight > 0', () => {
   }
 });
 
-test('CATALOG: 81 cartas (69 repetibles + 12 de un solo uso)', () => {
+test('CATALOG: 86 cartas (74 repetibles + 12 de un solo uso)', () => {
   // fase 74: +22 cartas (5 de tipo + 12 técnicas + 3 combos + 2 Black Hole).
   // fase 74.2: +11 combos de frío/lifesteal/tipo-mecánica.
-  assert.equal(CATALOG.length, 81);
-  assert.equal(REPEATABLE_CARDS.length, 69);
+  // fase 76: -6 combos débiles +11 combos de identidad = +5.
+  assert.equal(CATALOG.length, 86);
+  assert.equal(REPEATABLE_CARDS.length, 74);
 });
 
 test('CAPS: TODA carta repetible del catálogo tiene tope (anti-stack infinito)', () => {
@@ -165,11 +168,11 @@ test('fase 75: los combos y BH no se apilan más allá de CAPS', () => {
   const game = makeRealGame({ stageId: 5 });
   game.fortress.addTower('guardian');
   game.fortress.addDrone('firewheel');
-  const swarm = CATALOG.find((c) => c.id === 'combo_swarm_link');
-  assert.ok(applyCard(swarm, game));
-  const mul = game.fortress.drones[0].dmgMul;
-  assert.equal(applyCard(swarm, game), null, 'la segunda aplicación debe rechazarse');
-  assert.equal(game.fortress.drones[0].dmgMul, mul, 'y no debe volver a multiplicar');
+  const ignition = CATALOG.find((c) => c.id === 'combo_ignition');
+  assert.ok(applyCard(ignition, game));
+  const flag = game.fortress.comboMods.ignition;
+  assert.equal(applyCard(ignition, game), null, 'la segunda aplicación debe rechazarse');
+  assert.equal(game.fortress.comboMods.ignition, flag, 'y no debe volver a aplicarse');
 
   game.fortress.blackHoleUnlocked = true;
   const horizon = CATALOG.find((c) => c.id === 'bh_horizon');
@@ -665,15 +668,15 @@ const TECH = [
   { id: 'tech_pierce', unit: 'guardian', key: 'pierceCount', valor: 1 },
   { id: 'tech_bounce', unit: 'guardian', key: 'bounceCount', valor: 1 },
   { id: 'tech_explode', unit: 'guardian', key: 'impactExplodeChance', valor: 1 },
-  { id: 'tech_slow', unit: 'guardian', key: 'slowOnHit', valor: 0.2 },
+  { id: 'tech_slow', unit: 'beam', key: 'slowOnHit', valor: 0.2 },
   { id: 'tech_crit', unit: 'guardian', key: 'critChanceAdd', valor: 0.2 },
-  { id: 'tech_lifesteal', unit: 'guardian', key: 'lifesteal', valor: 0.01 },
-  { id: 'tech_stun_missile', unit: 'missile', key: 'stunChance', valor: 0.2 },
+  { id: 'tech_lifesteal', unit: 'beam', key: 'lifesteal', valor: 0.015 },
+  { id: 'tech_missile_homing', unit: 'missile', key: 'homingStrength', valor: 1 },
   { id: 'tech_exec_missile', unit: 'missile', key: 'executeThreshold', valor: 0.12 },
   // fase 74: técnicas del resto del arsenal.
   { id: 'tech_missile_salvo', unit: 'missile', key: 'extraCount', valor: 1 },
   { id: 'tech_tesla_jump', unit: 'tesla', key: 'extraCount', valor: 1 },
-  { id: 'tech_thunder_area', unit: 'thunderstroke', key: 'extraCount', valor: 1 },
+  { id: 'tech_thunder_area', unit: 'thunderstroke', key: 'areaTargetsAdd', valor: 1 },
   { id: 'tech_thunder_stun', unit: 'thunderstroke', key: 'stunChance', valor: 0.15 },
   { id: 'tech_mortar_radius', unit: 'mortar', key: 'areaMul', valor: 1.2 },
   { id: 'tech_gauss_crit', unit: 'gauss', key: 'critChanceAdd', valor: 0.2 },
@@ -731,10 +734,10 @@ test('fase 51: la carta de técnica NO se ofrece si el jugador NO tiene esa torr
   game.fortress.addTower('guardian');
   assert.equal(isCardEligible(rebote, game), true, 'con el Guardian sí se ofrece');
   // El Misil es lo mismo: sus cartas de técnica necesitan el Misil.
-  const aturdidora = CATALOG.find((c) => c.id === 'tech_stun_missile');
-  assert.equal(isCardEligible(aturdidora, game), false, 'sin Misil no se ofrece');
+  const guiada = CATALOG.find((c) => c.id === 'tech_missile_homing');
+  assert.equal(isCardEligible(guiada, game), false, 'sin Misil no se ofrece');
   game.fortress.addTower('missile');
-  assert.equal(isCardEligible(aturdidora, game), true, 'con el Misil sí se ofrece');
+  assert.equal(isCardEligible(guiada, game), true, 'con el Misil sí se ofrece');
 });
 
 test('fase 51: las cartas de técnica del MISIL sólo offered desde el stage 2', () => {
@@ -759,9 +762,12 @@ test('fase 51: unitMods FUSIONa los perks de meta con los mods de la carta', () 
     // Una carta de técnica entra en el MISMO canal: se SUMA.
     applyCard(CATALOG.find((c) => c.id === 'tech_bounce'), game);
     assert.equal(unitMods(gw).bounceCount, 2, 'perk (1) + carta (1) = 2 rebotes');
-    // Y una carta de otro tipo de mechanic no inventa rebotes de la nada:
+    // El slow es del Beam: la carta NO se cuela en el Guardian.
+    game.fortress.addTower('beam');
+    const beam = findTower(game, 'beam');
     applyCard(CATALOG.find((c) => c.id === 'tech_slow'), game);
-    assert.equal(unitMods(gw).slowOnHit, 0.2, 'la carta de slow aporta su slow');
+    assert.equal(unitMods(beam).slowOnHit, 0.2, 'la carta de slow aporta su slow al Beam');
+    assert.equal(unitMods(gw).slowOnHit, undefined, 'el Guardian ya no recibe slow');
     assert.equal(unitMods(gw).bounceCount, 2, 'y no altera el rebote');
   } finally {
     setMeta({}); // limpia el meta para los tests siguientes
@@ -988,8 +994,11 @@ function toparTodo(f) {
     slowLightVuln: 1.2, slowBlastVuln: 1.2,
     slowCritChanceAdd: 0.2, slowCritDmgAdd: 0.3, slowFreezeChance: 0.2,
     explosionSlowFrac: 0.25, explosionSlowTime: 2,
-    poisonRegen: 0.5, railMark: 1, swarmMark: 1, judgment: 1,
-    bounceElectric: 1, pierceBleed: 1, harvest: 1,
+    poisonRegen: 0.5, railMark: 1, pierceBleed: 1,
+    // Fase 76 — todos los combos de identidad activos.
+    overload: 1, prismLoop: 1, siegeSync: 1, ignition: 1, venomShell: 1,
+    bubbleChain: 1, railstorm: 1, meltRail: 1, slowSiege: 1, coup: 1,
+    arcGuard: 1,
   };
   for (const t of f.slots.filter(Boolean)) {
     t.dmgAllApps = CAPS.dmg_all;

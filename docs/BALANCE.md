@@ -148,7 +148,7 @@ no sólo un multiplicador de daño:
   perks `extraCount`/`chainFork` suman mini rayos, no rayos principales. DPS
   nominal ≈40,6 a un blanco y ≈102 contra un principal + 3 vecinos. Se
   diferencia de la Tesla, que encadena saltos con falloff.
-- **81 cartas** con topes por carta y por run; las mejoras ofrecidas se
+- **86 cartas** con topes por carta y por run; las mejoras ofrecidas se
   relacionan con las unidades, tags y técnicas presentes. Incluyen daño global
   (+10% ×2), daño por tipo (+20% ×2), mecánicas por torre y 11 combos con
   prerrequisitos (frío, lifesteal, marcas, stun, rebote y perforación).
@@ -203,7 +203,7 @@ no sólo un multiplicador de daño:
 6. La suite tiene guardas de regresión de HP por etapa, apertura, jefes,
    variantes y supervivencia.
 
-## Estado actual (v1.4.1)
+## Estado actual (v1.5.0)
 
 - Campaña: 50 etapas, win 100 % con la trayectoria real de meta y cartas.
 - S50 sin heat: 100 % / 92 % de HP / 99 % de bajas (20 semillas).
@@ -211,5 +211,9 @@ no sólo un multiplicador de daño:
 - ∞: la pared empieza alrededor de 60–70; el win cae con la profundidad.
 - Supervivencia: ~84 oleadas planas en el simulador; el número absoluto no es
   confiable, la tendencia sí.
+- Identidad (1.5.0): el rework de perks/mecánicas no movió las métricas
+  globales (S50 92 % HP / 99 % bajas). Las marcas (`melt`, `judgment`, `ion`,
+  `cut`, `rail`) son deliberadamente chicas (+8 a +15 %) y los combos cambian
+  cantidad/target, no sólo daño.
 - El balance sigue siendo un trabajo abierto: el simulador es una herramienta
   de comparación, no un oráculo.

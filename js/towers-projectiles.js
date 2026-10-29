@@ -7,6 +7,7 @@ import { TOWERS } from './towers-data.js';
 import { pickOnHit } from './perks.js';
 import { applyProjectileHit } from './enemies.js';
 import { applyExplosionCombo } from './towers-core.js';
+import { CraterFx } from './towers-fx.js';
 
 /** Bala recta: sube con ángulo fijo, muere fuera de pantalla.
  *  opts.pierce = enemigos que atraviesa antes de disiparse (§2.2 cartas
@@ -186,6 +187,16 @@ export class MortarShell {
     );
     // fase 74.2 — Singularidad + Onda Glacial.
     applyExplosionCombo(this.game, this.x, this.y, R);
+    // Identidad del Mortar: el cráter queda en el suelo y sigue castigando.
+    if ((this.hitOpts?.craterDps ?? 0) > 0) {
+      g.addEntity(new CraterFx(this.game, this.x, this.y, {
+        radius: this.hitOpts.craterRadius ?? R,
+        dps: this.hitOpts.craterDps,
+        life: this.hitOpts.craterTime ?? 3,
+        slow: this.hitOpts.craterSlow ?? 0.10,
+        mods: this.hitOpts,
+      }));
+    }
     this.game.fortress?.spawnMiniBlackHole?.(this.x, this.y, this.game);
   }
 

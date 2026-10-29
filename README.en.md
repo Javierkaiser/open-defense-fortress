@@ -14,10 +14,10 @@ and the upgrade cards offered on level-up. Every run is a roguelike.
 
 - 50-stage campaign, endless mode (51+), survival (infinite waves), daily
   challenge and the Heat/Protocol modifiers.
-- 8 towers + 3 drones, 81 cards, 7 elite affixes, 5 visual themes.
+- 8 towers + 3 drones, each with a signature mechanic (suppression, melt, judgment, ion, crater, rail, cut, ignition, venom and bubble), 86 cards, 7 elite affixes, 5 visual themes.
 - No ads, no purchases, no accounts, no telemetry.
 - Canvas 2D + DOM/CSS + ES modules; no build step, no server, no network calls.
-- 952 Node tests.
+- 968 Node tests.
 
 ## Run it
 
@@ -26,7 +26,7 @@ and the upgrade cards offered on level-up. Every run is a roguelike.
 node scripts/serve.mjs 8080
 # open http://localhost:8080
 
-# tests (952) + static checks
+# tests (968) + static checks
 node --test "tests/test-*.mjs"
 node .github/scripts/ci-checks.mjs
 ```

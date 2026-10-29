@@ -14,6 +14,9 @@ export const TOWERS = {
     cooldown: 0.23, damage: 8, spreadDeg: 14, detectHalfWidth: Infinity, // v4 4a: cadencia rápida + tracking GLOBAL (cualquier enemigo izq/der)
     bulletSpeed: 920, bulletColor: '#35C8FF', // v5 5c/5: balas 920 px/s (vuelo a fondo ~0.3-0.4 s; antes 780)
     bodyColor: '#0E1216', accent: '#35C8FF',
+    // Identidad: presión sostenida + crítico. El tercer impacto consecutivo
+    // sobre el mismo blanco detona el foco (ver tower-mechanics.js).
+    mech: { id: 'suppression', maxStacks: 3, window: 1.5, burstFrac: 0.45 },
     // v3 3b/7 (corrección canónica JK 26-08): el Guardian NO dispara en
     // abanico siempre. Lv.1 → 1 bala DIRIGIDA al enemigo más cercano;
     // cada mejora (+1 nivel) suma 1 bala PARALELA (spread 0); desde Lv.4
@@ -26,6 +29,9 @@ export const TOWERS = {
     cooldown: 1.2, damage: 35, splashR: 60,
     speed: 260, turnRate: 4.5, detectHalfWidth: Infinity, // homing global
     bodyColor: '#141A22', accent: '#FFB36A', trailColor: '#FFB36A',
+    // Identidad: cazador de una amenaza. Umbral intrínseco bajo; los perks
+    // de ejecución lo suben (executeThreshold se compone por MÁXIMO).
+    mech: { id: 'execute', threshold: 0.06, bonusFrac: 0.35 },
   },
   beam: {
     name: 'Beam',
@@ -53,6 +59,9 @@ export const TOWERS = {
     beamRampPerSec: 0.8, beamRampMax: 4.5, beamBurst: 4.5, beamCooldown: 2.5,
     coreColor: '#E8FFE8', beamColor: '#39FF6A',
     bodyColor: '#10161A', accent: '#39FF6A',
+    // Identidad: foco térmico de un solo blanco. El ramp alto aplica `melt`
+    // (máx. 3 stacks, +4 % de daño por stack) y el robo de vida es suyo.
+    mech: { id: 'melt', maxStacks: 3, duration: 2.5, stackEvery: 0.6 },
   },
   thunderstroke: {
     name: 'Thunderstroke',
@@ -73,6 +82,9 @@ export const TOWERS = {
     detectHalfWidth: Infinity,
     color: '#B48CFF', coreColor: '#FFFFFF',
     bodyColor: '#12101C', accent: '#B48CFF',
+    // Identidad: control eléctrico. El stun marca `judgment` (2 s): el
+    // Thunderstroke hace +15 % contra marcados y conserva el área.
+    mech: { id: 'judgment', duration: 2, amp: 0.15 },
   },
   tesla: {
     name: 'Tesla',
@@ -100,6 +112,9 @@ export const TOWERS = {
     detectHalfWidth: Infinity,
     color: '#9A6CFF', coreColor: '#FFFFFF',
     bodyColor: '#12101C', accent: '#9A6CFF',
+    // Identidad: conducción local. La cadena marca `ion` (2 s): +10 % de
+    // daño eléctrico sobre el racimo y +alcance de salto por perk.
+    mech: { id: 'ion', duration: 2, amp: 0.10 },
   },
   // Arsenal extendido (§2.3) — entran al pool de cartas desde Stage 2
   mortar: {
@@ -113,6 +128,9 @@ export const TOWERS = {
     cooldown: 2.2, damage: 45, blastR: 150,
     speed: 300, bodyColor: '#16181D', accent: '#FFD24A',
     detectHalfWidth: Infinity, // artillería anti-área: apunta a TODO el campo
+    // Identidad: negación de zona. El impacto deja un cráter que quema y
+    // frena durante 3 s; los perks alargan/refuerzan ese cráter.
+    mech: { id: 'crater', dps: 8, duration: 3, slow: 0.10 },
   },
   gauss: {
     name: 'Gauss',
@@ -122,6 +140,9 @@ export const TOWERS = {
     speed: 1400, bodyColor: '#12141A', accent: '#7FDFFF',
     detectHalfWidth: Infinity, // v5: el riel apunta a CUALQUIER X (elige al
     // enemigo más avanzado y rota — corrección JK "apuntar antes de disparar")
+    // Identidad: riel perforante y anti-blindaje. La marca `rail` hace que
+    // las OTRAS torres hagan +10 % balístico; el Gauss no se buffea solo.
+    mech: { id: 'rail', duration: 2, amp: 0.10 },
   },
   laser: {
     // v4 4c/5 (corrección canónica JK 27-08): torre LÁSER NUEVA — un
@@ -142,6 +163,9 @@ export const TOWERS = {
     beamColor: '#9DFF3C', coreColor: '#E8FFE8',
     bodyColor: '#10161A', accent: '#3DFC5A',
     detectHalfWidth: Infinity, // apunta al enemigo más avanzado SIN límite de X
+    // Identidad: corte estático penetrante. El rayo marca `cut` (+8 % de
+    // daño de CUALQUIER fuente sobre el cortado) y no tiene ramp ni ejecución.
+    mech: { id: 'cut', duration: 2, amp: 0.08 },
   },
 }
 
@@ -152,6 +176,9 @@ export const DRONES = {
     name: 'Dron Rueda de Fuego', kind: 'firewheel',
     dmgType: 'drone', // fase 32: tipo de daño
     radius: 120, dps: 25, accent: '#FF7A3D', bodyColor: '#1C1410',
+    // Identidad: ignición por contacto. Es la ÚNICA unidad con burn propio
+    // y con explosión al matar; el resto perdió esas claves en la fase 1.
+    mech: { id: 'burn', dps: 8, duration: 3 },
   },
   wasps: {
     name: 'Dron Avispas', kind: 'wasps',
@@ -171,12 +198,18 @@ export const DRONES = {
     venomDps: 2,
     venomTime: 2.5,
     accent: '#FFE24A', bodyColor: '#1C1A0E',
+    // Identidad: desgaste repartido. El veneno se propaga al morir el
+    // envenenado (50 % a los 2 vecinos más cercanos).
+    mech: { id: 'venom', spreadFrac: 0.5, spreadTargets: 2, spreadRadius: 110 },
   },
   forcefield: {
     name: 'Dron Campo de Fuerza', kind: 'forcefield',
     dmgType: 'drone', // fase 32: tipo de daño
     bubbleR: 140, slowFrac: 0.30, // reduce 30% la velocidad de caída
     accent: '#7FDFFF', bodyColor: '#10181C',
+    // Identidad: control y sostén. La burbuja marca `bubble` a lo atrapado
+    // (combos de Tesla/Mortar) y es la única fuente intrínseca de slow.
+    mech: { id: 'bubble', slow: 0.30 },
   },
 };
 

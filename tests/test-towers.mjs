@@ -382,7 +382,7 @@ test('Campo de Fuerza: regeneración (bubbleRegen) cura el escudo por enemigo at
   setPerks({});
 });
 
-test('chainFork: Thunderstroke con bifurcación golpea a más objetivos que sin ella', () => {
+test('areaTargetsAdd: Thunderstroke con +1 objetivo golpea a más enemigos que sin él', () => {
   const run = () => {
     const game = mkGame();
     const t = new Tower('thunderstroke', 100, 1, 0);
@@ -397,12 +397,12 @@ test('chainFork: Thunderstroke con bifurcación golpea a más objetivos que sin 
   };
   setPerks({});
   const sin = run();
-  setPerks({ thunderstroke: [null, 0] }); // tier 2, rama A: chainFork 1
+  setPerks({ thunderstroke: [null, null, 0] }); // tier 3, rama A: +1 objetivo de área
   const con = run();
   setPerks({});
   assert.equal(sin, 4, 'sin perks: principal + 3 mini rayos');
-  assert.equal(con, 5, 'con bifurcación: principal + 4 mini rayos');
-  assert.ok(con > sin, `con bifurcación debía golpear a más enemigos (sin ${sin}, con ${con})`);
+  assert.equal(con, 5, 'con +1 objetivo: principal + 4 mini rayos');
+  assert.ok(con > sin, `el objetivo extra debía golpear a más enemigos (sin ${sin}, con ${con})`);
 });
 
 // ---------- fase 25 · paso 4: señal de activación de perks raros ----------
@@ -451,17 +451,17 @@ test('señal: límite de frecuencia — dos remates en el mismo instante dan una
   assert.equal(log.floats.length, 1, 'el segundo se descarta por el límite de 0.15 s');
 });
 
-test('señal (camino hurtP): remate por espinas del Campo de Fuerza muestra "¡REMATE!"', () => {
-  setPerks({ forcefield: [null, null, 0] }); // tier 3 A: espinas 8/s + remate bajo 15%
+test('identidad: las espinas del Campo de Fuerza matan sin remate (ya no ejecutan)', () => {
+  setPerks({ forcefield: [null, null, 0] }); // tier 3 A: espinas 10/s base
   const { game, log } = fxGame();
   game.fortress.enemies = [];
   const dr = new Drone('forcefield', game, 0);
   const e = mkVictim(dr.x, 5);
   e.y = dr.y;
   game.fortress.enemies = [e];
-  dr.update(0.5, [e]); // espinas: 8 x 0.5 = 4 -> queda en 1 <= 15% de 100 -> remate
-  assert.ok(e.dead, 'el enemigo debía quedar rematado');
-  assert.deepEqual(log.floats, ['¡REMATE!']);
+  dr.update(0.5, [e]); // espinas: 10 x 0,5 = 5 -> muere por daño, no por remate
+  assert.ok(e.dead, 'el enemigo debía morir por las espinas');
+  assert.deepEqual(log.floats, [], 'el Campo de Fuerza ya no tiene remate: no hay señal');
   setPerks({});
 });
 
@@ -1698,19 +1698,20 @@ test('fase 51: la carta de perforación hace que la bala ATRAVIESE un enemigo m�
   assert.equal(bala2.pierce, 1, 'con la carta la bala perfora +1');
 });
 
-test('fase 51: la carta de aturdimiento hace que el MISIL aturda', () => {
+test('fase 76: la carta de guiado hace que el MISIL persiga mejor (sin stun)', () => {
   const g = mkGameE48([mkE48(270, 700)]);
   const t = new Tower('missile', 100, 1);
   t.game = g;
   t.fire(g.fortress.enemies, g, 0.016);
   const misil = g.engine.entities.find((e) => e.constructor?.name === 'HomingMissile');
-  assert.equal(misil.stunChance, 0, 'sin carta el misil no aturde');
-  aplicarCartaATorre(t, 'tech_stun_missile');
+  assert.equal(misil.homing, 0, 'sin carta el misil no tiene guiado extra');
+  assert.equal(misil.stunChance, 0, 'el Misil ya no aturde: el stun es del Thunderstroke');
+  aplicarCartaATorre(t, 'tech_missile_homing');
   const g2 = mkGameE48([mkE48(270, 700)]);
   t.game = g2;
   t.fire(g2.fortress.enemies, g2, 0.016);
   const misil2 = g2.engine.entities.find((e) => e.constructor?.name === 'HomingMissile');
-  assert.equal(misil2.stunChance, 0.2, 'con la carta el misil aturde un 20 %');
+  assert.equal(misil2.homing, 1, 'con la carta el misil persigue mejor');
 });
 
 test('fase 74: la carta explosiva hace que la bala DETONE al impactar', () => {

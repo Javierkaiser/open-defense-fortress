@@ -315,25 +315,25 @@ function appsOf(cardId, game) {
     case 'repair_500': return f.repairApps ?? 0;
     case 'armor_plate': return f.armorApps ?? 0;
     // fase 74: combos de dos piezas / Black Hole.
-    case 'combo_chain_reactor': return Math.max(
-      cardApps(findTower(game, 'thunderstroke'), cardId),
-      cardApps(findTower(game, 'tesla'), cardId),
-    );
-    case 'combo_light_prism': return Math.max(
-      cardApps(findTower(game, 'beam'), cardId),
-      cardApps(findTower(game, 'laser'), cardId),
-    );
     case 'combo_singularity': return f.blackHoleMods?.singularity ? 1 : 0;
+    // Fase 76 — combos de identidad: cada uno se conta por su flag.
+    case 'combo_overload': return f.comboMods?.overload ? 1 : 0;
+    case 'combo_prism_loop': return f.comboMods?.prismLoop ? 1 : 0;
+    case 'combo_siege_sync': return f.comboMods?.siegeSync ? 1 : 0;
+    case 'combo_ignition': return f.comboMods?.ignition ? 1 : 0;
+    case 'combo_venom_shell': return f.comboMods?.venomShell ? 1 : 0;
+    case 'combo_bubble_chain': return f.comboMods?.bubbleChain ? 1 : 0;
+    case 'combo_railstorm': return f.comboMods?.railstorm ? 1 : 0;
+    case 'combo_melt_rail': return f.comboMods?.meltRail ? 1 : 0;
+    case 'combo_slow_siege': return f.comboMods?.slowSiege ? 1 : 0;
+    case 'combo_coup': return f.comboMods?.coup ? 1 : 0;
+    case 'combo_arc_guard': return f.comboMods?.arcGuard ? 1 : 0;
     case 'combo_absolute_zero': return (f.comboMods?.slowLightVuln ?? 1) > 1 ? 1 : 0;
     case 'combo_fracture': return (f.comboMods?.slowCritChanceAdd ?? 0) > 0 ? 1 : 0;
     case 'combo_glacial_wave': return (f.comboMods?.explosionSlowFrac ?? 0) > 0 ? 1 : 0;
-    case 'combo_harvest': return f.comboMods?.harvest ? 1 : 0;
     case 'combo_blood_pact': return (f.blackHoleMods?.drain ?? 0) > 0 ? 1 : 0;
     case 'combo_transfusion': return (f.comboMods?.poisonRegen ?? 0) > 0 ? 1 : 0;
     case 'combo_rail_mark': return f.comboMods?.railMark ? 1 : 0;
-    case 'combo_swarm_link': return f.comboMods?.swarmMark ? 1 : 0;
-    case 'combo_judgment': return f.comboMods?.judgment ? 1 : 0;
-    case 'combo_conductor': return f.comboMods?.bounceElectric ? 1 : 0;
     case 'combo_shared_pierce': return f.comboMods?.pierceBleed ? 1 : 0;
     case 'bh_horizon': return (f.blackHoleMods?.durationAdd ?? 0) > 0 ? 1 : 0;
     case 'bh_collapse': return (f.blackHoleMods?.endBurst ?? 0) > 0 ? 1 : 0;
@@ -649,23 +649,131 @@ function applyGlobalCadence(game) {
 }
 
 /** fase 74 — combos de dos piezas. */
-function applyComboChainReactor(game) {
+/**
+ * Fase 76 — REACTOR DE CADENA → SOBRECARGA.
+ * Antes sólo sumaba +1 salto/+1 mini rayo (dos técnicas juntas). Ahora la
+ * Tesla conduce el Juicio del Thunder y viceversa: el ión del racimo
+ * refuerza el estallido del Thunder y la cadena gana un eslabón.
+ */
+function applyComboOverload(game) {
   const f = game?.fortress;
-  const th = findTower(game, 'thunderstroke');
-  const te = findTower(game, 'tesla');
-  if (!f || !th || !te) return false;
-  addCardMods(th, { extraCount: 1 }, 'combo_chain_reactor');
-  addCardMods(te, { extraCount: 1 }, 'combo_chain_reactor');
+  if (!f || !findTower(game, 'thunderstroke') || !findTower(game, 'tesla')) return false;
+  comboMods(f).overload = 1;
   return true;
 }
 
-function applyComboLightPrism(game) {
+/**
+ * Fase 76 — PRISMA COMPUESTO → BUCLE DE PRISMA.
+ * El Láser activo mantiene el foco del Beam: cambiar de blanco ya no
+ * reinicia el ramp mientras un rayo del Láser esté encendido.
+ */
+function applyComboPrismLoop(game) {
   const f = game?.fortress;
-  const beam = findTower(game, 'beam');
-  const laser = findTower(game, 'laser');
-  if (!f || !beam || !laser) return false;
-  addCardMods(beam, { beamRampPerSecAdd: 0.4 }, 'combo_light_prism');
-  addCardMods(laser, { laserDurationAdd: 0.6 }, 'combo_light_prism');
+  if (!f || !findTower(game, 'beam') || !findTower(game, 'laser')) return false;
+  comboMods(f).prismLoop = 1;
+  return true;
+}
+
+/**
+ * Fase 76 — COSECHA EXPLOSIVA → SINCRONÍA DE ASEDIO.
+ * El cráter del Mortar marca `siege`; el Misil suma +1 misil por cada
+ * marcado en el campo (máx. +2). No es un +X%: cambia la cantidad de
+ * proyectiles y premia combinar las dos artillerías.
+ */
+function applyComboSiegeSync(game) {
+  const f = game?.fortress;
+  if (!f || !findTower(game, 'missile') || !findTower(game, 'mortar')) return false;
+  comboMods(f).siegeSync = 1;
+  return true;
+}
+
+/**
+ * Fase 76 — REBOTE CONDUCTOR → ARCO DEL GUARDIAN.
+ * La Tesla marca `charged` al encadenar; la bala del Guardian consume la
+ * marca y descarga 40 % eléctrico a 2 vecinos + 0,2 s de stun.
+ */
+function applyComboArcGuard(game) {
+  const f = game?.fortress;
+  if (!f || !findTower(game, 'guardian') || !findTower(game, 'tesla')) return false;
+  comboMods(f).arcGuard = 1;
+  return true;
+}
+
+/**
+ * Fase 76 — JUICIO FINAL → GOLPE DE GRACIA.
+ * El stun del Thunder marca `judgment`; el Misil sube su umbral de remate
+ * a 30 % contra ese blanco (en vez de 6-20 %).
+ */
+function applyComboCoup(game) {
+  const f = game?.fortress;
+  if (!f || !findTower(game, 'missile') || !findTower(game, 'thunderstroke')) return false;
+  comboMods(f).coup = 1;
+  return true;
+}
+
+/**
+ * Fase 76 — IGNICIÓN: Firewheel prende `burn`; la bala del Guardian lo
+ * detona en un pequeño estallido de fuego sobre 2 vecinos.
+ */
+function applyComboIgnition(game) {
+  const f = game?.fortress;
+  if (!f || !findTower(game, 'guardian') || !findDrone(game, 'firewheel')) return false;
+  comboMods(f).ignition = 1;
+  return true;
+}
+
+/**
+ * Fase 76 — CONCHA DE VENENO: el cráter del Mortar propaga el veneno de
+ * las Avispas a todo lo que sigue dentro de la zona.
+ */
+function applyComboVenomShell(game) {
+  const f = game?.fortress;
+  if (!f || !findTower(game, 'mortar') || !findDrone(game, 'wasps')) return false;
+  comboMods(f).venomShell = 1;
+  return true;
+}
+
+/**
+ * Fase 76 — CADENA DE BURBUJA: la cadena de la Tesla salta a cualquier
+ * enemigo marcado por la burbuja sin límite de distancia y sin falloff.
+ */
+function applyComboBubbleChain(game) {
+  const f = game?.fortress;
+  if (!f || !findTower(game, 'tesla') || !findDrone(game, 'forcefield')) return false;
+  comboMods(f).bubbleChain = 1;
+  return true;
+}
+
+/**
+ * Fase 76 — TORMENTA DE RIEL: el rayo del Thunder consume la marca `rail`
+ * del Gauss y abre +2 mini rayos con 0,35 s extra de stun.
+ */
+function applyComboRailstorm(game) {
+  const f = game?.fortress;
+  if (!f || !findTower(game, 'gauss') || !findTower(game, 'thunderstroke')) return false;
+  comboMods(f).railstorm = 1;
+  return true;
+}
+
+/**
+ * Fase 76 — FUSIÓN DEL RIEL: el Gauss contra un blanco con `melt` propaga
+ * la marca `rail` a 2 vecinos (anti-blindaje en dos pasos).
+ */
+function applyComboMeltRail(game) {
+  const f = game?.fortress;
+  if (!f || !findTower(game, 'beam') || !findTower(game, 'gauss')) return false;
+  comboMods(f).meltRail = 1;
+  return true;
+}
+
+/**
+ * Fase 76 — ASEDIO LENTO: con ≥2 enemigos en la burbuja, el Mortar apunta
+ * al centro de la burbuja en vez de a un enemigo suelto.
+ */
+function applyComboSlowSiege(game) {
+  const f = game?.fortress;
+  if (!f || !findTower(game, 'mortar') || !findDrone(game, 'forcefield')) return false;
+  comboMods(f).slowSiege = 1;
   return true;
 }
 
@@ -698,18 +806,6 @@ function applyComboGlacialWave(game) {
 }
 
 /** fase 74.2 — combos de lifesteal. */
-function applyComboHarvest(game) {
-  const f = game?.fortress;
-  if (!f) return false;
-  let ok = false;
-  for (const type of ['missile', 'mortar']) {
-    const t = findTower(game, type);
-    if (t && addCardMods(t, { lifesteal: 0.02 }, 'combo_harvest')) ok = true;
-  }
-  if (ok) comboMods(f).harvest = 1;
-  return ok;
-}
-
 function applyComboBloodPact(game) {
   const f = game?.fortress;
   if (!f || !f.blackHoleUnlocked) return false;
@@ -731,30 +827,6 @@ function applyComboRailMark(game) {
   const f = game?.fortress;
   if (!f) return false;
   comboMods(f).railMark = 1;
-  return true;
-}
-
-function applyComboSwarmLink(game) {
-  const f = game?.fortress;
-  if (!f) return false;
-  comboMods(f).swarmMark = 1;
-  for (const d of f.drones ?? []) {
-    if (d) d.dmgMul = (d.dmgMul ?? 1) * 1.1;
-  }
-  return true;
-}
-
-function applyComboJudgment(game) {
-  const f = game?.fortress;
-  if (!f) return false;
-  comboMods(f).judgment = 1;
-  return true;
-}
-
-function applyComboConductor(game) {
-  const f = game?.fortress;
-  if (!f) return false;
-  comboMods(f).bounceElectric = 1;
   return true;
 }
 
@@ -1455,22 +1527,22 @@ export const CATALOG = [
   // repetibles: CAPS = 1. `requiresUnits`/`requiresTags`/`requiresBlackHole`
   // los saca del pool si falta la pareja (no hay cartas muertas).
   {
-    id: 'combo_chain_reactor',
+    id: 'combo_overload',
     rarity: 'rare',
-    name: 'Reactor de Cadena',
-    desc: 'Combo eléctrico: la Tesla gana +1 salto y el Thunderstroke +1 mini rayo. Requiere ambas torres.',
+    name: 'Sobrecarga',
+    desc: 'La Tesla conduce el Juicio del Thunderstroke: +1 salto de cadena y +2 objetivos de área contra el racimo ionizado. Requiere ambas torres.',
     weight: 5,
     requiresUnits: ['thunderstroke', 'tesla'],
-    apply: (g) => applyComboChainReactor(g),
+    apply: (g) => applyComboOverload(g),
   },
   {
-    id: 'combo_light_prism',
+    id: 'combo_prism_loop',
     rarity: 'rare',
-    name: 'Prisma Compuesto',
-    desc: 'Combo de luz: el Beam acelera su foco +25% y el Láser dura +0,6 s. Requiere Beam y Láser.',
+    name: 'Bucle de Prisma',
+    desc: 'Mientras un Láser esté encendido, el Beam no pierde su ramp al cambiar de blanco y su tope sube +0,5. Requiere Beam y Láser.',
     weight: 5,
     requiresUnits: ['beam', 'laser'],
-    apply: (g) => applyComboLightPrism(g),
+    apply: (g) => applyComboPrismLoop(g),
   },
   {
     id: 'combo_singularity',
@@ -1534,22 +1606,80 @@ export const CATALOG = [
     apply: (g) => applyComboGlacialWave(g),
   },
   {
-    id: 'combo_harvest',
+    id: 'combo_siege_sync',
     rarity: 'rare',
-    name: 'Cosecha Explosiva',
-    desc: 'Missile y Mortar curan 2% del daño de sus explosiones. Requiere Balas Vampíricas y Missile o Mortar.',
+    name: 'Sincronía de Asedio',
+    desc: 'El cráter del Mortar marca 2 s; el Misil dispara +1 misil por cada marcado (máx. +2). Requiere Misil y Mortar.',
     weight: 5,
-    requiresCards: ['tech_lifesteal'],
-    requiresTags: ['blast'],
-    apply: (g) => applyComboHarvest(g),
+    requiresUnits: ['missile', 'mortar'],
+    apply: (g) => applyComboSiegeSync(g),
+  },
+  {
+    id: 'combo_ignition',
+    rarity: 'rare',
+    name: 'Ignición Compartida',
+    desc: 'La Rueda de Fuego prende burn; las balas del Guardian lo detonan en un estallido de fuego sobre 2 vecinos. Requiere Guardian y Rueda de Fuego.',
+    weight: 5,
+    requiresUnits: ['guardian'],
+    requiresTags: ['contact'],
+    apply: (g) => applyComboIgnition(g),
+  },
+  {
+    id: 'combo_venom_shell',
+    rarity: 'rare',
+    name: 'Concha de Veneno',
+    desc: 'El cráter del Mortar propaga el veneno de las Avispas a todo lo que queda dentro de la zona. Requiere Mortar y Avispas.',
+    weight: 5,
+    requiresUnits: ['mortar'],
+    requiresTags: ['swarm'],
+    apply: (g) => applyComboVenomShell(g),
+  },
+  {
+    id: 'combo_bubble_chain',
+    rarity: 'rare',
+    name: 'Cadena de Burbuja',
+    desc: 'La cadena de la Tesla salta a cualquier enemigo atrapado por la burbuja, sin límite de distancia y sin falloff. Requiere Tesla y Campo de Fuerza.',
+    weight: 5,
+    requiresUnits: ['tesla'],
+    requiresTags: ['shield'],
+    apply: (g) => applyComboBubbleChain(g),
+  },
+  {
+    id: 'combo_railstorm',
+    rarity: 'rare',
+    name: 'Tormenta de Riel',
+    desc: 'El rayo del Thunderstroke consume la marca de riel del Gauss: +2 mini rayos y +0,35 s de stun. Requiere Gauss y Thunderstroke.',
+    weight: 5,
+    requiresUnits: ['gauss', 'thunderstroke'],
+    apply: (g) => applyComboRailstorm(g),
+  },
+  {
+    id: 'combo_melt_rail',
+    rarity: 'rare',
+    name: 'Fusión del Riel',
+    desc: 'El Gauss contra un blanco fundido por el Beam propaga la marca de riel a 2 vecinos. Requiere Beam y Gauss.',
+    weight: 5,
+    requiresUnits: ['beam', 'gauss'],
+    apply: (g) => applyComboMeltRail(g),
+  },
+  {
+    id: 'combo_slow_siege',
+    rarity: 'rare',
+    name: 'Asedio Lento',
+    desc: 'Con 2 o más enemigos en la burbuja, el Mortar apunta al centro de la burbuja en vez de a un blanco suelto. Requiere Mortar y Campo de Fuerza.',
+    weight: 5,
+    requiresUnits: ['mortar'],
+    requiresTags: ['shield'],
+    apply: (g) => applyComboSlowSiege(g),
   },
   {
     id: 'combo_blood_pact',
     rarity: 'rare',
     name: 'Pacto de Sangre',
-    desc: 'El Black Hole cura 10% del daño que hace y dura +1 s. Requiere Balas Vampíricas y Black Hole desbloqueado.',
+    desc: 'El Black Hole cura 10% del daño que hace y dura +1 s. Requiere Drenaje del Haz, Beam y Black Hole desbloqueado.',
     weight: 5,
     requiresCards: ['tech_lifesteal'],
+    requiresUnits: ['beam'],
     requiresBlackHole: true,
     apply: (g) => applyComboBloodPact(g),
   },
@@ -1557,10 +1687,10 @@ export const CATALOG = [
     id: 'combo_transfusion',
     rarity: 'rare',
     name: 'Transfusión',
-    desc: 'Cada enemigo envenenado por las Avispas regenera 0,5 HP/s al escudo (tope 5 HP/s). Requiere Balas Vampíricas y el dron Avispas.',
+    desc: 'Cada enemigo envenenado por las Avispas regenera 0,5 HP/s al escudo (tope 5 HP/s). Requiere Drenaje del Haz, Beam y el dron Avispas.',
     weight: 5,
     requiresCards: ['tech_lifesteal'],
-    requiresUnits: ['wasps'],
+    requiresUnits: ['beam', 'wasps'],
     apply: (g) => applyComboTransfusion(g),
   },
   {
@@ -1573,34 +1703,22 @@ export const CATALOG = [
     apply: (g) => applyComboRailMark(g),
   },
   {
-    id: 'combo_swarm_link',
+    id: 'combo_coup',
     rarity: 'rare',
-    name: 'Enlace de Enjambre',
-    desc: 'El dron marca 2 s; el Guardian hace +15% a los marcados y el dron gana +10% daño. Requiere Guardian y un dron.',
+    name: 'Golpe de Gracia',
+    desc: 'El stun del Thunderstroke marca Juicio; el Misil remata bajo el 30% contra un marcado. Requiere Misil y Thunderstroke.',
     weight: 5,
-    requiresUnits: ['guardian'],
-    requiresTags: ['drone'],
-    apply: (g) => applyComboSwarmLink(g),
+    requiresUnits: ['missile', 'thunderstroke'],
+    apply: (g) => applyComboCoup(g),
   },
   {
-    id: 'combo_judgment',
+    id: 'combo_arc_guard',
     rarity: 'rare',
-    name: 'Juicio Final',
-    desc: 'Los enemigos aturdidos reciben +30% del Thunderstroke y su stun dura +0,1 s. Requiere Cabeza Aturdidora y Thunderstroke.',
+    name: 'Arco del Guardian',
+    desc: 'La Tesla marca charged al encadenar; la bala del Guardian consume la marca y descarga 40% eléctrico a 2 vecinos con 0,2 s de stun. Requiere Guardian y Tesla.',
     weight: 5,
-    requiresCards: ['tech_stun_missile'],
-    requiresUnits: ['thunderstroke'],
-    apply: (g) => applyComboJudgment(g),
-  },
-  {
-    id: 'combo_conductor',
-    rarity: 'rare',
-    name: 'Rebote Conductor',
-    desc: 'Las balas rebotadas del Guardian descargan 50% de daño eléctrico en el nuevo objetivo. Requiere Rebote Magnético y Tesla.',
-    weight: 5,
-    requiresCards: ['tech_bounce'],
-    requiresUnits: ['tesla'],
-    apply: (g) => applyComboConductor(g),
+    requiresUnits: ['guardian', 'tesla'],
+    apply: (g) => applyComboArcGuard(g),
   },
   {
     id: 'combo_shared_pierce',

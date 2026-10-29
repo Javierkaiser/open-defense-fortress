@@ -31,6 +31,7 @@ import {
   applyPoison, applySlow, applyMark, hasMark, tickSlow,
 } from './enemies-status.js';
 import { applyProjectileHit, projectileRadius } from './enemies-combat.js';
+import { onMechanicKill } from './tower-mechanics.js';
 export {
   applyPoison, applySlow, applyMark, hasMark, projectileRadius, applyProjectileHit,
 };
@@ -468,8 +469,9 @@ export class Enemy {
     // daño por segundo durante un tiempo, así que la picadura sigue
     // rindiendo aunque el objetivo NO muera con ella (antes la picadura
     // se consumía igual y el 90 % del daño se perdía contra un jefe).
-    this.poisonT = 0;      // s restantes de veneno
-    this.poisonDps = 0;    // daño por segundo del veneno activo
+    this.poisonT = 0;      // s restantes de veneno/quemadura
+    this.poisonDps = 0;    // daño por segundo del DoT activo
+    this.poisonKind = 'poison'; // 'poison' (Avispas) | 'burn' (Rueda de Fuego)
     // dev-7 fase 32: la FAMILIA del enemigo (roca / cristal / espora /
     // virus). Decide cuánto le hace cada tipo de daño (js/damagetypes.js).
     this.family = this.data.family ?? null;
@@ -639,6 +641,9 @@ export class Enemy {
   die() {
     if (this.dead) return;
     this.dead = true;
+    // Identidad de las Avispas: el veneno del cadáver salpica a los vecinos
+    // (antes de limpiar `poisonDps`, que es la fuente de la propagación).
+    onMechanicKill(this, this.game);
     // fase 68 — el `divisor` se parte ANTES de la explosión y del
     // `enemy:killed`, así las crías ya existen en la lista viva cuando
     // main contabiliza la baja de la madre. Las mecánicas de tanque
@@ -1476,17 +1481,20 @@ export class Enemy {
    */
   _drawPoison(ctx) {
     const p = 0.5 + 0.5 * Math.sin(this.t * 5 + this.phase);
+    // La ignición de la Rueda de Fuego usa el mismo reloj de DoT pero se
+    // lee naranja: el jugador distingue veneno (verde) de quemadura.
+    const burn = this.poisonKind === 'burn';
     ctx.save();
-    // Tinte verde (aditivo): la superficie del enemigo se vuelve ácida.
+    // Tinte (aditivo): verde ácido para veneno, naranja para fuego.
     ctx.globalCompositeOperation = 'lighter';
     ctx.globalAlpha = 0.16 + 0.08 * p;
-    ctx.fillStyle = '#6BFF5A';
+    ctx.fillStyle = burn ? '#FF7A3D' : '#6BFF5A';
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.r * 0.92, 0, Math.PI * 2);
     ctx.fill();
-    // Burbujas: 3 motas que suben, sin estado por frame.
+    // Motas: ascienden; en fuego son chispas más anchas y rápidas.
     ctx.globalAlpha = 0.5;
-    ctx.fillStyle = '#9CFF7A';
+    ctx.fillStyle = burn ? '#FFD24A' : '#9CFF7A';
     for (let i = 0; i < 3; i++) {
       const a = this.t * 1.6 + this.phase + i * 2.1;
       const bx = this.x + Math.cos(a) * this.r * 0.7;

@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import {
   META_TOWERS, META_MAX_LEVEL, PERK_EVERY, PERK_TIERS, META_DMG_PER_LEVEL,
+  PERK_SCHEMA_VERSION,
   META_GOLD_START, META_GOLD_PER_CLEAR, META_GOLD_PER_VICTORY, PERK_RESET_COST,
   META_FRAG_PER_VICTORY, META_FIRST_CLEAR_MULT, rewardVictory, rewardFrags,
   normalizeMeta, fragCost, perkCount, metaDmgMul, PERKS, perkMods, mergeMods,
@@ -215,7 +216,16 @@ test('fase 72: los perks de robo de vida usan la escala nueva y el texto coincid
       }
     }
   }
-  assert.ok(count >= 30, `solo se encontraron ${count} perks de robo de vida`);
+  // Fase 1 — identidad: el robo de vida es de Beam y Avispas, no de las 11.
+  // Antes había >= 30 opciones repartidas por todo el arsenal.
+  const conLifesteal = META_TOWERS
+    .filter((t) => PERKS[t.type].some((tier) => (tier.A.mods?.lifesteal ?? 0) > 0
+      || (tier.B.mods?.lifesteal ?? 0) > 0))
+    .map((t) => t.type)
+    .sort();
+  assert.deepEqual(conLifesteal, ['beam', 'wasps'],
+    `robo de vida fuera de su identidad: ${conLifesteal.join(', ')}`);
+  assert.ok(count >= 6, `solo se encontraron ${count} perks de robo de vida`);
 });
 // para los perks). Este test codifica el diseño viejo de "un stat numérico por opción"
 // y/o los topes de poder de ese diseño; las opciones nuevas usan mecánicas (ejecutar,
@@ -244,6 +254,31 @@ test('perkMods: vacío sin elecciones aunque haya niveles que desbloqueen tiers'
   assert.deepEqual(perkMods(type, normalizeMeta({ levels: { [key]: 100 } })), {});
 });
 
+test('perkSchemaVersion: un save viejo conserva nivel/oro y resetea SOLO las elecciones', () => {
+  const mkStorage = () => {
+    const data = new Map();
+    return { data, getItem: (k) => data.get(k) ?? null, setItem: (k, v) => data.set(k, v) };
+  };
+  const viejo = {
+    levels: { guardian: 40 }, frags: { guardian: 123 }, victories: 3, gold: 777,
+    perkChoices: { guardian: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+  };
+  const s1 = mkStorage();
+  s1.setItem('gdf_meta', JSON.stringify(viejo));
+  const m1 = loadMeta(s1);
+  assert.equal(m1.levels.guardian, 40, 'el nivel se conserva');
+  assert.equal(m1.gold, 777, 'el oro se conserva');
+  assert.deepEqual(m1.perkChoices.guardian, Array(PERK_TIERS).fill(null),
+    'las elecciones A/B se resetean: el índice viejo tenía otro significado');
+  assert.equal(m1.perkSchemaVersion, PERK_SCHEMA_VERSION);
+
+  const s2 = mkStorage();
+  s2.setItem('gdf_meta', JSON.stringify({ ...viejo, perkSchemaVersion: PERK_SCHEMA_VERSION }));
+  const m2 = loadMeta(s2);
+  assert.equal(m2.perkChoices.guardian[0], 0,
+    'un save de la versión actual conserva la elección');
+});
+
 test('perkMods: una rama elegida aplica su mod (A vs B distintos)', () => {
   const mk = (choice) => normalizeMeta({
     levels: { guardian: 10 },
@@ -251,21 +286,22 @@ test('perkMods: una rama elegida aplica su mod (A vs B distintos)', () => {
   });
   const mA = perkMods('guardian', mk(0));
   const mB = perkMods('guardian', mk(1));
-  assert.equal(mA.executeThreshold, 0.1); // tier 1 A: remate
-  assert.equal(mB.bounceCount, 1);        // tier 1 B: rebote
+  assert.equal(mA.critChanceAdd, 0.15); // tier 1 A: Ojo de halcón
+  assert.equal(mB.bounceCount, 1);      // tier 1 B: rebote
   assert.notDeepEqual(mA, mB);
 });
 
 test('perkMods: se acumula por tiers elegidos (superset y composición)', () => {
-  // [0,0,0,0] en guardian: T1A remate · T2A robo de vida · T3A crítico · T4A stun
+  // [0,0,0,0] en guardian: T1A crítico · T2A perforación · T3A cadencia ·
+  // T4A crítico brutal (la identidad ya no reparte remate/robo de vida).
   const m = perkMods('guardian', normalizeMeta({
     levels: { guardian: 40 },
     perkChoices: { guardian: [0, 0, 0, 0] },
   }));
-  assert.equal(m.executeThreshold, 0.1);
-  assert.equal(m.lifesteal, 0.01);
-  assert.equal(m.critChanceAdd, 0.15);
-  assert.equal(m.stunChance, 0.2);
+  assert.equal(m.critChanceAdd, 0.25); // 0.15 + 0.10
+  assert.equal(m.critDmgMul, 3);
+  assert.equal(m.pierceCount, 1);
+  assert.equal(m.cadMul, 0.9);
   // elegir más tiers nunca quita claves (acumulativo)
   const more = perkMods('guardian', normalizeMeta({
     levels: { guardian: 50 },
@@ -638,8 +674,9 @@ test('mergeMods: las claves desconocidas siguen la regla por defecto (…Mul pro
 
 // ---------- T2: escalera de umbrales + descripciones honestas ----------
 
-test('PERKS: los umbrales de ejecución de cada torre siguen la escalera calibrada', () => {
-  for (const t of META_TOWERS) {
+test('PERKS: los umbrales de ejecución del Misil siguen la escalera calibrada', () => {
+  // Fase 1 — el remate es la identidad del Misil; ninguna otra torre lo tiene.
+  for (const t of META_TOWERS.filter((x) => x.type === 'missile')) {
     let pos = 0;
     PERKS[t.type].forEach((tier, i) => {
       for (const rama of ['A', 'B']) {
@@ -657,8 +694,8 @@ test('PERKS: los umbrales de ejecución de cada torre siguen la escalera calibra
   }
 });
 
-test('PERKS: dentro de una torre, el perk de ejecución más caro tiene el umbral más alto', () => {
-  for (const t of META_TOWERS) {
+test('PERKS: dentro del Misil, el perk de ejecución más caro tiene el umbral más alto', () => {
+  for (const t of META_TOWERS.filter((x) => x.type === 'missile')) {
     let anterior = -1;
     PERKS[t.type].forEach((tier, i) => {
       for (const rama of ['A', 'B']) {
@@ -873,8 +910,10 @@ test('PERKS: TODO mod de TODA opción lo consume el combate de esa torre (nada d
       // El dibujado del dron (radio de la burbuja del Campo de Fuerza).
       ...(t.type === 'forcefield' ? bloquesDeMetodo('draw') : []),
       // El Láser lee sus mods en la entidad del rayo (js/towers.js
-      // LaserStaticFx), que sigue leyendo los perks por su cuenta.
+      // LaserStaticFx), que sigue leyendo los perks por su cuenta. La
+      // duración se fija en el constructor; el resto en update().
       ...(t.type === 'laser' ? ventanas(new RegExp(`perkMods\\(\\s*'laser'\\s*\\)`)) : []),
+      ...(t.type === 'laser' ? ventanas(/\blaserDurationAdd\b/) : []),
     ];
     const txt = textoDe(vent);
     // Las claves genéricas solo cuentan si los mods de la torre llegan a
@@ -926,11 +965,11 @@ test('PERKS: la maquinaria compartida (hurtP/onHitOpts) sigue leyendo las claves
 test('perkMods: devuelve una copia — el llamador no puede corromper la caché', () => {
   const meta = normalizeMeta({ levels: { guardian: 10 }, perkChoices: { guardian: [0] } });
   const a = perkMods('guardian', meta);
-  assert.equal(a.executeThreshold, 0.1);
-  a.executeThreshold = 999;      // el llamador "ruga" el objeto
+  assert.equal(a.critChanceAdd, 0.15);
+  a.critChanceAdd = 999;      // el llamador "ruga" el objeto
   a.claveInventada = 1;
   const b = perkMods('guardian', meta);
-  assert.equal(b.executeThreshold, 0.1, 'la caché quedó contaminada por el llamador');
+  assert.equal(b.critChanceAdd, 0.15, 'la caché quedó contaminada por el llamador');
   assert.equal(b.claveInventada, undefined, 'la caché quedó contaminada por el llamador');
 });
 
@@ -941,7 +980,7 @@ test('perkMods: la caché se invalida al guardar (el cambio se ve al instante)',
   assert.deepEqual(perkMods('guardian', meta), {});
   const r = setPerkChoice('guardian', 0, 0, meta, storage);
   assert.equal(r.ok, true);
-  assert.equal(perkMods('guardian', r.meta).executeThreshold, 0.1,
+  assert.equal(perkMods('guardian', r.meta).critChanceAdd, 0.15,
     'la caché de perks no se invalidó al guardar');
 });
 

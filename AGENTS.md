@@ -7,7 +7,7 @@ Documentación y comentarios en **español**.
 ## Comandos
 
 ```bash
-node --test "tests/test-*.mjs"                # suite completa (952 tests)
+node --test "tests/test-*.mjs"                # suite completa (968 tests)
 node --test tests/test-stages.mjs           # un archivo
 node .github/scripts/ci-checks.mjs          # checks estáticos
 node --check js/main.js                    # sintaxis de un módulo
@@ -26,15 +26,17 @@ En Windows/PS 5.1 el glob `js/*.js` no se expande solo; usá
 - `js/engine.js` — loop rAF+dt, canvas, `CONFIG`/`SCENE`, helpers, fondo,
   partículas, input, render.
 - `js/waves.js` — director de olas: presupuesto de HP, presión, biomas,
-  variantes, `waveSchedule`, `WaveManager`.
+  variantes y `waveSchedule`; `WaveManager` vive en `waves-manager.js`.
 - `js/stages.js` — 50 etapas de campaña, HP de base, temas, jefes.
 - `js/endless.js` — ∞ (51+), profundidad, hitos, desafío diario.
 - `js/survival.js` — supervivencia: olas infinitas, atrición, jefes.
 - `js/heat.js` — Protocolo: condiciones, presets, mods, recompensas.
 - `js/enemies.js` — tipos, enjambres/tanques, mecánicas y 7 variantes de élite.
 - `js/towers.js` — 8 torres + 3 drones.
+- `js/tower-mechanics.js` — identidad firma por unidad y hooks de mecánicas
+  (supresión, fusión, juicio, ion, cráter, riel, corte, ignición, veneno, burbuja).
 - `js/player.js` — `Fortress`: base, slots, drones, HP, Black Hole.
-- `js/cards.js` — 81 cartas y ofertas.
+- `js/cards.js` — 86 cartas y ofertas.
 - `js/perks.js` — única implementación de perks en combate.
 - `js/meta.js`, `js/progress.js`, `js/score.js` — meta, persistencia y fórmulas.
 - `js/hud.js` — HUD y overlays DOM.

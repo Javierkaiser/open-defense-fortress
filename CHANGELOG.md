@@ -6,6 +6,36 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-10-29
+
+### Añadido
+
+- **Identidad mecánica única por torre/dron**: `mech` en `towers-data.js` y
+  registro/hooks en `tower-mechanics.js` (supresión, ejecución, fusión, juicio,
+  ion, cráter, riel, corte, ignición, veneno y burbuja).
+- Marcas nuevas (`judgment`, `ion`, `rail`, `cut`, `melt`, `bubble`, `charged`,
+  `siege`) y DoT de quemadura separado del veneno.
+- `CraterFx`: el Mortar deja una zona persistente que quema y frena.
+- 11 combos de identidad: sobrecarga, bucle de prisma, sincronía de asedio,
+  ignición compartida, concha de veneno, cadena de burbuja, tormenta de riel,
+  fusión del riel, asedio lento, golpe de gracia y arco del Guardian.
+- `PERK_SCHEMA_VERSION`: los saves viejos conservan nivel/oro y resetean las
+  elecciones A/B que cambiaron de significado.
+- `tests/test-tower-identity.mjs` y spec
+  `openspec/specs/gameplay/tower-identity/spec.md` (**968 tests, 0 skip**).
+
+### Cambiado
+
+- Perks acotados: remate sólo Misil; robo de vida sólo Beam/Avispas;
+  explosión al matar sólo Rueda de Fuego; stun sólo Thunderstroke; rebote sólo
+  Guardian; crítico sólo Guardian/Gauss; slow sólo Beam.
+- Técnicas: `Haz Gélido` y `Drenaje del Haz` pasan al Beam; `Cabeza
+  Aturdidora` se reconvierte en `Guiado Táctico` (homing) del Misil.
+- Catálogo 81→86 cartas (74 repetibles) y CAPS actualizados.
+- `S50`: 100 % win / 92 % HP / 99 % bajas (20 semillas), sin cambios de
+  balance global.
+- Versión 1.5.0 / Android `versionCode 7`.
+
 ## [1.4.1] — 2026-10-29
 
 ### Añadido

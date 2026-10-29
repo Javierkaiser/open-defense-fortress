@@ -6,7 +6,7 @@
 node --test "tests/test-*.mjs"
 ```
 
-Estado actual: **952 tests** (952 pass, 0 skip, 0 fail) en **32 archivos**.
+Estado actual: **968 tests** (968 pass, 0 skip, 0 fail) en **33 archivos**.
 
 Requisitos: Node 22 o superior.
 
@@ -43,6 +43,7 @@ node --test tests/test-stages.mjs
 | Integración del motor real | `test-integration.mjs` |
 | Decisiones puras de `Game` (XP, back, música) | `test-main.mjs` |
 | Economía de kill compartida | `test-economy.mjs` |
+| Identidad de torres, técnicas y combos | `test-tower-identity.mjs` |
 | Efectos (multikill, orbe, fireworks) | `test-effects.mjs` |
 | Storage tolerante a fallos/corrupto | `test-storage.mjs` |
 | Versión runtime/package/Android | `test-version.mjs` |

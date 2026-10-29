@@ -8,6 +8,7 @@ import { metaDmgMul, metaSlowFrac, perkDmgFor, META_SLOW_CAP } from './meta.js';
 import { applyPoison, applySlow, applyMark } from './enemies.js';
 import { unitMods, hurtP } from './towers-core.js';
 import { healBase } from './base-heal.js';
+import { onMechanicHit, onMechanicTick } from './tower-mechanics.js';
 
 export const MAX_DRONES = 1;
 /**
@@ -244,11 +245,18 @@ export class Drone {
           // (towers.js) y el firewheel usaba un radio de contacto FIJO.
           // Ahora ensancha el barrido de la rueda: alcanza a más enemigos.
           const contactPad = 14 + (fw.radiusAdd ?? 0);
+          // Identidad de la Rueda: Ignición. El contacto prende `burn`
+          // (DoT naranja) y los perks `burnDpsAdd`/`burnTimeAdd` lo escalan.
+          const burnMods = {
+            burnDpsAdd: fw.burnDpsAdd ?? 0,
+            burnTimeAdd: fw.burnTimeAdd ?? 0,
+          };
           let quemando = false; // ¿tocó a alguien este frame? (señal de audio)
           for (const e of enemies || []) {
             if (!e || e.dead) continue;
             if (dist(e.x, e.y, this.x, this.y) <= e.r + contactPad) {
               hurtP(e, dps * dt, 'drone', fw, this.game, enemies);
+              onMechanicHit('firewheel', e, this.game, { dmg: dps * dt, mods: burnMods });
               if ((fw.slowOnHit ?? 0) > 0) {
                 applySlow(e, fw.slowOnHit, 1.2, 'drone');
               }
@@ -373,8 +381,12 @@ export class Drone {
             // VENENO (fase 30): el DoT sigue haciendo daño aunque el
             // objetivo no muera con la picadura.
             if (venomDps > 0 && venomTime > 0) {
-              applyPoison(w.target, venomDps, venomTime);
+              applyPoison(w.target, venomDps, venomTime, 'poison');
             }
+            // Identidad de las Avispas: el veneno se propaga al morir
+            // (onMechanicKill en Enemy.die). El hook de impacto mantiene
+            // la simetría con el resto de las unidades.
+            onMechanicHit('wasps', w.target, this.game, { dmg: stingDmg, mods: waspMods });
             if (this.game?.fortress?.comboMods?.swarmMark) {
               applyMark(w.target, 'swarm', 2);
             }
@@ -497,6 +509,9 @@ export class Drone {
             if (Number.isFinite(e.x) && Number.isFinite(e.y)
               && dist(e.x, e.y, this.x, this.y) <= bubbleR + (e.r ?? 0)) {
               applySlow(e, slowFrac, 0.15, 'forcefield');
+              // Identidad del Campo de Fuerza: Burbuja. Marca a lo atrapado
+              // para los combos de Tesla/Mortar sin agregar DPS propio.
+              onMechanicTick('forcefield', e, this.game, { dt, unit: this, mods: ffm });
               if (this.game?.fortress?.comboMods?.swarmMark) {
                 applyMark(e, 'swarm', 2);
               }

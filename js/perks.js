@@ -29,6 +29,9 @@
 
 import { dist } from './engine.js';
 import { healBase } from './base-heal.js';
+// Regla de dependencias: tower-mechanics sólo importa DATA (towers-data.js)
+// y estado puro (enemies-status.js); no importa perks.js, así que no hay ciclo.
+import { mechanicDamageMul } from './tower-mechanics.js';
 
 /** Daño a un blanco duck-typed (tolera dummies de test sin takeDamage). */
 function hurt(enemy, n, kind) {
@@ -154,6 +157,11 @@ export function applyPerkDamage(enemy, n, kind, mods, game, enemies, opts = {}) 
   const depth = opts.depth ?? 0;
   const rng = opts.rng ?? Math.random;
   let dmg = n;
+  // Identidad por marcas (tower-mechanics.js): melt/cut/judgment/ion/rail
+  // amplifican el golpe en el ÚNICO embudo de daño de las torres.
+  if (!opts.noMechAmp) {
+    dmg *= mechanicDamageMul(enemy, kind, mods?.source ?? mods?.mechSource ?? null);
+  }
   // dev-7 fase 50: la CAZA DE FAMILIA. Un multiplicador extra contra
   // una familia concreta (roca/cristal/espora/virus). Se aplica aqui,
   // el UNICO punto por el que pasa todo el dano de una torre, para que

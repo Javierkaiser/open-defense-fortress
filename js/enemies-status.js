@@ -2,7 +2,15 @@
 // enemies-status.js — veneno, slow y marcas (estado puro del enemigo)
 // =============================================================================
 
-export function applyPoison(enemy, dps, seconds) {
+/**
+ * @param {object} enemy
+ * @param {number} dps daño por segundo
+ * @param {number} seconds duración
+ * @param {'poison'|'burn'} [kind] fuente del DoT: el veneno de las Avispas
+ *   se propaga al morir; la ignición de la Rueda de Fuego usa el mismo reloj
+ *   pero otro color y no se propaga. Ausente = 'poison' (compatibilidad).
+ */
+export function applyPoison(enemy, dps, seconds, kind = 'poison') {
   if (!enemy || enemy.dead) return false;
   if (!Number.isFinite(dps) || dps <= 0) return false;
   if (!Number.isFinite(seconds) || seconds <= 0) return false;
@@ -10,8 +18,13 @@ export function applyPoison(enemy, dps, seconds) {
   // al nuevo. Antes `poisonDps` quedaba pegado y un veneno débil heredaba
   // el DPS fuerte de una aplicación corta anterior.
   if (!((enemy.poisonT ?? 0) > 0)) enemy.poisonDps = 0;
+  const gana = dps >= (enemy.poisonDps ?? 0) || !((enemy.poisonT ?? 0) > 0);
   enemy.poisonT = Math.max(enemy.poisonT ?? 0, seconds);
   enemy.poisonDps = Math.max(enemy.poisonDps ?? 0, dps);
+  // El color/identidad lo decide la fuente MÁS FUERTE, no la última en
+  // aplicarse: un veneno débil de Avispas no debe pintar de verde una
+  // quemadura de la Rueda (ni al revés).
+  if (gana) enemy.poisonKind = kind;
   return true;
 }
 
