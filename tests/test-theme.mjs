@@ -9,11 +9,7 @@ import {
   THEMES, normalizeTheme, loadTheme, saveTheme, applyTheme,
   readSceneTint, applyThemeToGame,
 } from '../js/theme.js';
-
-function fakeStorage() {
-  const data = new Map();
-  return { getItem: (k) => data.get(k) ?? null, setItem: (k, v) => data.set(k, v) };
-}
+import { fakeStorage } from './helpers/storage.mjs';
 
 test('THEMES: ids únicos, cada uno con name y 2 colores de swatch', () => {
   const ids = THEMES.map((t) => t.id);

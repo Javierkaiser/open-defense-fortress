@@ -18,6 +18,7 @@ import {
 } from '../js/damagetypes.js';
 import { Fortress } from '../js/player.js';
 import { saveMeta } from '../js/meta.js';
+import { makeLcgRng as rngFactory } from './helpers/rng.mjs';
 
 /**
  * Fija el meta (perks elegidos) para poder probar cartas que dependen
@@ -49,11 +50,7 @@ function makeRealGame({ stageId = 1 } = {}) {
   return game;
 }
 
-/** rng determinista (mismo seed → misma oferta). */
-function rngFactory(seed = 42) {
-  let s = seed;
-  return () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
-}
+
 
 /**
  * Las cartas REPETIBLES del catálogo (las que se pueden volver a ofrecer):

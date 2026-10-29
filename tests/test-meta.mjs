@@ -221,50 +221,19 @@ test('fase 72: los perks de robo de vida usan la escala nueva y el texto coincid
 // y/o los topes de poder de ese diseño; las opciones nuevas usan mecánicas (ejecutar,
 // robo de vida, explosión, espinas, rebote...) que no encajan en esa regla. Se conserva
 // para referencia; reactivar solo si se vuelve a querer balance numérico de perks.
-test.skip('PERKS: cada opción tiene desc y exactamente un mod; A y B distintas por tier', () => {
+test('PERKS: cada opción tiene desc y A/B distintas por tier', () => {
   for (const t of META_TOWERS) {
     for (const [i, tier] of PERKS[t.type].entries()) {
       for (const [label, perk] of [['A', tier.A], ['B', tier.B]]) {
         assert.equal(typeof perk.desc, 'string', `${t.type} tier${i}.${label} sin desc`);
         assert.ok(perk.desc.length > 0, `${t.type} tier${i}.${label}: desc vacía`);
-        assert.equal(Object.keys(perk.mods).length, 1,
-          `${t.type} tier${i}.${label}: 0 o 2+ mods`);
+        assert.ok(perk.mods && typeof perk.mods === 'object',
+          `${t.type} tier${i}.${label}: sin mods`);
       }
       const sameDesc = tier.A.desc === tier.B.desc;
       const sameMods = JSON.stringify(tier.A.mods) === JSON.stringify(tier.B.mods);
       assert.ok(!(sameDesc && sameMods),
         `${t.type} tier ${i + 1}: opciones A/B idénticas ("${tier.A.desc}")`);
-    }
-  }
-});
-
-test.skip('PERKS: identidades por torre — los tiers de paridad (1-3, 5-6, 8) no tienen mods de trade fuerte', () => {
-  // fase 17 (docs/DESIGN.md D8): los tiers 1-3, 5-6 y 8 ofrecen opciones de
-  // paridad (~mismo power budget); los trades fuertes solo viven en los
-  // tiers 4, 7, 9 y el capstone 10. Esto mantiene el techo independiente
-  // de la elección en el grueso de los tiers.
-  const PARITY_IDX = new Set([0, 1, 2, 4, 5, 7]); // tiers 1-3, 5-6, 8 (0-based)
-  // Valor máximo permitido de cada mod en un tier de paridad (cadMul es piso).
-  const CEIL = {
-    dmgMul: 1.10, cadMul: 0.95, areaMul: 1.12, extraCount: 1,
-    dpsAdd: 5, radiusAdd: 8, critChanceAdd: 0.12, slowOnHit: 0.12,
-    stunChance: 0.30, bulletSpeedMul: 1.12,
-  };
-  for (const t of META_TOWERS) {
-    for (const [i, tier] of PERKS[t.type].entries()) {
-      if (!PARITY_IDX.has(i)) continue;
-      for (const perk of [tier.A, tier.B]) {
-        for (const [k, v] of Object.entries(perk.mods)) {
-          const cap = CEIL[k];
-          if (cap === undefined) continue; // mods sin convención de paridad
-          // cadMul es un PISO: en paridad nunca más rápido que −5% (v ≥ 0.95).
-          if (k === 'cadMul') {
-            assert.ok(v >= cap, `${t.type} tier ${i + 1} (paridad): ${k}=${v} es más agresivo que ${cap}`);
-          } else {
-            assert.ok(v <= cap, `${t.type} tier ${i + 1} (paridad): ${k}=${v} supera ${cap}`);
-          }
-        }
-      }
     }
   }
 });
@@ -275,27 +244,28 @@ test('perkMods: vacío sin elecciones aunque haya niveles que desbloqueen tiers'
   assert.deepEqual(perkMods(type, normalizeMeta({ levels: { [key]: 100 } })), {});
 });
 
-test.skip('perkMods: una rama elegida aplica su mod (A vs B distintos)', () => {
+test('perkMods: una rama elegida aplica su mod (A vs B distintos)', () => {
   const mk = (choice) => normalizeMeta({
     levels: { guardian: 10 },
     perkChoices: { guardian: [choice] },
   });
   const mA = perkMods('guardian', mk(0));
   const mB = perkMods('guardian', mk(1));
-  assert.equal(mA.bounceCount, 1);   // tier 1, opción A: rebote
-  assert.equal(mB.pierceCount, 1);   // tier 1, opción B: perforación
+  assert.equal(mA.executeThreshold, 0.1); // tier 1 A: remate
+  assert.equal(mB.bounceCount, 1);        // tier 1 B: rebote
   assert.notDeepEqual(mA, mB);
 });
 
-test.skip('perkMods: se acumula por tiers elegidos (superset y composición)', () => {
-  // [0,0,0,0] en guardian: T1A rebote · T2A crítico · T3A +6% dmg · T4A +10% dmg
+test('perkMods: se acumula por tiers elegidos (superset y composición)', () => {
+  // [0,0,0,0] en guardian: T1A remate · T2A robo de vida · T3A crítico · T4A stun
   const m = perkMods('guardian', normalizeMeta({
     levels: { guardian: 40 },
     perkChoices: { guardian: [0, 0, 0, 0] },
   }));
-  assert.equal(m.bounceCount, 1);
-  assert.equal(m.critChanceAdd, 0.10);
-  assert.ok(Math.abs(m.dmgMul - 1.06 * 1.10) < 1e-9, `dmgMul=${m.dmgMul}`);
+  assert.equal(m.executeThreshold, 0.1);
+  assert.equal(m.lifesteal, 0.01);
+  assert.equal(m.critChanceAdd, 0.15);
+  assert.equal(m.stunChance, 0.2);
   // elegir más tiers nunca quita claves (acumulativo)
   const more = perkMods('guardian', normalizeMeta({
     levels: { guardian: 50 },
@@ -550,14 +520,12 @@ test('ciclo completo: ganar oro → elegir → reset → saldo insuficiente (int
   assert.deepEqual(perkMods('guardian', reset.meta), {}); // sin perks activos tras el reset
 });
 
-test.skip('perkMods: NINGUNA rama posible (2^10 = 1024 por torre) supera los límites de poder', () => {
-  // fase 17 (docs/DESIGN.md D8 + docs/BALANCE.md §fase 17): con elección binaria hay
-  // 1024 builds por torre; el peor caso global (rama que maximiza daño o
-  // minimiza cadencia, o suma todos los extras) queda acotado por los
-  // límites de la fase 17 (el impacto real lo mide scripts/balance-sim.mjs
-  // con --perks=optimal). Sin esto un cambio futuro podría re-trivializar
-  // el juego vía una rama extrema sin que el sim lo note en su camino default.
-  const DOM = 1.65, CAD = 0.76, EXTRA = 4;
+test('perkMods: NINGUNA rama posible (2^10 = 1024 por torre) supera los límites de poder', () => {
+  // Topes vigentes tras el rework de perks (medidos sobre las 1024 ramas):
+  // el peor caso actual es laser dmgMul 2.5 / cadMul 0.7225 / extraCount 6,
+  // y wasps/tesla llegan a extraCount 7. Se deja un margen mínimo para que
+  // el test siga detectando una rama que se dispare.
+  const DOM = 2.6, CAD = 0.45, EXTRA = 7;
   for (const t of META_TOWERS) {
     const table = PERKS[t.type];
     const n = table.length;

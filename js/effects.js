@@ -291,6 +291,13 @@ const _spriteCache = {};
 function _sprite(src) {
   let entry = _spriteCache[src];
   if (!entry) {
+    // Node/tests no tienen Image: el sprite queda "no listo" y el draw
+    // sale sin dibujar (antes lanzaba ReferenceError).
+    if (typeof Image === 'undefined') {
+      entry = { img: null, ready: false };
+      _spriteCache[src] = entry;
+      return entry;
+    }
     const img = new Image();
     entry = { img, ready: false };
     img.onload = () => { entry.ready = true; };

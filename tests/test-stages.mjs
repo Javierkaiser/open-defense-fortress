@@ -1076,14 +1076,8 @@ const ARCH_DENSITY = {
 /** Etapas de muestra del generador (6..50) para los tests del director. */
 const DIR_IDS = [6, 8, 10, 15, 20, 25, 30, 35, 40, 45, 50];
 
-/** RNG determinista (xorshift32) para inyectar en las funciones puras. */
-function fixedRnd(seed) {
-  let s = seed >>> 0 || 1;
-  return () => {
-    s ^= s << 13; s ^= s >>> 17; s ^= s << 5; s >>>= 0;
-    return (s % 1_000_000_007) / 1_000_000_007;
-  };
-}
+/** RNG determinista compartido (xorshift32) para las funciones puras. */
+import { makeXorShift32 as fixedRnd } from './helpers/rng.mjs';
 
 /** HP base (sin escalar) de una descarga, sin el jefe. */
 function waveHpBase(wave) {

@@ -3,10 +3,10 @@
 ## Correr la suite
 
 ```bash
-node --test "tests/**/*.mjs"
+node --test "tests/test-*.mjs"
 ```
 
-Estado actual: **918 tests** (913 pass, 5 skip, 0 fail) en **27 archivos**.
+Estado actual: **942 tests** (942 pass, 0 skip, 0 fail) en **30 archivos**.
 
 Requisitos: Node 22 o superior.
 
@@ -41,6 +41,9 @@ node --test tests/test-stages.mjs
 | Puente nativo Android (`backAction`, eventos) | `test-native.mjs` |
 | Arranque / guarda de boot (index.html) | `test-boot-guard.mjs` |
 | Integración del motor real | `test-integration.mjs` |
+| Efectos (multikill, orbe, fireworks) | `test-effects.mjs` |
+| Storage tolerante a fallos/corrupto | `test-storage.mjs` |
+| Versión runtime/package/Android | `test-version.mjs` |
 
 ## Qué **no** cubre
 
@@ -49,6 +52,7 @@ node --test tests/test-stages.mjs
 - Audio real (WebAudio / reproducción de OGG).
 - WebView, Android, Capacitor, lifecycle nativo.
 - El cableado `perk:proc` → sonido de `main.js` (solo se testea la señal).
+- La economía/FSM/bootstrap de `main.js` (0 % ejecutable: solo guardas estáticas).
 - `comboSummary()` y algunos helpers de presentación.
 
 Para eso hay **smoke manual** y una checklist Android (APK debug).
@@ -60,9 +64,12 @@ Para eso hay **smoke manual** y una checklist Android (APK debug).
   el test falla: usá guards en el módulo.
 - Storage inyectable (`safeLocalStorage()`), no `localStorage` global.
 - Los tests de HUD comparan markup/contratos, no rendering.
-- Los tests de balance no dan pass/fail: verifican guardas (p. ej. HP por etapa
-  dentro del ±10 %).
-- Determinismo: sembrar `Math.random` cuando el test dependa del azar.
+- Los tests de balance SÍ dan pass/fail: verifican guardas (p. ej. HP por
+  etapa dentro del ±10 %).
+- Determinismo: sembrar `Math.random` con `tests/helpers/rng.mjs` cuando el
+  test dependa del azar.
+- Los helpers viven en `tests/helpers/` y NO se ejecutan como tests: el glob
+  es `tests/test-*.mjs`.
 
 ## Smoke manual (web)
 

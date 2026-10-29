@@ -32,17 +32,9 @@ function countWaveEnemies(wm) {
   return n;
 }
 
-// RNG determinista (mismo patrón que scripts/probe-s6.mjs): las olas del
-// WaveManager se siembran con (Math.random()*1e9)|0, así que sembrar
-// Math.random por run hace cada partida reproducible — imprescindible para
-// comparar S5 vs S6 sin ruido (ver test de la línea ~95).
-function makeRng(seed) {
-  let s = seed >>> 0 || 1;
-  return () => {
-    s ^= s << 13; s ^= s >>> 17; s ^= s << 5; s >>>= 0;
-    return (s % 1_000_000_007) / 1_000_000_007;
-  };
-}
+// RNG determinista compartido: sembrar Math.random por run hace cada
+// partida reproducible — imprescindible para comparar S5 vs S6 sin ruido.
+import { makeXorShift32 as makeRng } from './helpers/rng.mjs';
 
 class EngineStub {
   constructor() {

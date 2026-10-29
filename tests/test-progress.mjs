@@ -10,11 +10,7 @@ import {
   recordVictory, recordDaily, isUnlocked, resetProgress,
   recordHeatRun, claimHeatMilestone, recordSurvival,
 } from '../js/progress.js';
-
-function fakeStorage() {
-  const data = new Map();
-  return { getItem: (k) => data.get(k) ?? null, setItem: (k, v) => data.set(k, v) };
-}
+import { fakeStorage } from './helpers/storage.mjs';
 
 // Progreso con la campaña completa (lo que abre el modo ∞).
 function campaignDone(extra = {}) {

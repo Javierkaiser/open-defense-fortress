@@ -33,7 +33,7 @@ Los módulos ES no cargan desde `file://`; hace falta el servidor estático.
 ## Tests y checks
 
 ```bash
-node --test "tests/**/*.mjs"                    # 876 tests
+node --test "tests/test-*.mjs"                    # 942 tests
 node .github/scripts/ci-checks.mjs    # sintaxis, zero-dep, referencias
 ```
 
@@ -80,7 +80,7 @@ lifecycle nativo, leé [docs/ANDROID.md](docs/ANDROID.md) y corré
    `perf:`).
 2. Tests nuevos o actualizados si tocás lógica.
 3. Captura antes/después si tocás UI (`docs/screenshots/` o el PR).
-4. `node --check` de los archivos tocados y `node --test "tests/**/*.mjs"` en verde.
+4. `node --check` de los archivos tocados y `node --test "tests/test-*.mjs"` en verde.
 5. Si el cambio modifica comportamiento, actualizá la spec de
    `openspec/specs/` correspondiente y la documentación.
 

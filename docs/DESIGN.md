@@ -51,19 +51,29 @@ openspec/specs/         specs de comportamiento
 | Módulo | Responsabilidad |
 |---|---|
 | `main.js` | `Game`: FSM, economía de la run, wiring de eventos, lifecycle de la partida. Único entry. |
-| `engine.js` | Loop rAF+dt, canvas, `CONFIG`/`SCENE`, helpers (`clamp`, `lerp`, `dist`, `rand`), fondo, partículas, input, render y `EventBus`. |
+| `engine.js` | Loop rAF+dt, canvas, `CONFIG`/`SCENE`, helpers (`clamp`, `dist`, `rand`), fondo, partículas, input, render y `EventBus`. |
 | `waves.js` | Director de olas: presupuesto de HP, curva de presión, biomas, variantes, `waveSchedule`, `WaveManager` y cola `pending[]`. |
+| `waves-data.js` | Tablas manuales de olas de la campaña (stages 1..5), data pura. |
 | `stages.js` | 50 etapas de campaña: nombre, tema, HP de base, desbloqueo, jefe. |
 | `endless.js` | Modo infinito (51+): `stageDef`, profundidad, hitos, recompensas y desafío diario. |
 | `survival.js` | Supervivencia: olas infinitas, presupuesto lineal, jefes cada 5, temas y recompensas. |
 | `heat.js` | Protocolo: 11 condiciones, presets, `heatMods()`, recompensas e hitos. |
-| `enemies.js` | Tipos de enemigo, 7 variantes de élite, comportamiento y render. |
-| `towers.js` | 8 torres + 3 drones: targeting, disparo, stats y render. |
+| `enemies.js` | Comportamiento, colisiones y render de enemigos. |
+| `enemies-data.js` | Tipos, jefes, 7 variantes de élite y HP efectivo. |
+| `towers.js` | 8 torres + 3 drones: targeting, disparo, proyectiles, FX y render. |
+| `towers-data.js` | Stats canónicas de torres, drones, avispas y rueda de fuego. |
 | `player.js` | `Fortress`: base, slots, drones, HP/escudo, Black Hole y render de la plataforma. |
-| `cards.js` | 81 cartas, ofertas por nivel, tags/combos y topes. |
+| `cards.js` | 81 cartas, efectos, combos, ofertas y topes. |
+| `cards-data.js` | Topes, tags de unidad, técnicas y cazas de familia. |
+| `card-constants.js` | Multiplicadores compartidos por cartas y unidades futuras. |
+| `combo-mods.js` | Schema único de los flags de combos. |
 | `perks.js` | Única implementación de perks en combate: remate, robo de vida (tope 10 %), explosión al matar y `perk:proc`. |
+| `combat-crit.js` | Crítico, stun y congelación compartidos por proyectil y haz. |
+| `geometry.js` | Distancia/proyección punto-segmento y `withAlpha`. |
+| `base-heal.js` | Única curación de la base, con guardas de no-resurrección. |
 | `meta.js` | Meta-juego de 100 niveles: fragmentos, oro, perks por torre, rangos. |
 | `progress.js` | Persistencia tolerante: desbloqueos, récords, modos, heat, daily. |
+| `storage.js` | Acceso tolerante a `localStorage` compartido por meta/progress/theme/quality. |
 | `score.js` | Fórmulas puras: score, XP, precio de nivel, multiplicadores, resumen de combo. |
 | `hud.js` | HUD, pantallas, modales, selector de stage, meta, bestiario, protocolo, récords y créditos. |
 | `licenses.js` | Datos puros de atribución y los textos legales completos (MIT, CC BY 3.0, OFL 1.1, CC0) embebidos: la pantalla `CREDITS` no depende de la red. |
@@ -74,6 +84,7 @@ openspec/specs/         specs de comportamiento
 | `tower-art.js` | Datos del rig de cada torre + renderizador; fallback de `Path2D`. |
 | `audio.js` | WebAudio: síntesis, samples, música techno, unlock/resume y throttles. |
 | `native.js` | Contrato puro con el contenedor Android: `backAction`, `NATIVE_EVENTS`, `isNativePlatform`. No importa Capacitor. |
+| `version.js` | Versión visible única, sincronizada con package.json y Android por test. |
 
 ### Límites de dependencias
 
@@ -275,7 +286,7 @@ inmune: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 918 tests (913 pass, 5 skip) en 27 archivos.
+- 942 tests (942 pass, 0 skip) en 30 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

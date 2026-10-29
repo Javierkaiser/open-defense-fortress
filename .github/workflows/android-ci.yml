@@ -45,7 +45,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Tests del juego
-        run: node --test "tests/**/*.mjs"
+        run: node --test "tests/test-*.mjs"
 
       - name: Web + Capacitor
         run: |

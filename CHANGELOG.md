@@ -6,6 +6,50 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-10-29
+
+### Añadido
+
+- **942 tests, 0 skip** (antes 918 con 5 skip): `test-effects`, `test-storage`,
+  `test-version` y helpers compartidos en `tests/helpers/`.
+- Módulos puros nuevos: `geometry.js`, `combat-crit.js`, `base-heal.js`,
+  `storage.js`, `card-constants.js`, `combo-mods.js` y `version.js`.
+- Datos separados de la lógica: `cards-data.js`, `enemies-data.js`,
+  `waves-data.js` y `towers-data.js`.
+
+### Corregido
+
+- El mortero y el misil ya no se consumen como balas directas: detonan con
+  splash y conservan crítico/perks.
+- El veneno letal corta `Enemy.update` (no mueve, no cuenta fuga, no dispara
+  fases) y `poisonDps` se resetea al expirar.
+- Slow por fuente: un slow fuerte y corto ya no contamina al débil y largo.
+- `healBase()` único: robo de vida, Campo de Fuerza, Black Hole y Transfusión
+  no reviven una base en 0.
+- El XP de Supervivencia usa el stage de la oleada, no el stage 1 fijo.
+- Forcefield: dwell finito y waypoint solo sin blanco.
+- Black Hole arrastra el ancla de drift/zigzag (`entryX`).
+- Back nativo limpia el campo antes de volver al menú.
+- La calidad gráfica se aplica a todos los contexts/caches en caliente.
+- Confirmaciones inline se desarman al cambiar de pantalla.
+- Apagón filtra las cartas de ultimate/Black Hole; combos/BH respetan `CAPS`.
+- HUD: foco/ARIA, barras `progressbar`, escape de datos, fallback del ∞ en 51.
+- `ci-checks` normaliza separadores de Windows y excluye `.codegraph`.
+
+### Cambiado
+
+- `cards.js` 2.226→1.868, `enemies.js` 3.022→2.767, `waves.js`
+  2.869→2.666 y `towers.js` 3.200→2.944 líneas (datos extraídos).
+- Menos trabajo por frame: snapshot del HUD solo si está visible, poda de
+  enemigos in-place, Fortress no simula con `dt=0`, DPS cacheado 0,25 s,
+  `_flushPending` por prefijo y `bh-count` cacheado.
+- Audio: reanuda el contexto suspendido, tolera `resume()` sin Promise y
+  re-sincroniza el scheduler tras una suspensión.
+- Se eliminaron `lerp`, `spreadDegNow`, `orbitalStrikes`, `_speedDirty`,
+  `this.progress`, `isCache`, `STAGES.unlockAfter/waveSet` y campos muertos
+  del HUD.
+- Versión 1.4.0 / Android `versionCode 5`.
+
 ## [1.3.0] — 2026-10-28
 
 ### Añadido

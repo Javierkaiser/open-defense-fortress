@@ -10,11 +10,7 @@ import {
   QUALITY_LEVELS, normalizeQuality, loadQuality, saveQuality,
   applyQualityToContext, applyQualityToDom, particleCapFor,
 } from '../js/quality.js';
-
-function fakeStorage() {
-  const data = new Map();
-  return { getItem: (k) => data.get(k) ?? null, setItem: (k, v) => data.set(k, v) };
-}
+import { fakeStorage } from './helpers/storage.mjs';
 
 /** Simula lo mínimo de un CanvasRenderingContext2D: shadowBlur como
  *  propiedad normal de instancia (igual que el navegador real). */
