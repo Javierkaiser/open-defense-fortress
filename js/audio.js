@@ -195,6 +195,7 @@ export class AudioManager {
    */
   init() {
     if (this.ctx) return;
+    if (typeof window === 'undefined') return; // Node/tests: sin audio
     try {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (AC) this.ctx = new AC();
@@ -204,7 +205,12 @@ export class AudioManager {
   }
 
   resume() {
-    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+    if (!this.ctx || this.ctx.state !== 'suspended') return;
+    try {
+      // Algunos navegadores viejos devuelven undefined en vez de Promise.
+      const p = this.ctx.resume();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch (_err) { /* el audio no puede tumbar el juego */ }
   }
 
   /** Envoltorio: crea oscilador+ganancia con envelope exponencial. */
@@ -272,9 +278,13 @@ export class AudioManager {
     const size = poolSize(name);
     const list = [];
     for (let i = 0; i < size; i++) {
-      const el = new Audio(src);
-      el.preload = 'auto';
-      list.push(el);
+      try {
+        const el = new Audio(src);
+        el.preload = 'auto';
+        list.push(el);
+      } catch (_err) {
+        return null; // sin <audio> (entorno raro) → cae a la síntesis
+      }
     }
     const pool = { list, idx: 0 };
     this._pools[name] = pool;
@@ -503,6 +513,11 @@ export class AudioManager {
   _musicScheduler() {
     if (!this.ctx || !this.musicOn) return;
     this.resume();
+    // Tras una suspensión larga (background) `_nextStepTime` quedó atrás:
+    // sin re-sincronizar, el primer tick agenda cientos de pasos de golpe.
+    if (this._nextStepTime < this.ctx.currentTime - 0.5) {
+      this._nextStepTime = this.ctx.currentTime + 0.05;
+    }
     const stepDur = 60 / AudioManager.BPM / 4; // semicorchea
     while (this._nextStepTime < this.ctx.currentTime + 0.12) {
       try {
@@ -729,7 +744,13 @@ export class AudioManager {
 
   /** SFX por nombre — todos los eventos canónicos del juego. */
   sfx(name, _opts = {}) {
-    if (!this.ctx || this.ctx.state !== 'running') return;
+    if (!this.ctx) return;
+    if (this.ctx.state !== 'running') {
+      // Si el contexto quedó suspendido (background, música muteada), hay
+      // que reanudarlo: antes el SFX se descartaba y nadie lo reactivaba.
+      this.resume();
+      if (this.ctx.state !== 'running') return;
+    }
     const now = performance.now();
     const thr = this._throttleMs[name] ?? SFX_THROTTLE_DEFAULT;
     if (now - (this._lastAt.get(name) ?? 0) < thr) return;

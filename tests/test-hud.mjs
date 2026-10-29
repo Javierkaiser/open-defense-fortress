@@ -1568,6 +1568,27 @@ test('fase 72: la derrota es siempre "LA BASE HA CAÍDO" y las fugas son un dato
   assert.ok(!html.includes('mata al menos al 75'), 'la regla del 75 % ya no existe');
 });
 
+test('fase 75: las confirmaciones inline no sobreviven al cambio de pantalla', () => {
+  const hud = Object.create(HUD.prototype);
+  hud._confirmingReset = true;
+  hud._abandonPending = 'menu';
+  hud._perkResetArmed = { guardian: true };
+  hud._resetTransientUi('PLAYING');
+  assert.equal(hud._confirmingReset, false, 'reset de progreso se desarma');
+  assert.equal(hud._abandonPending, null, 'abandonar se desarma');
+  assert.deepEqual(hud._perkResetArmed, {}, 'redistribuir se desarma');
+  // En la MISMA pantalla que las posee, no se tocan.
+  hud._confirmingReset = true;
+  hud._resetTransientUi('MENU');
+  assert.equal(hud._confirmingReset, true);
+  hud._abandonPending = 'torretas';
+  hud._resetTransientUi('PAUSED');
+  assert.equal(hud._abandonPending, 'torretas');
+  hud._perkResetArmed = { guardian: true };
+  hud._resetTransientUi('TORRETAS');
+  assert.equal(hud._perkResetArmed.guardian, true);
+});
+
 test('fase 39: la pausa pide confirmación antes de abandonar la partida', () => {
   const hud = Object.create(HUD.prototype);
   hud._abandonPending = null;
@@ -1785,6 +1806,36 @@ test('fase 43: la tira de estado NO muestra OLAS ni RACHA (duplicaban el HUD)', 
   assert.ok(html.includes('DPS'), 'el DPS sigue ahí');
   assert.equal((html.match(/class="hud-stat"/g) ?? []).length, 2,
     'la tira queda con 2 píldoras (libera ancho en móvil)');
+});
+
+test('fase 75: la barra de jefe expone rol y valor accesible', () => {
+  const html = buildBossBarHtml();
+  assert.ok(html.includes('role="progressbar"'), 'la barra debe tener rol de progreso');
+  assert.ok(html.includes('aria-valuenow="0"'), 'el valor se actualiza en renderBossBar');
+  assert.ok(html.includes('aria-label="Vida del jefe"'), 'el lector debe saber qué mide');
+});
+
+test('fase 75: los datos de pantalla se escapan antes de innerHTML', () => {
+  const hud = Object.create(HUD.prototype);
+  const html = hud._screenStageClear({
+    stageName: '<b>etapa</b>', time: 1, score: 0, clearBonus: 0,
+    lv: 1, kills: 0, cards: 0, leaks: 0, hpFrac: 1,
+  });
+  assert.ok(html.includes('&lt;b&gt;etapa&lt;/b&gt;'), 'el nombre de etapa debe escaparse');
+  assert.ok(!html.includes('<b>etapa</b>'), 'no debe inyectarse HTML');
+});
+
+test('fase 75: _focusScreen enfoca el título y le da tabindex -1', () => {
+  const hud = Object.create(HUD.prototype);
+  const target = {
+    tagName: 'H2', attrs: {}, focused: false,
+    hasAttribute(k) { return k in this.attrs; },
+    setAttribute(k, v) { this.attrs[k] = v; },
+    focus() { this.focused = true; },
+  };
+  hud._focusScreen({ querySelector: () => target });
+  assert.equal(target.focused, true);
+  assert.equal(target.attrs.tabindex, '-1');
 });
 
 test('fase 43: la barra de jefe rotula el ×2 como RECOMPENSA (no de daño)', () => {
@@ -3592,6 +3643,8 @@ test('fase 70: la sala de récords no rompe sin datos ni con basura', () => {
     assert.ok(vacio.includes(modo), `la fila ${modo} no puede desaparecer`);
   }
   assert.ok(vacio.includes('sin récord'));
+  // fase 75: sin `next`, el ∞ empieza en la 51, no en la 1.
+  assert.ok(vacio.includes('Etapa 51'), 'el fallback del ∞ debe ser la etapa 51');
   assert.doesNotThrow(() => buildRecordsHtml({ campaign: 'basura', survival: 12 }));
 });
 

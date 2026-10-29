@@ -151,6 +151,37 @@ test('CAPS: TODA carta repetible del catálogo tiene tope (anti-stack infinito)'
   }
 });
 
+test('fase 75: Apagón saca del pool las cartas de ultimate/Black Hole', () => {
+  const game = makeGame();
+  game.runMods = { noUlt: true };
+  const ids = ['ult_charge', 'ult_power', 'black_hole', 'bh_horizon', 'bh_collapse',
+    'combo_singularity', 'combo_blood_pact'];
+  for (const id of ids) {
+    const card = CATALOG.find((c) => c.id === id);
+    assert.equal(isRelevant(card, game), false, `${id} no debe ofrecerse con Apagón`);
+  }
+  assert.equal(isRelevant(CATALOG.find((c) => c.id === 'dmg_all'), game), true,
+    'una carta normal sigue siendo relevante');
+});
+
+test('fase 75: los combos y BH no se apilan más allá de CAPS', () => {
+  const game = makeRealGame({ stageId: 5 });
+  game.fortress.addTower('guardian');
+  game.fortress.addDrone('firewheel');
+  const swarm = CATALOG.find((c) => c.id === 'combo_swarm_link');
+  assert.ok(applyCard(swarm, game));
+  const mul = game.fortress.drones[0].dmgMul;
+  assert.equal(applyCard(swarm, game), null, 'la segunda aplicación debe rechazarse');
+  assert.equal(game.fortress.drones[0].dmgMul, mul, 'y no debe volver a multiplicar');
+
+  game.fortress.blackHoleUnlocked = true;
+  const horizon = CATALOG.find((c) => c.id === 'bh_horizon');
+  assert.ok(applyCard(horizon, game));
+  const duration = game.fortress.blackHoleMods.durationAdd;
+  assert.equal(applyCard(horizon, game), null);
+  assert.equal(game.fortress.blackHoleMods.durationAdd, duration);
+});
+
 test('detect_up: NO elegible sin Beam/Tesla (regresión)', () => {
   // Bug real: esta carta escala detectMul, pero Guardian/Missile/Mortar/
   // Gauss/Láser tienen rango infinito desde v4 4a y el Thunderstroke desde

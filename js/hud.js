@@ -646,7 +646,7 @@ function endlessDefeatBlock(endless) {
   const depth = payloadInt(endless?.depth);
   if (depth == null) return '';
   const best = Math.max(0, payloadInt(endless.best) ?? depth);
-  const next = Math.max(best + 1, payloadInt(endless.next) ?? best + 1);
+  const next = Math.max(ENDLESS_MIN_STAGE, best + 1, payloadInt(endless.next) ?? 0);
   // Con el récord en 0 (primera incursión del ∞) decir "seguís en la etapa 0"
   // sería absurdo: el mensaje cambia, la promesa de no castigar es la misma.
   const recordTxt = best > 0
@@ -989,7 +989,8 @@ export function buildRecordsHtml(data) {
   const cleared = Math.max(0, Math.min(STAGES.length, payloadInt(campaign.cleared) ?? 0));
   const campaignScore = Math.max(0, payloadInt(campaign.bestScore) ?? 0);
   const endlessBest = Math.max(0, payloadInt(endless.best) ?? 0);
-  const endlessNext = Math.max(1, payloadInt(endless.next) ?? (endlessBest + 1));
+  const endlessNext = Math.max(ENDLESS_MIN_STAGE,
+    payloadInt(endless.next) ?? (endlessBest + 1));
   const heatBest = heatInt(heat.best);
   const heatStage50 = heatInt(heat.stage50);
   const heatNext = payloadInt(heat.next);
@@ -1473,7 +1474,7 @@ export function buildStatusStripHtml() {
 export function buildBossBarHtml() {
   return `
       <span class="boss-tag"><img src="assets/sprites/ui_tinted/icon_boss_warning_red.png" alt=""><b class="boss-tag-name" data-boss-name>JEFE</b></span>
-      <span class="bar boss-hp"><span class="boss-hp-fill"></span></span>
+      <span class="bar boss-hp" role="progressbar" aria-label="Vida del jefe" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span class="boss-hp-fill"></span></span>
       <span class="boss-mult-label">RECOMPENSA</span><span class="boss-mult"></span>`;
 }
 
@@ -2151,6 +2152,7 @@ export class HUD {
     // dev-7 fase 41: la LEYENDA de tipos de daño es un toggle (arranca
     // cerrada: la tabla tapaba la nav inferior en móvil).
     this._legendOpen = false;
+    this._lastScreen = null; // fase 75: detectar cambio real de pantalla
     // dev-7 fase 43: la EXPLICACIÓN del banner "¿Cómo subo de nivel?" es
     // un toggle (arranca cerrada: la prosa se comía 130 px de 844 para
     // algo que se lee una vez).
@@ -2440,7 +2442,9 @@ export class HUD {
    * tachado. Lo llama main._toggleMusic() tras cambiar audio.musicOn.
    */
   setMusicMuted(muted) {
-    if (this.el.music) this.el.music.classList.toggle('muted', !!muted);
+    if (!this.el.music) return;
+    this.el.music.classList.toggle('muted', !!muted);
+    this.el.music.setAttribute('aria-pressed', String(!!muted));
   }
 
   // ---------- Visibilidad ----------
@@ -2509,11 +2513,34 @@ export class HUD {
    * name ∈ FSM §1.3. data = resumen STAGE_CLEAR/GAME_OVER (null =
    * plantillas estáticas). 'PLAYING' oculta el overlay y muestra el HUD.
    */
+  /**
+   * fase 75 — Limpia confirmaciones inline al cambiar de pantalla.
+   *
+   * Antes `_confirmingReset` no se reseteaba en los early return de
+   * PLAYING/CARD_CHOICE, `_abandonPending` sobrevivía a la pausa y
+   * `_perkResetArmed` a TORRETAS: al volver, el botón destructivo quedaba
+   * armado y se ejecutaba con un solo click.
+   */
+  _resetTransientUi(name) {
+    if (name !== 'MENU') this._confirmingReset = false;
+    if (name !== 'PAUSED') this._abandonPending = null;
+    if (name !== 'TORRETAS') this._perkResetArmed = {};
+  }
+
   showScreen(name, data = null) {
     const el = this.overlayRoot;
     if (!el) return;
+    const changed = this._lastScreen !== name;
+    this._lastScreen = name;
+    this._resetTransientUi(name);
     // Sin jefe fuera del campo: tampoco puede quedar el aviso de JEFE.
-    if (name !== 'PLAYING') { this.hideBossBar(); this.hideBossWarning(); }
+    if (name !== 'PLAYING') {
+      this.hideBossBar();
+      this.hideBossWarning();
+      // fase 75: los avisos de fase/ultimate no deben quedar flotando
+      // sobre el menú hasta que expire su timer.
+      if (name !== 'CARD_CHOICE') this.clearAvisos();
+    }
     if (name === 'PLAYING') {
       el.classList.add('hidden');
       this.setPlaying(true);
@@ -2532,10 +2559,6 @@ export class HUD {
     // completa (escritorio): en móvil el velo es UNIFORME para todas las
     // pantallas (ver #overlay-stage[data-full] en el CSS).
     el.classList.toggle('backdrop-warm', name === 'MENU');
-    // dev-7 fase 14: si se navega fuera del MENÚ con la confirmación de
-    // "Borrar progreso" a mitad de camino, no debe quedar pegada para
-    // la próxima vez que se abra el menú.
-    if (name !== 'MENU') this._confirmingReset = false;
     // v3.5: TORRETAS también translúcida — la noche estrellada se ve detrás
     el.classList.toggle('backdrop-meta', name === 'TORRETAS');
     this.setPlaying(false);
@@ -2599,6 +2622,26 @@ export class HUD {
         break;
       default: el.innerHTML = '';
     }
+    // fase 75: al entrar a una pantalla nueva, el foco no puede quedar en
+    // <body>. Se enfoca el título (tabindex -1) o el primer control; en
+    // re-renders de la MISMA pantalla no se toca para no perder foco/scroll.
+    if (changed) this._focusScreen(el);
+  }
+
+  /** Enfoca el encabezado o el primer control de una pantalla. */
+  _focusScreen(root) {
+    if (!root || typeof root.querySelector !== 'function') return;
+    const target = root.querySelector('h1,h2,.screen-title')
+      ?? root.querySelector('button:not([disabled]),[href],[tabindex]');
+    if (!target || typeof target.focus !== 'function') return;
+    const tag = target.tagName ?? '';
+    if (/^H[12]$/.test(tag) && typeof target.hasAttribute === 'function'
+      && !target.hasAttribute('tabindex')) {
+      target.setAttribute('tabindex', '-1');
+    }
+    try { target.focus({ preventScroll: true }); } catch (_err) {
+      try { target.focus(); } catch (_err2) { /* sin foco */ }
+    }
   }
 
   _screenMenu() {
@@ -2641,7 +2684,10 @@ export class HUD {
       b.addEventListener('click', () => {
         const id = b.dataset.qualityId;
         saveQuality(id);
-        applyQualityToContext(this.engine.ctx, id);
+        // fase 75: aplicar a TODOS los contexts (visible + 4 caches
+        // offscreen), no solo al visible. Antes el fondo/niebla/deck
+        // seguían con shadowBlur en calidad baja hasta el próximo resize.
+        this.engine.applyQualityTo(applyQualityToContext, id);
         this.engine.setParticleCap(particleCapFor(id));
         // dev-7 fase 29: la calidad también se aplica a la capa DOM (el
         // desenfoque de los overlays se apaga en "baja": sin GPU, el blur
@@ -2883,7 +2929,7 @@ export class HUD {
           <img class="clear-sparkle tr" src="assets/sprites/ui_tinted/sparkle_gold.png" alt="">
           <img class="clear-sparkle br" src="assets/sprites/ui_tinted/sparkle_gold.png" alt="">
           <h2 class="screen-title gold">STAGE CLEAR</h2>
-          <p class="hint">${d.stageName} · ${fmtTime(d.time)}</p>
+          <p class="hint">${esc(d.stageName)} · ${fmtTime(d.time)}</p>
           <dl class="summary">
             <div><dt>SCORE TOTAL</dt><dd>${fmt(d.score)}</dd></div>
             ${d.scoreKills != null ? `<div><dt>&nbsp;· por kills</dt><dd>${fmt(d.scoreKills)}</dd></div>` : ''}
@@ -2922,7 +2968,7 @@ export class HUD {
       <section class="screen">
         <div class="panel">
           <h2 class="screen-title danger"><img class="danger-icon" src="assets/sprites/ui_tinted/icon_boss_warning_red.png" alt="">LA BASE HA CAÍDO</h2>
-          <p class="hint">${d.stageName}</p>
+          <p class="hint">${esc(d.stageName)}</p>
           <dl class="summary">
             <div><dt>SCORE</dt><dd>${fmt(d.score)}</dd></div>
             <div><dt>KILLS</dt><dd>${d.kills}</dd></div>
@@ -3648,7 +3694,7 @@ export class HUD {
     const towerRow = towers.length
       ? towers.map((t) => `
           <span class="own-tower" title="Lv.${t.level}">
-            <b>${t.data?.name ?? t.type}</b>
+            <b>${esc(t.data?.name ?? t.type)}</b>
             <i>${gems(t.level ?? 1)}</i>
           </span>`).join('')
       : '<span class="own-tower"><b>—</b></span>';
@@ -3694,13 +3740,13 @@ export class HUD {
           <span class="card-inner">
             <span class="card-lv-badge${isUnlock ? ' is-new' : ''}">${isUnlock ? 'NUEVO' : '+1'}</span>
             <span class="card-title-row">
-              <span class="card-name">${c.name}</span>
+              <span class="card-name">${esc(c.name)}</span>
               ${typeBadge}
             </span>
             <i class="card-gems" title="${r.label}">${rarityGems(r.tier)}</i>
             <span class="card-rarity-label">${r.label}</span>
-            <span class="card-desc">${desc}</span>
-            ${synergy ? `<span class="card-synergy">${synergy}</span>` : ''}
+            <span class="card-desc">${esc(desc)}</span>
+            ${synergy ? `<span class="card-synergy">${esc(synergy)}</span>` : ''}
           </span>
         </button>`;
     }).join('');
@@ -3761,14 +3807,14 @@ export class HUD {
     // fase 61 los índices van de S1 a S5 (antes había 9 y llegaba a S9).
     const rows = sum.towers.map((t) => `
       <div class="combo-row">
-        <b>${t.name}</b>
+        <b>${esc(t.name)}</b>
         <span class="combo-slot">S${t.slot + 1}</span>
         ${t.level > 1 ? `<i>${'★'.repeat(t.level)}${'☆'.repeat(Math.max(0, 5 - t.level))}</i>` : ''}
         ${typeBadgeHtml(t.dmgType)}
         <small>DMG ×${t.dmgMul}${t.cadMul !== 1 ? ` · REC ×${t.cadMul.toFixed(2)}` : ''}</small>
       </div>`).join('');
     const mods = [
-      ...(sum.tags ?? []).map((tag) => `<span>#${tag}</span>`),
+      ...(sum.tags ?? []).map((tag) => `<span>#${esc(tag)}</span>`),
       sum.pierce > 0 ? `<span>Perforación +${sum.pierce}</span>` : '',
       sum.xpMul !== 1 ? `<span>Energía ×${sum.xpMul.toFixed(2)}</span>` : '',
       sum.scoreMul !== 1 ? `<span>Score ×${sum.scoreMul.toFixed(2)}</span>` : '',
@@ -3860,6 +3906,18 @@ export class HUD {
    * de banners en la parte de arriba del campo (nunca en el centro,
    * que es por donde caen los enemigos).
    */
+  /** fase 75: limpia la pila de avisos y sus timers. */
+  clearAvisos() {
+    const pila = this.el?.avisos;
+    if (!pila) return;
+    for (const el of [...(pila.children ?? [])]) {
+      clearTimeout(el._avisoTimer);
+      clearTimeout(el._avisoOutTimer);
+      el.remove?.();
+    }
+    pila.replaceChildren?.();
+  }
+
   _ensureAvisosNode() {
     if (this.el.avisos) return this.el.avisos;
     const host = this.root?.parentElement; // #marco-portrait
@@ -3907,7 +3965,7 @@ export class HUD {
       } catch (_err) { return false; }
     })();
     const accion = tactil
-      ? (esBH ? 'TOC\u00c1 EL BOT\u00d3N NEGRO' : 'TOC\u00c1 EL BOT\u00d3N DE LA ARBA')
+      ? (esBH ? 'TOC\u00c1 EL BOT\u00d3N NEGRO' : 'TOC\u00c1 EL BOT\u00d3N DE LA BARRA')
       : (esBH ? 'PULSA [B]' : 'PULSA [ESPACIO]');
     return this.showAviso({
       variant: 'info',
@@ -3925,7 +3983,7 @@ export class HUD {
     el.className = `aviso aviso--${variant}`;
     el.innerHTML = `
       ${o.title ? `<span class="aviso-head">
-        ${o.icon ? `<img class="aviso-icon" src="${esc(o.icon)}" alt="">` : ''}
+        ${o.icon ? `<img class="aviso-icon" src="${attr(o.icon)}" alt="">` : ''}
         <span class="aviso-title">${esc(o.title)}</span>
       </span>` : ''}
       ${o.name ? `<span class="aviso-name">${esc(o.name)}</span>` : ''}
@@ -4057,7 +4115,7 @@ export class HUD {
     // el jugador lo leía como multiplicador de DAÑO. El CSS decide si hay
     // sitio para el texto (en un marco angosto lo oculta).
     this.el.bossMultLabel = div.querySelector('.boss-mult-label');
-    this._lastBossFrac = -1;
+    this._lastBossPct = -1;
     this._lastBossName = '';
     this._bossHidden = true; // evita re-escribir la clase cada frame
   }
@@ -4071,9 +4129,13 @@ export class HUD {
     this._ensureBossNode();
     if (!this.el.boss) return;
     const frac = Math.max(0, Math.min(1, bossInfo.hpFrac));
-    if (frac !== this._lastBossFrac) {
-      this._lastBossFrac = frac;
-      if (this.el.bossFill) this.el.bossFill.style.width = `${Math.round(frac * 100)}%`;
+    const pct = Math.round(frac * 100);
+    if (pct !== this._lastBossPct) {
+      this._lastBossPct = pct;
+      if (this.el.bossFill) {
+        this.el.bossFill.style.width = `${pct}%`;
+        this.el.bossFill.parentElement?.setAttribute('aria-valuenow', String(pct));
+      }
     }
     // dev-7 fase 46: la etiqueta .boss-tag ya no dice "BOSS" fijo: dice el
     // NOMBRE del jefe (waves.js: uno propio por stage de jefe).
@@ -4099,7 +4161,7 @@ export class HUD {
   }
 
   hideBossBar() {
-    this._lastBossFrac = -1;
+    this._lastBossPct = -1;
     if (!this.el.boss) return;
     if (this._bossHidden) return;
     this._bossHidden = true;
@@ -4163,6 +4225,7 @@ export class HUD {
       if (pct !== this._lastProgressPct) {
         this._lastProgressPct = pct;
         this.el.progress.style.width = `${pct}%`;
+        this.el.progress.parentElement?.setAttribute('aria-valuenow', String(pct));
       }
     }
     if (this.el.lv) {
@@ -4194,6 +4257,7 @@ export class HUD {
       if (pct !== this._lastXpPct) {
         this._lastXpPct = pct;
         this.el.xp.style.width = `${pct}%`;
+        this.el.xp.parentElement?.setAttribute('aria-valuenow', String(pct));
       }
     }
 

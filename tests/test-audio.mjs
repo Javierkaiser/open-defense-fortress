@@ -349,6 +349,37 @@ test('fase 26 (T5): setVolumes acota los valores y no lanza con sfx: 0', () => {
   assert.equal(Number.isFinite(a.volumes.music), true);
 });
 
+test('fase 75: resume() tolera un resume() sin Promise (navegador viejo)', () => {
+  const a = new AudioManager();
+  let calls = 0;
+  a.ctx = { state: 'suspended', resume() { calls += 1; return undefined; } };
+  assert.doesNotThrow(() => a.resume());
+  assert.equal(calls, 1);
+});
+
+test('fase 75: sfx() reanuda un contexto suspendido', () => {
+  const a = new AudioManager();
+  let calls = 0;
+  a.ctx = {
+    state: 'suspended',
+    resume() { calls += 1; return undefined; },
+  };
+  assert.doesNotThrow(() => a.sfx('shot'));
+  assert.equal(calls, 1, 'el SFX debe intentar reanudar, no descartarse en silencio');
+});
+
+test('fase 75: el scheduler de música se re-sincroniza tras una suspensión larga', () => {
+  const a = new AudioManager();
+  let steps = 0;
+  a.ctx = { currentTime: 100, state: 'running' };
+  a.musicOn = true;
+  a._nextStepTime = 0; // quedó 100 s atrás
+  a._scheduleStep = () => { steps += 1; };
+  a._musicScheduler();
+  assert.ok(steps <= 2, `no debe agendar una ráfaga de pasos atrasados (agendó ${steps})`);
+  assert.ok(Math.abs(a._nextStepTime - (100.05 + 60 / AudioManager.BPM / 4)) < 1e-6);
+});
+
 test('fase 26: sfx() no lanza sin AudioContext para ningún sonido', () => {
   // En Node no hay ctx ni <audio>: sfx() debe salir limpio para TODOS los
   // nombres (incluidos los nuevos del arsenal).

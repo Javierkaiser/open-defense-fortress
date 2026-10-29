@@ -543,6 +543,9 @@ export class Engine {
     // la plataforma) y redibujado únicamente cuando el layout cambia.
     this._deckCache = this._makeOffscreen(this._deckHeight());
     this._deckDirty = true;
+    // fase 75: bahías activas del deck. Arsenal puede reducir la Fortress
+    // a 4 slots; el dibujo debe seguir ese número, no las 5 de CONFIG.
+    this._deckSlots = CONFIG.SLOTS.length;
     // dev-7 fase 28: 3er cache para la niebla (8 gradientes radiales por
     // frame = 3.34 Mpx de relleno alpha, el mayor coste de fill-rate).
     this._fogCache = this._makeOffscreen();
@@ -752,6 +755,23 @@ export class Engine {
     this._resizeBuffers();
     this._rebuildDecor();
     this.emit('layout:changed', { h: LAYOUT.h, delta: LAYOUT.delta });
+    return true;
+  }
+
+  /**
+   * fase 75 — Ajusta cuántas bahías dibuja el deck (Arsenal deja 4).
+   * El estado de la Fortress es la fuente; el engine solo cachea el
+   * número para no recorrer CONFIG.SLOTS completo.
+   * @param {number} n
+   * @returns {boolean} true si cambió
+   */
+  setDeckSlotCount(n) {
+    const raw = Math.trunc(Number(n));
+    const count = Math.max(1, Math.min(CONFIG.SLOTS.length,
+      Number.isFinite(raw) ? raw : CONFIG.SLOTS.length));
+    if (count === this._deckSlots) return false;
+    this._deckSlots = count;
+    this._deckDirty = true;
     return true;
   }
 
@@ -2226,7 +2246,9 @@ export class Engine {
     const top = SCENE.PLATFORM_Y;
     const T = CONFIG.TOWER_Y;
     // Balizas ámbar de los módulos de servicio (una por hueco entre bahías).
-    for (const mx of TOWER_BAY.moduleX) {
+    // Con 4 bahías hay 3 huecos: no dibujar el módulo del extremo recortado.
+    const modules = TOWER_BAY.moduleX.slice(0, Math.max(0, this._deckSlots - 1));
+    for (const mx of modules) {
       const bp = 0.5 + 0.5 * Math.sin(this._t * 2.4 + mx);
       ctx.globalAlpha = 0.30 + 0.55 * bp;
       ctx.shadowColor = '#FFC46A';
@@ -2267,6 +2289,7 @@ export class Engine {
     const T = CONFIG.TOWER_Y;
     const b = TOWER_BAY;
     const r = 34;
+    const slotXs = CONFIG.SLOTS.slice(0, this._deckSlots);
 
     // Cuerpo: silueta redondeada (esquinas superiores)
     ctx.save();
@@ -2323,8 +2346,8 @@ export class Engine {
     ctx.fillRect(x + 22, spineY, w - 44, 2);
     ctx.fillStyle = 'rgba(159, 180, 200, 0.16)';
     ctx.fillRect(x + 22, spineY + 7, w - 44, 1);
-    for (let i = 0; i < CONFIG.SLOTS.length; i++) {
-      const sx = CONFIG.SLOTS[i];
+    for (let i = 0; i < slotXs.length; i++) {
+      const sx = slotXs[i];
       ctx.fillStyle = 'rgba(0, 0, 0, 0.30)';
       ctx.fillRect(sx - 4, spineY - 5, 8, 6);
       ctx.fillStyle = 'rgba(159, 180, 200, 0.10)';
@@ -2332,8 +2355,8 @@ export class Engine {
     }
 
     // ---- LAS 5 BAHÍAS DE MONTAJE ----
-    for (let i = 0; i < CONFIG.SLOTS.length; i++) {
-      const sx = CONFIG.SLOTS[i];
+    for (let i = 0; i < slotXs.length; i++) {
+      const sx = slotXs[i];
       const isGuardian = i === 2;
       const byTop = T + b.top;
       const byBot = T + b.bottom;

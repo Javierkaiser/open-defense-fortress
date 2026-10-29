@@ -128,6 +128,10 @@ export class Game {
     this.fortress = new Fortress(this);
 
     // Suscripciones (nombres de eventos canónicos)
+    // fase 75: el relayout mueve la plataforma (CONFIG.TOWER_Y) pero la
+    // Fortress y sus torres guardaban la Y vieja. Recolocarlas al cambiar
+    // el alto lógico evita que queden flotando tras un resize/rotación.
+    engine.on('layout:changed', () => this.fortress?.relayout?.());
     engine.on('state:changed', ({ next }) => {
       // Música por FSM (v3 5/7, BUG-004): PLAYING la sube; PAUSED/
       // CARD_CHOICE la dejan en ducking (queda "lejos", no muere);
@@ -1189,6 +1193,22 @@ export class Game {
     };
   }
 
+  /**
+   * fase 75 — Back nativo/Android. Usa las transiciones REALES de Game
+   * (toMenu/toSelectStage) en vez de `setState` directo: el back desde una
+   * pantalla de fin o pausa dejaba enemigos/proyectiles congelados detrás
+   * del menú porque `_clearBattlefield()` nunca corría.
+   * @returns {boolean} true si el juego consumió el back
+   */
+  handleBack() {
+    const action = backAction(this.engine.state);
+    if (!action.handled) return false;
+    if (action.next === 'MENU') this.toMenu();
+    else if (action.next === 'SELECT_STAGE') this.toSelectStage();
+    else if (action.next) this.engine.setState(action.next);
+    return true;
+  }
+
   _onEscape() {
     // Esc en PAUSA = continuar (lo promete la pantalla de pausa:
     // "[P]/[Esc] continuar"). Reusa el mismo camino que el botón CONTINUAR.
@@ -1853,12 +1873,7 @@ window.__gdfBootOk?.();
 // ------------------------------------------------------------
 // MainActivity.java llama a window.__gdfBack() desde onBackPressed. Si el
 // juego no lo maneja, el nativo manda la app a background (no la cierra).
-window.__gdfBack = () => {
-  const action = backAction(engine.state);
-  if (!action.handled) return false;
-  if (action.next) engine.setState(action.next);
-  return true;
-};
+window.__gdfBack = () => game.handleBack();
 
 // Background/foreground: la partida se pausa y la música se detiene/duckea.
 // Al volver, el AudioContext se reanuda pero la partida sigue en pausa.

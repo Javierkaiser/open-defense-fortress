@@ -22,7 +22,13 @@ import { GUARDIAN_SLOT } from '../js/towers.js';
 import { healBase } from '../js/base-heal.js';
 
 function makeGame() {
-  const game = { engine: { emit() {}, addEntity() {} }, audio: { sfx() {} } };
+  const game = {
+    engine: {
+      emit() {}, addEntity() {},
+      setDeckSlotCount(n) { this.deckSlots = n; },
+    },
+    audio: { sfx() {} },
+  };
   game.fortress = new Fortress(game);
   return game;
 }
@@ -236,15 +242,33 @@ test('takeDamage (fase 69, Asedio): leakMul multiplica el daño de fuga', () => 
 // ------------------------------------------------------------
 
 test('dropLastSlot (Arsenal): deja 4 slots con geometría y tope coherentes', () => {
-  const { fortress } = makeGame();
+  const game = makeGame();
+  const { fortress } = game;
   assert.equal(fortress.dropLastSlot(), true);
   assert.equal(fortress.slots.length, 4);
   assert.equal(fortress._slotGeom.length, 4, 'la tabla de bahías encoge con los slots');
   assert.equal(fortress._frontCount, 4);
+  assert.equal(game.engine.deckSlots, 4, 'el deck deja de dibujar la bahía recortada');
   // El tope real baja a 4: la quinta torre ya no tiene dónde entrar.
   for (let i = 0; i < 4; i++) fortress.addTower('guardian');
   assert.equal(fortress.slots.filter(Boolean).length, 4);
   assert.equal(fortress.addTower('guardian'), null, 'no hay una quinta ranura');
+});
+
+test('fase 75: relayout reconstruye la geometría y mueve las torres', () => {
+  const { fortress } = makeGame();
+  const t = fortress.addTower('guardian', 2);
+  const oldY = CONFIG.TOWER_Y;
+  try {
+    CONFIG.TOWER_Y = oldY + 120;
+    fortress.relayout();
+    assert.equal(t.y, CONFIG.TOWER_Y, 'la torre debe seguir a la plataforma');
+    assert.equal(fortress._slotGeom[2].y, CONFIG.TOWER_Y, 'la bahía también');
+  } finally {
+    CONFIG.TOWER_Y = oldY;
+    fortress.relayout();
+  }
+  assert.equal(t.y, oldY, 'al volver el layout, la torre vuelve a su fila');
 });
 
 test('dropLastSlot: no quita una ranura ocupada ni la última', () => {

@@ -547,6 +547,13 @@ const EXCLUSIVE_DMG_DRONE = {
   dmg_firewheel: 'firewheel', dmg_wasps: 'wasps', dmg_forcefield: 'forcefield',
 };
 
+/** fase 75: cartas que dependen de ultimate/Black Hole (Apagón las apaga). */
+const NO_ULT_CARD_IDS = new Set([
+  'ult_charge', 'ult_power', 'black_hole',
+  'bh_horizon', 'bh_collapse',
+  'combo_singularity', 'combo_blood_pact',
+]);
+
 /**
  * Condiciones de exclusión dinámica de RELEVANCIA (una carta inútil NUNCA
  * entra al pool: §7 QA "20+ selecciones sin efecto roto"):
@@ -559,6 +566,9 @@ const EXCLUSIVE_DMG_DRONE = {
  * sigue siendo relevante — y el relleno de la oferta necesita saberlo.
  */
 export function isRelevant(card, game) {
+  // fase 75 — Apagón: las cartas de ultimate/Black Hole quedan inertes
+  // (main corta ambos disparos con runMods.noUlt). No deben entrar al pool.
+  if (game?.runMods?.noUlt && NO_ULT_CARD_IDS.has(card.id)) return false;
   const stage = game?.stageId ?? 1;
   if ((card.minStage ?? 1) > stage) return false;
   // fase 74: prerrequisitos de tags/unidades/Black Hole (combos).
@@ -2173,6 +2183,16 @@ export function rollOffer(game, rng = Math.random) {
 export function applyCard(card, game) {
   const c = typeof card === 'string' ? CARD_BY_ID.get(card) : card;
   if (!c || typeof c.apply !== 'function') return null;
+  // fase 75: los combos y las cartas de Black Hole se aplican UNA vez.
+  // `fillOffer` puede reofrecer una carta topada como relleno; antes su
+  // `apply` no miraba `appsOf` y apilar combo_swarm_link/bh_horizon dos
+  // veces seguía sumando pese al CAPS. Las cartas globales conservan su
+  // comportamiento histórico (su apply ya respeta el tope).
+  const cap = CAPS[c.id];
+  if (cap !== undefined && (c.id.startsWith('combo_') || c.id.startsWith('bh_'))
+    && appsOf(c.id, game) >= cap) {
+    return null;
+  }
   c.apply(game);
   return c;
 }

@@ -251,7 +251,13 @@ export class Fortress {
     this.orbitalStrikes = [];
     this._orbitalTimer = 0;   // s restantes de la lluvia activa
     this._spawnedOrbitals = 0;
+    // fase 75: el engine dibuja tantas bahías como la Fortress activa.
+    // Una run nueva sin Arsenal vuelve a 5; `dropLastSlot` baja a 4.
+    this.game?.engine?.setDeckSlotCount?.(this._frontCount);
   }
+
+  /** Número de bahías activas (Arsenal puede dejar 4). */
+  get slotCount() { return this._frontCount; }
 
   /**
    * Coloca una torre en un slot libre.
@@ -351,6 +357,21 @@ export class Fortress {
   }
 
   /**
+   * fase 75 — Recoloca la fila tras un relayout (resize/rotación).
+   *
+   * `CONFIG.TOWER_Y` ya cambió cuando llega `layout:changed`; hay que
+   * reconstruir `_slotGeom` y mover las torres existentes. Antes el deck
+   * bajaba pero las torres se quedaban en la Y vieja.
+   */
+  relayout() {
+    this._slotGeom = this._buildSlotGeom(this._frontCount);
+    for (let i = 0; i < this._frontCount; i++) {
+      const t = this.slots[i];
+      if (t) t.y = this._slotGeom[i].y;
+    }
+  }
+
+  /**
    * Primer slot libre. fase 61: con una sola fila, este es el ÚNICO
    * repartidor de lugares — y el tope de 5 torres sale de acá.
    */
@@ -380,6 +401,8 @@ export class Fortress {
     this._frontCount -= 1;
     this.slots.pop();
     this._slotGeom = this._buildSlotGeom(this._frontCount);
+    // fase 75: que el deck deje de dibujar la bahía recortada.
+    this.game?.engine?.setDeckSlotCount?.(this._frontCount);
     return true;
   }
 

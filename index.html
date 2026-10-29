@@ -28,8 +28,8 @@
   <!-- HUD superior (§4.4): pausa · velocidad · combo · stage+progreso · Lv · timer · ultimate -->
   <header id="hud-top" class="hidden">
     <div class="hud-row">
-      <button class="btn-round" id="btn-pause" data-action="pause" title="Pausa (P / Esc)"><img class="btn-icon-img" src="assets/sprites/ui_tinted/icon_pause_teal.png" alt=""></button>
-      <button class="btn-round" id="btn-speed" data-action="speed" title="Velocidad (1/2/3)">x1</button>
+      <button class="btn-round" id="btn-pause" data-action="pause" title="Pausa (P / Esc)" aria-label="Pausar"><img class="btn-icon-img" src="assets/sprites/ui_tinted/icon_pause_teal.png" alt=""></button>
+      <button class="btn-round" id="btn-speed" data-action="speed" title="Velocidad (1/2/3)" aria-label="Cambiar velocidad">x1</button>
       <!-- dev-7 fase 41: los iconos del HUD son SVG INLINE (mismo estilo
            de línea que la nav: viewBox 24×24, sin relleno y con
            stroke="currentColor", así que el color lo pone el CSS). Antes
@@ -39,25 +39,25 @@
            OJO: el SVG de "cartas" es el mismo que UI_ICONS.cartas de
            js/hud.js (no se puede importar JS desde el HTML: el único
            módulo de la página es main.js). -->
-      <button class="btn-round" id="btn-combo" data-action="combo" title="Combo List (U)"><svg class="btn-icon-img" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8.5" y="2.5" width="13" height="13" rx="2.5"/><rect x="2.5" y="8.5" width="13" height="13" rx="2.5"/></svg></button>
+      <button class="btn-round" id="btn-combo" data-action="combo" title="Combo List (U)" aria-label="Lista de combos"><svg class="btn-icon-img" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8.5" y="2.5" width="13" height="13" rx="2.5"/><rect x="2.5" y="8.5" width="13" height="13" rx="2.5"/></svg></button>
       <!-- v3 5/7 (BUG-004): toggle música techno sintetizada -->
-      <button class="btn-round" id="btn-music" title="Música on/off (M)"><svg class="btn-icon-img" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3L11 5.5v13L7 14.5H4z"/><path d="M14.5 9.2a4 4 0 0 1 0 5.6"/><path d="M17.5 6.5a8 8 0 0 1 0 11"/></svg></button>
+      <button class="btn-round" id="btn-music" title="Música on/off (M)" aria-label="Música" aria-pressed="false"><svg class="btn-icon-img" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3L11 5.5v13L7 14.5H4z"/><path d="M14.5 9.2a4 4 0 0 1 0 5.6"/><path d="M17.5 6.5a8 8 0 0 1 0 11"/></svg></button>
       <div class="hud-stage">
         <span class="stage-name" id="hud-stage-name">Normal Stage 1</span>
-        <span class="bar stage-bar"><span id="hud-progress"></span></span>
+        <span class="bar stage-bar" role="progressbar" aria-label="Progreso de la etapa" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="hud-progress"></span></span>
       </div>
       <div class="hud-lv">
         <span class="lv-label" id="hud-lv">Lv.1</span>
-        <span class="bar xp-bar"><span id="hud-xp"></span></span>
+        <span class="bar xp-bar" role="progressbar" aria-label="Experiencia" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="hud-xp"></span></span>
       </div>
       <!-- dev-7 fase 41: el reloj es un SVG inline (antes era el emoji ⏱,
            que cada plataforma dibujaba distinto). El número va en el span
            interior: eso es lo que actualiza el HUD (js/hud.js). -->
       <span class="hud-timer"><svg class="hud-timer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></svg><span id="hud-timer">00:00</span></span>
-      <button class="btn-round ult" id="btn-ultimate" data-action="ultimate" title="Ultimate (Espacio)">
+      <button class="btn-round ult" id="btn-ultimate" data-action="ultimate" title="Ultimate (Espacio)" aria-label="Lanzar ultimate">
         <span class="ult-ring"></span><span class="ult-icon"><img class="btn-icon-img" src="assets/sprites/ui_tinted/icon_ultimate_gold.png" alt=""></span>
       </button>
-      <button class="btn-round ult bh" id="btn-blackhole" data-action="blackhole" title="Black Hole (B)">
+      <button class="btn-round ult bh" id="btn-blackhole" data-action="blackhole" title="Black Hole (B)" aria-label="Lanzar Black Hole">
         <span class="bh-ring"></span><span class="bh-icon">◉</span><span class="bh-count">0%</span>
       </button>
       <!-- dev-7 fase 37: salto de línea del HUD. En el diseño (ancho 540)
