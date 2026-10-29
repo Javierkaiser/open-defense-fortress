@@ -6,7 +6,7 @@
 node --test "tests/test-*.mjs"
 ```
 
-Estado actual: **942 tests** (942 pass, 0 skip, 0 fail) en **30 archivos**.
+Estado actual: **947 tests** (947 pass, 0 skip, 0 fail) en **31 archivos**.
 
 Requisitos: Node 22 o superior.
 
@@ -41,6 +41,7 @@ node --test tests/test-stages.mjs
 | Puente nativo Android (`backAction`, eventos) | `test-native.mjs` |
 | Arranque / guarda de boot (index.html) | `test-boot-guard.mjs` |
 | Integración del motor real | `test-integration.mjs` |
+| Decisiones puras de `Game` (XP, back, música) | `test-main.mjs` |
 | Efectos (multikill, orbe, fireworks) | `test-effects.mjs` |
 | Storage tolerante a fallos/corrupto | `test-storage.mjs` |
 | Versión runtime/package/Android | `test-version.mjs` |
@@ -52,7 +53,8 @@ node --test tests/test-stages.mjs
 - Audio real (WebAudio / reproducción de OGG).
 - WebView, Android, Capacitor, lifecycle nativo.
 - El cableado `perk:proc` → sonido de `main.js` (solo se testea la señal).
-- La economía/FSM/bootstrap de `main.js` (0 % ejecutable: solo guardas estáticas).
+- El bootstrap DOM de `main.js` y la mayoría de la FSM de `game.js` (cobertura
+  parcial: las decisiones puras están en `test-main.mjs`).
 - `comboSummary()` y algunos helpers de presentación.
 
 Para eso hay **smoke manual** y una checklist Android (APK debug).

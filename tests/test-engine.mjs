@@ -327,15 +327,15 @@ test('fase 72: CREDITS es un estado más (y NO de pausa)', () => {
   assert.equal(e.state, 'MENU');
 });
 
-test('main.js: Esc en PAUSED reanuda la partida (BUG-003)', () => {
-  const src = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+test('game.js: Esc en PAUSED reanuda la partida (BUG-003)', () => {
+  const src = readFileSync(new URL('../js/game.js', import.meta.url), 'utf8');
   const body = methodBody(src, '_onEscape() {');
   assert.ok(body.includes("'PAUSED'"), '_onEscape no contempla el estado PAUSED');
   assert.ok(body.includes('this.resume()'), '_onEscape no reanuda desde PAUSED');
 });
 
-test('main.js: el modal de cartas/perk se cierra en TODO cambio de estado (BUG-004)', () => {
-  const src = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
+test('game.js: el modal de cartas/perk se cierra en TODO cambio de estado (BUG-004)', () => {
+  const src = readFileSync(new URL('../js/game.js', import.meta.url), 'utf8');
   assert.ok(
     !src.includes("prev === 'CARD_CHOICE'"),
     'el modal solo se cierra si el estado PREVIO era CARD_CHOICE',

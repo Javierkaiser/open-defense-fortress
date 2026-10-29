@@ -50,7 +50,8 @@ openspec/specs/         specs de comportamiento
 
 | Módulo | Responsabilidad |
 |---|---|
-| `main.js` | `Game`: FSM, economía de la run, wiring de eventos, lifecycle de la partida. Único entry. |
+| `main.js` | BOOT del navegador: crea Engine/HUD/Game, aplica calidad/tema y cablea el lifecycle. |
+| `game.js` | `Game`: FSM, economía de la run, wiring de eventos y ciclo de partida (testeable sin DOM). |
 | `engine.js` | Loop rAF+dt, canvas, `CONFIG`/`SCENE`, helpers (`clamp`, `dist`, `rand`), fondo, partículas, input, render y `EventBus`. |
 | `waves.js` | Director de olas: presupuesto de HP, curva de presión, biomas, variantes, `waveSchedule`, `WaveManager` y cola `pending[]`. |
 | `waves-data.js` | Tablas manuales de olas de la campaña (stages 1..5), data pura. |
@@ -75,7 +76,9 @@ openspec/specs/         specs de comportamiento
 | `progress.js` | Persistencia tolerante: desbloqueos, récords, modos, heat, daily. |
 | `storage.js` | Acceso tolerante a `localStorage` compartido por meta/progress/theme/quality. |
 | `score.js` | Fórmulas puras: score, XP, precio de nivel, multiplicadores, resumen de combo. |
-| `hud.js` | HUD, pantallas, modales, selector de stage, meta, bestiario, protocolo, récords y créditos. |
+| `hud.js` | Fachada pública del HUD (reexporta builders + clase). |
+| `hud-builders.js` | Markup y helpers puros del HUD (pantallas, modales, tarjetas, formato). |
+| `hud-core.js` | Clase `HUD`: DOM, eventos, render por frame y modales. |
 | `licenses.js` | Datos puros de atribución y los textos legales completos (MIT, CC BY 3.0, OFL 1.1, CC0) embebidos: la pantalla `CREDITS` no depende de la red. |
 | `theme.js` | 5 temas de interfaz y tokens de color. |
 | `quality.js` | Calidad Alta/Baja: `shadowBlur`, partículas, blur DOM. |
@@ -286,7 +289,7 @@ inmune: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 942 tests (942 pass, 0 skip) en 30 archivos.
+- 947 tests (947 pass, 0 skip) en 31 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

@@ -10,8 +10,8 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 
 ### Añadido
 
-- **942 tests, 0 skip** (antes 918 con 5 skip): `test-effects`, `test-storage`,
-  `test-version` y helpers compartidos en `tests/helpers/`.
+- **947 tests, 0 skip** (antes 918 con 5 skip): `test-effects`, `test-storage`,
+  `test-version`, `test-main` y helpers compartidos en `tests/helpers/`.
 - Módulos puros nuevos: `geometry.js`, `combat-crit.js`, `base-heal.js`,
   `storage.js`, `card-constants.js`, `combo-mods.js` y `version.js`.
 - Datos separados de la lógica: `cards-data.js`, `enemies-data.js`,
@@ -40,6 +40,10 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 
 - `cards.js` 2.226→1.868, `enemies.js` 3.022→2.767, `waves.js`
   2.869→2.666 y `towers.js` 3.200→2.944 líneas (datos extraídos).
+- `hud.js` 4.314→10 líneas (fachada): markup puro en `hud-builders.js`
+  (2.144) y clase en `hud-core.js` (2.386).
+- `main.js` 1.857→176 líneas (bootstrap): la clase `Game` vive en
+  `game.js` (1.785) y se testea sin DOM.
 - Menos trabajo por frame: snapshot del HUD solo si está visible, poda de
   enemigos in-place, Fortress no simula con `dt=0`, DPS cacheado 0,25 s,
   `_flushPending` por prefijo y `bh-count` cacheado.
