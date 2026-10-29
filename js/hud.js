@@ -2181,6 +2181,8 @@ export class HUD {
       ultRing: document.querySelector('#btn-ultimate .ult-ring'),
       bh: document.getElementById('btn-blackhole'),
       bhRing: document.querySelector('#btn-blackhole .bh-ring'),
+      // fase 75: nodo cacheado; antes se hacía querySelector por frame.
+      bhCount: document.querySelector('#btn-blackhole .bh-count'),
       music: document.getElementById('btn-music'), // v3 5/7 (BUG-004)
       // T8: tira de estado de batalla (se crea abajo, tras tener el root).
       // dev-7 fase 43: solo ENEMIGOS y DPS (OLAS y RACHA duplicaban datos
@@ -4352,7 +4354,7 @@ export class HUD {
         this._lastBhReady = bhReady;
         this.el.bh.classList.toggle('ready', bhReady);
       }
-      const label = this.el.bh.querySelector('.bh-count');
+      const label = this.el.bhCount;
       if (label) {
         const txt = charge >= 1 ? 'LISTO' : `${Math.round(charge * 100)}%`;
         if (txt !== this._lastBhLabel) {

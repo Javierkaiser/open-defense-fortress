@@ -1573,17 +1573,25 @@ export class Game {
       this.waveManager.checkBossDead();
       collideProjectiles(this.engine, this.fortress.enemies);
       if (this._countProjectiles() > shotsBefore) this.audio.sfx('shot');
-      // Poda de la lista viva (los muertos ya explotaron y soltaron evento)
-      if (this.fortress.enemies.some((e) => e.dead)) {
-        this.fortress.enemies = this.fortress.enemies.filter((e) => !e.dead);
+      // Poda de la lista viva (los muertos ya explotaron y soltaron evento).
+      // Una sola pasada in-place: antes `.some()` + `.filter()` recorrían
+      // la lista dos veces y creaban un array nuevo por frame con bajas.
+      const alive = this.fortress.enemies;
+      let write = 0;
+      for (let i = 0; i < alive.length; i++) {
+        const e = alive[i];
+        if (e && !e.dead) alive[write++] = e;
       }
+      if (write !== alive.length) alive.length = write;
     }
 
     // Fortress: cooldowns, ráfagas, proyectiles y lluvia orbital (solo jugando).
     // En PAUSA el mundo está CONGELADO (timeScale 0): las torres no se
     // actualizan — si lo hicieran, una torre con el cooldown vencido
     // dispararía en cada frame aunque el juego esté pausado.
-    if (playing) this.fortress.update(dt);
+    // dt=0 es hit-stop: no simular torres (una torre con cooldown vencido
+    // disparaba igual durante los 40-90 ms de congelamiento).
+    if (playing && dt > 0) this.fortress.update(dt);
 
     // HUD con datos reales de la economía (§2.6/§2.7/§2.8) + jefe vivo (D11)
     this.stageName ??= 'Normal Stage 1';
@@ -1605,6 +1613,15 @@ export class Game {
       this.hud.setSurvivalWave?.(this.waveManager?.survivalWave ?? 0);
     }
     this._flushHealFloat();
+    // fase 75: el snapshot del HUD solo se calcula si el HUD está visible.
+    // Antes se armaba en MENU/PAUSA/TORRETAS a 60 fps (filter de enemigos,
+    // DPS del arsenal y scan del Black Hole incluidos) y el HUD lo
+    // descartaba al entrar a render().
+    const hudVisible = this.engine.state === 'PLAYING'
+      || this.engine.state === 'CARD_CHOICE';
+    if (!hudVisible) return;
+    let enemiesAlive = 0;
+    for (const e of this.fortress.enemies ?? []) if (e && !e.dead) enemiesAlive += 1;
     this.hud.render({
       stageName: this.stageName,
       progress: this.waveManager?.progress ?? 0,
@@ -1630,7 +1647,7 @@ export class Game {
       // dev-7 fase 43: la tira de estado perdió OLAS y RACHA (duplicaban
       // la barra de progreso del stage y el badge ×N del score), así que
       // ya no mandamos waveIndex/waveTotal/streakMult: nadie los lee.
-      enemiesAlive: (this.fortress.enemies ?? []).filter((e) => !e.dead).length,
+      enemiesAlive,
       dps: this._arsenalDps(),
       // fase 72: las fugas son una estadística; ya no hay presupuesto ni
       // píldor de la regla del 25 %.
@@ -1740,8 +1757,14 @@ export class Game {
    * @returns {number} DPS redondeado
    */
   _arsenalDps() {
+    // El DPS del arsenal cambia solo al mejorar/colocar una torre; no hace
+    // falta recalcularlo 60 veces por segundo. Cache de 0,25 s.
+    const now = this.engine?._t ?? 0;
+    if (this._dpsCache && now - this._dpsCache.at < 0.25) return this._dpsCache.value;
     const torres = (this.fortress.slots ?? []).filter(Boolean);
-    return Math.round(fortressDps(torres));
+    const value = Math.round(fortressDps(torres));
+    this._dpsCache = { at: now, value };
+    return value;
   }
 
   /** Proyectiles vivos (balas/misiles): los enemigos no exponen damage. */
