@@ -90,7 +90,20 @@ test('escala: la Tesla sigue en ×1 y no es un caso especial de la tabla', () =>
   setMeta({});
   const t = new Tower('tesla', 100, 1);
   assert.equal(t.damage, TOWERS.tesla.damage, 'Tesla: daño de tabla, sin dial');
-  assert.equal(t.damage, 5);
+  assert.equal(t.damage, 7);
+});
+
+test('1.7.1: DPS objetivo de Guardian, Missile y Tesla', () => {
+  setMeta({});
+  // Guardian: 5 × 0.75 = 3.75 por disparo / 0.25 = 15.0.
+  const g = new Tower('guardian', 100, 1);
+  assert.equal(g.damage / g.cooldown, 15, 'Guardian 15.0 DPS');
+  // Missile: 170 × 0.75 = 127.5; splash round(63.75) = 64 / 3.2 = 20.0.
+  const m = new Tower('missile', 100, 1);
+  assert.equal(Math.round(m.damage * 0.5) / m.cooldown, 20, 'Missile 20.0 DPS efectivo');
+  // Tesla: 7 / 0.7 = 10.0.
+  const t = new Tower('tesla', 100, 1);
+  assert.equal(t.damage / t.cooldown, 10, 'Tesla 10.0 DPS');
 });
 
 test('escala: la cadencia no se toca', () => {
@@ -181,7 +194,7 @@ test('escala: la Supresión sigue siendo el 45 % del impacto ESCALADO', () => {
   setMeta({});
   const e = dummy();
   const game = { engine: { _t: 0 } };
-  const impacto = new Tower('guardian', 100, 1).damage; // 8 × 0,75 = 6
+  const impacto = new Tower('guardian', 100, 1).damage; // 5 × 0,75 = 3,75
   onMechanicHit('guardian', e, game, { dmg: impacto });
   onMechanicHit('guardian', e, game, { dmg: impacto });
   onMechanicHit('guardian', e, game, { dmg: impacto });

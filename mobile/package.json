@@ -1,6 +1,6 @@
 {
   "name": "open-defense-fortress-mobile",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "private": true,
   "type": "module",
   "description": "Wrapper Android (Capacitor 8) de Open Defense Fortress.",

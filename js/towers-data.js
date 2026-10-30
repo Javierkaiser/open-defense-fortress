@@ -39,7 +39,11 @@ export const TOWERS = {
     name: 'Guardian',
     dmgType: 'ballistic', // fase 32: tipo de daño (js/damagetypes.js)
     kind: 'fan',
-    cooldown: 0.23, damage: 8, spreadDeg: 14, detectHalfWidth: Infinity, // v4 4a: cadencia rápida + tracking GLOBAL (cualquier enemigo izq/der)
+    // 1.7.1: la torre BÁSICA no puede ser la más fuerte. 8/0.23 ×0.75 daba
+    // 26.1 DPS; 5/0.25 ×0.75 da 15.0 exactos (4 disparos/s, un poco menos
+    // cadencia que antes). El resto de la identidad (supresión/crítico) no
+    // cambia.
+    cooldown: 0.25, damage: 5, spreadDeg: 14, detectHalfWidth: Infinity, // v4 4a: tracking GLOBAL (cualquier enemigo izq/der)
     bulletSpeed: 920, bulletColor: '#35C8FF', // v5 5c/5: balas 920 px/s (vuelo a fondo ~0.3-0.4 s; antes 780)
     bodyColor: '#0E1216', accent: '#35C8FF',
     // Identidad: presión sostenida + crítico. El tercer impacto consecutivo
@@ -54,7 +58,10 @@ export const TOWERS = {
     name: 'Missile',
     dmgType: 'blast', // fase 32: tipo de daño
     kind: 'homing',
-    cooldown: 1.2, damage: 35, splashR: 60,
+    // 1.7.1: nuke lento. El splash aplica 50% del daño; con 3.2 s de
+    // cooldown y 170 de daño base, el impacto escala a 127.5 y el splash a
+    // 64 → 20.0 DPS efectivos a un blanco (antes 10.9).
+    cooldown: 3.2, damage: 170, splashR: 60,
     speed: 260, turnRate: 4.5, detectHalfWidth: Infinity, // homing global
     bodyColor: '#141A22', accent: '#FFB36A', trailColor: '#FFB36A',
     // Identidad: cazador de una amenaza. Umbral intrínseco bajo; los perks
@@ -123,16 +130,12 @@ export const TOWERS = {
     // la esquina OPUESTA quedaba fuera — justo el caso que esta torre
     // tiene que resolver) y pasa a ser una BANDA horizontal: sin tope de
     // X y 330 px de alto sobre la fila (`reachY`; ver targetInRange,
-    // rangeBand). Con la cobertura la cadencia sube y el daño por golpe
-    // baja: 5+3,75+2,8+2,1+1,6 = 15,25 por 0,7 s ≈ 22 DPS repartidos en 5
-    // blancos (antes 22+16,5+12,4 = 50,9 por 1,9 s ≈ 27 DPS en 3) y a UN
-    // solo blanco baja (11,6 → 7,1). La CALIBRACIÓN de la fase 66 movió las
-    // dos palancas del daño: `damage` 6 → 5 y `cooldown` 0,6 → 0,7 s. Con
-    // 0,6 el escenario Guardian+Tesla quedaba en 92 % de bajas en el S50 y
-    // la campaña en 93 % (contra el 73 % y el 80 % del cierre de la 65);
-    // con 0,8 el escenario caía a 77 % y perdía el S50. El ALCANCE no se
-    // toca: es la identidad de la torre (anti-enjambre de banda).
-    cooldown: 0.7, damage: 5, falloff: 0.75, jumps: 5,
+    // rangeBand). El ALCANCE no se toca: es la identidad de la torre
+    // (anti-enjambre de banda).
+    // 1.7.1: damage 5 → 7 mantiene la banda y sube el DPS a un blanco de
+    // 7.1 a 10.0 (7 / 0.7). La cadencia y los 5 saltos con falloff 0.75
+    // quedan intactos.
+    cooldown: 0.7, damage: 7, falloff: 0.75, jumps: 5,
     rangeBand: true, reachY: 330,
     // `detectHalfWidth: Infinity`: la banda no tiene tope de X. Sin esto
     // `detectWidth()` caería al respaldo de 60 px (ya no hay `range`) y la

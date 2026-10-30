@@ -177,6 +177,9 @@ no sólo un multiplicador de daño:
 - **DPS**: `DPS_SCALE = 0,75` en torres y drones (incluido el DoT del cráter y
   de los drones); la **Tesla queda exenta** (`DPS_SCALE_BY_UNIT = { tesla: 1 }`).
   Es un −25 % parejo del daño nominal y **el HP de las olas no se compensó**.
+- **Ajuste 1.7.1**: la torre básica baja a **15,0 DPS** (Guardian `5 / 0.25`);
+  el Missile sube a **20,0 DPS efectivo** (`170 / 3.2`, splash 64) y la Tesla a
+  **10,0** (`7 / 0.7`). El resto queda como en 1.7.0.
 - **Perks**: remate, robo de vida con tope del **10 %** del daño efectivo y
   explosión al matar. Los valores por perk son 1–6 %.
 
@@ -235,63 +238,61 @@ S50, `--mode=inteligente`:
 | Escenario | meta | win | HP fin | % bajas | leaks | daño de fugas |
 |---|---:|---:|---:|---:|---:|---:|
 | Antes (1.6.0, 20 semillas) | 44 | 100 % | 93 % | 99 % | — | — |
-| `--meta=pool-focus` | 44 | 100 % | 72 % | 91 % | 55,7 | 7 051 |
-| `--meta=pool-spread` | 26 | 50 % | 20 % | 43 % | 123,3 | 20 350 |
-| `--stage=50` (piso, meta 1) | 1 | 0 % | 0 % | 0 % | 145,3 | 25 500 |
+| `--meta=pool-focus` (1.7.1) | 44 | 70 % | 45 % | 66 % | 87,0 | 13 941 |
+| `--meta=pool-spread` (1.7.1) | 26 | 50 % | 24 % | 49 % | 116,1 | 19 365 |
+| `--stage=50` (piso, meta 1) | 1 | 0 % | 0 % | 0 % | 130,6 | 25 500 |
 
-S50 + Protocolo II (`greedy`, el comando tal cual):
+S50 + Protocolo II (`--protocol=II --meta=pool-focus`):
 
 | Escenario | meta | win | HP fin | % bajas | leaks | daño de fugas |
 |---|---:|---:|---:|---:|---:|---:|
 | Antes (1.6.0) | 44 | 70 % | 48 % | 61 % | — | — |
-| `--protocol=II --meta=pool-focus` | 44 | 80 % | 41 % | 75 % | 77,2 | 15 124 |
-| `--protocol=II` (piso, meta 1) | 1 | 0 % | 0 % | 0 % | 112,7 | 25 500 |
+| `--protocol=II --meta=pool-focus` (1.7.1) | 44 | 80 % | 24 % | 71 % | 85,5 | 19 645 |
+| `--protocol=II` (piso, meta 1) | 1 | 0 % | 0 % | 0 % | 93,8 | 25 500 |
 
 Campaña con `--meta=pool-focus` (`--mode=inteligente`):
 
 | Stage | meta | win | HP fin | % bajas | leaks | daño de fugas |
 |---:|---:|---:|---:|---:|---:|---:|
-| 1 | 1 | 100 % | 100 % | 102 % | 0,0 | 0 |
-| 2 | 2 | 100 % | 100 % | 100 % | 0,1 | 2 |
-| 3 | 4 | 100 % | 91 % | 99 % | 1,4 | 257 |
-| 4 | 5 | 100 % | 97 % | 99 % | 2,6 | 92 |
-| 5 | 7 | 100 % | 100 % | 100 % | 0,0 | 0 |
-| 6 | 9 | 100 % | 93 % | 98 % | 8,0 | 304 |
-| 10 | 14 | 100 % | 92 % | 101 % | 9,1 | 516 |
-| 20 | 23 | 100 % | 88 % | 98 % | 23,6 | 1 385 |
-| 30 | 32 | 100 % | 79 % | 95 % | 34,0 | 3 302 |
-| 50 | 44 | 100 % | 72 % | 91 % | 55,7 | 7 051 |
+| 1 | 1 | 100 % | 100 % | 102 % | 0,8 | 9 |
+| 2 | 2 | 100 % | 94 % | 97 % | 7,4 | 141 |
+| 3 | 4 | 100 % | 91 % | 96 % | 5,3 | 248 |
+| 4 | 5 | 100 % | 89 % | 96 % | 8,1 | 364 |
+| 5 | 7 | 100 % | 99 % | 100 % | 0,8 | 22 |
+| 6 | 9 | 100 % | 86 % | 96 % | 20,0 | 625 |
+| 10 | 14 | 100 % | 85 % | 99 % | 20,7 | 930 |
+| 20 | 23 | 90 % | 65 % | 86 % | 62,7 | 3 917 |
+| 30 | 32 | 80 % | 61 % | 77 % | 61,4 | 6 150 |
+| 50 | 44 | 70 % | 45 % | 66 % | 87,0 | 13 941 |
 
 Campaña con `--meta=pool-spread` (`--mode=inteligente`):
 
 | Stage | meta | win | HP fin | % bajas | leaks | daño de fugas |
 |---:|---:|---:|---:|---:|---:|---:|
-| 1 | 1 | 100 % | 100 % | 102 % | 0,0 | 0 |
-| 2 | 1 | 100 % | 98 % | 99 % | 2,8 | 43 |
-| 3 | 2 | 100 % | 85 % | 98 % | 2,8 | 432 |
-| 4 | 3 | 100 % | 90 % | 97 % | 6,0 | 356 |
-| 5 | 3 | 100 % | 99 % | 100 % | 1,0 | 41 |
-| 6 | 4 | 90 % | 62 % | 84 % | 41,5 | 1 672 |
-| 10 | 7 | 90 % | 66 % | 88 % | 37,1 | 2 113 |
-| 20 | 13 | 70 % | 49 % | 72 % | 75,9 | 5 643 |
-| 30 | 18 | 30 % | 25 % | 36 % | 99,5 | 11 942 |
-| 50 | 26 | 50 % | 20 % | 43 % | 123,3 | 20 350 |
+| 1 | 1 | 100 % | 100 % | 102 % | 0,8 | 9 |
+| 2 | 1 | 100 % | 89 % | 95 % | 12,5 | 276 |
+| 3 | 2 | 100 % | 83 % | 94 % | 8,4 | 495 |
+| 4 | 3 | 100 % | 86 % | 93 % | 13,1 | 471 |
+| 5 | 3 | 100 % | 91 % | 95 % | 10,0 | 335 |
+| 6 | 4 | 80 % | 61 % | 78 % | 48,5 | 1 726 |
+| 10 | 7 | 70 % | 40 % | 63 % | 77,3 | 3 799 |
+| 20 | 13 | 30 % | 12 % | 32 % | 147,7 | 9 786 |
+| 30 | 18 | 20 % | 13 % | 27 % | 117,9 | 13 891 |
+| 50 | 26 | 50 % | 24 % | 49 % | 116,1 | 19 365 |
 
 Lectura:
 
 - **El pool no cambia el nivel por unidad**: `pool-focus` reproduce los 44 de la
   trayectoria histórica. Lo que cambia es el alcance: el jugador ya no puede
   subir las 11 a la vez.
-- **La caída de HP fin (93 → 72 %) es el dial de DPS (−25 %)**, no el pool: con
-  `--metalv=44` (las 11 al 44, la política vieja) el S50 queda en 100 % / 72 % /
-  91 %, idéntico a `pool-focus`. El antes sale de la tabla de 1.6.0; el después
-  está medido con este árbol, donde además del dial estaban entrando los cambios
-  de cartas del mismo rework.
+- **La caída de HP fin (93 → 45 %) es el ajuste de DPS de 1.7.1**, no el pool:
+  Guardian 15 y el resto del arsenal ya venían del dial −25 %. El antes sale de
+  la tabla de 1.6.0; el después está medido con este árbol.
 - **El win% no es monótono con el poder**: el director genera la ola con la
   potencia del jugador (`powerMul`), así que un meta más bajo pelea una ola más
-  chica. `pool-spread` gana 30 % en S30 (Nvl.18) y 50 % en S50 (Nvl.26), y
-  `pool-focus` gana 100 % en las dos. Comparar niveles distintos exige mirar HP
-  fin y bajas, no sólo el win.
+  chica. `pool-spread` gana 20 % en S30 (Nvl.18) y 50 % en S50 (Nvl.26);
+  `pool-focus` gana 80 % y 70 %. Comparar niveles distintos exige mirar HP fin
+  y bajas, no sólo el win.
 - **El % de bajas puede pasar de 100**: el denominador es la cola del director;
   los escoltas del jefe no están en esa cola pero sí cuentan como bajas de ola.
 
@@ -340,13 +341,14 @@ Lectura:
 6. La suite tiene guardas de regresión de HP por etapa, apertura, jefes,
    variantes y supervivencia.
 
-## Estado actual (v1.7.0)
+## Estado actual (v1.7.1)
 
-- Campaña: 50 etapas, win 100 % con la trayectoria real de meta y cartas.
-- S50 sin heat: 100 % / 72 % de HP / 91 % de bajas (10 semillas, `pool-focus`;
-  antes de 1.7.0: 93 % / 99 %).
+- Campaña: S1–S10 100 %, S20 90 %, S30 80 %, S50 70 % con la trayectoria real
+  de meta y cartas (`pool-focus`, 10 semillas).
+- S50 sin heat: 70 % / 45 % de HP / 66 % de bajas (10 semillas, `pool-focus`;
+  antes de 1.7.1: 100 % / 72 % / 91 %).
 - Heat: la escalera 5→35 se re-mide con el pool nuevo; Protocolo II queda en
-  80 % de win en S50 (10 semillas).
+  80 % de win / 24 % HP / 71 % bajas en S50 (10 semillas).
 - ∞: la pared empieza alrededor de 60–70; el win cae con la profundidad.
 - Supervivencia: ~84 oleadas planas en el simulador; el número absoluto no es
   confiable, la tendencia sí.
@@ -368,11 +370,13 @@ Lectura:
   el pool más corto compensa la pérdida de la carta de XP.
 - Skins de torres (1.6.0): cambio 100 % visual (paleta, motivos, pad y FX).
   No toca daño, cadencia, hitbox ni balance; la simulación no se re-mide.
-- Meta v2 (1.7.0): pool compartido de 300/600, desbloqueos con
-  oro y `DPS_SCALE = 0,75` (Tesla exenta). Medido con `--meta=pool-focus`
-  (Nvl.44 en S50, 10 semillas): S50 sin heat **100 % win / 72 % HP / 91 %
-  bajas** (antes 93 % / 99 %) y Protocolo II **80 % / 41 % / 75 %** (antes
-  70 % / 48 % / 61 %). El piso (meta 1) ya no gana el S50: 0 % / 0 % / 0 %.
-  Detalle y aritmética en §"Meta v2 — pool compartido".
+- Meta v2 (1.7.0): pool compartido de 300/600, desbloqueos con oro y
+  `DPS_SCALE = 0,75` (Tesla exenta). Detalle y aritmética en §"Meta v2 —
+  pool compartido".
+- Ajuste de arsenal (1.7.1): Guardian **15,0 DPS** (5/0.25), Missile **20,0
+  efectivo** (170/3.2, splash 64) y Tesla **10,0** (7/0.7). Medido con
+  `--meta=pool-focus` (Nvl.44 en S50, 10 semillas): S50 sin heat **70 % win /
+  45 % HP / 66 % bajas**; Protocolo II **80 % / 24 % / 71 %**. El piso (meta 1)
+  sigue en 0 % / 0 % / 0 %. No se compensó el HP de las oleadas.
 - El balance sigue siendo un trabajo abierto: el simulador es una herramienta
   de comparación, no un oráculo.

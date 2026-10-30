@@ -36,12 +36,14 @@ function dpsOf(type) {
   switch (d.kind) {
     case 'fan': // guardian
       return { single: d.damage / d.cooldown, multi: null, nota: '1 bala' };
-    case 'homing': // missile
-      return {
-        single: (d.damage * 0.5) / d.cooldown,
-        multi: null,
-        nota: 'splash al 50 % (sin área)',
-      };
+    case 'homing': { // missile
+      // El combate escala el daño y RECIÉN DESPUÉS redondea el splash:
+      // Math.round(damage × 0.75 × 0.5). Modelarlo al revés daba 19.9 en
+      // vez de los 20.0 reales.
+      const base = (d.damage * 0.5) / d.cooldown;
+      const final = Math.round(d.damage * dpsScaleFor('missile') * 0.5) / d.cooldown;
+      return { single: base, final, multi: null, nota: 'splash al 50 % (sin área)' };
+    }
     case 'beam': {
       const rate = d.beamRampPerSec ?? 0.6;
       const cap = d.beamRampMax ?? 3;
@@ -135,8 +137,8 @@ function dpsOfDrone(type) {
 }
 
 /** Formatea una fila de la tabla. */
-function row(name, kind, base, scale, detalle) {
-  const despues = base * scale;
+function row(name, kind, base, scale, detalle, final = null) {
+  const despues = final ?? base * scale;
   const delta = base > 0 ? `${((despues / base - 1) * 100).toFixed(0)} %` : '—';
   return `| ${name} | ${kind} | ${base.toFixed(1)} | ${despues.toFixed(1)} | ${delta} | ${detalle} |`;
 }
@@ -144,8 +146,8 @@ function row(name, kind, base, scale, detalle) {
 const TYPES = Object.keys(TOWERS);
 const DRONE_TYPES = Object.keys(DRONES);
 
-console.log('## Torres\n');
-console.log('| Torre | kind | DPS antes | DPS después | Δ | detalle |');
+console.log('## Torres (DPS actual = columna "con dial")\n');
+console.log('| Torre | kind | DPS sin dial | DPS con dial | Δ | detalle |');
 console.log('|---|---|---|---|---|---|');
 let totalTorresAntes = 0;
 let totalTorresDespues = 0;
@@ -154,8 +156,8 @@ for (const t of TYPES) {
   if (!r) continue;
   const scale = dpsScaleFor(t);
   totalTorresAntes += r.single;
-  totalTorresDespues += r.single * scale;
-  console.log(row(TOWERS[t].name, TOWERS[t].kind, r.single, scale, r.nota));
+  totalTorresDespues += r.final ?? r.single * scale;
+  console.log(row(TOWERS[t].name, TOWERS[t].kind, r.single, scale, r.nota, r.final));
   if (r.multi != null) {
     console.log(`| ↳ grupo | ${TOWERS[t].kind} | ${r.multi.toFixed(1)} | `
       + `${(r.multi * scale).toFixed(1)} | — | mismo detalle, N blancos |`);
@@ -164,8 +166,8 @@ for (const t of TYPES) {
 console.log(`\nSuma de las ${TYPES.length} torres (1 blanco): **${totalTorresAntes.toFixed(1)} → `
   + `${totalTorresDespues.toFixed(1)} DPS**`);
 
-console.log('\n## Drones\n');
-console.log('| Dron | kind | DPS antes | DPS después | Δ | detalle |');
+console.log('\n## Drones (DPS actual = columna "con dial")\n');
+console.log('| Dron | kind | DPS sin dial | DPS con dial | Δ | detalle |');
 console.log('|---|---|---|---|---|---|');
 let totalDronesAntes = 0;
 let totalDronesDespues = 0;

@@ -1896,7 +1896,7 @@ test('fase 66: la tabla de la Tesla es la del rework (banda, cadencia, saltos)',
   // palancas del daño bajaron — 0,6 s dejaba el escenario Guardian+Tesla
   // en 92 % de bajas en el S50 y 0,8 s lo hacía perder; 0,7 s es el medio.
   assert.equal(d.cooldown, 0.7, 'cadencia alta de anti-enjambre (antes 1,9)');
-  assert.equal(d.damage, 5, 'daño por golpe bajo (antes 22)');
+  assert.equal(d.damage, 7, 'daño por golpe: 7 / 0.7 = 10 DPS a un blanco');
   assert.equal(d.jumps, 5, '5 blancos por descarga (antes 3)');
   assert.equal(d.falloff, 0.75, 'el falloff por salto no se toca');
   assert.equal(d.rangeBand, true);

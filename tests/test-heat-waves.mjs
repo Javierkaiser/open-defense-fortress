@@ -284,12 +284,13 @@ test('fase 69 · Jefes: HP × bossHpMul y 2 élites de escolta por rango', () =>
 // ============================================================
 
 test('fase 69 · Apertura S50 con Vigor 3: ≥2 olas, crystal y piso de XP', () => {
-  // `powerMul` del ∞ (5,95) es el escenario realista del endgame: con la
-  // escala del Protocolo la apertura tiene que seguir eligiendo tipos
-  // matables, o el jugador se queda en Lv1.
+  // `powerMul` del ∞ (Nvl.100 → 1 + 18 % × 99 ≈ 18,82) es el escenario
+  // realista del endgame: con la escala del Protocolo la apertura tiene que
+  // seguir eligiendo tipos matables, o el jugador se queda en Lv1.
   const rm = heatMods({ vigor: 3 });
+  const powerMul = 1 + 0.18 * 99;
   for (const seed of SEEDS_10) {
-    const opening = openingWaves(generateStageWaves(50, seed, { runMods: rm, powerMul: 5.95 }));
+    const opening = openingWaves(generateStageWaves(50, seed, { runMods: rm, powerMul }));
     assert.ok(opening.length >= 2, `seed ${seed}: ${opening.length} olas de apertura`);
     assert.ok(opening.some((w) => waveGroups(w).some((g) => g.type === 'crystal')),
       `seed ${seed}: el crystal garantizado sigue entrando`);

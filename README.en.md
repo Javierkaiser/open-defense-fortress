@@ -18,7 +18,7 @@ and the upgrade cards offered on level-up. Every run is a roguelike.
 - Decision-driven progression: a new account starts with **Guardian only**; the other 10 units are unlocked with gold. Fragments are a **shared pool**, so leveling one tower leaves less for the rest.
 - No ads, no purchases, no accounts, no telemetry.
 - Canvas 2D + DOM/CSS + ES modules; no build step, no server, no network calls.
-- 1021 Node tests.
+- 1022 Node tests.
 
 ## Run it
 
@@ -31,7 +31,7 @@ install needed, and it keeps working offline after the first load.
 node scripts/serve.mjs 8080
 # open http://localhost:8080
 
-# tests (1021) + static checks
+# tests (1022) + static checks
 node --test "tests/test-*.mjs"
 node .github/scripts/ci-checks.mjs
 ```

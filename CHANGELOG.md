@@ -4,6 +4,33 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.7.1] — 2026-10-30
+
+### Cambiado
+
+- **Guardian**: la torre básica deja de ser la más fuerte. `damage 8 → 5` y
+  `cooldown 0.23 → 0.25`; con el dial ×0,75 queda en **15,0 DPS** (antes 26,1).
+- **Missile**: nuke lento. `damage 35 → 170` y `cooldown 1.2 → 3.2`; el splash
+  del 50 % redondea a 64 → **20,0 DPS efectivos** (antes 10,9). Se sumaron los
+  2 s de cooldown pedidos.
+- **Tesla**: `damage 5 → 7` manteniendo `cooldown 0.7` → **10,0 DPS** (antes
+  7,1). Sigue exenta del dial y conserva sus 5 saltos.
+- El HUD de DPS del Missile ahora usa el splash real (`Math.round(damage × 0,5)`)
+  y muestra 20,0 en vez de 39,8.
+- Tests de apertura actualizados al meta real (+18 %/nivel, no +5 %) y al nivel
+  que el jugador alcanza dentro de la apertura.
+
+### Balance (10 semillas, `--meta=pool-focus`)
+
+- S50 sin heat: **70 % win / 45 % HP / 66 % bajas** (antes 100 / 72 / 91).
+- Protocolo II S50: **80 % win / 24 % HP / 71 % bajas**.
+- No se compensó el HP de las oleadas: la caída de HP es el efecto buscado.
+
+### Tests / versión
+
+- **1022 tests, 0 skip** (35 archivos).
+- Versión **1.7.1** / Android `versionCode 14`.
+
 ## [1.7.0] — 2026-10-30
 
 ### Agregado

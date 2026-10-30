@@ -1207,8 +1207,10 @@ test('T8: sin datos el HUD muestra "—" (no NaN ni undefined)', () => {
 
 test('T8: el DPS se calcula con el daño y la cadencia REALES de la torre', () => {
   const missile = { damage: 35, cooldown: 1.2, data: { kind: 'homing' } };
-  // Torre de disparo: 35 de daño cada 1.2 s.
-  assert.equal(Math.round(towerDps(missile) * 10) / 10, 29.2);
+  // El Misil aplica 50% del daño en el splash: round(17.5)/1.2 = 15.0, no 29.2.
+  assert.equal(Math.round(towerDps(missile) * 10) / 10, 15);
+  // La tabla 1.7.1: 127.5 de impacto → splash 64 / 3.2 = 20.0.
+  assert.equal(towerDps({ damage: 127.5, cooldown: 3.2, data: { kind: 'homing' } }), 20);
   // Beam: su daño YA es por segundo (dispara siempre).
   assert.equal(towerDps({ damage: 40, cooldown: 0, data: { kind: 'beam' } }), 40);
   // Láser: por segundo, pero solo 2.5 s de cada 3.2.
@@ -1218,7 +1220,7 @@ test('T8: el DPS se calcula con el daño y la cadencia REALES de la torre', () =
   // Suma de la partida.
   assert.equal(Math.round(fortressDps([
     missile, { damage: 40, cooldown: 0, data: { kind: 'beam' } },
-  ]) * 10) / 10, 69.2);
+  ]) * 10) / 10, 55);
   // Una torre sin daño no aporta DPS.
   assert.equal(towerDps({ damage: 0, cooldown: 1, data: { kind: 'homing' } }), 0);
 });
@@ -2721,9 +2723,9 @@ test('fase 61: el DPS del read-out suma las 5 torres del tope', () => {
 
   const vivos = slots.filter(Boolean);
   assert.equal(vivos.length, 5, 'el arsenal lleno son 5 torres (no 9)');
-  assert.equal(Math.round(fortressDps(vivos) * 10) / 10, 139.3,
+  assert.equal(Math.round(fortressDps(vivos) * 10) / 10, 125.2,
     'el DPS del arsenal es la suma de sus 5 torres');
-  assert.equal(formatBattleStatus({ dps: Math.round(fortressDps(vivos)) }).dps, '139',
+  assert.equal(formatBattleStatus({ dps: Math.round(fortressDps(vivos)) }).dps, '125',
     'el read-out del HUD redondea el DPS del arsenal acotado');
 });
 

@@ -196,9 +196,10 @@ test('fase 67: la apertura del infinito sigue siendo jugable (≥2 olas y crysta
   // de su ventana de tiro; test-stages.mjs fija esa misma regla para la
   // campaña (con el Lv1 DESNUDO ni el S45/S50 lo tienen, y el doc prohíbe
   // meterlo si no se puede matar: su XP se perdería y robaría DPS). En el
-  // infinito el jugador tiene el meta topado (Nvl.100 → 1 + 5 % × 99 ≈ 5,95),
-  // así que el modelo de la apertura se mide con esa potencia real.
-  const powerMul = 5.95;
+  // infinito el jugador tiene el meta topado (Nvl.100 → 1 + 18 % × 99 ≈ 18,82;
+  // los hitos suman un 8 % extra), así que el modelo de la apertura se mide
+  // con esa potencia real. El 5,95 viejo era el modelo pre-fase 59.3.
+  const powerMul = 1 + 0.18 * 99;
   for (const id of [60, 80]) {
     for (let s = 0; s < 10; s++) {
       const open = generateStageWaves(id, seedOf(id, s), { powerMul })

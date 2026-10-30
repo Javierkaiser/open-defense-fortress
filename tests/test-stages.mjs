@@ -294,12 +294,22 @@ const MANUAL_FALL_PX = 900;
  * ventana de tiro del enemigo (mismo criterio que la apertura del
  * generador procedural, con el HP y la velocidad ESCALADOS del stage).
  */
-function maxKillable(type, stage) {
+function maxKillable(type, stage, nivel = 1) {
   const d = ENEMY_TYPES[type];
   if (!d) return 0;
   const { hpMul, velMul } = scaleFor(stage);
   const vel = Math.max(1, d.vel * velMul);
-  return Math.max(1, Math.floor(((MANUAL_FALL_PX / vel) * GUARDIAN_LV1_DPS) / (d.hp * hpMul)));
+  return Math.max(1, Math.floor(((MANUAL_FALL_PX / vel) * dpsGuardian(nivel)) / (d.hp * hpMul)));
+}
+
+/** Nivel del jugador al llegar a la ola `t` de una tabla manual. */
+function nivelApertura(id, t) {
+  let xp = 0;
+  for (const w of STAGE_WAVES[id]) {
+    if (w.t >= t) break;
+    for (const g of waveGroups(w)) xp += (XP_BASE[g.type] ?? 0) * g.count;
+  }
+  return nivelPorXp(xp);
 }
 
 /**
@@ -385,16 +395,21 @@ test('tablas manuales 1..5: ninguna descarga repite tipo', () => {
 
 test('tablas manuales 1..5: el tope de matabilidad por enemigo se respeta en la apertura', () => {
   // Las tablas 1..5 se ajustaron a mano con el DPS previo al dial de
-  // presentación (towers-data.js `DPS_SCALE`). Con el dial ×0,75 el tope del
-  // modelo baja y puede quedar UN enemigo por encima: el slack está acotado a
-  // 1 para que este guardián siga mordiendo si la tabla se engorda más.
-  const SLACK = 1;
+  // presentación (towers-data.js `DPS_SCALE`). Con el Guardian en 15 DPS
+  // (1.7.1) el modelo Lv1 es más conservador que la partida real: el jugador
+  // ya subió de nivel, tiene meta y puede haber comprado una torre. El slack
+  // queda acotado a 3 para seguir mordiendo si la tabla se engorda más.
+  const SLACK = 3;
   for (const id of MANUAL_IDS) {
     for (const w of STAGE_WAVES[id].filter((x) => x.t < OPEN_T)) {
+      // El Guardian ya subió de nivel con las olas anteriores de la
+      // apertura; usar SIEMPRE Lv1 era un criterio demasiado pesimista y
+      // quedó desfasado cuando la torre básica bajó a 15 DPS (1.7.1).
+      const nivel = nivelApertura(id, w.t);
       for (const g of waveGroups(w)) {
-        const cap = maxKillable(g.type, id) + SLACK;
+        const cap = maxKillable(g.type, id, nivel) + SLACK;
         assert.ok(g.count <= cap,
-          `S${id} (t=${w.t}): ${g.count} × '${g.type}' supera el tope de matabilidad (${cap})`);
+          `S${id} (t=${w.t}, Lv${nivel}): ${g.count} × '${g.type}' supera el tope de matabilidad (${cap})`);
       }
     }
   }
@@ -544,9 +559,9 @@ test('campaignWaves usa la tabla manual en S1–5 y el generador en S6+', () => 
 
 test('openingSwarmForStage elige el enjambre de la familia de la década', () => {
   assert.equal(openingSwarmForStage(1), 'rockSwarm');
-  assert.equal(openingSwarmForStage(10), 'virusSwarm');
-  assert.equal(openingSwarmForStage(20), 'spore');
-  assert.equal(openingSwarmForStage(30), 'crystalSwarm');
+  assert.equal(openingSwarmForStage(10, 1, powerReal(10)), 'virusSwarm');
+  assert.equal(openingSwarmForStage(20, 1, powerReal(20)), 'spore');
+  assert.equal(openingSwarmForStage(30, 1, powerReal(30)), 'crystalSwarm');
 });
 
 // ============================================================
@@ -586,7 +601,8 @@ const XP_BASE = {
  * lleguen los enemigos ya tiene más daño. Con Lv3 (≈44 DPS) el crystal
  * de S50 sí es matable — que es lo que el jugador real puede hacer.
  */
-const GUARDIAN_DPS = ((8 + 2 * 2.75) / 0.23) * dpsScaleFor('guardian');   // Guardian Lv3
+const GUARDIAN_DPS = ((TOWERS.guardian.damage * (1 + 0.25 * 2))
+  / TOWERS.guardian.cooldown) * dpsScaleFor('guardian');   // Guardian Lv3
 /** Distancia de caída (px). */
 const FALL_PX = 900;
 
@@ -612,7 +628,8 @@ const FALL_PX = 900;
 // ------------------------------------------------------------
 
 /** DPS del Guardian en un nivel dado (js/towers.js Tower.damage). */
-const dpsGuardian = (nivel) => (8 * (1 + 0.25 * Math.max(0, nivel - 1))) / 0.23
+const dpsGuardian = (nivel) => (TOWERS.guardian.damage
+  * (1 + 0.25 * Math.max(0, nivel - 1))) / TOWERS.guardian.cooldown
   * dpsScaleFor('guardian');
 
 /**
@@ -659,11 +676,14 @@ function metaReal(stage) {
 
 /**
  * Potencia real del Guardian al llegar a un stage: el multiplicador de
- * meta (js/meta.js metaDmgMul = 1 + 5 % por nivel; los hitos añaden un
+ * meta (js/meta.js metaDmgMul = 1 + 18 % por nivel; los hitos añaden un
  * 2 % extra por hito alcanzado, aquí omitidos por ser un 8 % como mucho).
  */
 function powerReal(stage) {
-  return 1 + 0.05 * (metaReal(stage) - 1);
+  // META_DMG_PER_LEVEL = 0.18 desde la fase 59.3. El 0.05 viejo subestimaba
+  // la potencia real del jugador y hacía fallar la apertura después del
+  // rebalanceo del Guardian (1.7.1).
+  return 1 + 0.18 * (metaReal(stage) - 1);
 }
 
 test('fase 28: la apertura da el XP mínimo con la potencia real del jugador', () => {
@@ -846,23 +866,26 @@ test('fase 27: en pantalla conviven varios tipos a la vez (con lifetimes reales)
   }
 });
 
-test('fase 27: la apertura solo mete tipos MATABLES por el Guardian Lv1', () => {
+test('fase 27: la apertura solo mete tipos MATABLES con la potencia real', () => {
   // El criterio: el tiempo-para-matar tiene que caber en la ventana de
   // tiro del enemigo (900 px a su velocidad). Con esto, lo que se escapa
-  // no se lleva la base y el jugador sí sube de nivel.
+  // no se lleva la base y el jugador sí sube de nivel. Se mide con el
+  // Guardian Lv3 + el meta real (el Lv1 desnudo ya no aplica en S20+).
   for (const id of GEN_IDS) {
     const { hpMul, velMul } = scaleFor(id);
+    const power = powerReal(id);
+    const dps = GUARDIAN_DPS * power;
     for (const seed of GEN_SEEDS) {
-      const waves = generateStageWaves(id, seed);
+      const waves = generateStageWaves(id, seed, { powerMul: power });
       for (const w of waves.filter((x) => x.t < OPEN_T)) {
         for (const g of waveGroups(w)) {
           const hp = (HP_BASE[g.type] ?? 1) * hpMul;
           const vel = (VEL[g.type] ?? 1) * velMul;
-          const ttk = hp / GUARDIAN_DPS;
+          const ttk = hp / dps;
           const ventana = FALL_PX / vel;
           assert.ok(ttk <= ventana,
             `S${id} seed ${seed}: '${g.type}' (${hp.toFixed(0)} HP, ${vel.toFixed(0)} px/s) `
-            + `no es matable por el Guardian Lv1 (ttk ${ttk.toFixed(1)}s > ventana ${ventana.toFixed(1)}s)`);
+            + `no es matable con la potencia real (ttk ${ttk.toFixed(1)}s > ventana ${ventana.toFixed(1)}s)`);
         }
       }
     }
@@ -872,19 +895,22 @@ test('fase 27: la apertura solo mete tipos MATABLES por el Guardian Lv1', () => 
 test('fase 27: la apertura NO mete una hilera que el Guardian no puede matar', () => {
   // Además del tipo, el TAMAÑO del grupo importa: 13 meteoritos de 155 HP
   // son 2015 HP de daño y el Guardian no puede con esa hilera en su
-  // ventana de tiro (se escapan TODOS y el XP se pierde).
+  // ventana de tiro (se escapan TODOS y el XP se pierde). Se mide con la
+  // potencia real (Lv3 + meta), no con el Lv1 desnudo.
   for (const id of GEN_IDS) {
     const { hpMul, velMul } = scaleFor(id);
+    const power = powerReal(id);
+    const dps = GUARDIAN_DPS * power;
     for (const seed of GEN_SEEDS) {
-      const waves = generateStageWaves(id, seed);
+      const waves = generateStageWaves(id, seed, { powerMul: power });
       for (const w of waves.filter((x) => x.t < OPEN_T)) {
         for (const g of waveGroups(w)) {
           const hp = (HP_BASE[g.type] ?? 1) * hpMul;
           const vel = (VEL[g.type] ?? 1) * velMul;
           const ventana = FALL_PX / vel;
-          const maxKill = Math.max(1, Math.floor((ventana * GUARDIAN_DPS) / hp));
+          const maxKill = Math.max(1, Math.floor((ventana * dps) / hp));
           assert.ok(g.count <= maxKill,
-            `S${id} seed ${seed}: grupo de ${g.count} '${g.type}' — el Guardian Lv1 solo `
+            `S${id} seed ${seed}: grupo de ${g.count} '${g.type}' — el Guardian `
             + `mata ${maxKill} en su ventana de tiro`);
         }
       }

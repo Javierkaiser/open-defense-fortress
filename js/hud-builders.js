@@ -1487,6 +1487,7 @@ export function buildBossBarHtml() {
  * DPS estimado de UNA torre (T8): lee el daño REAL (`Tower.damage` ya
  * trae nivel × cartas × meta × perks) y su cadencia (`Tower.cooldown`).
  *  - torres de disparo: daño / cadencia;
+ *  - missile: el combate aplica 50 % del daño en el splash → daño × 0.5 / cadencia;
  *  - beam: su daño YA es por segundo (dispara siempre) → daño;
  *  - láser: daño por segundo pero solo durante su ráfaga → se promedia.
  *
@@ -1499,6 +1500,16 @@ export function towerDps(tower) {
   const kind = tower?.data?.kind ?? tower?.kind ?? '';
   const cd = Number(tower?.cooldown);
   if (kind === 'beam') return dmg;                    // daño por segundo continuo
+  // El Misil no pega el 100 % de `damage`: `HomingMissile._explode` aplica
+  // Math.round(damage × 0.5) a todo el radio. Mostrar damage/cooldown mentía
+  // (39.8 en vez de 20.0 con la tabla 1.7.1).
+  if (kind === 'homing') {
+    // Mismo redondeo que `HomingMissile._explode` (Math.round(damage × 0.5)):
+    // así la tabla 1.7.1 muestra exactamente 20.0 y no 19.9.
+    const splash = Math.round(dmg * 0.5);
+    if (Number.isFinite(cd) && cd > 0) return splash / cd;
+    return splash;
+  }
   if (kind === 'laser') {
     const dur = Number(tower?.data?.laserDuration ?? 0);
     if (dur > 0 && Number.isFinite(cd) && cd > 0) return dmg * (dur / cd);
