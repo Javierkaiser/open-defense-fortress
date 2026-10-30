@@ -251,7 +251,9 @@ export function skinForUnit(themeId, skinId, type) {
     return out;
   }
   const kind = TOWERS[type]?.kind ?? DRONES[type]?.kind ?? type;
-  const accent = base.accents?.[type] ?? base.palette.accent;
+  // La familia de color de la unidad NUNCA se pierde: una skin puede
+  // declarar `accents` propios, pero si no, hereda la firma base.
+  const accent = base.accents?.[type] ?? BASE_ACCENTS[type] ?? base.palette.accent;
   const out = {
     id: base.id,
     name: base.name,

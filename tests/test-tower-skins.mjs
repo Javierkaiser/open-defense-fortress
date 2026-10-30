@@ -98,6 +98,8 @@ test('skins: el acento conserva la familia de cada torre', () => {
   for (const type of TOWER_TYPES) {
     const base = BASE_ACCENTS[type];
     assert.ok(base, `${type}: falta BASE_ACCENTS`);
+    assert.equal(base, projectileColor(type),
+      `${type}: BASE_ACCENTS debe coincidir con la firma base`);
     const cyber = skinForUnit('cyberpunk', 'auto', type);
     assert.equal(cyber.palette.accent, cyber.accents?.[type] ?? cyber.palette.accent);
     assert.equal(typeof cyber.palette.accent, 'string');
