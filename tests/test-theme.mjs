@@ -72,6 +72,41 @@ test('fase 54: applyThemeToGame empuja el tinte al engine', () => {
   assert.equal(typeof llamadas[0].alpha, 'number');
 });
 
+test('fase 76.5: applyThemeToGame avisa el tema de UI y la skin al engine', () => {
+  const calls = [];
+  const engine = {
+    setSceneTint() {},
+    setUiTheme: (theme, skin) => calls.push({ theme, skin }),
+  };
+  applyThemeToGame('neon', engine, 'cyberpunk');
+  assert.deepEqual(calls, [{ theme: 'neon', skin: 'cyberpunk' }]);
+});
+
+test('fase 76.5: setUiTheme cambia sólo el tema de UI y emite theme:changed', async () => {
+  const { Engine } = await import('../js/engine.js');
+  const eng = Object.create(Engine.prototype);
+  eng.uiTheme = 'volcanico';
+  eng.skinId = 'auto';
+  const events = [];
+  eng.emit = (name, payload) => events.push({ name, payload });
+  eng.setUiTheme('cyberpunk', 'neon');
+  assert.equal(eng.uiTheme, 'cyberpunk');
+  assert.equal(eng.skinId, 'neon');
+  assert.deepEqual(events, [{ name: 'theme:changed', payload: { ui: 'cyberpunk', skin: 'neon' } }]);
+});
+
+test('fase 76.5: el tema del stage no pisa el tema de UI ni la skin', async () => {
+  const { Engine } = await import('../js/engine.js');
+  const eng = Object.create(Engine.prototype);
+  eng.uiTheme = 'aqua';
+  eng.skinId = 'neon';
+  eng.theme = {};
+  eng.setTheme('night');
+  assert.equal(eng.uiTheme, 'aqua');
+  assert.equal(eng.skinId, 'neon');
+  assert.ok(eng.theme.skyTop, 'el tema del stage sí cambia');
+});
+
 test('fase 54: el engine guarda el tinte solo si el alpha es > 0', async () => {
   const { Engine } = await import('../js/engine.js');
   const eng = Object.create(Engine.prototype);

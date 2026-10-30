@@ -95,7 +95,8 @@ openspec/specs/         specs de comportamiento
 | `quality.js` | Calidad Alta/Baja: `shadowBlur`, partículas, blur DOM. |
 | `damagetypes.js` | 5 tipos de daño × 4 familias, matriz, badges y bestiario. |
 | `effects.js` | Partículas, floats, explosiones, spritesheet del boss y fireworks. |
-| `tower-art.js` | Datos del rig de cada torre + renderizador; fallback de `Path2D`. |
+| `tower-art.js` | Datos del rig de cada torre + renderizador; compilador de skins; fallback de `Path2D`. |
+| `tower-skins.js` | Catálogo de skins por tema, resolución con fallback, persistencia y cache. Datos puros. |
 | `audio.js` | WebAudio: síntesis, samples, música techno, unlock/resume y throttles. |
 | `native.js` | Contrato puro con el contenedor Android: `backAction`, `NATIVE_EVENTS`, `isNativePlatform`. No importa Capacitor. |
 | `version.js` | Versión visible única, sincronizada con package.json y Android por test. |
@@ -107,7 +108,10 @@ openspec/specs/         specs de comportamiento
   `game`/`engine` por parámetro; no importan `hud.js`, `cards.js` ni `main.js`.
 - La comunicación hacia afuera es por `engine.emit(...)`.
 - `perks.js` es la única implementación de la lógica de perks.
-- `tower-art.js` no sabe de daño, slots ni juego: solo dibuja.
+- `tower-art.js` no sabe de daño, slots ni juego: solo dibuja y compila
+  skins; sigue siendo hoja sin imports.
+- `tower-skins.js` sólo importa datos (`towers-data.js`) y storage; no
+  importa `engine`, `hud` ni `main`.
 
 ## 5. FSM
 
@@ -287,8 +291,14 @@ inmune: todo se puede matar, solo cambia el costo.
 - `tower-art.js` define el rig de cada torre (formas, roles de color, anclas) y
   lo dibuja; no mezcla daño con arte.
 - 5 temas de interfaz (volcánico, cyberpunk, neón, aqua, cielo) y 5 temas de
-  escenario por década.
-- El arte de torres se revisa con `tools/tower-sheet.html`.
+  escenario por década. El tema de UI y el del escenario son independientes.
+- **Skins de torres** (`tower-skins.js` + `compileSkin`): cada tema cambia
+  paleta, motivos de forma (antenas, aros, aletas, alas), pad y FX de las 8
+  torres y los 3 drones. `volcanico` es la base y no altera el render.
+  `skinId: 'auto'` sigue al tema; un id explícito queda para skins futuras.
+  La V1 es 100 % vectorial (0 assets) y en calidad Baja omite los motivos.
+- El arte de torres y las skins se revisan con `tools/tower-sheet.html`
+  (`?theme=neon&skin=auto&q=low`).
 
 ## 13. Audio
 
@@ -311,7 +321,7 @@ inmune: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 974 tests (974 pass, 0 skip) en 33 archivos.
+- 988 tests (988 pass, 0 skip) en 34 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

@@ -6,7 +6,7 @@
 node --test "tests/test-*.mjs"
 ```
 
-Estado actual: **974 tests** (974 pass, 0 skip, 0 fail) en **33 archivos**.
+Estado actual: **988 tests** (988 pass, 0 skip, 0 fail) en **34 archivos**.
 
 Requisitos: Node 22 o superior.
 
@@ -32,7 +32,7 @@ node --test tests/test-stages.mjs
 | Meta-juego y persistencia | `test-meta.mjs`, `test-progress.mjs` |
 | HUD (markup puro, sin DOM real) | `test-hud.mjs` |
 | Créditos y licencias (datos + textos legales verbatim) | `test-licenses.mjs` |
-| Temas y calidad | `test-theme.mjs`, `test-quality.mjs` |
+| Temas, skins de torres y calidad | `test-theme.mjs`, `test-tower-skins.mjs`, `test-quality.mjs` |
 | Audio (rutas, gains, throttles) | `test-audio.mjs` |
 | Heat / Protocolo | `test-heat.mjs`, `test-heat-waves.mjs` |
 | Infinito | `test-endless.mjs` |

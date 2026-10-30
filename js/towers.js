@@ -37,7 +37,9 @@ import { DAMAGE_TYPES } from './damagetypes.js';
 import {
   TOWER_RIGS, TOWER_PAD, PAD_GLYPH, TOWER_VISUAL_SCALE,
   renderTowerRig, rigHotPoint, rigHotRadius, drawGlow,
+  resolveRig, rigColors,
 } from './tower-art.js';
+import { skinForUnit } from './tower-skins.js';
 import { unitMods, hurtP, applyExplosionCombo } from './towers-core.js';
 import {
   TARGETING, TRAVERSE, TRAVERSE_AIM, targetingFor, targetInRange,
@@ -209,10 +211,10 @@ const THUNDER_LINK_WINDOW = 0.5;
  *   Mortar → #FFD24A · Thunderstroke → #FFB347 · Tesla → #33E0FF
  *   Gauss → #FF5CC8 · Láser → #9DFF3C
  */
-export function projectileColor(type) {
+export function projectileColor(type, skin = null) {
   const d = TOWERS[type];
   if (!d) return '#FFFFFF';
-  return MUZZLE_ACCENT[d.kind] ?? d.accent;
+  return skin?.fx?.projectile ?? MUZZLE_ACCENT[d.kind] ?? d.accent;
 }
 
 /**
@@ -281,12 +283,14 @@ export class Tower {
    *   de la torre (fase 61: hay una sola fila) — el render y la balística
    *   de la torre se anclan a su fila.
    */
-  constructor(type, x, level = 1, y = CONFIG.TOWER_Y) {
+  constructor(type, x, level = 1, y = CONFIG.TOWER_Y, skin = null) {
     this.type = type;
     this.data = TOWERS[type];
     this.x = x;
     this.y = y;
     this.level = level;
+    // Skin explícita (iconos del meta/tests) o resuelta del engine en runtime.
+    this.skin = skin;
     // Multiplicadores de carta (cards.js §2.2): daño y cadencia.
     this.dmgMul = 1;
     this.cadMul = 1;
@@ -329,6 +333,19 @@ export class Tower {
     // ~0.17 s) y calor de boca (1→0 en ~1.7 s). Solo render.
     this._recoil = 0;
     this._heat = 0;
+  }
+
+  /**
+   * Skin efectiva: la explícita (icono/test) o la del tema de UI vivo.
+   * `skinForUnit` cachea por tema|skin|tipo; no lee storage por frame.
+   */
+  _skin() {
+    if (this.skin) return this.skin;
+    return skinForUnit(
+      this.game?.engine?.uiTheme ?? 'volcanico',
+      this.game?.engine?.skinId ?? 'auto',
+      this.type,
+    );
   }
 
   upgrade() {
@@ -478,6 +495,8 @@ export class Tower {
    */
   fire(enemies, game, dt = 0) {
     const d = this.data;
+    const skin = this._skin();
+    const fx = skin?.fx ?? null;
     const top = this.y - 34; // boca de la torre (fila frontal o trasera)
     switch (d.kind) {
       case 'fan': {
@@ -559,6 +578,8 @@ export class Tower {
                 // tiene executeThreshold (test-tower-identity lo verifica).
                 executeThreshold: exec,
                 source: 'missile',
+                trailColor: fx?.trail ?? TOWERS.missile.trailColor,
+                explosionColor: fx?.explosion ?? '#FFB36A',
                 critChance: mpm.critChanceAdd ?? 0,
                 critMul: mpm.critDmgMul ?? 2 },
             ));
@@ -631,7 +652,7 @@ export class Tower {
               lifeMin: 0.12, lifeMax: 0.22, sizeMin: 1, sizeMax: 2.4,
             });
           }
-          game.engine.addEffect(new BeamFx(game, this.x, top, tgt.x, tgt.y, rangeAdd, ramp));
+          game.engine.addEffect(new BeamFx(game, this.x, top, tgt.x, tgt.y, rangeAdd, ramp, fx));
           // dev-7 fase 28: DENTRO de la ventana el haz es CONTINUO (fire()
           // corre cada frame mientras haya blanco) → 'beam:fire' es un
           // ZUMBIDO con cadencia (BEAM_SFX_GAP), no un evento por frame.
@@ -654,8 +675,8 @@ export class Tower {
         const cm = game?.fortress?.comboMods;
         const primary = this._acquireTargets(enemies, game, 1)[0] ?? null;
         if (primary) {
-          const accent = MUZZLE_ACCENT[d.kind] ?? d.accent;
-          const colors = { color: accent, core: d.coreColor ?? '#FFFFFF' };
+          const accent = fx?.bolt ?? MUZZLE_ACCENT[d.kind] ?? d.accent;
+          const colors = { color: accent, core: fx?.core ?? d.coreColor ?? '#FFFFFF' };
           // Punto de impacto CONGELADO: los FX no deben seguir al enemigo
           // durante su vida (el rayo y el anillo son instantáneos).
           const impact = { x: primary.x, y: primary.y };
@@ -796,7 +817,7 @@ export class Tower {
         if (inRange.length) {
           game.engine.addEffect(new BoltFx(
             [{ x: this.x, y: top }, ...inRange],
-            { color: MUZZLE_ACCENT[d.kind] ?? d.accent, core: d.coreColor ?? '#FFFFFF' },
+            { color: fx?.chain ?? MUZZLE_ACCENT[d.kind] ?? d.accent, core: fx?.core ?? d.coreColor ?? '#FFFFFF' },
           ));
           // Daño con falloff ×0.75 por salto (§2.2)
           let dmg = this.damage;
@@ -838,7 +859,7 @@ export class Tower {
           // v6 perk (mortar): +15% de radio de explosión por cada 10 niveles
           const mm = unitMods(this);
           const blastR = d.blastR * (mm.areaMul ?? 1);
-          game.engine.addEntity(new MortarShell(this.x, top, mt, game, this.damage, blastR, {
+          const shell = new MortarShell(this.x, top, mt, game, this.damage, blastR, {
             ...onHitOpts(mm, game),
             slowOnHit: mm.slowOnHit ?? 0,
             stunChance: mm.stunChance ?? 0,
@@ -853,7 +874,9 @@ export class Tower {
               slow: d.mech?.slow ?? 0.10,
               radius: blastR,
             },
-          }));
+          });
+          shell.tint = fx?.mortar ?? shell.tint;
+          game.engine.addEntity(shell);
           // dev-7 fase 28: UN 'mortar:fire' por obús lanzado.
           game?.engine?.emit?.('mortar:fire', { x: this.x, y: top });
           this.firing = true;
@@ -873,7 +896,7 @@ export class Tower {
           game.engine.addEntity(new Bullet(this.x, top, aim, {
             damage: this.damage,
             speed: d.speed,
-            color: projectileColor(this.type), // fase 29: magenta (firma del Gauss)
+            color: projectileColor(this.type, skin), // fase 29: magenta (firma del Gauss)
             pierce: 999 + (gpm.pierceCount ?? 0),
             radius: 6,
             // dev-7 fase 32: el perdigón del Gauss es balístico.
@@ -912,7 +935,7 @@ export class Tower {
         for (const lt of targets) {
           const aim = Math.atan2(lt.x - this.x, -(lt.y - top));
           game.engine.addEntity(new LaserStaticFx(
-            game, this.x, top, aim, this.damage, d, lpm,
+            game, this.x, top, aim, this.damage, d, lpm, fx,
           ));
         }
         if (targets.length) this.firing = true;
@@ -1114,7 +1137,7 @@ export class Tower {
     game.engine.addEntity(new Bullet(x, y, ang, {
       damage: this.damage,                                  // nivel × cartas
       speed: this.bulletSpeedNow,                  // v5 5c/5: 920 × Balas Hipersónicas
-      color: projectileColor(this.type),          // fase 29: azul del Guardian
+      color: projectileColor(this.type, this._skin()), // fase 29: azul del Guardian
       // OJO (fase 29): `radius` explícito para que el COLOR no mueva la
       // hitbox. `projectileRadius()` (js/enemies.js) elige el radio de
       // impacto por la PRESENCIA de `color` (con color → 4 px, sin color
@@ -1161,7 +1184,7 @@ export class Tower {
    * @param {number} mx boca X en coordenadas de torre (unscaled)
    * @param {number} my boca Y en coordenadas de torre (unscaled)
    */
-  _drawChargeLink(ctx, mx, my) {
+  _drawChargeLink(ctx, mx, my, skin = null) {
     const tgt = this.targets?.[0];
     const charge = Math.max(0, Math.min(1, this._charge ?? 0));
     if (!tgt || tgt.dead || charge <= 0.01) return;
@@ -1180,8 +1203,8 @@ export class Tower {
     const nx = -dy / len;
     const ny = dx / len;
     const t = this.game?.engine?._t ?? 0;
-    const color = MUZZLE_ACCENT[this.data.kind] ?? this.data.accent;
-    const core = this.data.coreColor ?? '#FFFFFF';
+    const color = skin?.fx?.bolt ?? MUZZLE_ACCENT[this.data.kind] ?? this.data.accent;
+    const core = skin?.fx?.core ?? this.data.coreColor ?? '#FFFFFF';
     const wobble = 2.5 + 4.5 * build;
     const steps = 7;
     const path = (c) => {
@@ -1247,15 +1270,19 @@ export class Tower {
    *   · El fogonazo en un (0,-52) fijo: el Missile y el Mortar lo
    *     dejaban flotando a 19 px de su cañón. Ahora sale del rig.hot.
    */
-  render(ctx) {
+  render(ctx, opts = {}) {
     const d = this.data;
-    // dev-7 fase 28: FIRMA VISUAL por torre — el color de BOCA propio
-    // (MUZZLE_ACCENT) tiñe el elemento caliente y el fogonazo.
-    const muzzle = MUZZLE_ACCENT[d.kind] ?? d.accent;
+    const skin = opts.skin ?? this._skin();
+    // dev-7 fase 28: FIRMA VISUAL por torre - el color de BOCA propio
+    // (MUZZLE_ACCENT) tiñe el elemento caliente y el fogonazo. La skin
+    // puede reemplazarlo por el hot del tema.
+    const muzzle = skin?.fx?.muzzle ?? skin?.palette?.hot
+      ?? MUZZLE_ACCENT[d.kind] ?? d.accent;
     const t = this.game?.engine?._t ?? 0;
     const aim = Number.isFinite(this._aim) ? this._aim : 0;
     const lv = this.level ?? 1;
-    const rig = TOWER_RIGS[d.kind];
+    const rig = resolveRig(d.kind, skin);
+    const colors = rigColors(d, muzzle, skin?.palette ?? null);
 
     ctx.save();
     ctx.translate(this.x, this.y);
@@ -1270,6 +1297,10 @@ export class Tower {
     renderTowerRig(ctx, {
       kind: d.kind,
       data: d,
+      rig,
+      colors,
+      pad: skin?.pad ?? null,
+      lowQ: this.game?.engine?._qualityId === 'baja',
       muzzle,
       lv,
       t,
@@ -1344,7 +1375,7 @@ export class Tower {
       const fr = bb ? Math.max(bb.w, bb.h) / 2 : 30;
       ctx.globalCompositeOperation = 'lighter';
       ctx.globalAlpha = 0.45 * f;
-      ctx.fillStyle = d.accent;
+      ctx.fillStyle = colors.accent;
       ctx.beginPath();
       ctx.arc(fx, fy, fr, 0, Math.PI * 2);
       ctx.fill();
@@ -1360,7 +1391,7 @@ export class Tower {
     // antes de los enemigos (Fortress.render corre antes que las entidades),
     // así el rayo queda por debajo del enemigo y no lo tapa.
     if (d.kind === 'bolt') {
-      this._drawChargeLink(ctx, mx * TOWER_VISUAL_SCALE, my * TOWER_VISUAL_SCALE);
+      this._drawChargeLink(ctx, mx * TOWER_VISUAL_SCALE, my * TOWER_VISUAL_SCALE, skin);
     }
 
     // dev-7 fase 32 / fase 60 — GLIFO DEL TIPO DE DAÑO en el PAD. El

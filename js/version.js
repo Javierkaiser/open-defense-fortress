@@ -6,4 +6,4 @@
 // usa el runtime (el HTML no puede importar package.json sin build).
 // =============================================================================
 
-export const VERSION = '1.5.4';
+export const VERSION = '1.6.0';

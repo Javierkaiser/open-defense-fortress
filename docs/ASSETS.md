@@ -3,6 +3,9 @@
 El repo público incluye **33 archivos** bajo `assets/` (≈1,2 MB). Todo lo demás
 se retiró. Cada archivo tiene su licencia y su origen.
 
+Las skins de torres/drones de la 1.6.0 son **100 % vectoriales**: no agregan
+archivos ni requests. Las texturas por skin quedan para una versión posterior.
+
 ## Fuentes (4)
 
 | Archivo | Uso | Licencia | Origen |

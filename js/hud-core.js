@@ -37,6 +37,7 @@ import {
   pendingUpgrades, pendingUpgradeCost, upgradeAllTowers,
 } from './meta.js';
 import { THEMES, loadTheme, saveTheme, applyThemeToGame } from './theme.js';
+import { loadSkin } from './tower-skins.js';
 import { QUALITY_LEVELS, loadQuality, saveQuality, applyQualityToContext, applyQualityToDom, particleCapFor } from './quality.js';
 import { resetProgress } from './progress.js';
 import { resetMeta } from './meta.js';
@@ -174,7 +175,7 @@ export class HUD {
     // para no mostrar un flash con el tema viejo/default.
     // dev-7 fase 54: `applyThemeToGame` aplica ademas el TINTE DE ESCENA
     // (el que tiñe el canvas del juego, no solo el DOM).
-    applyThemeToGame(loadTheme(), this.engine);
+    applyThemeToGame(loadTheme(), this.engine, loadSkin());
 
     // Cache de nodos DOM
     this.root = document.getElementById('hud-top');
@@ -683,7 +684,7 @@ export class HUD {
         const id = b.dataset.themeId;
         saveTheme(id);
         // dev-7 fase 54: el tema tiñe tambien el canvas del juego.
-        applyThemeToGame(id, this.engine);
+        applyThemeToGame(id, this.engine, loadSkin());
         // dev-7 fase 55: marcar el activo en el sitio, sin re-renderizar.
         this._markActiveTheme(id);
       });
@@ -1051,7 +1052,12 @@ export class HUD {
    *  y los del bestiario (render REAL del enemigo). */
   _paintMetaIcons() {
     const canvases = this.overlayRoot?.querySelectorAll('[data-meta-icon]') ?? [];
-    for (const c of canvases) renderTowerIcon(c, c.dataset.metaIcon);
+    for (const c of canvases) {
+      renderTowerIcon(c, c.dataset.metaIcon, {
+        themeId: loadTheme(),
+        skinId: loadSkin(),
+      });
+    }
     // dev-7 fase 40: los iconos del bestiario (el enemigo de verdad).
     // fase 65/68: las fichas de VARIANTE de élite pasan su id por
     // `data-bestiary-variant` para que el icono dibuje el rasgo (escudo,

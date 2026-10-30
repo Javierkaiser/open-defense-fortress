@@ -203,7 +203,7 @@ no sólo un multiplicador de daño:
 6. La suite tiene guardas de regresión de HP por etapa, apertura, jefes,
    variantes y supervivencia.
 
-## Estado actual (v1.5.4)
+## Estado actual (v1.6.0)
 
 - Campaña: 50 etapas, win 100 % con la trayectoria real de meta y cartas.
 - S50 sin heat: 100 % / 93 % de HP / 99 % de bajas (20 semillas).
@@ -227,5 +227,7 @@ no sólo un multiplicador de daño:
 - Limpieza de cartas (1.5.4): se quitaron `xp_boost` y `score_gain`; el
   Escudo de Base conserva la defensa. El S50 queda en 93 % HP / 99 % bajas:
   el pool más corto compensa la pérdida de la carta de XP.
+- Skins de torres (1.6.0): cambio 100 % visual (paleta, motivos, pad y FX).
+  No toca daño, cadencia, hitbox ni balance; la simulación no se re-mide.
 - El balance sigue siendo un trabajo abierto: el simulador es una herramienta
   de comparación, no un oráculo.

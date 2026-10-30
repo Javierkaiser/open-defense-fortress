@@ -25,6 +25,7 @@ import { Tower, Drone, DRONES, TOWERS } from './towers.js';
 import { CONFIG } from './engine.js';
 // fase 60: `rigBox` encuadra el ícono con la caja REAL de cada torre.
 import { rigBox } from './tower-art.js';
+import { skinForUnit } from './tower-skins.js';
 // fase 67: la recompensa del infinito escala con la profundidad (reglas
 // puras en endless.js — este módulo NO las reimplementa).
 import { isEndless, endlessRewardMul } from './endless.js';
@@ -1297,8 +1298,8 @@ const ICON_MAX_SCALE = 1.15;
  * @param {string} kind clave de TOWER_RIGS
  * @returns {{s:number, cx:number, cy:number}}
  */
-export function towerIconFit(kind) {
-  const box = rigBox(kind);
+export function towerIconFit(kind, skin = null) {
+  const box = rigBox(kind, skin);
   const s = Math.min(
     (ICON_W - ICON_MARGIN * 2) / (box.x1 - box.x0),
     (ICON_H - ICON_MARGIN * 2) / (box.y1 - box.y0),
@@ -1313,10 +1314,15 @@ export function towerIconFit(kind) {
  * render canvas de la torre"). Escala por tipo para que quepa la burbuja
  * del Dron de Interferencia.
  */
-export function renderTowerIcon(canvas, metaKey) {
+export function renderTowerIcon(canvas, metaKey, opts = {}) {
   if (!canvas || canvas.tagName !== 'CANVAS') return;
   const entry = META_TOWERS.find((t) => t.key === metaKey);
   if (!entry) return;
+  const skin = opts.skin ?? skinForUnit(
+    opts.themeId ?? 'volcanico',
+    opts.skinId ?? 'auto',
+    entry.type,
+  );
   let ctx;
   try { ctx = canvas.getContext('2d'); } catch (_e) { return; }
   canvas.width = ICON_W;
@@ -1340,8 +1346,8 @@ export function renderTowerIcon(canvas, metaKey) {
     // Transformación: (42, 65) = origen del render en el canvas del ícono.
     ctx.translate(ICON_W / 2 - x0 * s, 65 - y0 * s);
     ctx.scale(s, s);
-    const d = new Drone(entry.type, { engine: { _t: 0 } }, 0);
-    d.draw(ctx);
+    const d = new Drone(entry.type, { engine: { _t: 0 } }, 0, skin);
+    d.draw(ctx, { skin });
   } else {
     // fase 60: la torre se ENCUADRA con su caja real (rigBox: silueta +
     // pad) en vez de una escala fija de 0.8 para las 8. Con la escala
@@ -1350,13 +1356,13 @@ export function renderTowerIcon(canvas, metaKey) {
     // con el mismo margen. El nivel se pasa en 0 para que el pad del
     // ícono NO muestre ticks (el nivel de la tarjeta es el del
     // meta-juego, no el de la run).
-    const { s: sT, cx, cy } = towerIconFit(TOWERS[entry.type].kind);
+    const { s: sT, cx, cy } = towerIconFit(TOWERS[entry.type].kind, skin);
     ctx.translate(ICON_W / 2 - (x0 + cx) * sT, ICON_H / 2 - (y0 + cy) * sT);
     ctx.scale(sT, sT);
     // Nivel 0 → el pad del ícono no enciende ningún tick de nivel (el
     // nivel de la tarjeta es el del META-juego, no el de la run).
-    const t = new Tower(entry.type, x0, 0);
-    t.render(ctx);
+    const t = new Tower(entry.type, x0, 0, CONFIG.TOWER_Y, skin);
+    t.render(ctx, { skin });
   }
   ctx.restore();
 }

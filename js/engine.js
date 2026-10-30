@@ -665,6 +665,10 @@ export class Engine {
 
     // Tema visual activo (dev-5): volcanic por defecto (§1.4).
     this.theme = THEMES.volcanic;
+    // Tema de UI (skins de torres). NO es el tema del stage: `theme` cambia
+    // por etapa; `uiTheme` lo elige el jugador y sobrevive a los stages.
+    this.uiTheme = 'volcanico';
+    this.skinId = 'auto';
 
     // Skyline de la ciudad nocturna (Stage 4): siluetas pre-generadas.
     this._skyline = this._generateSkyline();
@@ -892,6 +896,18 @@ export class Engine {
     if (THEMES[name]) this.theme = THEMES[name];
     this._bgDirty = true; // dev-7 fase 19: fuerza redibujar el cache YA, sin esperar el próximo ciclo de refresh (evita 1 frame de fondo viejo)
     this._fogDirty = true; // dev-7 fase 28: la niebla tiene su propio cache
+  }
+
+  /**
+   * Cambia el TEMA DE UI y la skin de torres. No toca `this.theme` (stage).
+   * El engine no importa theme.js/tower-skins.js: sólo guarda el id y avisa.
+   * @param {string} themeId
+   * @param {string} [skinId='auto']
+   */
+  setUiTheme(themeId, skinId = this.skinId) {
+    if (typeof themeId === 'string' && themeId) this.uiTheme = themeId;
+    if (typeof skinId === 'string' && skinId) this.skinId = skinId;
+    this.emit('theme:changed', { ui: this.uiTheme, skin: this.skinId });
   }
 
   /**

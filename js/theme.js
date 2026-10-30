@@ -2,13 +2,12 @@
 // theme.js — dev-7 fase 13 (pedido del usuario: "themes intercambiables
 // desde la pantalla principal — Cyberpunk, Neon, Aqua, Cielo, etc.")
 //
-// Alcance real (para no generar expectativas de más): esto reskinea la
-// INTERFAZ (HUD, paneles, botones, títulos, cartas — todo lo que ya usa
-// variables CSS del :root, ver css/style.css). El MUNDO DE JUEGO (planeta,
-// torres, enemigos, balas) se dibuja en canvas con colores fijos en
-// towers.js/enemies.js/engine.js — cambiar eso es un trabajo mucho más
-// grande (tocaría decenas de draw() por archivo) y no es lo que se pidió
-// acá. Mismo patrón que progress.js: funciones puras + storage
+// Alcance: reskinea la INTERFAZ (HUD, paneles, botones, títulos, cartas —
+// variables CSS del :root, ver css/style.css) y, desde la fase 76.5,
+// avisa al engine el tema de UI para que las torres y drones resuelvan su
+// skin vectorial (js/tower-skins.js). El MUNDO DE JUEGO sigue mandando:
+// el planeta y el fondo cambian por STAGE (engine.THEMES), no por este
+// módulo. Mismo patrón que progress.js: funciones puras + storage
 // inyectable, testeable desde Node.
 // ============================================================
 
@@ -128,12 +127,15 @@ export function readSceneTint(root = undefined) {
  * @param {?object} engine el engine del juego (opcional: en Node o en
  *   pruebas no hay canvas) — si no, solo se aplica el DOM.
  */
-export function applyThemeToGame(id, engine = null) {
-  applyTheme(id);
+export function applyThemeToGame(id, engine = null, skinId = 'auto') {
+  const themeId = normalizeTheme(id);
+  applyTheme(themeId);
   const tint = readSceneTint();
   if (engine && typeof engine.setSceneTint === 'function') {
     engine.setSceneTint(tint?.color ?? null, tint?.alpha ?? 0);
   }
+  // Las torres leen `engine.uiTheme` en render/fire; no hay polling de DOM.
+  engine?.setUiTheme?.(themeId, skinId);
 }
 
 

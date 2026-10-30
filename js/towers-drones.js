@@ -9,6 +9,7 @@ import { applyPoison, applySlow, applyMark } from './enemies.js';
 import { unitMods, hurtP } from './towers-core.js';
 import { healBase } from './base-heal.js';
 import { onMechanicHit, onMechanicTick } from './tower-mechanics.js';
+import { skinForUnit } from './tower-skins.js';
 
 export const MAX_DRONES = 1;
 /**
@@ -59,11 +60,12 @@ export function forcefieldBubbleR(unit) {
  * antes; con carta, el daño escala de verdad.
  */
 export class Drone {
-  constructor(type, game, slotIdx = 0) {
+  constructor(type, game, slotIdx = 0, skin = null) {
     this.type = type;
     this.data = DRONES[type];
     this.game = game;
     this.slotIdx = slotIdx;          // 0|1: separa las órbitas/fases
+    this.skin = skin;                // iconos/test; runtime resuelve del engine
     this.angle = slotIdx === 0 ? 0 : Math.PI / 2; // desincroniza
     this.x = CONFIG.BASE_X; this.y = droneY();
     this.dead = false;
@@ -98,6 +100,16 @@ export class Drone {
   /** Centro de la base: referencia de la Fortress y de los drones. */
   _center() {
     return { x: CONFIG.BASE_X, y: droneY() };
+  }
+
+  /** Skin efectiva (explícita o la del tema de UI vivo). */
+  _skin() {
+    if (this.skin) return this.skin;
+    return skinForUnit(
+      this.game?.engine?.uiTheme ?? 'volcanico',
+      this.game?.engine?.skinId ?? 'auto',
+      this.type,
+    );
   }
 
   /**
@@ -174,6 +186,7 @@ export class Drone {
     if (!this.game || dt <= 0) return;
     this._sfxAcc -= dt; // reloj del sample del dron (ver DRONE_SFX_GAP)
     const d = this.data;
+    const pal = this._skin()?.palette ?? d;
     const c = this._center();
     this._bobT += dt;
     switch (d.kind) {
@@ -317,7 +330,7 @@ export class Drone {
         if (this._glowAcc <= 0 && this._hitAcc.size) {
           this._glowAcc = 0.08;
           for (const e of this._hitAcc.keys()) {
-            this.game.engine.spawnParticles(e.x, e.y, d.accent, 1, {
+            this.game.engine.spawnParticles(e.x, e.y, pal.accent, 1, {
               speedMin: 10, speedMax: 50, gravity: -20,
               lifeMin: 0.15, lifeMax: 0.35, sizeMin: 1, sizeMax: 2.4,
             });
@@ -436,7 +449,7 @@ export class Drone {
             // de ataque (los 3 mosquitos que pican en el mismo frame
             // cuentan como un solo disparo, no como 3).
             this._sfxFire();
-            this.game.engine.spawnParticles(w.x, w.y, d.accent, 2, {
+            this.game.engine.spawnParticles(w.x, w.y, pal.accent, 2, {
               speedMin: 20, speedMax: 70, lifeMin: 0.12, lifeMax: 0.3,
               sizeMin: 1, sizeMax: 2,
             });
@@ -601,8 +614,10 @@ export class Drone {
     return best ?? bestAny;
   }
 
-  draw(ctx) {
+  draw(ctx, opts = {}) {
     const d = this.data;
+    const skin = opts.skin ?? this._skin();
+    const pal = skin?.palette ?? d;
     // Mismo radio que el hitbox de update(): el tope se aplica una sola vez.
     const bubbleR = forcefieldBubbleR(this);
     const t = this.game?.engine?._t ?? this._bobT;
@@ -610,12 +625,12 @@ export class Drone {
     ctx.translate(this.x, this.y);
     // Glow de acento (render simple §2.3)
     ctx.globalAlpha = 0.16 + 0.06 * Math.sin(t * 3 + this.slotIdx);
-    ctx.fillStyle = d.accent;
+    ctx.fillStyle = pal.accent;
     ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 1;
-    ctx.fillStyle = d.bodyColor;
-    ctx.strokeStyle = d.accent;
-    ctx.shadowColor = d.accent;
+    ctx.fillStyle = pal.body;
+    ctx.strokeStyle = pal.accent;
+    ctx.shadowColor = pal.accent;
     ctx.shadowBlur = 10;
     ctx.lineWidth = 2;
     switch (d.kind) {
@@ -627,7 +642,7 @@ export class Drone {
           ctx.beginPath();
           ctx.moveTo(9, 0); ctx.lineTo(15, 2.4); ctx.lineTo(9, 4);
           ctx.closePath();
-          ctx.fillStyle = d.accent;
+          ctx.fillStyle = pal.accent;
           ctx.fill();
         }
         break;
@@ -639,7 +654,7 @@ export class Drone {
         ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         ctx.save();
         ctx.globalAlpha = 0.55;
-        ctx.strokeStyle = d.accent;
+        ctx.strokeStyle = pal.accent;
         ctx.lineWidth = 1;
         for (let c = 0; c < 3; c++) {
           const a = (c / 3) * Math.PI * 2;
@@ -661,20 +676,20 @@ export class Drone {
           if (w.vx || w.vy) {
             ctx.save();
             ctx.globalAlpha = 0.22;
-            ctx.strokeStyle = d.accent;
+            ctx.strokeStyle = pal.accent;
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(-6, 0); ctx.lineTo(-13, 0);
             ctx.stroke();
             ctx.restore();
           }
-          ctx.fillStyle = d.bodyColor;
+          ctx.fillStyle = pal.body;
           ctx.beginPath(); ctx.ellipse(0, 0, 6, 4, 0, 0, Math.PI * 2); ctx.fill();
-          ctx.strokeStyle = d.accent;
+          ctx.strokeStyle = pal.accent;
           ctx.lineWidth = 1.1;
           ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(5, 0); ctx.stroke(); // alas
           // aguijón (adelante): se ve dónde pica
-          ctx.fillStyle = d.accent;
+          ctx.fillStyle = pal.accent;
           ctx.beginPath();
           ctx.moveTo(5, 0); ctx.lineTo(9, -1.4); ctx.lineTo(9, 1.4);
           ctx.closePath(); ctx.fill();
@@ -685,13 +700,58 @@ export class Drone {
       default: { // forcefield: emisor + burbuja translúcida
         ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         ctx.globalAlpha = 0.14 + 0.05 * Math.sin(t * 2.4);
-        ctx.fillStyle = d.accent;
+        ctx.fillStyle = pal.accent;
         ctx.beginPath(); ctx.arc(0, 0, bubbleR, 0, Math.PI * 2); ctx.fill();
         ctx.globalAlpha = 0.55;
         ctx.lineWidth = 1.4;
         ctx.beginPath(); ctx.arc(0, 0, bubbleR, 0, Math.PI * 2); ctx.stroke();
         break;
       }
+    }
+    // Los motivos son decorativos: en calidad Baja se omiten igual que los
+    // motivos de las torres (la paleta y la silueta se conservan).
+    if (!skin?.base && this.game?.engine?._qualityId !== 'baja') {
+      this._drawSkinMotif(ctx, skin, pal, t);
+    }
+    ctx.restore();
+  }
+
+  /**
+   * Detalle de forma del tema para los drones (los drones no tienen rig).
+   * Es deliberadamente chico: un acento de silueta, no una segunda nave.
+   */
+  _drawSkinMotif(ctx, skin, pal, t) {
+    const id = skin?.id;
+    if (!id || id === 'volcanico') return;
+    ctx.save();
+    ctx.globalAlpha = 0.55 + 0.15 * Math.sin(t * 4 + this.slotIdx);
+    ctx.strokeStyle = pal.accent;
+    ctx.fillStyle = pal.accent;
+    ctx.lineWidth = 1.2;
+    if (id === 'cyberpunk') {
+      ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(0, -25); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, -26, 1.8, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha *= 0.7;
+      ctx.strokeStyle = pal.metal;
+      ctx.beginPath(); ctx.moveTo(-10, -6); ctx.lineTo(-14, -10); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(10, -6); ctx.lineTo(14, -10); ctx.stroke();
+    } else if (id === 'neon') {
+      ctx.beginPath(); ctx.ellipse(0, -2, 16, 5, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha *= 0.8;
+      ctx.fillStyle = pal.hot;
+      ctx.beginPath(); ctx.arc(0, -18, 1.6, 0, Math.PI * 2); ctx.fill();
+    } else if (id === 'aqua') {
+      ctx.globalAlpha *= 0.8;
+      ctx.beginPath(); ctx.arc(10, -13, 3, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(-8, -16, 2, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(5, -20, 1.4, 0, Math.PI * 2); ctx.fill();
+    } else if (id === 'cielo') {
+      ctx.globalAlpha *= 0.8;
+      ctx.fillStyle = pal.hot;
+      ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(-14, -15); ctx.lineTo(-7, -4); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(0, -8); ctx.lineTo(14, -15); ctx.lineTo(7, -4); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = pal.metal;
+      ctx.beginPath(); ctx.arc(0, -18, 2.2, 0, Math.PI * 2); ctx.fill();
     }
     ctx.restore();
   }

@@ -208,6 +208,7 @@ export class MortarShell {
         dps: this.crater.dps,
         life: this.crater.time ?? 3,
         slow: this.crater.slow ?? 0.10,
+        color: this.tint,
         mods: this.hitOpts,
       }));
     }
@@ -243,6 +244,8 @@ export class HomingMissile {
     this.slowOnHit = opts.slowOnHit ?? 0;
     this.stunChance = opts.stunChance ?? 0;
     this.critChance = opts.critChance ?? 0;
+    this.trailColor = opts.trailColor ?? TOWERS.missile.trailColor;
+    this.explosionColor = opts.explosionColor ?? '#FFB36A';
     Object.assign(this, pickOnHit(opts)); // fase 23
     this.critMul = opts.critMul ?? 2;
     this.dead = false;
@@ -283,7 +286,7 @@ export class HomingMissile {
     this._smoke -= dt;
     if (this._smoke <= 0 && this.game) {
       this._smoke = 0.03;
-      this.game.engine.spawnParticles(this.x, this.y, TOWERS.missile.trailColor, 1, {
+      this.game.engine.spawnParticles(this.x, this.y, this.trailColor, 1, {
         speedMin: 5, speedMax: 20, gravity: -10, lifeMin: 0.25, lifeMax: 0.45,
         sizeMin: 1.2, sizeMax: 2.4,
       });
@@ -298,7 +301,7 @@ export class HomingMissile {
     this.dead = true;
     if (!this.game) return;
     const g = this.game.engine;
-    g.spawnParticles(this.x, this.y, '#FFB36A', 12, {
+    g.spawnParticles(this.x, this.y, this.explosionColor, 12, {
       speedMin: 40, speedMax: 160, lifeMin: 0.25, lifeMax: 0.55, sizeMin: 1.5, sizeMax: 3.5,
     });
     const r = TOWERS.missile.splashR / 2;
@@ -306,7 +309,7 @@ export class HomingMissile {
     g.addEffect({ life: 0.18, draw: (ctx, t) => {
       ctx.save();
       ctx.globalAlpha = t * 0.8;
-      ctx.strokeStyle = '#FFB36A';
+      ctx.strokeStyle = this.explosionColor;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(mx, my, r * (1.4 - t * 0.4), 0, Math.PI * 2);

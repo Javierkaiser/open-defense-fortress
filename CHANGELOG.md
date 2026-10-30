@@ -6,6 +6,42 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 
 ## [Unreleased]
 
+## [1.6.0] — 2026-10-30
+
+### Agregado
+
+- **Sistema de skins de torres y drones** (`js/tower-skins.js`): 5 skins
+  ligadas al tema de UI (`volcanico`, `cyberpunk`, `neon`, `aqua`, `cielo`).
+  Cada skin cambia paleta, motivos de forma (antenas/circuitos, aros/tubos,
+  aletas/burbujas, alas/nubes), pad y colores de FX de las 8 torres y los 3
+  drones. No toca daño, cadencia, hitbox ni reglas.
+- **Compilador de skins** en `tower-art.js` (`compileSkin`, `resolveRig`,
+  `TOWER_ANCHORS`): `remove`/`patch`/`add` sobre el rig, cache por
+  `kind|skinId`, rigs congelados y sin mutar `TOWER_RIGS`.
+- **Tema de UI en el engine** (`uiTheme`, `skinId`, `setUiTheme`,
+  `theme:changed`): independiente del tema de escenario; `skinId: 'auto'`
+  sigue al tema y un id explícito queda listo para skins futuras.
+- Colores de skin en proyectiles, misil, obús, cráter, Beam, Láser, Bolt y
+  cadena; paleta y motivo de silueta en drones; iconos del meta con skin.
+- Persistencia `gdf_tower_skin` (`loadSkin`/`saveSkin`), tolerante a storage
+  bloqueado o corrupto. Sin selector visible todavía.
+- `tools/tower-sheet.html`: selector de tema/skin, drones, comparativa de los
+  5 temas, calidad baja y query params (`?theme=neon&skin=auto&q=low`).
+
+### Cambiado
+
+- El tema `volcanico` es la skin base (`base: true`): el render histórico
+  queda exacto; las demás skins son 100 % vectoriales (0 assets nuevos).
+- En calidad Baja se omiten textura y motivos decorativos; la silueta y el
+  pad se conservan.
+- `theme.js` ahora avisa al engine el tema de UI y la skin al aplicarse.
+
+### Tests / versión
+
+- **988 tests, 0 skip** (34 archivos), incluido `test-tower-skins.mjs`.
+- Versión **1.6.0** / Android `versionCode 12`.
+- Spec: `openspec/specs/gameplay/tower-skins/spec.md`.
+
 ## [1.5.4] — 2026-10-30
 
 ### Cambiado

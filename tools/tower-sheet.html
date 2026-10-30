@@ -2,25 +2,32 @@
 <html lang="es">
 <head>
 <meta charset="utf-8" />
-<title>Hoja de contactos — torres (v7)</title>
+<!-- Las texturas de chasis se piden con rutas relativas a la RAÍZ
+     (assets/sprites/...). Sin <base>, desde tools/ darían 404. Los imports
+     ES se resuelven contra la URL del módulo, no contra <base>. -->
+<base href="../" />
+<title>Hoja de contactos — torres y skins (v7.6)</title>
 <!--
   ============================================================
   tools/tower-sheet.html — HOJA DE CONTACTOS del arte de las torres.
 
-  PARA QUÉ: revisar de un vistazo el arte de las 8 torres sin tener que
-  jugar una partida (niveles, estados, siluetas y la fila en escena).
-  Es la herramienta con la que se aprobó el rediseño "silueta primero"
-  (fase 60) y con la que se revisa cualquier retoque del rig.
+  PARA QUÉ: revisar de un vistazo el arte de las 8 torres y los 3 drones
+  sin tener que jugar una partida (niveles, estados, siluetas, skins por
+  tema y la fila en escena). Es la herramienta con la que se aprobó el
+  rediseño "silueta primero" (fase 60) y con la que se revisan las skins
+  vectoriales (fase 76.5).
 
   CÓMO SE USA: necesita el servidor estático del proyecto (los módulos ES
   no cargan sobre file://):
 
-      python3 -m http.server 8080     # desde la raíz del repo
+      node scripts/serve.mjs 8080
       # → http://localhost:8080/tools/tower-sheet.html
+      # → ...?theme=neon&skin=auto&q=high
+      # → ...?theme=cielo&skin=cyberpunk
 
   NO forma parte del juego: no lo importa nadie desde js/. Reusa el
-  render REAL (Tower.render → renderTowerRig), así que lo que se ve acá
-  es exactamente lo que se ve en pantalla.
+  render REAL (Tower.render → renderTowerRig, Drone.draw), así que lo
+  que se ve acá es exactamente lo que se ve en pantalla.
   ============================================================
 -->
 <style>
@@ -44,17 +51,34 @@
     border-radius: 4px; padding: 3px 7px; font: inherit;
   }
   button { cursor: pointer; }
+  .chip { color: #7FE8FF; }
 </style>
 </head>
 <body>
-<h1>Hoja de contactos — torres v7 «silueta primero»</h1>
+<h1>Hoja de contactos — torres v7 «silueta primero» + skins</h1>
 <p class="nota">
-  Render real (<code>Tower.render</code> → <code>renderTowerRig</code>, js/tower-art.js). La columna
-  <em>silueta</em> pinta el rig en negro: si dos torres dan el mismo borrón, la silueta no existe
-  (era el problema de la fase 60 — el disco de acento de r=32..42 ×1.2 se comía las 8 formas).
+  Render real (<code>Tower.render</code> → <code>renderTowerRig</code>, js/tower-art.js, y
+  <code>Drone.draw</code>). La columna <em>silueta</em> pinta el rig en negro: si dos torres dan
+  el mismo borrón, la silueta no existe. Los temas <strong>cyberpunk</strong>, <strong>neon</strong>,
+  <strong>aqua</strong> y <strong>cielo</strong> agregan paleta, motivos de forma, pad y FX; el tema
+  <strong>volcánico</strong> es la base y no debe cambiar ni un píxel.
 </p>
 
 <div class="toolbar">
+  <label>tema
+    <select id="tema">
+      <option value="volcanico">volcánico (base)</option>
+      <option value="cyberpunk">cyberpunk</option>
+      <option value="neon">neón</option>
+      <option value="aqua">aqua</option>
+      <option value="cielo">cielo</option>
+    </select>
+  </label>
+  <label>skin
+    <select id="skin">
+      <option value="auto">auto (sigue al tema)</option>
+    </select>
+  </label>
   <label>fondo
     <select id="fondo">
       <option value="#2A313C">plataforma</option>
@@ -63,7 +87,9 @@
     </select>
   </label>
   <label>zoom <input id="zoom" type="range" min="1" max="4" step="0.5" value="2" /></label>
+  <label><input id="baja" type="checkbox" /> calidad baja</label>
   <button id="redibujar">redibujar</button>
+  <span class="chip" id="resumen"></span>
 </div>
 
 <h2>1 · Niveles (Lv1 → Lv5): ticks del pad y textura del chasis</h2>
@@ -72,16 +98,51 @@
 <h2>2 · Estados: reposo · cargando · disparando · silueta</h2>
 <div class="fila" id="estados"></div>
 
-<h2>3 · La fila en escena (slots reales de CONFIG)</h2>
+<h2>3 · Drones: paleta y motivo del tema</h2>
+<div class="fila" id="drones"></div>
+
+<h2>4 · Comparativa: el mismo rig en los 5 temas</h2>
+<div class="fila" id="comparativa"></div>
+
+<h2>5 · La fila en escena (slots reales de CONFIG)</h2>
 <figure><canvas id="escena"></canvas><figcaption id="escena-pie"></figcaption></figure>
 
 <script type="module">
-import { Tower, TOWERS } from '../js/towers.js';
+import { Tower, TOWERS, Drone, DRONES } from '../js/towers.js';
 import { CONFIG } from '../js/engine.js';
+import { TOWER_SKINS, skinForUnit } from '../js/tower-skins.js';
 
 const TIPOS = ['guardian', 'missile', 'beam', 'thunderstroke', 'tesla', 'mortar', 'gauss', 'laser'];
+const DRONE_TIPOS = ['firewheel', 'wasps', 'forcefield'];
+const TEMA_IDS = ['volcanico', 'cyberpunk', 'neon', 'aqua', 'cielo'];
+
 const fondo = document.getElementById('fondo');
 const zoom = document.getElementById('zoom');
+const tema = document.getElementById('tema');
+const skinSel = document.getElementById('skin');
+const baja = document.getElementById('baja');
+
+// Query params: ?theme=neon&skin=auto&q=low
+const qs = new URLSearchParams(location.search);
+if (TEMA_IDS.includes(qs.get('theme'))) tema.value = qs.get('theme');
+if (qs.get('q') === 'low') baja.checked = true;
+
+// El selector de skin explícita lista el catálogo; 'auto' sigue al tema.
+for (const [id, skin] of Object.entries(TOWER_SKINS)) {
+  if (id === 'volcanico') continue; // el base es el tema, no una skin aparte
+  const opt = document.createElement('option');
+  opt.value = id;
+  opt.textContent = `${skin.name} (fija)`;
+  skinSel.appendChild(opt);
+}
+if (qs.get('skin') && [...skinSel.options].some((o) => o.value === qs.get('skin'))) {
+  skinSel.value = qs.get('skin');
+}
+
+/** Skin resuelta para el estado actual de la hoja. */
+function skinDe(type) {
+  return skinForUnit(tema.value, skinSel.value, type);
+}
 
 /** Crea un canvas con su ctx ya escalado. */
 function lienzo(w, h, z) {
@@ -106,11 +167,18 @@ function suelo(ctx, w, h, color) {
 }
 
 /** Instancia una torre lista para dibujar en (0,0). */
-function torre(type, lv, estado = {}) {
-  const t = new Tower(type, 0, lv);
+function torre(type, lv, estado = {}, skin = skinDe(type)) {
+  const t = new Tower(type, 0, lv, CONFIG.TOWER_Y, skin);
   t.x = 0;
   t.y = 0;
-  t.game = { engine: { _t: estado.t ?? 1.2 } };
+  t.game = {
+    engine: {
+      _t: estado.t ?? 1.2,
+      uiTheme: tema.value,
+      skinId: skinSel.value,
+      _qualityId: baja.checked ? 'baja' : 'alta',
+    },
+  };
   t._aim = estado.aim ?? -0.22;
   t._charge = estado.charge ?? 0;
   t._recoil = estado.recoil ?? 0;
@@ -121,10 +189,11 @@ function torre(type, lv, estado = {}) {
 }
 
 /** Pinta una torre dentro de un panel, con etiqueta. */
-function panel(type, { w = 150, h = 190, z = 2, lv = 1, estado = {}, silueta = false, etiqueta = '' } = {}) {
+function panel(type, { w = 150, h = 190, z = 2, lv = 1, estado = {}, silueta = false, etiqueta = '', skin = null } = {}) {
   const fig = document.createElement('figure');
   const { cv, ctx } = lienzo(w, h, z);
   suelo(ctx, w, h, fondo.value);
+  const sk = skin ?? skinDe(type);
   ctx.save();
   ctx.translate(w / 2, h - 34);
   if (silueta) {
@@ -144,10 +213,37 @@ function panel(type, { w = 150, h = 190, z = 2, lv = 1, estado = {}, silueta = f
         return true;
       },
     });
-    torre(type, lv, estado).render(negro);
+    torre(type, lv, estado, sk).render(negro, { skin: sk });
   } else {
-    torre(type, lv, estado).render(ctx);
+    torre(type, lv, estado, sk).render(ctx, { skin: sk });
   }
+  ctx.restore();
+  ctx.fillStyle = 'rgba(0,0,0,0.62)';
+  ctx.fillRect(4, 4, Math.min(w - 8, 8 + etiqueta.length * 6.4), 14);
+  ctx.fillStyle = '#E6EEF6';
+  ctx.font = '10px monospace';
+  ctx.textBaseline = 'top';
+  ctx.fillText(etiqueta, 8, 6);
+  fig.appendChild(cv);
+  return fig;
+}
+
+/** Panel de dron: el dron se dibuja centrado en (0,0). */
+function panelDron(type, { w = 140, h = 130, z = 2, etiqueta = '' } = {}) {
+  const fig = document.createElement('figure');
+  const { cv, ctx } = lienzo(w, h, z);
+  suelo(ctx, w, h, fondo.value);
+  const sk = skinDe(type);
+  const game = {
+    engine: { _t: 1.6, uiTheme: tema.value, skinId: skinSel.value, _qualityId: baja.checked ? 'baja' : 'alta' },
+  };
+  const d = new Drone(type, game, 0, sk);
+  d.x = 0;
+  d.y = 0;
+  d.angle = 1.1;
+  ctx.save();
+  ctx.translate(w / 2, h / 2 - 4);
+  d.draw(ctx, { skin: sk });
   ctx.restore();
   ctx.fillStyle = 'rgba(0,0,0,0.62)';
   ctx.fillRect(4, 4, Math.min(w - 8, 8 + etiqueta.length * 6.4), 14);
@@ -161,6 +257,8 @@ function panel(type, { w = 150, h = 190, z = 2, lv = 1, estado = {}, silueta = f
 
 function dibujar() {
   const z = Number(zoom.value);
+  document.getElementById('resumen').textContent =
+    `tema=${tema.value} · skin=${skinSel.value} · ${baja.checked ? 'calidad baja' : 'calidad alta'}`;
 
   // ---- 1. niveles ----
   const niveles = document.getElementById('niveles');
@@ -186,7 +284,29 @@ function dibujar() {
     estados.appendChild(panel(type, { z, lv: 3, silueta: true, etiqueta: `${type} · silueta` }));
   }
 
-  // ---- 3. escena ----
+  // ---- 3. drones ----
+  const drones = document.getElementById('drones');
+  drones.textContent = '';
+  for (const type of DRONE_TIPOS) {
+    drones.appendChild(panelDron(type, { z, etiqueta: `${type} · ${skinDe(type).id}` }));
+  }
+
+  // ---- 4. comparativa (misma skin en los 5 temas) ----
+  const comp = document.getElementById('comparativa');
+  comp.textContent = '';
+  const muestra = ['guardian', 'gauss', 'beam'];
+  for (const themeId of TEMA_IDS) {
+    for (const type of muestra) {
+      // La comparativa muestra SIEMPRE la skin del tema (auto): con una
+      // skin fija las cinco columnas serían idénticas.
+      const sk = skinForUnit(themeId, 'auto', type);
+      comp.appendChild(panel(type, {
+        z, lv: 3, skin: sk, etiqueta: `${type} · ${themeId}`,
+      }));
+    }
+  }
+
+  // ---- 5. escena ----
   const S = 1;
   const W = CONFIG.CANVAS_W;
   const H = 200;
@@ -209,25 +329,50 @@ function dibujar() {
   const yTrasera = yFila - 16;
   const frontales = ['guardian', 'missile', 'beam', 'thunderstroke', 'tesla'];
   const traseras = ['mortar', 'gauss', 'laser'];
+  // Drones DETRÁS de las torres (igual que Fortress.render): el campo de
+  // fuerza no tapa las siluetas.
+  DRONE_TIPOS.forEach((type, i) => {
+    const sk = skinDe(type);
+    const d = new Drone(type, {
+      engine: { _t: 2.4, uiTheme: tema.value, skinId: skinSel.value, _qualityId: baja.checked ? 'baja' : 'alta' },
+    }, i, sk);
+    d.x = 110 + i * 40;
+    d.y = 48;
+    d.draw(ctx, { skin: sk });
+  });
   frontales.forEach((type, i) => {
     const t = torre(type, i === 0 ? 3 : i === 2 ? 5 : 1, { t: 2.4, aim: -0.18 });
     t.x = CONFIG.SLOTS[i];
     t.y = yFila;
-    t.render(ctx);
+    t.render(ctx, { skin: skinDe(type) });
   });
+  // Fase 61: ya no hay fila trasera real (una sola fila de 5 slots). Las
+  // 3 torres de arsenal se dibujan un poco más arriba para revisarlas
+  // juntas; es una composición de la hoja, no un slot del juego.
   traseras.forEach((type, i) => {
     const t = torre(type, i === 1 ? 5 : 1, { t: 2.4, aim: 0.2 });
-    t.x = CONFIG.SLOTS_BACK[i];
-    t.y = yTrasera;
-    t.render(ctx);
+    t.x = CONFIG.SLOTS[i];
+    t.y = yTrasera - 22;
+    t.render(ctx, { skin: skinDe(type) });
   });
   document.getElementById('escena-pie').textContent =
-    `slots reales: delanteros [${CONFIG.SLOTS.join(', ')}] · traseros [${CONFIG.SLOTS_BACK.join(', ')}]`;
+    `slots reales: [${CONFIG.SLOTS.join(', ')}] · arsenal arriba (composición) · tema ${tema.value}`;
+
+  // La URL refleja el estado: permite capturas reproducibles.
+  const params = new URLSearchParams(location.search);
+  params.set('theme', tema.value);
+  params.set('skin', skinSel.value);
+  if (baja.checked) params.set('q', 'low');
+  else params.delete('q');
+  history.replaceState(null, '', `${location.pathname}?${params}`);
 }
 
 document.getElementById('redibujar').addEventListener('click', dibujar);
 fondo.addEventListener('change', dibujar);
 zoom.addEventListener('input', dibujar);
+tema.addEventListener('change', dibujar);
+skinSel.addEventListener('change', dibujar);
+baja.addEventListener('change', dibujar);
 dibujar();
 </script>
 </body>

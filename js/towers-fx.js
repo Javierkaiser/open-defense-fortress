@@ -186,7 +186,7 @@ export class LaserStaticFx {
    *   carta de técnica del Láser no haría nada (el rayo es una entidad
    *   suelta, no la torre).
    */
-  constructor(game, x, top, aim, damagePerSec, d = TOWERS.laser, mods = null) {
+  constructor(game, x, top, aim, damagePerSec, d = TOWERS.laser, mods = null, colors = null) {
     this.game = game;
     this.x = x; this.y = top;
     // `aim` no finito (o ausente) → vertical: el rayo, su hitbox y su
@@ -196,8 +196,8 @@ export class LaserStaticFx {
     this.mods = mods ?? null;             // mods de la torre (perks + cartas)
     this.life = (d.laserDuration ?? 3.2) + (mods?.laserDurationAdd ?? 0);
     this.len = laserLengthToEdge(this.x, this.y, this.aim);
-    this.color = d.beamColor ?? '#9DFF3C';
-    this.core = d.coreColor ?? '#E8FFE8';
+    this.color = colors?.laser ?? d.beamColor ?? '#9DFF3C';
+    this.core = colors?.core ?? d.coreColor ?? '#E8FFE8';
     this.t = 0;
     this.dead = false;
     this._sparkTick = -1;                 // throttle de destellos (20/s/enemigo)
@@ -321,7 +321,7 @@ export class CraterFx {
     this.t = 0;
     this.dead = false;
     this._acc = 0;
-    this.color = TOWERS.mortar.accent;
+    this.color = opts.color ?? TOWERS.mortar.accent;
   }
 
   update(dt) {
@@ -426,10 +426,12 @@ export class CraterFx {
 }
 
 export class BeamFx {
-  constructor(game, x, top, tx, ty, extra = 0, ramp = 1) {
+  constructor(game, x, top, tx, ty, extra = 0, ramp = 1, colors = null) {
     this.x = x; this.y = top; this.tx = tx; this.ty = ty;
     this.extra = extra;
     this.ramp = Number.isFinite(ramp) ? Math.max(1, ramp) : 1;
+    this.color = colors?.beam ?? TOWERS.beam.beamColor;
+    this.core = colors?.core ?? TOWERS.beam.coreColor;
     this.life = 0.12;
     this._t = game?.engine?._t ?? 0; // reloj global para el wobble
   }
@@ -449,9 +451,9 @@ export class BeamFx {
     // dos extremos) y un glow bajo (10 px) en vez del plano de antes.
     // El ancho del manto (w0/w1) NO cambia por el color: es el mismo
     // hitbox visual (fase 66: solo lo mueven `extra` y el ramp).
-    ctx.shadowColor = TOWERS.beam.beamColor;
+    ctx.shadowColor = this.color;
     ctx.shadowBlur = 10 + 4 * (this.ramp - 1); // fase 66: el glow crece con el foco
-    ctx.fillStyle = beamGradient(ctx, this.x, this.y, this.tx, this.ty, TOWERS.beam.beamColor);
+    ctx.fillStyle = beamGradient(ctx, this.x, this.y, this.tx, this.ty, this.color);
     ctx.beginPath();
     ctx.moveTo(this.x + nx * h0, this.y + ny * h0);
     ctx.lineTo(this.x - nx * h0, this.y - ny * h0);
@@ -461,11 +463,11 @@ export class BeamFx {
     ctx.fill();
     // Núcleo claro de 1 px en el centro del haz (energía concentrada)
     ctx.shadowBlur = 6;
-    ctx.strokeStyle = beamGradient(ctx, this.x, this.y, this.tx, this.ty, TOWERS.beam.coreColor);
+    ctx.strokeStyle = beamGradient(ctx, this.x, this.y, this.tx, this.ty, this.core);
     ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.tx, this.ty); ctx.stroke();
     // Orbe encendido en la boca (crece un poco con el foco del ramp)
-    ctx.fillStyle = TOWERS.beam.coreColor;
+    ctx.fillStyle = this.core;
     ctx.beginPath();
     ctx.arc(this.x, this.y, 3.2 + 0.6 * (this.ramp - 1), 0, Math.PI * 2);
     ctx.fill();

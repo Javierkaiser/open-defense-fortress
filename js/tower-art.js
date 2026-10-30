@@ -356,12 +356,32 @@ export const TOWER_RIGS = {
 /** Todos los `kind` con rig — lo usa tests/test-tower-art.mjs. */
 export const RIG_KINDS = Object.keys(TOWER_RIGS);
 
+/**
+ * Anclas de skin por rig. `after` indica después de qué pieza base se
+ * insertan los motivos del tema: así un adorno no tapa el cañón/lente.
+ * Las anclas viven fuera de `TOWER_RIGS` para no alterar el contrato de
+ * los tests del arte base ni la silueta aprobada.
+ */
+export const TOWER_ANCHORS = {
+  fan: { top: [0, -38], sideL: [-20, -18], sideR: [20, -18], base: [0, -5], after: 'torsoRim' },
+  homing: { top: [0, -40], sideL: [-14, -16], sideR: [14, -16], base: [0, -4], after: 'rackRim' },
+  beam: { top: [0, -42], sideL: [-16, -20], sideR: [16, -20], base: [0, -4], after: 'flareRim' },
+  bolt: { top: [0, -44], sideL: [-14, -18], sideR: [14, -18], base: [0, -4], after: 'columnRim' },
+  chain: { top: [0, -40], sideL: [-16, -16], sideR: [16, -16], base: [0, -4], after: 'columnRim' },
+  mortar: { top: [0, -38], sideL: [-16, -12], sideR: [16, -12], base: [0, -4], after: 'tubeRim' },
+  gauss: { top: [0, -42], sideL: [-14, -16], sideR: [14, -16], base: [0, -4], after: 'railRim' },
+  laser: { top: [0, -42], sideL: [-12, -16], sideR: [12, -16], base: [0, -4], after: 'bodyRim' },
+};
+
 // ------------------------------------------------------------
 // Renderizador
 // ------------------------------------------------------------
 
 /** Cache de Path2D por string `d` (navegador). En Node queda vacía. */
 const PATH_CACHE = new Map();
+
+/** Cache de rigs compilados por `kind|skinId`. */
+const SKIN_CACHE = new Map();
 
 /** Cache de sprites de glow por color (canvas offscreen, 64×64). */
 const GLOW_CACHE = new Map();
@@ -502,18 +522,105 @@ export function drawGlow(ctx, x, y, r, color, alpha) {
   ctx.restore();
 }
 
-/** Colores lógicos del rig a partir de la entrada de TOWERS. */
-export function rigColors(data, muzzle) {
-  const accent = data?.accent ?? '#FFFFFF';
-  const body = data?.bodyColor ?? '#10161A';
+const SKIN_ROLES = new Set(['body', 'bodyTop', 'dark', 'metal', 'accent', 'hot', 'core']);
+const SKIN_SHAPES = ['d', 'circle', 'ellipse', 'rect', 'line'];
+
+/** ¿La pieza compilada tiene una shape válida y un rol conocido? */
+function validSkinPart(part) {
+  if (!part || typeof part !== 'object') return false;
+  if (!SKIN_ROLES.has(part.role)) return false;
+  return SKIN_SHAPES.filter((k) => part[k] != null).length === 1;
+}
+
+/**
+ * Compila una skin a un rig NUEVO y congelado. Nunca muta `TOWER_RIGS`.
+ * `remove`/`patch` actúan sobre piezas base; `add` y los motivos del tema
+ * se insertan después de `after` para no tapar el arma/lente.
+ *
+ * @param {string} kind clave de TOWER_RIGS
+ * @param {?object} skin skin resuelta por tower-skins.js
+ * @returns {?object} rig base si no hay skin; rig compilado si la hay
+ */
+export function compileSkin(kind, skin) {
+  const base = TOWER_RIGS[kind];
+  if (!base) return null;
+  if (!skin || skin.base || (!skin.palette && !skin.motifs && !skin.perUnit)) return base;
+
+  const anchors = TOWER_ANCHORS[kind] ?? {};
+  // `skinForUnit` entrega el `perUnit` ya específico de la unidad; un skin
+  // escrito a mano puede pasar un mapa por kind. Aceptamos las dos formas.
+  const per = skin.perUnit?.[kind] ?? skin.perUnit ?? {};
+  const remove = new Set(Array.isArray(per.remove) ? per.remove : []);
+  const patches = per.patch ?? {};
+
+  const parts = base.parts
+    .filter((p) => !remove.has(p.id))
+    .map((p) => {
+      const patch = patches[p.id];
+      if (!patch) return { ...p };
+      const out = { ...p };
+      // Sólo se permiten cambios de PRESENTACIÓN: la geometría/pivote de una
+      // pieza animada no se toca (desanclaría el cañón o el fogonazo).
+      for (const k of ['role', 'alpha', 'pulse', 'wave', 'width', 'stroke']) {
+        if (patch[k] === undefined) continue;
+        if (k === 'role' && !SKIN_ROLES.has(patch[k])) continue;
+        out[k] = patch[k];
+      }
+      return out;
+    });
+
+  const add = [];
+  for (const extra of per.add ?? []) add.push({ ...extra });
+  for (const motif of skin.motifs ?? []) {
+    const a = anchors[motif.anchor];
+    if (!a) continue;
+    const [ox, oy] = motif.offset ?? [0, 0];
+    const part = { ...motif, pivot: [a[0] + ox, a[1] + oy], lowQSkip: true };
+    delete part.anchor;
+    delete part.offset;
+    add.push(part);
+  }
+
+  for (const extra of add) {
+    if (!validSkinPart(extra)) continue;
+    const after = extra.after ?? per.after ?? anchors.after;
+    const idx = after ? parts.findIndex((p) => p.id === after) : -1;
+    if (idx >= 0) parts.splice(idx + 1, 0, extra);
+    else parts.push(extra);
+  }
+
+  const rig = {
+    ...base,
+    parts: Object.freeze(parts.map((p) => Object.freeze({ ...p }))),
+    texture: skin.flags?.texture === false ? null : base.texture,
+  };
+  return Object.freeze(rig);
+}
+
+/** Rig resuelto (base o skin) con cache por `kind|skinId`. */
+export function resolveRig(kind, skin = null) {
+  if (!TOWER_RIGS[kind]) return null;
+  if (!skin || skin.base) return TOWER_RIGS[kind];
+  const key = `${kind}|${skin.id}`;
+  const hit = SKIN_CACHE.get(key);
+  if (hit) return hit;
+  const rig = compileSkin(kind, skin) ?? TOWER_RIGS[kind];
+  SKIN_CACHE.set(key, rig);
+  return rig;
+}
+
+/** Colores lógicos del rig a partir de la entrada de TOWERS (o de una skin). */
+export function rigColors(data, muzzle, palette = null) {
+  const accent = palette?.accent ?? data?.accent ?? '#FFFFFF';
+  const body = palette?.body ?? data?.bodyColor ?? '#10161A';
   return {
     body,
-    bodyTop: mixHex(body, accent, 0.20),
-    dark: '#05070A',
-    metal: '#8FA3B8',
+    bodyTop: palette?.bodyTop ?? mixHex(body, accent, 0.20),
+    dark: palette?.dark ?? '#05070A',
+    metal: palette?.metal ?? '#8FA3B8',
     accent,
-    hot: muzzle ?? accent,
-    core: '#FFFFFF',
+    hot: palette?.hot ?? muzzle ?? accent,
+    core: palette?.core ?? '#FFFFFF',
   };
 }
 
@@ -554,15 +661,16 @@ export function rigHotRadius(rig) {
  * distintos de tamaño dentro de la misma tarjeta.
  * @returns {{x0:number, x1:number, y0:number, y1:number}}
  */
-export function rigBox(kind) {
-  const rig = TOWER_RIGS[kind];
+export function rigBox(kind, skin = null) {
+  const rig = resolveRig(kind, skin) ?? TOWER_RIGS[kind];
   const bb = rig?.bbox ?? { x: -20, y: -40, w: 40, h: 40 };
   const p = TOWER_PAD;
+  const pad = Math.max(0, skin?.iconPad ?? 0);
   return {
-    x0: Math.min(bb.x, -p.rx),
-    x1: Math.max(bb.x + bb.w, p.rx),
-    y0: Math.min(bb.y, p.cy - p.ry),
-    y1: Math.max(bb.y + bb.h, p.cy + p.ry),
+    x0: Math.min(bb.x, -p.rx) - pad,
+    x1: Math.max(bb.x + bb.w, p.rx) + pad,
+    y0: Math.min(bb.y, p.cy - p.ry) - pad,
+    y1: Math.max(bb.y + bb.h, p.cy + p.ry) + pad,
   };
 }
 
@@ -572,15 +680,16 @@ export function rigBox(kind) {
  * (fase 60): el estado vive en el pad, alineado con el encaje de los
  * slots vacíos de js/player.js.
  */
-export function drawTowerPad(ctx, colors, lv, t) {
+export function drawTowerPad(ctx, colors, lv, t, pad = null) {
   const p = TOWER_PAD;
-  drawGlow(ctx, 0, p.cy, p.glowR, colors.accent, p.glowAlpha);
+  const glowAlpha = pad?.glowAlpha ?? p.glowAlpha;
+  drawGlow(ctx, 0, p.cy, p.glowR, colors.accent, glowAlpha);
   ctx.save();
-  ctx.fillStyle = p.plate;
+  ctx.fillStyle = pad?.plate ?? p.plate;
   ctx.beginPath();
   ctx.ellipse(0, p.cy, p.rx, p.ry, 0, 0, TAU);
   ctx.fill();
-  ctx.strokeStyle = p.rim;
+  ctx.strokeStyle = pad?.rim ?? p.rim;
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.ellipse(0, p.cy, p.rx, p.ry, 0, 0, TAU);
@@ -594,7 +703,7 @@ export function drawTowerPad(ctx, colors, lv, t) {
     const lit = i < lv;
     const a0 = Math.PI + tk.inset + i * span;
     const a1 = a0 + span - tk.gap;
-    ctx.strokeStyle = lit ? colors.accent : tk.idleColor;
+    ctx.strokeStyle = lit ? colors.accent : (pad?.tickIdle ?? tk.idleColor);
     ctx.lineWidth = lit ? tk.width : tk.idleWidth;
     ctx.globalAlpha = lit ? (i === 0 ? 0.82 + 0.18 * Math.sin(t * 2.2) : tk.litAlpha) : tk.idleAlpha;
     ctx.beginPath();
@@ -622,15 +731,15 @@ export function drawTowerPad(ctx, colors, lv, t) {
  *   · drawPad false → no pintar el pad (lo usa el icono del meta-juego)
  */
 export function renderTowerRig(ctx, opts) {
-  const rig = TOWER_RIGS[opts.kind];
+  const rig = opts.rig ?? TOWER_RIGS[opts.kind];
   if (!rig) return false;
-  const c = rigColors(opts.data, opts.muzzle);
+  const c = opts.colors ?? rigColors(opts.data, opts.muzzle, opts.palette ?? null);
   const t = opts.t ?? 0;
   const aim = Number.isFinite(opts.aim) ? opts.aim : 0;
   const charge = Math.max(0, Math.min(1, opts.charge ?? 0));
   const recoil = Math.max(0, Math.min(1, opts.recoil ?? 0));
 
-  if (opts.drawPad !== false) drawTowerPad(ctx, c, opts.lv ?? 1, t);
+  if (opts.drawPad !== false) drawTowerPad(ctx, c, opts.lv ?? 1, t, opts.pad ?? null);
 
   // Sombra proyectada sobre la plataforma (la torre se apoya, no flota).
   const sh = rig.shadow;
@@ -649,6 +758,7 @@ export function renderTowerRig(ctx, opts) {
   }
 
   for (const part of rig.parts) {
+    if (opts.lowQ && part.lowQSkip) continue;
     let rot = part.rot ?? 0;
     if (part.rotTrack === 'aim') rot += aim * (part.rotMul ?? 1);
     else if (part.rotTrack === 'spin') rot += t * (part.spin ?? 1);
@@ -702,7 +812,7 @@ export function renderTowerRig(ctx, opts) {
   // el sprite se dibujaba entero, más grande y en 'lighter' — sobre el
   // cono del Beam se veía un marco rectangular flotando, como una
   // puerta. Recortado y en 'overlay' pasa a ser textura del cuerpo.
-  const tex = rig.texture;
+  const tex = opts.lowQ ? null : rig.texture;
   const img = tex ? opts.sprites?.[tex.key] : null;
   if (tex && img?.ready && img.img && typeof ctx.clip === 'function'
       && typeof ctx.drawImage === 'function') {
@@ -729,4 +839,5 @@ export function renderTowerRig(ctx, opts) {
 export function resetTowerArtCaches() {
   PATH_CACHE.clear();
   GLOW_CACHE.clear();
+  SKIN_CACHE.clear();
 }
