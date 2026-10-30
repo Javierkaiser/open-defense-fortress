@@ -6,6 +6,18 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 
 ## [Unreleased]
 
+### Cambiado
+
+- **La URL pública pasa al dominio propio**: el juego se publica en
+  <https://opendefensefortress.javierlust.net.ar/> (dominio verificado en
+  here.now, con su propio certificado). `<faint-desert-zjv5>.here.now` sigue
+  sirviendo el mismo build como alias. Se actualizaron la documentación, el
+  `homepage` de `package.json`, el workflow de deploy y la plantilla de issues.
+- `deploy-herenow.sh`: los chequeos post-deploy usan `curl -L`, así el deploy no
+  se marca en rojo si el dominio propio se configura como *primary* (el alias
+  responde 308). Se sumó un chequeo blando del dominio propio, que avisa por
+  stderr sin tumbar un publish que ya se completó.
+
 ## [1.6.0] — 2026-10-30
 
 ### Agregado
