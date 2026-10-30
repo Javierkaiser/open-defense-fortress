@@ -300,6 +300,8 @@ inmune: todo se puede matar, solo cambia el costo.
 - El arte de torres y las skins se revisan con `tools/tower-sheet.html`
   (`?theme=neon&skin=auto&q=low`).
 
+![Skins de torres: el mismo rig en los 5 temas](screenshots/tower-skins.webp)
+
 ## 13. Audio
 
 - WebAudio sintetizado para música y fallback de SFX.
