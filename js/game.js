@@ -37,7 +37,7 @@ import { loadQuality, applyQualityToContext, applyQualityToDom, particleCapFor }
 import {
   loadMeta, saveMeta, rewardVictory, rewardGold, rewardFrags,
   META_GOLD_PER_CLEAR, META_GOLD_PER_VICTORY,
-  META_FRAG_PER_VICTORY, META_FIRST_CLEAR_MULT, META_TOWERS,
+  META_FRAG_PER_VICTORY, META_FIRST_CLEAR_MULT,
   metaDmgMul,
 } from './meta.js';
 // fase 69 — EL PROTOCOLO DE ASEDIO: reglas puras (heat.js) + persistencia
@@ -325,7 +325,7 @@ export class Game {
       // y lo que la run valía escala con la profundidad. Con la fórmula de
       // campaña el resumen de derrota sobrestimaba lo perdido (×2 + base).
       const primeraVez = !endless && !this.meta?.firstClear?.includes(stageId);
-      const fragsPorTorreta = endless
+      const fragsPotencial = endless
         ? Math.round(META_FRAG_PER_VICTORY * endlessRewardMul(stageId))
         : META_FRAG_PER_VICTORY * (primeraVez ? META_FIRST_CLEAR_MULT : 1);
       const oroPotencial = endless
@@ -348,7 +348,9 @@ export class Game {
         // Lo que la run valía y no se llevó:
         lv: this.lv,
         cards: this._cardsApplied ?? 0,
-        fragsLost: fragsPorTorreta * META_TOWERS.length,
+        // v2: los fragmentos son UN pool compartido — lo perdido es el
+        // total que pagaba la run, no ×N torretas.
+        fragsLost: fragsPotencial,
         goldLost: oroPotencial,
         primeraVez,
         // fase 72: la base sólo cae por daño acumulado; ya no hay un
@@ -417,7 +419,7 @@ export class Game {
         stageId: endless ? null : stageId,
         endlessDepth: endless ? stageId : null,
       }));
-      // v3.5 meta-game: la victoria entrega fragmentos a las torretas del meta
+      // v3.5 meta-game: la victoria entrega fragmentos AL POOL meta
       // (×2 la primera vez por stage) y ORO al saldo meta (fase 16: +25 por
       // stage, +150 bonus si es el stage final = campaña completa). rewardVictory
       // guarda y refresca la caché de daño meta (metaDmgMul) y adjunta
@@ -433,7 +435,7 @@ export class Game {
         * rewardMul,
       );
       // fase 69: HITOS de heat (5/10/20/35). Se cobran UNA sola vez por
-      // cuenta y pagan un bonus de fragmentos por torreta. Van ANTES de
+      // cuenta y pagan un bonus de fragmentos al pool. Van ANTES de
       // rewardVictory para que el `lastGain` que lee el resumen siga
       // siendo el desglose de la victoria.
       let milestoneFrags = 0;
@@ -483,7 +485,7 @@ export class Game {
         // fase 67: "campaña completa" es SOLO el S50 (el +150 y el cartel);
         // el ∞ no vuelve a "terminar" la campaña. Explícito para el HUD.
         isFinal,
-        metaFrags: this.meta.lastGain,     // por torreta (60 | 120 | ∞)
+        metaFrags: this.meta.lastGain,     // total al pool (300 | 600 | ∞)
         metaFirst: this.meta.lastFirst,    // bonus primera vez del stage
         metaGold: goldGain,                // fase 16: oro ganado en total
         metaGoldBonus: isFinal,            // incluye +150 de campaña completa
@@ -498,8 +500,8 @@ export class Game {
         daily,
         // fase 69: el desglose del Protocolo. `record` es el récord contra
         // el que se compite (ya con esta run dentro); `milestones` son los
-        // hitos cobrados en ESTE clear y `milestoneFrags` su bonus por
-        // torreta.
+        // hitos cobrados en ESTE clear y `milestoneFrags` su bonus
+        // al pool.
         heat: heat > 0 ? {
           heat,
           best: this.progressData.heat.best,
@@ -1655,7 +1657,7 @@ export class Game {
         // dev-7 fase 28: el "×10" era INVENTADO (§2.4/D11 lo copiaba
         // del juego, pero aquí no existe tal multiplicador).
         // La recompensa real de un stage es la misma que en cualquier
-        // stage: 60 fragmentos por torreta, ×2 la PRIMERA vez que se
+        // stage: 300 fragmentos al pool, ×2 la PRIMERA vez que se
         // clears ese stage. Se muestra ese factor real.
         rewardMul: this.meta?.firstClear?.includes(this.stageId ?? 1) ? 1 : 2,
       } : null,

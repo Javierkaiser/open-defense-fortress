@@ -15,7 +15,9 @@ import { MAX_DRONES, TOWERS, DRONES } from './towers.js';
 // dev-7 fase 31: `perkMods` para saber si el jugador tiene el perk de
 // espinas del Campo de Fuerza (sin él la carta "Burbuja Reforzada" sería
 // inerte: multiplica por 1.6 un daño que es 0).
-import { perkMods } from './meta.js';
+// v2: `isUnitUnlocked` — el arsenal ya no se compra con cartas de la run:
+// una unidad bloqueada en el meta no entra al pool ni se aplica.
+import { perkMods, isUnitUnlocked } from './meta.js';
 // dev-7 fase 51: `addCardMods` — el CANAL de cartas: por aquí una carta
 // puede dar MECÁNICAS (el vocabulario de los perks) a una unidad, no sólo
 // multiplicadores. Los mods se acumulan en `unit.cardMods` y los lee
@@ -50,11 +52,6 @@ function offerCountFor(game) {
 // descripción dice cómo queda contra cada familia de enemigo, con los
 // números REALES de la matriz (multiplicador de la carta × matriz).
 import { DAMAGE_TYPES, ENEMY_FAMILIES, ENEMY_FAMILY_IDS, dmgMultiplier } from './damagetypes.js';
-
-/** Torres canónicas desbloqueables SOLO por cartas (§6 decisión 3). */
-const UNLOCKABLE_TOWERS = [
-  'missile', 'thunderstroke', 'tesla', 'beam',
-];
 
 // ------------------------------------------------------------
 // dev-7 fase 49 — LAS CARTAS HABLAN: tipo de daño y SINONERGIA
@@ -423,6 +420,12 @@ export function isRelevant(card, game) {
   if (!meetsRequirements(card, game)) return false;
 
   const f = game?.fortress;
+  // v2: una unidad BLOQUEADA en el meta no puede entrar al pool — ni su
+  // carta de desbloqueo (el jugador no la compró) ni sus mejoras. Va ANTES
+  // de los chequeos de slot/cupo: la carta es inútil tenga o no dónde
+  // ponerla. Sin `game.meta` (tests, balance-sim) todo sigue elegible.
+  if (card.tower && !isUnitUnlocked(game?.meta, card.tower)) return false;
+  if (card.drone && !isUnitUnlocked(game?.meta, card.drone)) return false;
   if (card.tower) {
     if (ownedTypes(game).has(card.tower)) return false;
     if (f && !f.slots.some((s) => !s)) return false; // sin slot libre
@@ -1889,6 +1892,11 @@ export function rollOffer(game, rng = Math.random) {
 export function applyCard(card, game) {
   const c = typeof card === 'string' ? CARD_BY_ID.get(card) : card;
   if (!c || typeof c.apply !== 'function') return null;
+  // v2: el gate de `isRelevant` no alcanza — una carta puede venir de una
+  // oferta anterior (o aplicarse por id). Una unidad bloqueada no se
+  // coloca ni se mejora: no-op, como una carta desconocida.
+  if ((c.tower && !isUnitUnlocked(game?.meta, c.tower))
+    || (c.drone && !isUnitUnlocked(game?.meta, c.drone))) return null;
   // fase 75: los combos y las cartas de Black Hole se aplican UNA vez.
   // `fillOffer` puede reofrecer una carta topada como relleno; antes su
   // `apply` no miraba `appsOf` y apilar combo_swarm_link/bh_horizon dos

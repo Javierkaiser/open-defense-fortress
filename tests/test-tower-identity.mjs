@@ -7,7 +7,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { TOWERS, DRONES } from '../js/towers-data.js';
+import { TOWERS, DRONES, dpsScaleFor } from '../js/towers-data.js';
 import {
   MECHANICS, mechanicOf, mechIdOf, isMechanicOwner,
   mechanicDamageMul, onMechanicHit, onMechanicTick, onMechanicKill,
@@ -168,7 +168,8 @@ test('identidad: Juicio, Ion, Riel, Corte y Quemadura dejan su marca', () => {
   const burn = dummy();
   onMechanicHit('firewheel', burn, {}, { mods: { burnDpsAdd: 2, burnTimeAdd: 1 } });
   assert.equal(burn.poisonKind, 'burn');
-  assert.equal(burn.poisonDps, 10); // 8 base + 2 del perk
+  // 8 base + 2 del perk, × el dial de presentación de la unidad.
+  assert.equal(burn.poisonDps, 10 * dpsScaleFor('firewheel'));
   assert.equal(burn.poisonT, 4);    // 3 base + 1 del perk
 });
 

@@ -6,6 +6,34 @@
 // =============================================================================
 
 
+// -----------------------------------------------------------------------------
+// DIAL DE PRESENTACIÓN / BALANCE DEL ARSENAL
+// -----------------------------------------------------------------------------
+// Multiplicador ÚNICO que se aplica al daño de salida de las 8 torres y de los
+// 3 drones (incluido su DoT propio: cráter del Mortar, quemadura de la Rueda,
+// picadura/veneno de los Mosquitos y espinas del Campo de Fuerza). NO toca la
+// cadencia, el alcance ni las mecánicas de identidad: sólo el daño.
+//
+// La TESLA queda exenta (`DPS_SCALE_BY_UNIT`) porque su identidad es la
+// cobertura anti-enjambre: su DPS por blanco ya es bajo a propósito y bajarlo
+// más la sacaría del único caso que resuelve. Todo lo demás escala ×0,75.
+//
+// Es un dial de balance: para recalibrar el arsenal entero alcanza con mover
+// `DPS_SCALE` (y dejar la exención de la Tesla en su tabla).
+export const DPS_SCALE = 0.75;
+
+/** Excepciones por unidad (id de torre/dron). Tesla: exenta por identidad. */
+export const DPS_SCALE_BY_UNIT = Object.freeze({ tesla: 1 });
+
+/**
+ * Escala de daño de una unidad (`type` de torre o dron).
+ * @param {string} type
+ * @returns {number}
+ */
+export function dpsScaleFor(type) {
+  return DPS_SCALE_BY_UNIT[type] ?? DPS_SCALE;
+}
+
 export const TOWERS = {
   guardian: {
     name: 'Guardian',

@@ -173,7 +173,7 @@ export function survivalBossName(wave) {
  * @param {number} wave oleada alcanzada
  * @param {number} [bestWave] récord previo
  * @param {number} [heat]
- * @returns {{frags:number, gold:number}} frags POR TORRETA y oro total
+ * @returns {{frags:number, gold:number}} frags al POOL compartido y oro total
  */
 export function survivalReward(wave, bestWave = 0, heat = 0) {
   const w = Math.max(0, Math.trunc(Number(wave) || 0));

@@ -11,6 +11,11 @@ tendencias, no para prometer win rates exactos.
 # Campaña, 5 semillas por etapa
 node scripts/balance-sim.mjs --mode=inteligente --meta=trajectory --seeds=5
 
+# Meta del pool compartido: entre las 5 unidades que juega el jugador…
+node scripts/balance-sim.mjs --mode=inteligente --meta=pool-focus --seeds=10
+# …o entre las 11 unidades del catálogo (sin priorizar ninguna)
+node scripts/balance-sim.mjs --mode=inteligente --meta=pool-spread --seeds=10
+
 # Un stage puntual
 node scripts/balance-sim.mjs --stage=50 --seeds=10
 
@@ -40,8 +45,15 @@ node scripts/probe-waves.mjs --full
 | `inteligente` | Maximiza DPS con las cartas. Es el perfil de referencia actual. |
 
 `--cards=ceiling` mide el techo de poder; `--cards=normal` el caso normal.
-`--meta=trajectory` deriva el nivel meta real de la campaña; `--metalv=N` lo
-fuerza. `--killrate=X` asume que el jugador mata como máximo el X % de la ola.
+`--killrate=X` asume que el jugador mata como máximo el X % de la ola.
+
+El meta tiene tres políticas (`--meta`):
+
+| `--meta` | Qué modela |
+|---|---|
+| `pool-focus` (default de `trajectory`) | El pool acumulado (600 por etapa limpia) se reparte en cuotas iguales de 5: **cada torre y dron que entra en la run** recibe esa cuota. Es la trayectoria real de un jugador que invierte en lo que juega. |
+| `pool-spread` | El mismo pool repartido entre las **11 unidades** del catálogo desde el arranque (mide "no priorizar nada"). |
+| `--metalv=N` | Nivel fijo en todas las unidades (escenarios de piso/techo, comparable con las tablas viejas). |
 
 > **Cuidado**: el simulador no es el juego. Sirve para comparar antes/después
 > con las mismas semillas. Las diferencias de ±10 puntos en un mismo stage son
@@ -152,11 +164,136 @@ no sólo un multiplicador de daño:
   relacionan con las unidades, tags y técnicas presentes. Incluyen daño global
   (+10% ×2), daño por tipo (+20% ×2), mecánicas por torre y 11 combos con
   prerrequisitos (frío, lifesteal, marcas, stun, rebote y perforación).
-- **Meta**: 100 niveles; fragmentos por victoria (60, ×2 la primera vez),
-  `fragCost(nivel) = 75 + 35·década`; el daño meta por nivel es +18 % (no +5 %).
-  La trayectoria real llega a meta ~44 en S50.
+- **Meta**: 100 niveles por unidad; **pool de fragmentos compartido** (300 por
+  victoria, 600 la primera limpieza de cada etapa); `fragCost(nivel) =
+  75 + 35·década` (22 860 para llevar una unidad a Nvl.100) y +18 % de daño por
+  nivel. La trayectoria real llega a **Nvl.44 en S50** si el pool se invierte en
+  las 5 unidades que juega el jugador (**Nvl.26** si se reparte entre las 11).
+  Ver §"Meta v2 — pool compartido".
+- **Desbloqueos con oro**: una cuenta nueva arranca **solo con Guardian**; las
+  otras 10 unidades se compran con oro (150–500) y recién entonces su carta
+  `unlock_*` entra en la oferta. Ver
+  `openspec/specs/meta-game/tower-unlocks/spec.md`.
+- **DPS**: `DPS_SCALE = 0,75` en torres y drones (incluido el DoT del cráter y
+  de los drones); la **Tesla queda exenta** (`DPS_SCALE_BY_UNIT = { tesla: 1 }`).
+  Es un −25 % parejo del daño nominal y **el HP de las olas no se compensó**.
 - **Perks**: remate, robo de vida con tope del **10 %** del daño efectivo y
   explosión al matar. Los valores por perk son 1–6 %.
+
+## Meta v2 — pool compartido
+
+### Economía
+
+- **Fragmentos = un pool compartido** (`fragsPool`), no un saldo por torreta.
+  Cada victoria suma **300**; la **primera** limpieza de una etapa suma **600**
+  (300 × `META_FIRST_CLEAR_MULT`). Los hitos de Protocolo, la supervivencia y el
+  ∞ suman al mismo pool. No hay "MEJORAR todo": se sube una torreta por vez
+  contra el mismo saldo.
+- **Oro**: se gana por etapa (25) y por campaña completa (150); se gasta en
+  desbloquear unidades (150–500) y en redistribuir perks (500).
+- **Desbloqueos**: una cuenta nueva arranca **solo con Guardian**; las otras 10
+  unidades se compran con oro. Una unidad bloqueada no entra en la oferta de
+  cartas, no se mejora y su `metaDmgMul` es 1
+  (`openspec/specs/meta-game/tower-unlocks/spec.md`).
+- **Coste de nivel**: `fragCost(n) = 75 + 35·década` → **22 860** fragmentos
+  para llevar una unidad de Nvl.1 a Nvl.100. **+18 %** de daño por nivel meta.
+- **Migración**: un save v1 (fragmentos por torreta) suma todos sus saldos al
+  pool y conserva niveles, oro y perks.
+
+### Trayectoria del pool
+
+Antes del stage N el jugador lleva (N-1) limpiezas, cada una con su primera vez:
+**600 × (N-1)** fragmentos. Repartidos entre las **5 unidades que juega** (la
+cuota por slot) da 120 por unidad y por etapa, que es exactamente la trayectoria
+vieja de 120 por torreta. Repartidos entre las 11, la misma bolsa rinde mucho
+menos:
+
+| Stage | Pool acumulado | `pool-focus` (5) | `pool-spread` (11) |
+|---:|---:|---:|---:|
+| 10 | 5 400 | 14 | 7 |
+| 20 | 11 400 | 23 | 13 |
+| 25 | 14 400 | 28 | 16 |
+| 30 | 17 400 | 32 | 18 |
+| 40 | 23 400 | 38 | 22 |
+| 45 | 26 400 | 41 | 24 |
+| 50 | 29 400 | 44 | 26 |
+
+`pool-focus` (alias de `--meta=trajectory`) aplica la cuota por unidad
+(pool / 5) a **cada torre y dron que entra en la run**: el jugador invierte el
+pool en lo que juega. La política vieja subía las 11 unidades al mismo nivel;
+la nueva sube las que pelean, con el MISMO nivel por unidad — por eso
+`--meta=pool-focus` en S50 da exactamente la misma corrida que `--metalv=44`
+(lo fija `tests/test-balance-sim.mjs`).
+
+`pool-spread` reparte el pool entre las 11 unidades desde el arranque: mide el
+coste de no priorizar nada (S50 = Nvl.26).
+
+### Resultados medidos (10 semillas)
+
+S50, `--mode=inteligente`:
+
+| Escenario | meta | win | HP fin | % bajas | leaks | daño de fugas |
+|---|---:|---:|---:|---:|---:|---:|
+| Antes (1.6.0, 20 semillas) | 44 | 100 % | 93 % | 99 % | — | — |
+| `--meta=pool-focus` | 44 | 100 % | 72 % | 91 % | 55,7 | 7 051 |
+| `--meta=pool-spread` | 26 | 50 % | 20 % | 43 % | 123,3 | 20 350 |
+| `--stage=50` (piso, meta 1) | 1 | 0 % | 0 % | 0 % | 145,3 | 25 500 |
+
+S50 + Protocolo II (`greedy`, el comando tal cual):
+
+| Escenario | meta | win | HP fin | % bajas | leaks | daño de fugas |
+|---|---:|---:|---:|---:|---:|---:|
+| Antes (1.6.0) | 44 | 70 % | 48 % | 61 % | — | — |
+| `--protocol=II --meta=pool-focus` | 44 | 80 % | 41 % | 75 % | 77,2 | 15 124 |
+| `--protocol=II` (piso, meta 1) | 1 | 0 % | 0 % | 0 % | 112,7 | 25 500 |
+
+Campaña con `--meta=pool-focus` (`--mode=inteligente`):
+
+| Stage | meta | win | HP fin | % bajas | leaks | daño de fugas |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 1 | 100 % | 100 % | 102 % | 0,0 | 0 |
+| 2 | 2 | 100 % | 100 % | 100 % | 0,1 | 2 |
+| 3 | 4 | 100 % | 91 % | 99 % | 1,4 | 257 |
+| 4 | 5 | 100 % | 97 % | 99 % | 2,6 | 92 |
+| 5 | 7 | 100 % | 100 % | 100 % | 0,0 | 0 |
+| 6 | 9 | 100 % | 93 % | 98 % | 8,0 | 304 |
+| 10 | 14 | 100 % | 92 % | 101 % | 9,1 | 516 |
+| 20 | 23 | 100 % | 88 % | 98 % | 23,6 | 1 385 |
+| 30 | 32 | 100 % | 79 % | 95 % | 34,0 | 3 302 |
+| 50 | 44 | 100 % | 72 % | 91 % | 55,7 | 7 051 |
+
+Campaña con `--meta=pool-spread` (`--mode=inteligente`):
+
+| Stage | meta | win | HP fin | % bajas | leaks | daño de fugas |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 1 | 100 % | 100 % | 102 % | 0,0 | 0 |
+| 2 | 1 | 100 % | 98 % | 99 % | 2,8 | 43 |
+| 3 | 2 | 100 % | 85 % | 98 % | 2,8 | 432 |
+| 4 | 3 | 100 % | 90 % | 97 % | 6,0 | 356 |
+| 5 | 3 | 100 % | 99 % | 100 % | 1,0 | 41 |
+| 6 | 4 | 90 % | 62 % | 84 % | 41,5 | 1 672 |
+| 10 | 7 | 90 % | 66 % | 88 % | 37,1 | 2 113 |
+| 20 | 13 | 70 % | 49 % | 72 % | 75,9 | 5 643 |
+| 30 | 18 | 30 % | 25 % | 36 % | 99,5 | 11 942 |
+| 50 | 26 | 50 % | 20 % | 43 % | 123,3 | 20 350 |
+
+Lectura:
+
+- **El pool no cambia el nivel por unidad**: `pool-focus` reproduce los 44 de la
+  trayectoria histórica. Lo que cambia es el alcance: el jugador ya no puede
+  subir las 11 a la vez.
+- **La caída de HP fin (93 → 72 %) es el dial de DPS (−25 %)**, no el pool: con
+  `--metalv=44` (las 11 al 44, la política vieja) el S50 queda en 100 % / 72 % /
+  91 %, idéntico a `pool-focus`. El antes sale de la tabla de 1.6.0; el después
+  está medido con este árbol, donde además del dial estaban entrando los cambios
+  de cartas del mismo rework.
+- **El win% no es monótono con el poder**: el director genera la ola con la
+  potencia del jugador (`powerMul`), así que un meta más bajo pelea una ola más
+  chica. `pool-spread` gana 30 % en S30 (Nvl.18) y 50 % en S50 (Nvl.26), y
+  `pool-focus` gana 100 % en las dos. Comparar niveles distintos exige mirar HP
+  fin y bajas, no sólo el win.
+- **El % de bajas puede pasar de 100**: el denominador es la cola del director;
+  los escoltas del jefe no están en esa cola pero sí cuentan como bajas de ola.
 
 ## Modo infinito (∞)
 
@@ -187,7 +324,7 @@ no sólo un multiplicador de daño:
 - **11 condiciones** con rangos y coste acumulativo; máximo **49**.
 - **Presets**: I=5, II=10, III=16, IV=24, V=35.
 - **Recompensa**: `heatRewardMul = 1 + 0,08·heat` (heat 10 ≈ ×1,8).
-- **Hitos únicos** 5/10/20/35: 60/120/240/420 fragmentos **por torreta**.
+- **Hitos únicos** 5/10/20/35: 60/120/240/420 fragmentos **al pool**.
 - v1 se aplica **solo a la campaña**. El ∞ y el daily juegan a heat 0.
 
 ## Metodología y guardas
@@ -203,11 +340,13 @@ no sólo un multiplicador de daño:
 6. La suite tiene guardas de regresión de HP por etapa, apertura, jefes,
    variantes y supervivencia.
 
-## Estado actual (v1.6.0)
+## Estado actual (v1.7.0)
 
 - Campaña: 50 etapas, win 100 % con la trayectoria real de meta y cartas.
-- S50 sin heat: 100 % / 93 % de HP / 99 % de bajas (20 semillas).
-- Heat: la escalera 5→35 cae de 90 % a 30 % en S50.
+- S50 sin heat: 100 % / 72 % de HP / 91 % de bajas (10 semillas, `pool-focus`;
+  antes de 1.7.0: 93 % / 99 %).
+- Heat: la escalera 5→35 se re-mide con el pool nuevo; Protocolo II queda en
+  80 % de win en S50 (10 semillas).
 - ∞: la pared empieza alrededor de 60–70; el win cae con la profundidad.
 - Supervivencia: ~84 oleadas planas en el simulador; el número absoluto no es
   confiable, la tendencia sí.
@@ -229,5 +368,11 @@ no sólo un multiplicador de daño:
   el pool más corto compensa la pérdida de la carta de XP.
 - Skins de torres (1.6.0): cambio 100 % visual (paleta, motivos, pad y FX).
   No toca daño, cadencia, hitbox ni balance; la simulación no se re-mide.
+- Meta v2 (1.7.0): pool compartido de 300/600, desbloqueos con
+  oro y `DPS_SCALE = 0,75` (Tesla exenta). Medido con `--meta=pool-focus`
+  (Nvl.44 en S50, 10 semillas): S50 sin heat **100 % win / 72 % HP / 91 %
+  bajas** (antes 93 % / 99 %) y Protocolo II **80 % / 41 % / 75 %** (antes
+  70 % / 48 % / 61 %). El piso (meta 1) ya no gana el S50: 0 % / 0 % / 0 %.
+  Detalle y aritmética en §"Meta v2 — pool compartido".
 - El balance sigue siendo un trabajo abierto: el simulador es una herramienta
   de comparación, no un oráculo.

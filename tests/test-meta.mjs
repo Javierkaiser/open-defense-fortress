@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import {
   META_TOWERS, META_MAX_LEVEL, PERK_EVERY, PERK_TIERS, META_DMG_PER_LEVEL,
-  PERK_SCHEMA_VERSION,
+  PERK_SCHEMA_VERSION, META_VERSION, META_UNLOCK_COSTS,
   META_GOLD_START, META_GOLD_PER_CLEAR, META_GOLD_PER_VICTORY, PERK_RESET_COST,
   META_FRAG_PER_VICTORY, META_FIRST_CLEAR_MULT, rewardVictory, rewardFrags,
   normalizeMeta, fragCost, perkCount, metaDmgMul, PERKS, perkMods, mergeMods,
@@ -21,7 +21,7 @@ import {
   META_SLOW_BASE, META_SLOW_CAP, metaSlowFrac,
   META_MILESTONES, META_MILESTONE_DMG_PER_HIT, milestoneDmgMul, towerMilestones,
   perkDmgFor, META_RANKS, playerRank, playerLevel,
-  upgradePlan, pendingUpgrades, upgradeAllTowers, pendingUpgradeCost,
+  isUnitUnlocked, unlockTower, upgradeTower,
   towerIconFit,
 } from '../js/meta.js';
 import { TOWERS, DRONES } from '../js/towers.js';
@@ -268,6 +268,7 @@ test('perkSchemaVersion: un save viejo conserva nivel/oro y resetea SOLO las ele
   const m1 = loadMeta(s1);
   assert.equal(m1.levels.guardian, 40, 'el nivel se conserva');
   assert.equal(m1.gold, 777, 'el oro se conserva');
+  assert.equal(m1.fragsPool, 123, 'los fragmentos por torreta migran al pool');
   assert.deepEqual(m1.perkChoices.guardian, Array(PERK_TIERS).fill(null),
     'las elecciones A/B se resetean: el índice viejo tenía otro significado');
   assert.equal(m1.perkSchemaVersion, PERK_SCHEMA_VERSION);
@@ -397,12 +398,12 @@ test('rewardGold: suma, persiste y clamp al techo', () => {
   assert.equal(clamped.gold, 999999); // techo
 });
 
-test('resetPerks: exitoso descuenta oro, limpia tiers y NO toca nivel/frags/victorias', () => {
+test('resetPerks: exitoso descuenta oro, limpia tiers y NO toca nivel/pool/victorias', () => {
   const data = new Map();
   const storage = { getItem: (k) => data.get(k) ?? null, setItem: (k, v) => data.set(k, v) };
   const meta = normalizeMeta({
     levels: { guardian: 40 },
-    frags: { guardian: 80 },
+    fragsPool: 80,
     victories: 7,
     gold: PERK_RESET_COST + 50,
     perkChoices: { guardian: [0, 1, null, 1] },
@@ -412,7 +413,7 @@ test('resetPerks: exitoso descuenta oro, limpia tiers y NO toca nivel/frags/vict
   assert.equal(r.meta.gold, 50);                      // 550 − 500
   assert.deepEqual(r.meta.perkChoices.guardian, Array(PERK_TIERS).fill(null));
   assert.equal(r.meta.levels.guardian, 40);           // nivel intacto
-  assert.equal(r.meta.frags.guardian, 80);            // fragmentos intactos
+  assert.equal(r.meta.fragsPool, 80);                 // pool intacto
   assert.equal(r.meta.victories, 7);                  // victorias intactas
   assert.deepEqual(loadMeta(storage).perkChoices.guardian, Array(PERK_TIERS).fill(null));
 });
@@ -447,19 +448,19 @@ function memStorage() {
 
 test('fase 67: la recompensa del ∞ escala con la profundidad (S55 < S75)', () => {
   const storage = memStorage();
-  // 55: escalón 1, hito (múltiplo de 5) → 60 × 1 × 1,5 = 90
+  // 55: escalón 1, hito (múltiplo de 5) → 300 × 1 × 1,5 = 450
   const s55 = rewardVictory(defaultMeta(), 55, storage);
-  assert.equal(s55.lastGain, 90);
-  // 75: escalón 3 (1 + floor(24/10)), hito → 60 × 3 × 1,5 = 270
+  assert.equal(s55.lastGain, META_FRAG_PER_VICTORY * 1.5);
+  // 75: escalón 3 (1 + floor(24/10)), hito → 300 × 3 × 1,5 = 1350
   const s75 = rewardVictory(s55, 75, storage);
-  assert.equal(s75.lastGain, 270);
+  assert.equal(s75.lastGain, META_FRAG_PER_VICTORY * 3 * 1.5);
   assert.ok(s75.lastGain > s55.lastGain, 'el ∞ tiene que pagar más cuanto más profundo');
 });
 
 test('fase 67: el HITO del ∞ paga ×1,5 (S59 vs S60, mismo escalón)', () => {
   const storage = memStorage();
-  const normal = rewardVictory(defaultMeta(), 59, storage); // 60 × 1
-  const hito = rewardVictory(normal, 60, storage);          // 60 × 1 × 1,5
+  const normal = rewardVictory(defaultMeta(), 59, storage); // 300 × 1
+  const hito = rewardVictory(normal, 60, storage);          // 300 × 1 × 1,5
   assert.equal(normal.lastGain, META_FRAG_PER_VICTORY);
   assert.equal(hito.lastGain, META_FRAG_PER_VICTORY * 1.5);
 });
@@ -483,23 +484,19 @@ test('fase 69: rewardVictory con heatMul paga 1,8× a heat 10 (y nunca menos de 
   );
 });
 
-test('fase 69: rewardFrags suma por torreta sin tocar victories ni firstClear', () => {
+test('fase 69: rewardFrags suma UNA vez al pool sin tocar victories ni firstClear', () => {
   const storage = memStorage();
-  const base = normalizeMeta({ ...defaultMeta(), victories: 7, firstClear: [3] });
+  const base = normalizeMeta({ ...defaultMeta(), fragsPool: 100, victories: 7, firstClear: [3] });
   const saved = rewardFrags(base, 60, storage);
-  for (const t of META_TOWERS) {
-    assert.equal(saved.frags[t.key], (base.frags[t.key] ?? 0) + 60, `${t.key} +60`);
-  }
+  assert.equal(saved.fragsPool, 160, 'el bonus entra UNA sola vez al pool');
   assert.equal(saved.victories, 7, 'un hito NO es una victoria');
   assert.deepEqual(saved.firstClear, [3], 'un hito NO escribe firstClear');
   // Persiste de verdad (mismo storage que el resto de reward*).
   const reloaded = JSON.parse(storage.getItem('gdf_meta'));
-  assert.equal(reloaded.frags[META_TOWERS[0].key], (base.frags[META_TOWERS[0].key] ?? 0) + 60);
+  assert.equal(reloaded.fragsPool, 160);
   // Sin bonus (0/negativo/basura) no hay cambios sobre el meta de entrada.
-  const cero = rewardFrags(saved, 0, storage);
-  assert.deepEqual(cero.frags, saved.frags, 'con 0 fragmentos el meta no cambia');
-  const basura = rewardFrags(saved, NaN, storage);
-  assert.deepEqual(basura.frags, saved.frags, 'con NaN tampoco');
+  assert.equal(rewardFrags(saved, 0, storage).fragsPool, 160, 'con 0 el pool no cambia');
+  assert.equal(rewardFrags(saved, NaN, storage).fragsPool, 160, 'con NaN tampoco');
 });
 
 test('fase 67: limpiar ∞ NO escribe firstClear (ni paga ×2 permanente)', () => {
@@ -514,14 +511,14 @@ test('fase 67: limpiar ∞ NO escribe firstClear (ni paga ×2 permanente)', () =
   assert.equal(s75.victories, base.victories + 3); // las victorias sí cuentan
 });
 
-test('fase 67: la CAMPAÑA sigue pagando exactamente como hoy (S10: 120 → 60)', () => {
+test('fase 67: la CAMPAÑA sigue pagando como siempre (S10: 600 → 300)', () => {
   const storage = memStorage();
   const first = rewardVictory(defaultMeta(), 10, storage);
-  assert.equal(first.lastGain, META_FRAG_PER_VICTORY * META_FIRST_CLEAR_MULT); // 120
+  assert.equal(first.lastGain, META_FRAG_PER_VICTORY * META_FIRST_CLEAR_MULT); // 600
   assert.equal(first.lastFirst, true);
   assert.deepEqual(first.firstClear, [10]);
   const again = rewardVictory(first, 10, storage);
-  assert.equal(again.lastGain, META_FRAG_PER_VICTORY);                        // 60
+  assert.equal(again.lastGain, META_FRAG_PER_VICTORY);                        // 300
   assert.equal(again.lastFirst, false);
   assert.deepEqual(again.firstClear, [10]); // sin duplicar
 });
@@ -1154,133 +1151,213 @@ test('fragCost: llevar una torreta de Nvl.1 a Nvl.100 cuesta 22 860 fragmentos',
 });
 
 // ============================================================================
-// dev-7 fase 59.3 - EL META QUE SE VE: "SUBIR TODO LO POSIBLE"
+// v2 — POOL COMPARTIDO DE FRAGMENTOS + DESBLOQUEO DE UNIDADES CON ORO
 // ============================================================================
-// El diagnostico de la UX: el meta es MANUAL y su coste por nivel es de
-// 75-390 fragmentos, con 11 torres. El jugador llego al S21 con 5 000
-// fragmentos acumulados y NUNCA los gasto (hizo falta el simulador para
-// medirlo). Estas funciones son el arreglo: un boton que sube todo lo
-// posible y un aviso de "hay mejoras pendientes".
+// Antes cada torreta tenía su propia bolsa de fragmentos (y la UI tenía un
+// "SUBIR TODO" greedy por torreta). Ahora hay UN pool compartido por todo el
+// arsenal y las unidades se compran con oro. Las funciones viejas
+// (upgradePlan/pendingUpgrades/pendingUpgradeCost/upgradeAllTowers) se
+// eliminaron: la UI se actualiza después.
 
-test('pendingUpgrades: 0 cuando no hay fragmentos suficientes', () => {
-  const meta = normalizeMeta({ levels: { guardian: 1 }, frags: { guardian: 10 } });
-  assert.equal(pendingUpgrades(meta), 0);
+test('economía v2: META_VERSION, pool de 300 por victoria y costes de desbloqueo', () => {
+  assert.equal(META_VERSION, 2);
+  assert.equal(META_FRAG_PER_VICTORY, 300);
+  assert.equal(META_FIRST_CLEAR_MULT, 2);
+  assert.equal(META_UNLOCK_COSTS.guardian, 0);
+  assert.equal(META_UNLOCK_COSTS.laser, 500);
 });
 
-test('pendingUpgrades: cuenta los niveles pagables (greedy por torreta)', () => {
-  // 75 por nivel (primera decada): 225 = 3 niveles en el guardian.
-  const meta = normalizeMeta({ levels: { guardian: 1 }, frags: { guardian: 225 } });
-  assert.equal(pendingUpgrades(meta), 3);
+test('defaultMeta: solo Guardian desbloqueado y las otras 10 bloqueadas', () => {
+  const d = defaultMeta();
+  assert.equal(d.metaVersion, META_VERSION);
+  assert.equal(d.fragsPool, 0);
+  assert.equal(d.unlocked.guardian, true);
+  const bloqueadas = META_TOWERS.filter((t) => t.key !== 'guardian');
+  assert.equal(bloqueadas.length, 10);
+  for (const t of bloqueadas) {
+    assert.equal(d.unlocked[t.key], false, `${t.key} debería estar bloqueada`);
+  }
+  // El catálogo de costes cubre las 11 unidades y el Guardian es gratis.
+  assert.equal(Object.keys(META_UNLOCK_COSTS).length, META_TOWERS.length);
+  for (const t of META_TOWERS) {
+    assert.ok(Number.isFinite(META_UNLOCK_COSTS[t.key]), `${t.key} sin coste de desbloqueo`);
+  }
 });
 
-test('upgradeAllTowers: sube todas las torretas que puede y guarda el resto', () => {
-  const store = new Map();
-  const storage = {
-    getItem: (k) => store.get(k) ?? null,
-    setItem: (k, v) => store.set(k, v),
+test('normalizeMeta: null, undefined o {} (cuenta nueva) dejan solo el Guardian', () => {
+  for (const raw of [null, undefined, {}]) {
+    const m = normalizeMeta(raw);
+    assert.equal(m.metaVersion, META_VERSION);
+    assert.equal(m.fragsPool, 0);
+    assert.equal(m.unlocked.guardian, true);
+    for (const t of META_TOWERS) {
+      if (t.key === 'guardian') continue;
+      assert.equal(m.unlocked[t.key], false,
+        `${t.key} no puede venir desbloqueada en una cuenta nueva`);
+    }
+  }
+});
+
+test('normalizeMeta: un save v1 migra frags por torreta al pool y desbloquea todo (abuelo)', () => {
+  const viejo = {
+    levels: { guardian: 40, tesla: 12 },
+    frags: { guardian: 100, tesla: 250, gauss: 50 },
+    victories: 9,
+    firstClear: [1, 2],
+    gold: 321,
+    perkChoices: { guardian: [0, 1] },
   };
-  const meta = normalizeMeta({
-    levels: { guardian: 1, tesla: 1 },
-    frags: { guardian: 225, tesla: 75 },
+  const m = normalizeMeta(viejo);
+  assert.equal(m.fragsPool, 400, 'se suman TODAS las claves de frags');
+  assert.equal(m.levels.guardian, 40);
+  assert.equal(m.levels.tesla, 12);
+  assert.equal(m.gold, 321);
+  assert.equal(m.victories, 9);
+  assert.deepEqual(m.firstClear, [1, 2]);
+  assert.equal(m.perkChoices.guardian[0], 0);
+  for (const t of META_TOWERS) {
+    assert.equal(m.unlocked[t.key], true, `${t.key}: un save viejo conserva todo el arsenal`);
+  }
+});
+
+test('rewardVictory/rewardFrags: suman al pool UNA sola vez (no por torreta)', () => {
+  const storage = memStorage();
+  const first = rewardVictory(defaultMeta(), 3, storage);
+  assert.equal(first.fragsPool, META_FRAG_PER_VICTORY * META_FIRST_CLEAR_MULT,
+    '300 × 2 = 600, una vez al pool');
+  const again = rewardVictory(first, 3, storage);
+  assert.equal(again.fragsPool, first.fragsPool + META_FRAG_PER_VICTORY);
+  const bonus = rewardFrags(again, 35, storage);
+  assert.equal(bonus.fragsPool, again.fragsPool + 35, 'el hito también entra una sola vez');
+  const reloaded = JSON.parse(storage.getItem('gdf_meta'));
+  assert.equal(reloaded.fragsPool, bonus.fragsPool);
+  assert.equal(reloaded.frags, undefined, 'el estado v2 ya no guarda frags por torreta');
+});
+
+test('upgradeTower: gasta del pool compartido y persiste', () => {
+  const storage = memStorage();
+  const meta = normalizeMeta({ ...defaultMeta(), fragsPool: 500 });
+  const r = upgradeTower(meta, 'guardian', storage);
+  assert.equal(r.ok, true);
+  assert.equal(r.meta.levels.guardian, 2);
+  assert.equal(r.meta.fragsPool, 500 - fragCost(1));
+  assert.equal(JSON.parse(storage.getItem('gdf_meta')).fragsPool, 500 - fragCost(1));
+  // El pool es COMPARTIDO: el mismo saldo sube otra unidad desbloqueada.
+  const meta2 = normalizeMeta({
+    ...defaultMeta(),
+    fragsPool: 500,
+    unlocked: { ...defaultMeta().unlocked, tesla: true },
   });
-  const r = upgradeAllTowers(meta, storage);
-  assert.equal(r.levels, 4, '3 en el guardian + 1 en la tesla');
-  assert.equal(r.meta.levels.guardian, 4);
-  assert.equal(r.meta.levels.tesla, 2);
-  assert.equal(r.meta.frags.guardian, 0);
-  assert.equal(r.meta.frags.tesla, 0);
-  // las demas torretas (sin fragmentos) no se mueven
-  assert.equal(r.meta.levels.mortar, 1);
-  // no muta la entrada
-  assert.equal(meta.levels.guardian, 1);
-  assert.equal(meta.frags.guardian, 225);
-  // y queda PERSISTIDO
-  const guardado = JSON.parse(store.get('gdf_meta'));
-  assert.equal(guardado.levels.guardian, 4);
-});
-
-test('upgradeAllTowers: con fragmentos sobrantes los conserva', () => {
-  const store = new Map();
-  const storage = {
-    getItem: (k) => store.get(k) ?? null,
-    setItem: (k, v) => store.set(k, v),
-  };
-  const meta = normalizeMeta({ levels: { guardian: 1 }, frags: { guardian: 260 } });
-  const r = upgradeAllTowers(meta, storage);
-  assert.equal(r.levels, 3);            // 3 niveles = 225
-  assert.equal(r.meta.frags.guardian, 35); // sobran 35
-});
-
-test('upgradeAllTowers: una torreta al tope no se mueve (Nvl.100)', () => {
-  const store = new Map();
-  const storage = {
-    getItem: (k) => store.get(k) ?? null,
-    setItem: (k, v) => store.set(k, v),
-  };
-  const meta = normalizeMeta({
+  const r2 = upgradeTower(meta2, 'tesla', storage);
+  assert.equal(r2.ok, true);
+  assert.equal(r2.meta.levels.tesla, 2);
+  assert.equal(r2.meta.fragsPool, 500 - fragCost(1));
+  // Sin saldo suficiente no sube ni descuenta.
+  const pobre = normalizeMeta({ ...defaultMeta(), fragsPool: 10 });
+  const r3 = upgradeTower(pobre, 'guardian', storage);
+  assert.equal(r3.ok, false);
+  assert.equal(r3.reason, 'insufficient');
+  assert.equal(r3.meta.levels.guardian, 1);
+  assert.equal(r3.meta.fragsPool, 10);
+  // unknown / maxed siguen igual.
+  assert.equal(upgradeTower(pobre, 'nope', storage).reason, 'unknown');
+  const maxed = normalizeMeta({
+    ...defaultMeta(),
     levels: { guardian: META_MAX_LEVEL },
-    frags: { guardian: 99999 },
+    fragsPool: 99999,
   });
-  const r = upgradeAllTowers(meta, storage);
-  assert.equal(r.levels, 0);
-  assert.equal(r.meta.levels.guardian, META_MAX_LEVEL);
+  assert.equal(upgradeTower(maxed, 'guardian', storage).reason, 'maxed');
 });
 
-test('upgradePlan: el plan coincide con lo que hace upgradeAllTowers', () => {
-  const store = new Map();
-  const storage = {
-    getItem: (k) => store.get(k) ?? null,
-    setItem: (k, v) => store.set(k, v),
-  };
-  const meta = normalizeMeta({
-    levels: { guardian: 1, gauss: 1 },
-    frags: { guardian: 400, gauss: 150 },
-  });
-  const plan = upgradePlan(meta);
-  const total = plan.reduce((s, p) => s + (p.to - p.from), 0);
-  assert.equal(total, pendingUpgrades(meta));
-  const r = upgradeAllTowers(meta, storage);
-  assert.equal(r.levels, total);
-  for (const p of plan) assert.equal(r.meta.levels[p.key], p.to);
+test('upgradeTower: una unidad bloqueada rechaza con reason locked y no descuenta', () => {
+  const meta = normalizeMeta({ ...defaultMeta(), fragsPool: 99999 });
+  const r = upgradeTower(meta, 'tesla');
+  assert.equal(r.ok, false);
+  assert.equal(r.reason, 'locked');
+  assert.equal(r.meta.levels.tesla, 1);
+  assert.equal(r.meta.fragsPool, 99999, 'no descuenta nada');
+  // El Guardian (única desbloqueada) sí puede subir.
+  assert.equal(upgradeTower(meta, 'guardian').ok, true);
 });
 
 // ============================================================================
-// dev-7 fase 59.4 - EL COSTE DEL "SUBIR TODO" (lo que dice el botón)
+// v2 — DESBLOQUEO CON ORO Y UNIDADES BLOQUEADAS
 // ============================================================================
-// El botón "SUBIR TODO (7 mejoras · 1.240 frag.)" tiene que decir la
-// verdad: el numero de mejoras y el gasto tienen que ser los REALES del
-// plan que ejecuta upgradeAllTowers.
 
-test('pendingUpgradeCost: 0 cuando no hay nada que subir', () => {
-  const meta = normalizeMeta({ levels: { guardian: 1 }, frags: { guardian: 10 } });
-  assert.equal(pendingUpgradeCost(meta), 0);
+test('isUnitUnlocked: permisivo sin meta o sin campo unlocked; solo false explícito', () => {
+  // Tests viejos, balance-sim y partidas sin meta deben seguir viendo todo.
+  assert.equal(isUnitUnlocked(null, 'tesla'), true);
+  assert.equal(isUnitUnlocked(undefined, 'laser'), true);
+  assert.equal(isUnitUnlocked({ levels: { tesla: 5 } }, 'tesla'), true);
+  assert.equal(isUnitUnlocked({ unlocked: {} }, 'tesla'), true);
+  assert.equal(isUnitUnlocked({ unlocked: { tesla: true } }, 'tesla'), true);
+  assert.equal(isUnitUnlocked({ unlocked: { tesla: false } }, 'tesla'), false);
+  // El default de la cuenta nueva sí bloquea.
+  const meta = defaultMeta();
+  assert.equal(isUnitUnlocked(meta, 'guardian'), true);
+  assert.equal(isUnitUnlocked(meta, 'tesla'), false);
 });
 
-test('pendingUpgradeCost: es la suma del plan (3 niveles de 75 = 225)', () => {
-  const meta = normalizeMeta({ levels: { guardian: 1 }, frags: { guardian: 225 } });
-  assert.equal(pendingUpgradeCost(meta), 225);
-  const plan = upgradePlan(meta);
-  const suma = plan.reduce((s, p) => s + p.cost, 0);
-  assert.equal(pendingUpgradeCost(meta), suma);
+test('unlockTower: éxito descuenta oro y persiste; owned/insufficient/unknown rechazan', () => {
+  const storage = memStorage();
+  const meta = normalizeMeta({ ...defaultMeta(), gold: 1000 });
+  const r = unlockTower(meta, 'tesla', storage);
+  assert.equal(r.ok, true);
+  assert.equal(r.meta.gold, 1000 - META_UNLOCK_COSTS.tesla);
+  assert.equal(r.meta.unlocked.tesla, true);
+  assert.equal(JSON.parse(storage.getItem('gdf_meta')).unlocked.tesla, true);
+  assert.equal(loadMeta(storage).unlocked.tesla, true);
+  // Ya comprada → owned (no se cobra dos veces).
+  const again = unlockTower(r.meta, 'tesla', storage);
+  assert.equal(again.ok, false);
+  assert.equal(again.reason, 'owned');
+  assert.equal(again.meta.gold, r.meta.gold);
+  // Sin oro suficiente → insufficient, sin cambios.
+  const pobre = normalizeMeta({ ...defaultMeta(), gold: META_UNLOCK_COSTS.laser - 1 });
+  const sinOro = unlockTower(pobre, 'laser', storage);
+  assert.equal(sinOro.ok, false);
+  assert.equal(sinOro.reason, 'insufficient');
+  assert.equal(sinOro.meta.gold, META_UNLOCK_COSTS.laser - 1);
+  assert.equal(sinOro.meta.unlocked.laser, false);
+  // Unidad inexistente → unknown; el Guardian ya viene desbloqueado.
+  assert.equal(unlockTower(meta, 'nope', storage).reason, 'unknown');
+  assert.equal(unlockTower(meta, 'guardian', storage).reason, 'owned');
 });
 
-test('pendingUpgradeCost: lo que dice el botón es lo que gasta el botón', () => {
-  const store = new Map();
-  const storage = {
-    getItem: (k) => store.get(k) ?? null,
-    setItem: (k, v) => store.set(k, v),
-  };
-  const meta = normalizeMeta({
-    levels: { guardian: 1, tesla: 1 },
-    frags: { guardian: 400, tesla: 150 },
+test('metaDmgMul: una unidad bloqueada devuelve 1 aunque tenga nivel', () => {
+  const meta = normalizeMeta({ ...defaultMeta(), levels: { tesla: 50 } });
+  assert.equal(metaDmgMul('tesla', meta), 1);
+  const desbloqueada = normalizeMeta({
+    ...meta,
+    unlocked: { ...meta.unlocked, tesla: true },
   });
-  const costo = pendingUpgradeCost(meta);
-  const r = upgradeAllTowers(meta, storage);
-  // Los fragmentos que quedan tras subir son los que NO se podían pagar.
-  const gastado = (meta.frags.guardian - r.meta.frags.guardian)
-    + (meta.frags.tesla - r.meta.frags.tesla);
-  assert.equal(gastado, costo,
-    'el gasto real tiene que ser EXACTAMENTE el coste anunciado');
+  assert.ok(metaDmgMul('tesla', desbloqueada) > 1);
+});
+
+test('setPerkChoice/resetPerks: una unidad bloqueada rechaza con unit-locked', () => {
+  const storage = memStorage();
+  const meta = normalizeMeta({
+    ...defaultMeta(),
+    levels: { tesla: 40 },
+    gold: 9999,
+    perkChoices: { tesla: [0, 1] },
+  });
+  const set = setPerkChoice('tesla', 2, 1, meta, storage);
+  assert.equal(set.ok, false);
+  assert.equal(set.reason, 'unit-locked');
+  assert.equal(set.meta.perkChoices.tesla[2], null, 'sin tocar la elección');
+  assert.equal(storage.getItem('gdf_meta'), null, 'no persiste nada');
+  const reset = resetPerks('tesla', meta, storage);
+  assert.equal(reset.ok, false);
+  assert.equal(reset.reason, 'unit-locked');
+  assert.equal(reset.meta.gold, 9999, 'sin tocar el oro');
+  assert.equal(reset.meta.perkChoices.tesla[0], 0, 'sin limpiar los tiers');
+  // El Guardian (desbloqueado) sigue funcionando.
+  const guardian = normalizeMeta({
+    ...meta,
+    levels: { ...meta.levels, guardian: 10 },
+  });
+  assert.equal(setPerkChoice('guardian', 0, 0, guardian, storage).ok, true);
 });
 
 // ------------------------------------------------------------

@@ -1,10 +1,12 @@
 // ============================================================
-// dps-towers.mjs — DPS NOMINAL por torre (fase 66)
+// dps-towers.mjs — DPS NOMINAL por unidad (fase 66)
 //
-// Instrumento de medición: lee la tabla TOWERS (js/towers.js) y calcula,
-// con una fórmula DECLARADA acá y la misma para todas las torres, el DPS
-// contra UN blanco y (donde aplica) contra un grupo. Sirve para comparar
-// ANTES/DESPUÉS de un rework sin depender de una corrida del simulador.
+// Instrumento de medición: lee las tablas TOWERS/DRONES (js/towers-data.js) y
+// calcula, con una fórmula DECLARADA acá y la misma para todas las unidades,
+// el DPS contra UN blanco y (donde aplica) contra un grupo. Sirve para
+// comparar ANTES/DESPUÉS de un rework sin depender de una corrida del
+// simulador. La columna "después" aplica `dpsScaleFor()` — el dial de
+// presentación/balance de towers-data.js — igual que el combate.
 //
 //   node scripts/dps-towers.mjs
 //
@@ -19,9 +21,13 @@
 //   · gauss             → damage / cooldown (sin contar la perforación)
 //   · laser             → damagePerSec × laserDuration / cooldown
 //   · fan (guardian)    → damage / cooldown (1 bala; el abanico no se cuenta)
+//   · homing (missile)  → el combate aplica el 50 % del daño en el splash
+//                         (towers-projectiles.js `_explode`), así que el DPS
+//                         de un blanco es damage × 0,5 / cooldown
+//   · drones            → su daño propio + su DoT (ver `dpsOfDrone`)
 // ============================================================
 
-import { TOWERS } from '../js/towers.js';
+import { TOWERS, DRONES, dpsScaleFor } from '../js/towers-data.js';
 
 /** DPS contra un blanco único (y contra N blancos en las que reparten). */
 function dpsOf(type) {
@@ -31,7 +37,11 @@ function dpsOf(type) {
     case 'fan': // guardian
       return { single: d.damage / d.cooldown, multi: null, nota: '1 bala' };
     case 'homing': // missile
-      return { single: d.damage / d.cooldown, multi: null, nota: 'sin splash' };
+      return {
+        single: (d.damage * 0.5) / d.cooldown,
+        multi: null,
+        nota: 'splash al 50 % (sin área)',
+      };
     case 'beam': {
       const rate = d.beamRampPerSec ?? 0.6;
       const cap = d.beamRampMax ?? 3;
@@ -74,7 +84,11 @@ function dpsOf(type) {
       };
     }
     case 'mortar':
-      return { single: d.damage / d.cooldown, multi: null, nota: 'sin área' };
+      return {
+        single: d.damage / d.cooldown,
+        multi: null,
+        nota: `sin área · cráter ${d.mech?.dps ?? 0} DPS ${d.mech?.duration ?? 0}s`,
+      };
     case 'gauss':
       return { single: d.damage / d.cooldown, multi: null, nota: 'sin perforación' };
     case 'laser':
@@ -88,15 +102,84 @@ function dpsOf(type) {
   }
 }
 
-const types = Object.keys(TOWERS);
-let totalSingle = 0;
-console.log('| Torre | kind | DPS 1 blanco | DPS grupo | detalle |');
-console.log('|---|---|---|---|---|');
-for (const t of types) {
+/**
+ * DPS nominal de un dron contra UN blanco, incluido su DoT propio.
+ * El Campo de Fuerza no tiene daño intrínseco: sus espinas dependen del perk
+ * (`perkDmgFor`), así que su DPS base es 0.
+ */
+function dpsOfDrone(type) {
+  const d = DRONES[type];
+  if (!d) return null;
+  switch (d.kind) {
+    case 'firewheel': {
+      const burn = d.mech?.dps ?? 0;
+      return {
+        single: d.dps + burn,
+        nota: `${d.dps} de contacto + ${burn} de quemadura (${d.mech?.duration ?? 0}s)`,
+      };
+    }
+    case 'wasps': {
+      const n = d.count ?? 1;
+      const picadura = (n * d.stingDamage) / d.stingCooldown;
+      const veneno = d.venomDps ?? 0;
+      return {
+        single: picadura + veneno,
+        nota: `${n} × ${d.stingDamage} / ${d.stingCooldown}s + ${veneno} de veneno`,
+      };
+    }
+    case 'forcefield':
+      return { single: 0, nota: 'solo espinas del perk (0 de base)' };
+    default:
+      return null;
+  }
+}
+
+/** Formatea una fila de la tabla. */
+function row(name, kind, base, scale, detalle) {
+  const despues = base * scale;
+  const delta = base > 0 ? `${((despues / base - 1) * 100).toFixed(0)} %` : '—';
+  return `| ${name} | ${kind} | ${base.toFixed(1)} | ${despues.toFixed(1)} | ${delta} | ${detalle} |`;
+}
+
+const TYPES = Object.keys(TOWERS);
+const DRONE_TYPES = Object.keys(DRONES);
+
+console.log('## Torres\n');
+console.log('| Torre | kind | DPS antes | DPS después | Δ | detalle |');
+console.log('|---|---|---|---|---|---|');
+let totalTorresAntes = 0;
+let totalTorresDespues = 0;
+for (const t of TYPES) {
   const r = dpsOf(t);
   if (!r) continue;
-  totalSingle += r.single;
-  console.log(`| ${TOWERS[t].name} | ${TOWERS[t].kind} | ${r.single.toFixed(1)} | `
-    + `${r.multi != null ? r.multi.toFixed(1) : '—'} | ${r.nota} |`);
+  const scale = dpsScaleFor(t);
+  totalTorresAntes += r.single;
+  totalTorresDespues += r.single * scale;
+  console.log(row(TOWERS[t].name, TOWERS[t].kind, r.single, scale, r.nota));
+  if (r.multi != null) {
+    console.log(`| ↳ grupo | ${TOWERS[t].kind} | ${r.multi.toFixed(1)} | `
+      + `${(r.multi * scale).toFixed(1)} | — | mismo detalle, N blancos |`);
+  }
 }
-console.log(`\nSuma de las ${types.length} torres (1 blanco, base): **${totalSingle.toFixed(1)} DPS**`);
+console.log(`\nSuma de las ${TYPES.length} torres (1 blanco): **${totalTorresAntes.toFixed(1)} → `
+  + `${totalTorresDespues.toFixed(1)} DPS**`);
+
+console.log('\n## Drones\n');
+console.log('| Dron | kind | DPS antes | DPS después | Δ | detalle |');
+console.log('|---|---|---|---|---|---|');
+let totalDronesAntes = 0;
+let totalDronesDespues = 0;
+for (const t of DRONE_TYPES) {
+  const r = dpsOfDrone(t);
+  if (!r) continue;
+  const scale = dpsScaleFor(t);
+  totalDronesAntes += r.single;
+  totalDronesDespues += r.single * scale;
+  console.log(row(DRONES[t].name, DRONES[t].kind, r.single, scale, r.nota));
+}
+console.log(`\nSuma de los ${DRONE_TYPES.length} drones (1 blanco): **${totalDronesAntes.toFixed(1)} → `
+  + `${totalDronesDespues.toFixed(1)} DPS**`);
+
+console.log(`\nArsenal completo (${TYPES.length} torres + ${DRONE_TYPES.length} drones, 1 blanco): `
+  + `**${(totalTorresAntes + totalDronesAntes).toFixed(1)} → `
+  + `${(totalTorresDespues + totalDronesDespues).toFixed(1)} DPS**`);

@@ -15,6 +15,9 @@ import { CONFIG, rand } from './engine.js';
 // MATABILIDAD real (hp/vel base de cada tipo) — ver openingPoolForStage().
 // waves.js ya importaba de enemies.js (Enemy), así que no es un ciclo nuevo.
 import { Enemy, ENEMY_TYPES } from './enemies.js';
+// El modelo de la apertura lee el DPS REAL del Guardian de la tabla canónica
+// (y su dial de presentación), no una copia de los números.
+import { TOWERS, dpsScaleFor } from './towers-data.js';
 import { isBossStage, scaleFor } from './stages.js';
 import { STAGE_WAVES } from './waves-data.js';
 export { STAGE_WAVES };
@@ -300,7 +303,7 @@ export const SWARM_BY_FAMILY = {
 // Fase 27 — ACOTE DE LA APERTURA POR MATABILIDAD.
 //
 // El doc (docs/BALANCE.md v7) promete "apertura 100 % farmable" en 6..50: con
-// el Guardian Lv1 (8 dmg / 0.23 s = 34.8 DPS) todo lo que entra en la
+// el Guardian Lv1 (8 dmg / 0.23 s × 0,75 ≈ 26.1 DPS) todo lo que entra en la
 // apertura tiene que PODER MORIR antes de llegar a la base.
 //
 // Measured con los valores reales (scaleFor + ENEMY_TYPES):
@@ -316,14 +319,17 @@ export const SWARM_BY_FAMILY = {
 /**
  * DPS del Guardian para el criterio de MATABILIDAD de la apertura.
  *
- * Es el del Guardian **Lv1** (8 dmg / 0.23 s = 34.8 DPS), que es con el
+ * Sale de la MISMA fuente que el combate: `TOWERS.guardian` (damage/cooldown)
+ * × `dpsScaleFor('guardian')`, el dial de presentación de towers-data.js. Es
+ * el del Guardian **Lv1** (8 dmg / 0.23 s × 0,75 ≈ 26.1 DPS), que es con el
  * que el jugador arranca: el Lv1 es lo que dispara durante los primeros
  * segundos de la apertura, y lo que tiene que poder matar lo que entra.
  * (Medido: con el criterio de Lv3 el tope de S30 era 7 esporas — pero el
  * Guardian Lv1 solo mata 4 en su ventana de tiro, así que 3 se escapaban
  * por ola y el XP se perdía. Con Lv1 el tope es el correcto.)
  */
-const OPENING_DPS = 8 / 0.23;   // Guardian Lv1 ≈ 34.8 DPS
+const OPENING_DPS = (TOWERS.guardian.damage / TOWERS.guardian.cooldown)
+  * dpsScaleFor('guardian');   // Guardian Lv1 ≈ 26.1 DPS
 
 /** Distancia de caída (px): de SPAWN_Y hasta la base. */
 const FALL_PX = 900;
@@ -355,9 +361,9 @@ function levelForXp(xp) {
 /**
  * DPS del Guardian para el nivel de jugador dado (fase 28).
  *
- * El Guardian Lv1 hace 8 dmg / 0.23 s = 34.8 DPS. Cada nivel de torreta
- * suma +25 % de daño (js/towers.js Tower.damage): Lv3 = 8×1.5 = 12 dmg →
- * 52.2 DPS.
+ * El Guardian Lv1 hace 8 dmg / 0.23 s × 0,75 ≈ 26.1 DPS (el dial de
+ * towers-data.js ya aplicado). Cada nivel de torreta suma +25 % de daño
+ * (js/towers.js Tower.damage): Lv3 = 8×1.5×0,75 = 9 dmg → 39.1 DPS.
  *
  * `powerMul` es el MULTIPLICADOR DE META (js/meta.js metaDmgMul): el
  * daño que la torreta hace en la partida. Sin él, el modelo de la

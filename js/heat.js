@@ -181,7 +181,7 @@ export function heatRewardMul(heat) {
 }
 
 /**
- * Bonus ÚNICO de fragmentos por hito, POR TORRETA: 60 (heat 5), 120 (10),
+ * Bonus ÚNICO de fragmentos AL POOL por hito: 60 (heat 5), 120 (10),
  * 240 (20) y 420 (35). El llamador lo aplica una sola vez (progress.claimed).
  */
 export function heatMilestoneBonus(threshold) {

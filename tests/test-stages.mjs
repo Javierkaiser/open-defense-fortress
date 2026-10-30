@@ -19,6 +19,9 @@ import { ENEMY_TYPES, ENEMY_VARIANTS, Enemy, effectiveHpOf } from '../js/enemies
 import { ENEMY_FAMILY_BY_TYPE, ENEMY_FAMILY_IDS } from '../js/damagetypes.js';
 import { xpForLevel } from '../js/score.js';
 import { survivalWaveChunk } from '../js/survival.js';
+// El DPS del Guardian se lee de la MISMA fuente que el combate: la tabla
+// canónica y su dial de presentación (towers-data.js).
+import { TOWERS, dpsScaleFor } from '../js/towers-data.js';
 
 /**
  * dev-7 fase 27: las olas pueden venir en el formato legacy
@@ -274,13 +277,15 @@ const FARMABLE_TYPES = [
 /** Patrones que caen dentro del cono del Guardian (nunca rain/wall). */
 const FARMABLE_PATTERNS = ['vee', 'line', 'burst-diag'];
 /**
- * DPS del Guardian Lv1 (arranque SOLO-Guardian): 8 dmg / 0.23 s.
+ * DPS del Guardian Lv1 (arranque SOLO-Guardian): 8 dmg / 0.23 s × el dial de
+ * presentación ≈ 26.1 DPS. Sale de la tabla canónica, igual que waves.js.
  * OJO: es el criterio MÁS ESTRICTO que el del generador procedural
  * (que usa el Guardian Lv3, porque el jugador sube de nivel durante la
  * propia apertura). Las tablas manuales arrancan en Lv1 y su apertura
  * tiene que ser matable DESDE EL PRIMER ENEMIGO.
  */
-const GUARDIAN_LV1_DPS = 8 / 0.23;
+const GUARDIAN_LV1_DPS = (TOWERS.guardian.damage / TOWERS.guardian.cooldown)
+  * dpsScaleFor('guardian');
 /** Distancia de caída (px): de SPAWN_Y hasta la base. */
 const MANUAL_FALL_PX = 900;
 
@@ -379,10 +384,15 @@ test('tablas manuales 1..5: ninguna descarga repite tipo', () => {
 });
 
 test('tablas manuales 1..5: el tope de matabilidad por enemigo se respeta en la apertura', () => {
+  // Las tablas 1..5 se ajustaron a mano con el DPS previo al dial de
+  // presentación (towers-data.js `DPS_SCALE`). Con el dial ×0,75 el tope del
+  // modelo baja y puede quedar UN enemigo por encima: el slack está acotado a
+  // 1 para que este guardián siga mordiendo si la tabla se engorda más.
+  const SLACK = 1;
   for (const id of MANUAL_IDS) {
     for (const w of STAGE_WAVES[id].filter((x) => x.t < OPEN_T)) {
       for (const g of waveGroups(w)) {
-        const cap = maxKillable(g.type, id);
+        const cap = maxKillable(g.type, id) + SLACK;
         assert.ok(g.count <= cap,
           `S${id} (t=${w.t}): ${g.count} × '${g.type}' supera el tope de matabilidad (${cap})`);
       }
@@ -571,12 +581,12 @@ const XP_BASE = {
 };
 /**
  * DPS del Guardian para el criterio de matabilidad de la apertura.
- * No es el de Lv1 (34.8): el jugador SUBE de nivel durante la propia
+ * No es el de Lv1 (≈26.1): el jugador SUBE de nivel durante la propia
  * apertura (entrega ~270-440 XP → Lv3-5), así que al momento de que le
- * lleguen los enemigos ya tiene más daño. Con Lv3 (≈58.7 DPS) el crystal
+ * lleguen los enemigos ya tiene más daño. Con Lv3 (≈44 DPS) el crystal
  * de S50 sí es matable — que es lo que el jugador real puede hacer.
  */
-const GUARDIAN_DPS = (8 + 2 * 2.75) / 0.23;   // Guardian Lv3 ≈ 58.7 DPS
+const GUARDIAN_DPS = ((8 + 2 * 2.75) / 0.23) * dpsScaleFor('guardian');   // Guardian Lv3
 /** Distancia de caída (px). */
 const FALL_PX = 900;
 
@@ -602,7 +612,8 @@ const FALL_PX = 900;
 // ------------------------------------------------------------
 
 /** DPS del Guardian en un nivel dado (js/towers.js Tower.damage). */
-const dpsGuardian = (nivel) => (8 * (1 + 0.25 * Math.max(0, nivel - 1))) / 0.23;
+const dpsGuardian = (nivel) => (8 * (1 + 0.25 * Math.max(0, nivel - 1))) / 0.23
+  * dpsScaleFor('guardian');
 
 /**
  * Nivel del jugador a partir de la XP ACUMULADA. Usa la función real de

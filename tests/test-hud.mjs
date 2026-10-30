@@ -33,9 +33,8 @@ import {
   // fase 72: los créditos y licencias (atribución CC BY 3.0 en la app).
   buildCreditsHtml,
   CARD_RARITIES, cardRarity, UI_ICONS, overlayStageBox,
-  // dev-7 fase 59.4: el meta que se ve (SUBIR TODO, aviso de pendientes
-  // y la línea de PODER).
-  buildUpgradeAllHtml, buildPendingNoticeHtml, buildPowerLineHtml,
+  // dev-7 fase 59.4: la línea de PODER del meta (el multiplicador real).
+  buildPowerLineHtml,
   metaPowerMul, fmtFrags,
   // dev-7 fase 64: el texto del pie del modal de cartas (cola de mejoras +
   // tope de la etapa) y el rótulo de nivel del HUD.
@@ -52,9 +51,9 @@ import {
 import { MAX_LEVEL_PER_STAGE, MAX_CARDS_PER_STAGE } from '../js/score.js';
 import {
   META_TOWERS, META_MAX_LEVEL, PERK_EVERY, PERK_TIERS, PERKS,
-  META_GOLD_START, defaultMeta, normalizeMeta, pendingPerkTiers, tierAtLevel,
-  metaDmgMul, playerRank,
-  pendingUpgrades, pendingUpgradeCost,
+  META_GOLD_START, META_FRAG_PER_VICTORY, META_UNLOCK_COSTS,
+  defaultMeta, normalizeMeta, pendingPerkTiers, tierAtLevel,
+  metaDmgMul, playerRank, unlockTower,
 } from '../js/meta.js';
 import { STAGES } from '../js/stages.js';
 // dev-7 fase 46: el nombre PROPIO de cada jefe (lo usan la barra de jefe
@@ -118,9 +117,14 @@ const cssRule = (sel) => {
   return css.slice(i, end);
 };
 
-/** Meta base: guardian con nivel y perks configurables para los tests. */
+/**
+ * Meta base de los tests: TODAS las unidades desbloqueadas (los tests
+ * viejos asumen el arsenal completo) y nivel/perks configurables. Un test
+ * que necesite unidades bloqueadas pasa su propio `unlocked`.
+ */
 const metaCon = (extra = {}) => normalizeMeta({
   ...defaultMeta(),
+  unlocked: Object.fromEntries(META_TOWERS.map((t) => [t.key, true])),
   ...extra,
 });
 
@@ -202,10 +206,140 @@ test('buildTorretasScreen: el banner escala con los niveles (11 de 1100 por defe
 // ============================================================
 
 test('buildTowerCards: una card por torreta de META_TOWERS', () => {
-  const html = buildTowerCards(defaultMeta());
+  const html = buildTowerCards(metaCon());
   assert.equal(countCards(html), META_TOWERS.length);
   for (const t of META_TOWERS) {
     assert.ok(html.includes(`data-meta-upgrade="${t.key}"`), `falta la card de ${t.key}`);
+  }
+});
+
+test('buildTowerCards: una cuenta nueva tiene 1 card desbloqueada y 10 bloqueadas', () => {
+  // defaultMeta (v2): solo el Guardian viene desbloqueado; el resto se
+  // compra con oro (`META_UNLOCK_COSTS`).
+  const meta = defaultMeta();
+  const html = buildTowerCards(meta);
+  assert.equal(countCards(html), META_TOWERS.length, 'siguen estando las 11 cards');
+  assert.ok(html.includes('data-meta-upgrade="guardian"'), 'el Guardian se puede mejorar');
+  assert.equal((html.match(/class="meta-card locked"/g) ?? []).length, META_TOWERS.length - 1,
+    'las otras 10 están bloqueadas');
+  for (const t of META_TOWERS) {
+    if (t.key === 'guardian') {
+      assert.ok(!html.includes(`data-meta-unlock="${t.key}"`), 'el Guardian no se compra');
+      continue;
+    }
+    assert.ok(html.includes(`data-meta-unlock="${t.key}"`), `falta el botón de ${t.key}`);
+    assert.ok(!html.includes(`data-meta-upgrade="${t.key}"`), `${t.key} bloqueada no se mejora`);
+  }
+});
+
+test('buildTowerCards: la card bloqueada muestra el precio y no tiene nivel/barra/perks', () => {
+  const html = buildTowerCards(metaCon({ gold: 1000, unlocked: { ...defaultMeta().unlocked } }));
+  const card = cardOf(html, 'tesla');
+  const cost = META_UNLOCK_COSTS.tesla;
+  assert.ok(card.startsWith('locked">'), 'la card va marcada como bloqueada');
+  assert.ok(card.includes(`Coste ${cost}●`), 'muestra el precio en oro');
+  assert.ok(card.includes(`DESBLOQUEAR (${cost}●)`), 'el botón dice cuánto cuesta');
+  assert.ok(!card.includes('meta-card-lvl'), 'sin nivel');
+  assert.ok(!card.includes('meta-card-bar'), 'sin barra de fragmentos');
+  assert.ok(!card.includes('data-perk-pick'), 'sin botón de perks');
+  assert.ok(!card.includes('data-perk-reset-ask'), 'sin REDISTRIBUIR');
+  assert.ok(!card.includes('data-meta-upgrade'), 'sin MEJORAR');
+});
+
+test('buildTowerCards: sin oro suficiente el botón de desbloquear va deshabilitado', () => {
+  const meta = metaCon({
+    gold: 0,
+    unlocked: { ...defaultMeta().unlocked },
+  });
+  const card = cardOf(buildTowerCards(meta), 'tesla');
+  const cost = META_UNLOCK_COSTS.tesla;
+  assert.ok(card.includes('disabled'), 'el botón queda deshabilitado');
+  assert.ok(card.includes(`Faltan ${cost}●`), 'y dice cuánto oro falta');
+  assert.ok(!card.includes(`DESBLOQUEAR (${cost}●)`), 'no ofrece comprar lo que no puede pagar');
+});
+
+test('buildTowerCards: con oro suficiente el botón de desbloquear está habilitado', () => {
+  const cost = META_UNLOCK_COSTS.tesla;
+  const meta = metaCon({
+    gold: cost + 10,
+    unlocked: { ...defaultMeta().unlocked },
+  });
+  const card = cardOf(buildTowerCards(meta), 'tesla');
+  assert.ok(card.includes(`DESBLOQUEAR (${cost}●)`), 'ofrece la compra');
+  assert.ok(!card.includes('disabled'), 'y el botón está habilitado');
+  assert.ok(!card.includes('Faltan'), 'no avisa que falta oro');
+});
+
+test('buildTowerCards: la compra con oro convierte la card en una de MEJORAR', () => {
+  const meta = metaCon({
+    gold: META_UNLOCK_COSTS.tesla,
+    unlocked: { ...defaultMeta().unlocked },
+  });
+  const res = unlockTower(meta, 'tesla');
+  assert.equal(res.ok, true, 'la compra sale bien');
+  assert.equal(res.meta.unlocked.tesla, true, 'la unidad queda desbloqueada');
+  assert.equal(res.meta.gold, 0, 'y se cobra el oro');
+  const card = cardOf(buildTowerCards(res.meta), 'tesla');
+  assert.ok(!card.includes('locked'), 'la card ya no está bloqueada');
+  assert.ok(card.includes('data-meta-upgrade="tesla"'), 'ahora se puede mejorar');
+  assert.ok(card.includes('Coste 75 · pool 0'), 'muestra coste y pool compartido');
+});
+
+test('buildTowerCards: la compra armada muestra la confirmación', () => {
+  const meta = metaCon({
+    gold: META_UNLOCK_COSTS.tesla,
+    unlocked: { ...defaultMeta().unlocked },
+  });
+  const card = cardOf(buildTowerCards(meta, { unlockArmed: { tesla: true } }), 'tesla');
+  assert.ok(card.includes('meta-unlock armed'), 'el botón queda armado');
+  assert.ok(card.includes('¿SEGURO?'), 'y pide confirmación');
+});
+
+test('v2: DESBLOQUEAR pide confirmación en 2 pasos y cobra el oro al confirmar', () => {
+  // El handler real de la pantalla TORRETAS: el primer toque arma la
+  // compra, el segundo la paga (mismo patrón inline que REDISTRIBUIR).
+  const listeners = [];
+  const btn = {
+    dataset: { metaUnlock: 'tesla' },
+    addEventListener: (_ev, fn) => listeners.push(fn),
+  };
+  const hud = Object.create(HUD.prototype);
+  hud._unlockArmed = {};
+  hud._perkResetArmed = {};
+  hud.overlayRoot = {
+    querySelector: () => null,
+    querySelectorAll: (sel) => (sel === '[data-meta-unlock]' ? [btn] : []),
+  };
+  const shown = [];
+  hud.showScreen = (name) => shown.push(name);
+  const game = {
+    meta: normalizeMeta({
+      ...defaultMeta(),
+      gold: META_UNLOCK_COSTS.tesla,
+      unlocked: { ...defaultMeta().unlocked },
+    }),
+  };
+  const prevWindow = globalThis.window;
+  const prevRaf = globalThis.requestAnimationFrame;
+  globalThis.window = { __GDF__: { game } };
+  globalThis.requestAnimationFrame = (fn) => fn();
+  try {
+    hud._bindMetaNav();
+    listeners[0](); // primer toque: arma
+    assert.equal(hud._unlockArmed.tesla, true, 'el primer toque arma la compra');
+    assert.equal(game.meta.gold, META_UNLOCK_COSTS.tesla, 'todavía no cobra');
+    assert.equal(game.meta.unlocked.tesla, false, 'la unidad sigue bloqueada');
+
+    listeners[0](); // segundo toque: paga
+    assert.equal(hud._unlockArmed.tesla, false, 'la compra queda desarmada');
+    assert.equal(game.meta.unlocked.tesla, true, 'la unidad queda desbloqueada');
+    assert.equal(game.meta.gold, 0, 'y se cobra el oro');
+    assert.deepEqual(shown, ['TORRETAS', 'TORRETAS'], 'cada paso repinta la pantalla');
+  } finally {
+    if (prevWindow === undefined) delete globalThis.window;
+    else globalThis.window = prevWindow;
+    if (prevRaf === undefined) delete globalThis.requestAnimationFrame;
+    else globalThis.requestAnimationFrame = prevRaf;
   }
 });
 
@@ -278,7 +412,7 @@ test('buildTowerCards: los perks ELEGIDOS se listan en orden ASCENDENTE de nivel
 });
 
 test('buildTowerCards: sin perks elegidos no queda una lista de perks vacía', () => {
-  const html = buildTowerCards(defaultMeta());
+  const html = buildTowerCards(metaCon());
   assert.ok(!html.includes('class="meta-card-perk"'),
     'no debe renderizarse el bloque de perks elegidos si no hay ninguno');
 });
@@ -330,16 +464,45 @@ test('buildTowerCards: una torreta al máximo no ofrece botón ✦ ni mejora', (
   assert.ok(html.includes('Todos los perks de esta torreta ya están elegidos'));
 });
 
-test('buildTowerCards: la barra de fragmentos refleja frags/cost reales', () => {
-  const meta = metaCon({ frags: { ...defaultMeta().frags, guardian: 75 } });
+test('buildTowerCards: la barra compara el POOL compartido con el coste de la mejora', () => {
+  const meta = metaCon({ fragsPool: 75 });
   const card = cardOf(buildTowerCards(meta), 'guardian');
-  assert.ok(card.includes('75/75'), 'la barra muestra el progreso real (fragCost(1) = 75)');
-  assert.ok(card.includes('¡LISTO!'), 'con fragmentos suficientes el botón MEJORAR se habilita');
-  assert.ok(card.includes('Faltan 0 fragmentos') === false, 'si está listo no avisa que faltan');
+  assert.ok(card.includes('Coste 75 · pool 75'), 'la card muestra coste y pool (fragCost(1) = 75)');
+  assert.ok(card.includes('¡LISTO!'), 'con pool suficiente el botón MEJORAR se habilita');
+  assert.ok(!card.includes('disabled'), 'el botón queda habilitado');
+  assert.ok(!card.includes('Faltan'), 'si está listo no avisa que faltan');
+});
+
+test('buildTowerCards: el pool es COMPARTIDO por todas las cards desbloqueadas', () => {
+  const meta = metaCon({ fragsPool: 400 });
+  const html = buildTowerCards(meta);
+  // Las 11 cards desbloqueadas leen el MISMO pool: 400 alcanza el coste
+  // de la primera mejora de todas (75-145 según la torreta).
+  const cards = html.split('<div class="meta-card ').slice(1);
+  assert.equal(cards.length, META_TOWERS.length);
+  for (const card of cards) {
+    assert.ok(card.includes('pool 400'), 'cada card desbloqueada ve el pool global');
+    assert.ok(!card.includes('Faltan'), 'y ninguna avisa que faltan fragmentos');
+  }
+  assert.equal((html.match(/pool 400/g) ?? []).length, META_TOWERS.length,
+    'el pool se repite en cada card (no hay fragmentos por torreta)');
+});
+
+test('buildTowerCards: la barra de una card se llena con el pool, no se desborda', () => {
+  const meta = metaCon({ fragsPool: 5000 });
+  const card = cardOf(buildTowerCards(meta), 'guardian');
+  assert.ok(card.includes('width:100%'), 'con pool de sobra la barra queda llena');
+});
+
+test('buildTowerCards: sin pool la barra queda vacía y avisa cuánto falta', () => {
+  const card = cardOf(buildTowerCards(metaCon()), 'guardian');
+  assert.ok(card.includes('width:0%'), 'sin fragmentos la barra arranca vacía');
+  assert.ok(card.includes('Faltan 75 fragmentos del pool'), 'y dice cuántos faltan');
+  assert.ok(card.includes('disabled'), 'MEJORAR está deshabilitado');
 });
 
 test('buildTowerCards: el botón REDISTRIBUIR solo aparece si hay perks elegidos', () => {
-  const sinElegidos = buildTowerCards(defaultMeta());
+  const sinElegidos = buildTowerCards(metaCon());
   assert.ok(!sinElegidos.includes('data-perk-reset-ask="guardian"'));
   const conElegidos = buildTowerCards(metaCon({
     perkChoices: { ...defaultMeta().perkChoices, guardian: [0, null, null, null, null, null, null, null, null, null] },
@@ -1270,7 +1433,7 @@ test('T2: el rótulo del tier de perk va aparte (se lee entero)', () => {
 });
 
 test('T2: el texto de las cards NO se corta a media palabra', () => {
-  const html = buildTowerCards(defaultMeta());
+  const html = buildTowerCards(metaCon());
   // En el HTML: ningún texto con `height` fijo + `overflow:hidden`
   // (esa era la combinación que cortaba sin ellipsis).
   for (const m of html.matchAll(/style="([^"]*)"/g)) {
@@ -1566,10 +1729,12 @@ test('fase 75: las confirmaciones inline no sobreviven al cambio de pantalla', (
   hud._confirmingReset = true;
   hud._abandonPending = 'menu';
   hud._perkResetArmed = { guardian: true };
+  hud._unlockArmed = { tesla: true };
   hud._resetTransientUi('PLAYING');
   assert.equal(hud._confirmingReset, false, 'reset de progreso se desarma');
   assert.equal(hud._abandonPending, null, 'abandonar se desarma');
   assert.deepEqual(hud._perkResetArmed, {}, 'redistribuir se desarma');
+  assert.deepEqual(hud._unlockArmed, {}, 'desbloquear se desarma');
   // En la MISMA pantalla que las posee, no se tocan.
   hud._confirmingReset = true;
   hud._resetTransientUi('MENU');
@@ -1578,8 +1743,10 @@ test('fase 75: las confirmaciones inline no sobreviven al cambio de pantalla', (
   hud._resetTransientUi('PAUSED');
   assert.equal(hud._abandonPending, 'torretas');
   hud._perkResetArmed = { guardian: true };
+  hud._unlockArmed = { tesla: true };
   hud._resetTransientUi('TORRETAS');
   assert.equal(hud._perkResetArmed.guardian, true);
+  assert.equal(hud._unlockArmed.tesla, true, 'la compra armada sobrevive al re-render');
 });
 
 test('fase 39: la pausa pide confirmación antes de abandonar la partida', () => {
@@ -2268,97 +2435,48 @@ test('fase 57: refreshOverlayMode marca el escenario con data-full', () => {
 });
 
 // ============================================================
-// dev-7 fase 59.4 — EL META QUE SE VE
+// v2 — EL POOL COMPARTIDO Y LAS UNIDADES DESBLOQUEABLES EN EL HUD
 //
-// El diagnóstico (fase 59.3): el meta es MANUAL y cuesta 75-390
-// fragmentos por nivel, con 11 torretas. El jugador llegó al S21 con
-// miles de fragmentos sin gastarlos: no sabía que el botón MEJORAR
-// existía, o no lo vio. La campaign entera son ~484 clics.
-//
-// Esta fase lo arregla con TRES piezas de UI:
-//  1. el botón "SUBIR TODO" (un toque en vez de 11),
-//  2. el aviso de mejoras pendientes (menú y selector de stages),
-//  3. la línea de PODER (el multiplicador real del meta).
+// El meta v2 cambió dos cosas que la pantalla TORRETAS tiene que decir
+// sin mentir:
+//  1. los fragmentos son UN pool compartido (antes cada torreta tenía su
+//     propia barra) y MEJORAR gasta de ese pool;
+//  2. las unidades se compran con ORO (`meta.unlocked`) y hasta entonces
+//     su card solo ofrece desbloquearlas.
+// El "SUBIR TODO" y el aviso de pendientes de la fase 59.4 ya no existen.
 // ============================================================
 
-/** Meta con fragmentos para N mejoras del guardian (75 por nivel). */
-const metaConFrags = (frags, extra = {}) => metaCon({
-  frags: { ...defaultMeta().frags, guardian: frags },
-  ...extra,
+test('v2: la cabecera de TORRETAS muestra el pool de fragmentos y el oro', () => {
+  const meta = metaCon({ fragsPool: 1240, gold: 300 });
+  const html = buildTorretasScreen(meta);
+  assert.ok(html.includes('class="meta-res-cell frag"'), 'hay una celda para los fragmentos');
+  assert.ok(html.includes(`<b>${fmtFrags(1240)}</b>`), 'muestra el pool con separador de miles');
+  assert.ok(html.includes('class="meta-res-cell gold"'), 'y sigue la celda del oro');
+  assert.ok(html.includes('<b>300</b>'), 'con el saldo de oro');
 });
 
-test('fase 59.4: sin mejoras pendientes NO hay botón "SUBIR TODO"', () => {
-  const html = buildUpgradeAllHtml(defaultMeta());
-  assert.equal(html, '', 'sin fragmentos no hay nada que subir: no hay botón');
-  assert.ok(!buildTorretasScreen(defaultMeta()).includes('data-meta-upgrade-all'),
-    'la pantalla de torretas tampoco lo muestra');
+test('v2: el tooltip del oro explica desbloquear unidades y redistribuir perks', () => {
+  const html = buildTorretasScreen(metaCon());
+  const gold = html.match(/<span class="meta-res-cell gold" title="([^"]*)"/);
+  assert.ok(gold, 'la celda del oro tiene tooltip');
+  assert.ok(/desbloquear/i.test(gold[1]), 'menciona desbloquear unidades');
+  assert.ok(/redistribuir/i.test(gold[1]), 'y redistribuir perks');
 });
 
-test('fase 59.4: el botón "SUBIR TODO" dice cuántas mejoras y cuántos fragmentos', () => {
-  const meta = metaConFrags(225);   // 3 niveles de 75
-  const html = buildUpgradeAllHtml(meta);
-  assert.ok(html.includes('data-meta-upgrade-all'), 'el botón existe');
-  assert.ok(html.includes('SUBIR TODO'), 'el rótulo dice SUBIR TODO');
-  assert.ok(html.includes('3 mejoras'), 'dice cuántas mejoras son');
-  assert.ok(html.includes('225 frag.'), 'dice cuántos fragmentos gasta');
+test('v2: ya no existe el botón "SUBIR TODO" ni el aviso de pendientes', () => {
+  const html = buildTorretasScreen(metaCon({ fragsPool: 5000 }));
+  assert.ok(!html.includes('data-meta-upgrade-all'), 'la pantalla no ofrece SUBIR TODO');
+  assert.ok(!html.includes('SUBIR TODO'), 'ni su rótulo');
+  assert.ok(!html.includes('pending-notice'), 'y no queda el aviso de pendientes');
+  assert.ok(!buildMenuScreen({ theme: 'default', quality: 'alta' }).includes('pending-notice'),
+    'el menú tampoco lo pinta');
 });
 
-test('fase 59.4: los números del botón son los REALES (pendingUpgrades/pendingUpgradeCost)', () => {
-  const meta = metaConFrags(400);   // 5 niveles (375) + 25 de sobra
-  const html = buildUpgradeAllHtml(meta);
-  assert.ok(html.includes(`${pendingUpgrades(meta)} mejoras`),
-    `el botón debe decir ${pendingUpgrades(meta)} mejoras`);
-  assert.ok(html.includes(`${pendingUpgradeCost(meta)} frag.`),
-    `el botón debe decir ${pendingUpgradeCost(meta)} frag.`);
-});
-
-test('fase 59.4: una sola mejora se dice en singular', () => {
-  const html = buildUpgradeAllHtml(metaConFrags(75));
-  assert.ok(html.includes('1 mejora ·'), 'una mejora es "1 mejora" (no "1 mejoras")');
-  assert.ok(!html.includes('1 mejoras'), 'nunca "1 mejoras"');
-});
-
-test('fase 59.4: el botón "SUBIR TODO" está en la pantalla de torretas', () => {
-  const html = buildTorretasScreen(metaConFrags(225));
-  assert.ok(html.includes('data-meta-upgrade-all'),
-    'la pantalla de torretas ofrece el botón de un toque');
-  assert.ok(html.includes('SUBIR TODO'), 'con su rótulo');
-});
-
-test('fase 59.4: el aviso de pendientes aparece en el MENÚ', () => {
-  const meta = metaConFrags(225);
-  const html = buildMenuScreen({ theme: 'default', quality: 'alta', meta });
-  assert.ok(html.includes('pending-notice'), 'el menú avisa que hay mejoras');
-  assert.ok(html.includes('3 mejoras'), 'el aviso dice cuántas son');
-  assert.ok(html.includes('225 frag.'), 'el aviso dice cuántos fragmentos son');
-  // Sin meta (o sin mejoras) no hay aviso: ruido de más.
-  assert.ok(!buildMenuScreen({ theme: 'default', quality: 'alta' }).includes('pending-notice'));
-  assert.ok(!buildMenuScreen({ theme: 'default', quality: 'alta', meta: defaultMeta() })
-    .includes('pending-notice'));
-});
-
-test('fase 59.4: el aviso del menú va ANTES del botón JUGAR', () => {
-  // El aviso tiene que verse antes de decidir jugar (el menú es donde
-  // el jugador arranca el stage siguiente).
-  const html = buildMenuScreen({ theme: 'default', quality: 'alta', meta: metaConFrags(225) });
-  assert.ok(html.indexOf('pending-notice') < html.indexOf('data-action="play"'),
-    'el aviso se pinta antes del botón JUGAR');
-});
-
-test('fase 59.4: el aviso del selector de stages lleva a la pantalla de torretas', () => {
-  const html = buildPendingNoticeHtml(metaConFrags(225), { withButton: true });
-  assert.ok(html.includes('pending-notice'));
-  assert.ok(html.includes('data-action="torretas"'), 'el aviso abre TORRETAS');
-  assert.ok(html.includes('MEJORAR TORRETAS'));
-  // Sin el botón, el aviso es solo texto (el menú ya tiene su botón).
-  const sinBoton = buildPendingNoticeHtml(metaConFrags(225));
-  assert.ok(!sinBoton.includes('data-action="torretas"'));
-  assert.ok(sinBoton.includes('pending-notice'));
-});
-
-test('fase 59.4: sin mejoras pendientes NO hay aviso en ningún sitio', () => {
-  assert.equal(buildPendingNoticeHtml(defaultMeta()), '');
-  assert.equal(buildPendingNoticeHtml(defaultMeta(), { withButton: true }), '');
+test('v2: la pantalla TORRETAS lista las 11 unidades con sus cards', () => {
+  const html = buildTorretasScreen(defaultMeta());
+  assert.equal(countCards(html), META_TOWERS.length);
+  assert.equal((html.match(/class="meta-card locked"/g) ?? []).length, META_TOWERS.length - 1,
+    'la cuenta nueva ve 10 unidades bloqueadas');
 });
 
 test('fase 59.4: la línea de PODER dice el multiplicador REAL del meta', () => {
@@ -2368,12 +2486,33 @@ test('fase 59.4: la línea de PODER dice el multiplicador REAL del meta', () => 
   const esperado = META_TOWERS.reduce((s, t) => s + metaDmgMul(t.type, meta), 0)
     / META_TOWERS.length;
   assert.ok(Math.abs(metaPowerMul(meta) - esperado) < 1e-9,
-    'el poder es la media del metaDmgMul de las 11 torretas');
+    'el poder es la media del metaDmgMul de las torretas desbloqueadas');
   assert.ok(esperado > 1, 'con el guardian mejorado el poder es mayor que ×1,0');
   const html = buildPowerLineHtml(meta);
   assert.ok(html.includes('PODER DE TUS TORRETAS'), 'la línea explica qué es');
   assert.ok(html.includes('×1,0'), 'y dice el multiplicador de partida');
   assert.ok(html.includes('sin mejoras'), 'y recuerda el valor sin mejoras');
+});
+
+test('v2: metaPowerMul promedia SOLO las unidades desbloqueadas', () => {
+  // Cuenta nueva: solo el Guardian (Nvl.4). El poder NO se hunde con las
+  // 10 unidades bloqueadas en Nvl.1.
+  const meta = metaCon({
+    levels: { ...defaultMeta().levels, guardian: 4 },
+    unlocked: { ...defaultMeta().unlocked },
+  });
+  const soloGuardian = metaDmgMul('guardian', meta);
+  assert.ok(Math.abs(metaPowerMul(meta) - soloGuardian) < 1e-9,
+    'la media es la del Guardian, la única desbloqueada');
+  assert.ok(soloGuardian > 1, 'el Guardian mejorado cuenta de verdad');
+  // Sin `unlocked` (save viejo, balance-sim) promedia las 11.
+  const sinUnlocked = normalizeMeta({
+    ...defaultMeta(),
+    unlocked: undefined,
+    levels: { ...defaultMeta().levels, guardian: 4 },
+  });
+  assert.ok(Math.abs(metaPowerMul(sinUnlocked) - soloGuardian) > 1e-9,
+    'sin el mapa de desbloqueos la media incluye las 11');
 });
 
 test('fase 59.4: sin mejoras la línea de PODER no aparece (no es ruido)', () => {
@@ -2389,6 +2528,15 @@ test('fase 59.4: el panel PROGRESO resume el poder del meta', () => {
   assert.ok(html.includes('sin mejoras: ×1,0'), 'y contrasta con el valor sin mejoras');
 });
 
+test('v2: el panel PROGRESO dice que los fragmentos van al pool y el oro desbloquea', () => {
+  const hud = Object.create(HUD.prototype);
+  const html = hud._metaProgresoHtml(metaCon());
+  assert.ok(html.includes(`${META_FRAG_PER_VICTORY} al pool`),
+    'los fragmentos por victoria van al pool compartido');
+  assert.ok(/desbloquear unidades/i.test(html), 'el oro desbloquea unidades');
+  assert.ok(/redistribuir perks/i.test(html), 'y redistribuye perks');
+});
+
 test('fase 59.4: fmtFrags pone el separador de miles', () => {
   assert.equal(fmtFrags(1240), '1.240');
   assert.equal(fmtFrags(225), '225');
@@ -2397,10 +2545,12 @@ test('fase 59.4: fmtFrags pone el separador de miles', () => {
   assert.equal(fmtFrags(1000000), '1.000.000');
 });
 
-test('fase 59.4: el CSS tiene estilos para el botón y el aviso nuevos', () => {
-  assert.ok(css.includes('.meta-upgrade-all'), 'el botón "SUBIR TODO" tiene estilo');
+test('v2: el CSS tiene estilos para la card bloqueada y el botón de desbloqueo', () => {
+  for (const sel of ['.meta-card.locked', '.meta-card-lock', '.meta-unlock',
+    '.meta-unlock:disabled', '.meta-res-cell.frag']) {
+    assert.ok(css.includes(sel), `falta el estilo ${sel}`);
+  }
   assert.ok(css.includes('.meta-power'), 'la línea de poder tiene estilo');
-  assert.ok(css.includes('.pending-notice'), 'el aviso tiene estilo');
 });
 
 // ============================================================
@@ -3293,7 +3443,7 @@ test('fase 69: el resumen de victoria pinta heat, récord e hitos', () => {
   assert.ok(conHeat.includes('<dt>RÉCORD DE HEAT</dt>'), 'el récord de la pista');
   assert.ok(conHeat.includes('<dt>HITOS</dt>'), 'los hitos cobrados');
   assert.ok(conHeat.includes('Heat 5 · Heat 10'), 'con los umbrales');
-  assert.ok(conHeat.includes('+120/torreta'), 'y el bonus por torreta');
+  assert.ok(conHeat.includes('+120 al pool'), 'y el bonus al pool de fragmentos');
   // Sin heat el resumen es el de la fase 68 (ni una fila nueva).
   const sinHeat = hud._screenStageClear({
     stageName: 'Normal Stage 12', time: 60, score: 100, clearBonus: 0, hpBonus: 0,
@@ -3594,7 +3744,7 @@ test('fase 70: el resumen de la derrota pinta la run de arcade', () => {
   assert.ok(html.includes('<dt>RÉCORD</dt>'), 'el récord histórico');
   assert.ok(html.includes('<dt>RUNS</dt>') && html.includes('8'), 'y las runs jugadas');
   assert.ok(html.includes('<dt>HEAT</dt>'), 'el heat de la run, si lo hubo');
-  assert.ok(html.includes('+16/torreta') && html.includes('+4 oro'), 'la recompensa por oleadas nuevas');
+  assert.ok(html.includes('+16 al pool') && html.includes('+4 oro'), 'la recompensa por oleadas nuevas');
   // Va ANTES de "LO QUE LOGRASTE" (que sigue intacto).
   assert.ok(html.indexOf('survival-result') < html.indexOf('LO QUE LOGRASTE'),
     'el bloque del modo va arriba del resumen de la run');

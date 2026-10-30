@@ -13,6 +13,9 @@ import {
   TARGETING, targetingFor, pickByPolicy, targetInRange,
   MortarShell, BlackHoleFx, CraterFx, beamAimAngle, forcefieldBubbleR,
 } from '../js/towers.js';
+// El dial de presentación del arsenal (towers-data.js): los tests lo leen de
+// la fuente en vez de repetir el 0,75.
+import { dpsScaleFor } from '../js/towers-data.js';
 import {
   applyProjectileHit, collideProjectiles, projectileRadius, Enemy,
 } from '../js/enemies.js';
@@ -498,10 +501,11 @@ test('identidad: las espinas del Campo de Fuerza matan sin remate (ya no ejecuta
   const { game, log } = fxGame();
   game.fortress.enemies = [];
   const dr = new Drone('forcefield', game, 0);
-  const e = mkVictim(dr.x, 5);
+  const e = mkVictim(dr.x, 3);
   e.y = dr.y;
   game.fortress.enemies = [e];
-  dr.update(0.5, [e]); // espinas: 10 x 0,5 = 5 -> muere por daño, no por remate
+  // espinas: 10 x 0,75 (dial) x 0,5 s = 3,75 -> muere por daño, no por remate
+  dr.update(0.5, [e]);
   assert.ok(e.dead, 'el enemigo debía morir por las espinas');
   assert.deepEqual(log.floats, [], 'el Campo de Fuerza ya no tiene remate: no hay señal');
   setPerks({});
@@ -546,7 +550,9 @@ test('fase 28: las espinas del Campo de Fuerza ESCALAN con el nivel meta (antes 
     const e = mkTank(dr.x, dr.y);
     juego.fortress.enemies = [e];
     dr.update(0.5, [e]);
-    return { dano: 1e6 - e.hp, esperado: 12 * metaDmgMul('forcefield') * 0.5 };
+    // El DPS de espinas = perk (12) × meta × dial de presentación.
+    return { dano: 1e6 - e.hp,
+      esperado: 12 * metaDmgMul('forcefield') * 0.5 * dpsScaleFor('forcefield') };
   };
   const lv1 = medirEspinas(1);
   const lv50 = medirEspinas(50);
@@ -554,11 +560,11 @@ test('fase 28: las espinas del Campo de Fuerza ESCALAN con el nivel meta (antes 
 
   assert.ok(lv1.dano > 0, 'las espinas deben dañar en Nvl.1');
   assert.ok(Math.abs(lv1.dano - lv1.esperado) < 1e-6,
-    `Nvl.1 debe hacer 12 × 1.0 × 0.5 = 6 (hizo ${lv1.dano})`);
+    `Nvl.1 debe hacer 12 × 1.0 × 0.5 × ${dpsScaleFor('forcefield')} = 4.5 (hizo ${lv1.dano})`);
   assert.ok(lv50.dano > lv1.dano * 3,
     `Nvl.50 debe escalar el daño de las espinas (Nvl.1 ${lv1.dano}, Nvl.50 ${lv50.dano})`);
   assert.ok(Math.abs(lv50.dano - lv50.esperado) < 1e-6,
-    `Nvl.50 debe hacer 12 × ${metaDmgMul('forcefield', { levels: { forcefield: 50 } })} × 0.5 (hizo ${lv50.dano})`);
+    `Nvl.50 debe hacer 12 × ${metaDmgMul('forcefield', { levels: { forcefield: 50 } })} × 0.5 × ${dpsScaleFor('forcefield')} (hizo ${lv50.dano})`);
   // El helper de meta.js es la fuente de verdad del DPS de espinas.
   setMeta({ levels: { forcefield: 50 }, perks: { forcefield: [0] } });
   assert.ok(perkDmgFor('forcefield') > 12,
@@ -1029,12 +1035,14 @@ test('fase 29: el realce de disparo se enciende al disparar y se apaga solo', ()
 
 test('fase 29: la escala visual NO cambió el daño ni la cadencia', () => {
   setMeta({}); // meta limpio: sin niveles ni perks que escalen
-  // Guardian (daño plano) — valores exactos de la tabla TOWERS.
+  // Guardian (daño plano) — valores de la tabla TOWERS × el dial de presentación.
+  const escalaGuardian = dpsScaleFor('guardian');
   const t = new Tower('guardian', 100, 1);
-  assert.equal(t.damage, TOWERS.guardian.damage);
+  assert.equal(t.damage, TOWERS.guardian.damage * escalaGuardian);
   assert.equal(t.cooldown, TOWERS.guardian.cooldown);
   t.level = 5;
-  assert.equal(t.damage, TOWERS.guardian.damage * 2, '+25 % por nivel, como siempre');
+  assert.equal(t.damage, TOWERS.guardian.damage * escalaGuardian * 2,
+    '+25 % por nivel, como siempre');
   assert.ok(Math.abs(t.cooldown - TOWERS.guardian.cooldown * Math.pow(0.92, 4)) < 1e-12,
     'la cadencia sigue bajando 8 % por nivel');
   // Todas las torres: el daño sale de la tabla, no del render.
@@ -1043,7 +1051,8 @@ test('fase 29: la escala visual NO cambió el daño ni la cadencia', () => {
     const base = TOWERS[type].kind === 'beam' || TOWERS[type].kind === 'laser'
       ? TOWERS[type].damagePerSec
       : TOWERS[type].damage;
-    assert.equal(torre.damage, base, `${type}: el daño no puede depender del render`);
+    assert.equal(torre.damage, base * dpsScaleFor(type),
+      `${type}: el daño no puede depender del render`);
   }
 });
 
@@ -1330,7 +1339,8 @@ test('fase 31: la rueda realiza al menos el 85 % de su DPS nominal', () => {
   const SEG = 20;
   for (let t = 0; t < SEG; t += DT) dr.update(DT, [e]);
   const dps = (1e6 - e.hp) / SEG;
-  const nominal = DRONES.firewheel.dps;
+  // El nominal de la rueda incluye el dial de presentación (towers-data.js).
+  const nominal = DRONES.firewheel.dps * dpsScaleFor('firewheel');
   assert.ok(dps >= nominal * 0.85,
     `la rueda debe realizar ≥85 % de ${nominal} DPS (hizo ${dps.toFixed(1)})`);
 });
@@ -1571,7 +1581,7 @@ test('fase 76.2: al detonar, el Mortar agrega un CraterFx visible', () => {
   shell._explode();
   const crater = entities.find((e) => e.constructor?.name === 'CraterFx');
   assert.ok(crater, 'el impacto debe dejar un CraterFx en el campo');
-  assert.equal(crater.dps, 12);
+  assert.equal(crater.dps, 12 * dpsScaleFor('mortar'));
   assert.equal(crater.life, 3);
   assert.equal(crater.radius, 150);
   assert.equal(crater.slow, 0.1);
@@ -1956,8 +1966,9 @@ test('fase 73: un rayo principal + mini rayos de área (50 %)', () => {
   t.fire(juego.fortress.enemies, juego, 1 / 60);
 
   const d = TOWERS.thunderstroke;
-  const areaDmg = Math.round(d.damage * d.areaFrac);
-  assert.equal(principal.hp, 1000 - d.damage, 'el principal come el daño pleno');
+  const dmg = t.damage; // daño REAL de la torre (tabla × dial de presentación)
+  const areaDmg = Math.round(dmg * d.areaFrac);
+  assert.equal(principal.hp, 1000 - dmg, 'el principal come el daño pleno');
   assert.equal(vecinoA.hp, 1000 - areaDmg, 'el vecino A come el 50 %');
   assert.equal(vecinoB.hp, 1000 - areaDmg, 'el vecino B come el 50 %');
   assert.equal(fuera.hp, 1000, 'fuera del radio no hay daño de área');
@@ -1980,7 +1991,7 @@ test('fase 73: el blanco principal NO recibe también el daño de área', () => 
   const vecino = mkAlvo(300, 220, 1000);
   const { t, juego } = mkTowerF66('thunderstroke', [principal, vecino]);
   t.fire(juego.fortress.enemies, juego, 1 / 60);
-  assert.equal(principal.hp, 1000 - TOWERS.thunderstroke.damage,
+  assert.equal(principal.hp, 1000 - t.damage,
     'solo el rayo principal; el estallido excluye al principal');
   assert.ok(vecino.hp < 1000, 'el vecino sí recibe el estallido');
 });
@@ -2080,10 +2091,12 @@ test('fase 66: el haz entra con el DPS de la tabla y el ramp lo lleva al tope', 
     t.fire([e], juego, 1);
     return antes - e.hp;
   };
-  assert.ok(casi(unSegundo(0), 10), 'sin foco el DPS es el de la tabla (10)');
-  assert.ok(casi(unSegundo(1), 18), 'a 1 s de foco el ramp ya es ×1,8');
-  assert.ok(casi(unSegundo(2), 26), 'a 2 s, ×2,6');
-  assert.ok(casi(unSegundo(10), 45), 'el ramp se TOPA en ×4,5 (45 DPS)');
+  // Los DPS esperados son los de la tabla × el dial de presentación.
+  const escala = dpsScaleFor('beam');
+  assert.ok(casi(unSegundo(0), 10 * escala), 'sin foco el DPS es el de la tabla (10 × dial)');
+  assert.ok(casi(unSegundo(1), 18 * escala), 'a 1 s de foco el ramp ya es ×1,8');
+  assert.ok(casi(unSegundo(2), 26 * escala), 'a 2 s, ×2,6');
+  assert.ok(casi(unSegundo(10), 45 * escala), 'el ramp se TOPA en ×4,5 (45 DPS × dial)');
   assert.ok(unSegundo(3) > unSegundo(2), 'y crece de forma continua hasta el tope');
 });
 

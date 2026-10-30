@@ -17,7 +17,7 @@ import {
   DAMAGE_TYPES, DAMAGE_TYPE_IDS, ENEMY_FAMILY_IDS, dmgMultiplier,
 } from '../js/damagetypes.js';
 import { Fortress } from '../js/player.js';
-import { saveMeta } from '../js/meta.js';
+import { saveMeta, defaultMeta } from '../js/meta.js';
 import { makeLcgRng as rngFactory } from './helpers/rng.mjs';
 
 /**
@@ -233,6 +233,80 @@ test('unlock_*: no elegible si la torre ya está colocada', () => {
   const card = CATALOG.find((c) => c.id === 'unlock_beam');
   const yaColocada = makeGame({ towers: ['guardian', 'beam'] });
   assert.equal(isCardEligible(card, yaColocada), false);
+});
+
+// ------------------------------------------------------------
+// v2 — GATE DEL META: una unidad bloqueada no existe para las cartas.
+// El arsenal ya no se compra en la run: se compra con ORO en el meta.
+// `defaultMeta()` es la cuenta nueva (sólo el Guardian desbloqueado).
+// ------------------------------------------------------------
+
+test('v2: unlock_missile con la unidad bloqueada — no elegible, no-op, nunca ofrecida', () => {
+  const game = makeRealGame({ stageId: 5 });
+  game.fortress.addTower('guardian');
+  game.meta = defaultMeta();
+  const unlock = CATALOG.find((c) => c.id === 'unlock_missile');
+  assert.equal(isRelevant(unlock, game), false, 'la unidad bloqueada no es relevante');
+  assert.equal(isCardEligible(unlock, game), false);
+  assert.equal(applyCard(unlock, game), null, 'applyCard debe ser no-op');
+  assert.equal(findTower(game, 'missile'), null, 'y no debe colocar la torre');
+  const rng = rngFactory(77);
+  for (let i = 0; i < 50; i++) {
+    const ids = rollOffer(game, rng).map((c) => c.id);
+    assert.ok(!ids.includes('unlock_missile'), `la oferta trajo unlock_missile: ${ids}`);
+  }
+});
+
+test('v2: con la unidad comprada, unlock_missile vuelve al pool y coloca la torre', () => {
+  const game = makeRealGame({ stageId: 5 });
+  game.fortress.addTower('guardian');
+  game.meta = defaultMeta();
+  game.meta.unlocked.missile = true;
+  const unlock = CATALOG.find((c) => c.id === 'unlock_missile');
+  assert.equal(isCardEligible(unlock, game), true);
+  assert.equal(applyCard(unlock, game), unlock);
+  assert.ok(findTower(game, 'missile'), 'la torre debe quedar colocada');
+});
+
+test('v2: el gate también cubre a los DRONES bloqueados', () => {
+  const game = makeRealGame({ stageId: 5 });
+  game.fortress.addTower('guardian');
+  game.meta = defaultMeta();
+  const wasps = CATALOG.find((c) => c.id === 'unlock_drone_wasps');
+  assert.equal(isCardEligible(wasps, game), false);
+  assert.equal(applyCard(wasps, game), null);
+  assert.equal(findDrone(game, 'wasps'), null);
+  game.meta.unlocked.wasps = true;
+  assert.equal(isCardEligible(wasps, game), true);
+  assert.ok(applyCard(wasps, game));
+  assert.ok(findDrone(game, 'wasps'));
+});
+
+test('v2: sin game.meta (o con `unlocked` parcial) el gate es permisivo', () => {
+  // Compatibilidad: tests, balance-sim y partidas sin meta ven todo el
+  // arsenal. `isUnitUnlocked` sólo bloquea con `false` explícito (meta.js).
+  const game = makeRealGame({ stageId: 5 });
+  game.fortress.addTower('guardian');
+  const unlock = CATALOG.find((c) => c.id === 'unlock_missile');
+  assert.equal(isCardEligible(unlock, game), true, 'sin meta: comportamiento histórico');
+  game.meta = { unlocked: { guardian: true } };
+  assert.equal(isCardEligible(unlock, game), true, 'un map parcial no bloquea');
+});
+
+test('v2: con el arsenal entero bloqueado la oferta sigue completa (sin soft-lock)', () => {
+  // Sin cartas de desbloqueo elegibles `forceUnlock` no fuerza nada: la
+  // oferta tiene que salir de las cartas genéricas, nunca quedar corta.
+  const game = makeRealGame({ stageId: 5 });
+  game.fortress.addTower('guardian');
+  game.meta = defaultMeta();
+  const rng = rngFactory(3);
+  for (let i = 0; i < 50; i++) {
+    const offer = rollOffer(game, rng);
+    assert.equal(offer.length, CARD_OFFER_COUNT, 'la oferta nunca queda corta');
+    for (const c of offer) {
+      assert.ok(!c.tower && !c.drone, `la oferta trajo una unidad bloqueada: ${c.id}`);
+    }
+  }
 });
 
 test('rollOffer: 3 cartas, sin ids repetidos, todas elegibles', () => {

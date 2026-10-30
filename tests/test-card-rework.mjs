@@ -16,7 +16,7 @@ import { Tower, TOWERS, unitMods } from '../js/towers.js';
 import {
   applyProjectileHit, Enemy, applyPoison, applySlow, applyMark, hasMark,
 } from '../js/enemies.js';
-import { saveMeta } from '../js/meta.js';
+import { saveMeta, defaultMeta } from '../js/meta.js';
 
 saveMeta({});
 
@@ -88,6 +88,19 @@ test('fase 74: las cartas de tipo NO se ofrecen sin una unidad de ese tipo', () 
   assert.equal(isCardEligible(card('dmg_type_electric'), game), false);
   game.fortress.addTower('tesla');
   assert.equal(isCardEligible(card('dmg_type_electric'), game), true);
+});
+
+test('v2: una unidad bloqueada en el meta no entra al pool ni se aplica', () => {
+  const game = mkGame(['guardian']);
+  game.meta = defaultMeta();            // cuenta nueva: sólo el Guardian
+  const unlock = card('unlock_missile');
+  assert.equal(isCardEligible(unlock, game), false);
+  assert.equal(applyCard(unlock, game), null, 'applyCard debe ser no-op');
+  assert.equal(findTower(game, 'missile'), null);
+  game.meta.unlocked.missile = true;    // comprada con oro
+  assert.equal(isCardEligible(unlock, game), true);
+  assert.ok(applyCard(unlock, game));
+  assert.ok(findTower(game, 'missile'));
 });
 
 // ------------------------------------------------------------

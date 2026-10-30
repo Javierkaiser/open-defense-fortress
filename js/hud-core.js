@@ -28,13 +28,10 @@ import { CONFIG } from './engine.js';
 import {
   META_TOWERS, META_MAX_LEVEL, META_RANKS,
   META_PLAYER_NAME, META_FRAG_PER_VICTORY, META_DMG_PER_LEVEL, META_GOLD_START,
-  loadMeta, fragCost, metaGold, metaDmgMul, playerRank,
-  totalMetaLevels, renderTowerIcon, upgradeTower,
+  META_UNLOCK_COSTS, loadMeta, fragCost, metaGold, metaDmgMul, playerRank,
+  totalMetaLevels, renderTowerIcon, upgradeTower, unlockTower,
   PERKS, PERK_TIERS, PERK_EVERY, PERK_RESET_COST,
   pendingPerkTiers, tierAtLevel, getPerkOptions, setPerkChoice, resetPerks,
-  // dev-7 fase 59.4: el meta invisible (el jugador nunca sabía que
-  // podía subir sus torretas) — "SUBIR TODO" + el aviso de pendientes.
-  pendingUpgrades, pendingUpgradeCost, upgradeAllTowers,
 } from './meta.js';
 import { THEMES, loadTheme, saveTheme, applyThemeToGame } from './theme.js';
 import { loadSkin } from './tower-skins.js';
@@ -140,8 +137,6 @@ import {
   fmtFrags,
   metaPowerMul,
   fmtMul,
-  buildUpgradeAllHtml,
-  buildPendingNoticeHtml,
   buildPowerLineHtml,
   buildTowerCards,
   buildTorretasScreen,
@@ -163,6 +158,10 @@ export class HUD {
     this._abandonPending = null;
     // fase 16: confirmación inline de "REDISTRIBUIR" por torreta (type → bool).
     this._perkResetArmed = {};
+    // v2: confirmación inline de "DESBLOQUEAR" por unidad (key → bool).
+    // Se compra con oro y no se puede deshacer: un toque por error no
+    // puede gastarlo.
+    this._unlockArmed = {};
     // dev-7 fase 41: la LEYENDA de tipos de daño es un toggle (arranca
     // cerrada: la tabla tapaba la nav inferior en móvil).
     this._legendOpen = false;
@@ -530,12 +529,16 @@ export class HUD {
    * Antes `_confirmingReset` no se reseteaba en los early return de
    * PLAYING/CARD_CHOICE, `_abandonPending` sobrevivía a la pausa y
    * `_perkResetArmed` a TORRETAS: al volver, el botón destructivo quedaba
-   * armado y se ejecutaba con un solo click.
+   * armado y se ejecutaba con un solo click. Lo mismo vale para
+   * `_unlockArmed` (la compra de una unidad con oro).
    */
   _resetTransientUi(name) {
     if (name !== 'MENU') this._confirmingReset = false;
     if (name !== 'PAUSED') this._abandonPending = null;
-    if (name !== 'TORRETAS') this._perkResetArmed = {};
+    if (name !== 'TORRETAS') {
+      this._perkResetArmed = {};
+      this._unlockArmed = {};
+    }
   }
 
   showScreen(name, data = null) {
@@ -664,9 +667,6 @@ export class HUD {
       theme: loadTheme(),
       quality: loadQuality(),
       confirmingReset: this._confirmingReset,
-      // dev-7 fase 59.4: el aviso de mejoras pendientes (el meta era
-      // invisible: el jugador no sabía que podía subir sus torretas).
-      meta: this._metaState(),
     });
   }
 
@@ -762,12 +762,6 @@ export class HUD {
    * su cabecera y cada fila su identidad (punto de tema, insignia de
    * JEFE, récord). El HTML lo arma buildStageList() (función pura).
    *
-   * dev-7 fase 59.4: encima de la lista va el AVISO de mejoras de
-   * torretas pendientes — el selector es donde el jugador elige el
-   * stage siguiente, o sea el último lugar donde puede ver que tiene
-   * poder sin gastar antes de entrar a la battle. El aviso lleva su
-   * botón a la pantalla de torretas (desde acá no hay otro camino).
-   *
    * fase 67: `endless` es el payload del endgame (`_selectData().endless`).
    * Sin él (o cerrado) no se pinta ninguna tarjeta.
    *
@@ -782,7 +776,6 @@ export class HUD {
       <section class="screen">
         <div class="panel">
           <h2 class="screen-title">SELECCIONAR STAGE</h2>
-          ${buildPendingNoticeHtml(this._metaState(), { withButton: true })}
           ${buildStageList(stages, { familyOf: stageFamilyOf, endless, heat, survival })}
         </div>
       </section>`;
@@ -950,7 +943,7 @@ export class HUD {
             <div><dt>KILLS</dt><dd>${d.kills}</dd></div>
             ${d.leaks != null ? `<div><dt>FUGAS</dt><dd>${d.leaks ?? 0}</dd></div>` : ''}
             ${d.hpFrac != null ? `<div><dt>INTEGRIDAD DE LA BASE</dt><dd>${Math.round(d.hpFrac * 100)} %</dd></div>` : ''}
-            ${d.metaFrags ? `<div><dt>FRAGMENTOS META (por torreta)</dt><dd class="ok">+${d.metaFrags}${d.metaFirst ? ' · ×2 1ª vez' : ''}</dd></div>` : ''}
+            ${d.metaFrags ? `<div><dt>FRAGMENTOS META (al pool)</dt><dd class="ok">+${d.metaFrags}${d.metaFirst ? ' · ×2 1ª vez' : ''}</dd></div>` : ''}
             ${d.metaGold ? `<div><dt>ORO META${d.metaGoldBonus ? ' · campaña completa' : ''}</dt><dd class="ok">+${d.metaGold}</dd></div>` : ''}
             ${endlessSummaryRows(d.endless, { milestone: true })}
             ${heatSummaryRows(d.heat)}
@@ -1045,6 +1038,7 @@ export class HUD {
     // (META_TOWERS / META_MAX_LEVEL), nunca de literales.
     return buildTorretasScreen(this._metaState(), {
       resetArmed: this._perkResetArmed,
+      unlockArmed: this._unlockArmed,
     });
   }
 
@@ -1100,8 +1094,8 @@ export class HUD {
       <div class="meta-def-row"><span class="meta-def-k">Niveles totales de torreta</span><b>${totalMetaLevels(meta)}</b></div>
       <div class="meta-def-row"><span class="meta-def-k">Torretas al máximo</span><b>${maxedCount} de ${META_TOWERS.length}</b></div>
       <div class="meta-def-row"><span class="meta-def-k">Victorias</span><b>${meta.victories ?? 0}</b></div>
-      <div class="meta-def-row"><span class="meta-def-k">Fragmentos por victoria</span><b>${META_FRAG_PER_VICTORY} (×2 la primera vez por stage)</b></div>
-      <div class="meta-def-row"><span class="meta-def-k">Oro</span><b>${metaGold(meta)}● (se gasta en REDISTRIBUIR perks)</b></div>`;
+      <div class="meta-def-row"><span class="meta-def-k">Fragmentos por victoria</span><b>${META_FRAG_PER_VICTORY} al pool (×2 la primera vez por stage)</b></div>
+      <div class="meta-def-row"><span class="meta-def-k">Oro</span><b>${metaGold(meta)}● (se gasta en desbloquear unidades y redistribuir perks)</b></div>`;
   }
 
   /**
@@ -1146,13 +1140,11 @@ export class HUD {
     if (banner) banner.classList.toggle('hidden', name !== 'torretas' || legendOpen);
     const grid = root.querySelector('#meta-grid');
     if (grid) grid.classList.toggle('hidden', name !== 'torretas' || legendOpen);
-    // dev-7 fase 59.4: la línea de PODER y el botón "SUBIR TODO" son de
-    // la sección "Torreta" también: se ocultan con la leyenda (que
-    // necesita el alto) y con las otras secciones.
-    for (const id of ['#meta-power', '#meta-upgrade-all-bar']) {
-      const el = root.querySelector(id);
-      if (el) el.classList.toggle('hidden', name !== 'torretas' || legendOpen);
-    }
+    // dev-7 fase 59.4: la línea de PODER es de la sección "Torreta"
+    // también: se oculta con la leyenda (que necesita el alto) y con las
+    // otras secciones.
+    const power = root.querySelector('#meta-power');
+    if (power) power.classList.toggle('hidden', name !== 'torretas' || legendOpen);
     this._syncMetaLegend(legendOpen);
     if (name === 'progreso') {
       const sec = root.querySelector('#meta-progreso');
@@ -1285,13 +1277,17 @@ export class HUD {
       b.addEventListener('click', () => this._toggleMetaBanner());
     });
     // Botón MEJORAR por card (v5 5b/5): gasta fragmentos → +1 nivel YA.
+    // v2: los fragmentos son UN pool compartido (no por torreta).
     root.querySelectorAll('[data-meta-upgrade]').forEach((b) => {
       b.addEventListener('click', () => {
-        const res = upgradeTower(this._metaState(), b.dataset.metaUpgrade);
+        const meta = this._metaState();
+        const res = upgradeTower(meta, b.dataset.metaUpgrade);
         if (!res.ok) {
           flash(res.reason === 'maxed'
             ? `Esta torreta ya está al máximo (Nvl.${META_MAX_LEVEL})`
-            : `Faltan fragmentos: ganá stages para recibir ${META_FRAG_PER_VICTORY}`);
+            : res.reason === 'locked'
+              ? 'Esa unidad está bloqueada'
+              : `Faltan fragmentos: el pool tiene ${fmtFrags(meta.fragsPool ?? 0)} y cada victoria suma ${META_FRAG_PER_VICTORY}`);
           return;
         }
         // Mantener la vista al día: la Game relee storage al volver (toTorretas)
@@ -1306,15 +1302,36 @@ export class HUD {
         requestAnimationFrame(() => flash(`¡TORRETA MEJORADA! +${pct}% daño en partida`));
       });
     });
-    // dev-7 fase 59.4: SUBIR TODO LO POSIBLE — UN toque sube cada
-    // torreta lo que pueda (el mismo camino que el botón MEJORAR de
-    // cada card: guarda el meta, suena, repinta la pantalla y avisa).
-    // Sin esto la campaña entera son ~484 clics de MEJORAR.
-    root.querySelectorAll('[data-meta-upgrade-all]').forEach((b) => {
+    // v2: DESBLOQUEAR una unidad con ORO — 2 pasos (el mismo patrón inline
+    // de REDISTRIBUIR: nada de confirm() nativo). El primer toque arma la
+    // compra (la card muestra "¿SEGURO?"), el segundo la paga.
+    root.querySelectorAll('[data-meta-unlock]').forEach((b) => {
       b.addEventListener('click', () => {
-        const res = upgradeAllTowers(this._metaState());
-        if (!res.levels) {
-          flash('No hay mejoras pendientes: ganá stages para sumar fragmentos');
+        const key = b.dataset.metaUnlock;
+        const entry = META_TOWERS.find((t) => t.key === key);
+        const name = entry?.name ?? key;
+        const cost = META_UNLOCK_COSTS[key] ?? 0;
+        const meta = this._metaState();
+        if (!this._unlockArmed?.[key]) {
+          const gold = metaGold(meta);
+          if (gold < cost) {
+            flash(`Te faltan ${cost - gold} de oro para desbloquear ${name} (ganá stages para recibirlo)`);
+            return;
+          }
+          this._unlockArmed = { ...(this._unlockArmed ?? {}), [key]: true };
+          this.showScreen('TORRETAS');
+          requestAnimationFrame(() => flash(`Tocá otra vez para desbloquear ${name} (${cost}●)`, 2400));
+          return;
+        }
+        this._unlockArmed = { ...(this._unlockArmed ?? {}), [key]: false };
+        const res = unlockTower(meta, key);
+        if (!res.ok) {
+          flash(res.reason === 'insufficient'
+            ? 'Oro insuficiente para desbloquear'
+            : res.reason === 'owned'
+              ? 'Esa unidad ya está desbloqueada'
+              : 'No se pudo desbloquear');
+          this.showScreen('TORRETAS');
           return;
         }
         // Mantener la vista al día: la Game relee storage al volver (toTorretas)
@@ -1322,12 +1339,8 @@ export class HUD {
           window.__GDF__.game.meta = res.meta;
         }
         try { this.audio.sfx('levelup'); } catch (_err) { /* sin ctx aún */ }
-        this.showScreen('TORRETAS'); // re-render: niveles ya subidos
-        // El aviso dice el PODER nuevo (el multiplicador real del meta).
-        const mul = metaPowerMul(res.meta);
-        requestAnimationFrame(() => flash(
-          `¡${res.levels} NIVEL${res.levels === 1 ? '' : 'ES'} SUBIDO${res.levels === 1 ? '' : 'S'}! Tus torretas hacen ${fmtMul(mul)} de daño`,
-        ));
+        this.showScreen('TORRETAS'); // re-render: la card pasa a MEJORAR
+        requestAnimationFrame(() => flash(`¡${name.toUpperCase()} DESBLOQUEADA!`));
       });
     });
     // fase 16: ELEGIR PERK pendiente → modal A/B (primer tier sin elegir).

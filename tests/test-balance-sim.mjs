@@ -16,6 +16,11 @@
 //    lo gastaba: 1080 de daño por ultimate quedaban sin usar).
 //  - TIMEOUT: "no terminó" (se agotó el corte de seguridad) es distinto de
 //    "murió" (HP a 0).
+//  - POOL COMPARTIDO (meta v2): la trayectoria reparte 600 fragmentos por
+//    etapa limpia (300 + 300 de la primera vez) entre las unidades del foco.
+//    `pool-focus` (5 torres) reproduce la curva histórica (S50 = Nvl.44);
+//    `pool-spread` (11 unidades) da Nvl.26. `setMetaLevel(s)` escribe
+//    `fragsPool` y `unlocked` (todas), no el mapa `frags` por torreta.
 //
 // El sim importa los módulos REALES del juego (Fortress/Tower/Enemy/
 // WaveManager/cards.js) con un stub de engine sin canvas/DOM: corre en Node.
@@ -24,11 +29,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   runStage, makeRng, applyCeilingCards, createGame, parseStages,
-  trajectoryMetaLevel, optimalPerkChoices, cardDpsScore,
+  trajectoryMetaLevel, trajectoryMetaLevels, metaLevelsFor, poolFragsForStage,
+  setMetaLevel, setMetaLevels, optimalPerkChoices, cardDpsScore,
+  POOL_FOCUS, POOL_SPREAD,
 } from '../scripts/balance-sim.mjs';
 import { CATALOG, isCardEligible } from '../js/cards.js';
 import { BASE_HP_BY_STAGE, baseHpForStage } from '../js/stages.js';
-import { META_TOWERS, PERKS } from '../js/meta.js';
+import { META_TOWERS, PERKS, currentMeta, isUnitUnlocked } from '../js/meta.js';
 import * as W from '../js/waves.js';
 
 const card = (id) => CATALOG.find((c) => c.id === id);
@@ -173,10 +180,14 @@ test('FASE 67: la base del infinito es la curva REAL (no el fallback de 3000)', 
 // sin optimizar las cartas): con ese piso la tabla de docs/BALANCE.md daba win
 // 100 % en las 50 etapas y la base-esponja era invisible.
 
-test('FASE 59.1: la trayectoria da los mismos niveles meta que docs/BALANCE.md', () => {
-  // La política real: 120 fragmentos por torreta por stage clarifies
-  // (60 de victoria + 60 del ×2 de la primera vez) y se sube en cuanto
-  // fragCost lo permite.
+test('POOL-FOCUS: la trayectoria del pool da los mismos niveles meta que docs/BALANCE.md', () => {
+  // v2: el meta reparte UN POOL COMPARTIDO de 600 por etapa limpia (300 de
+  // victoria + 300 del ×2 de la primera vez) → 600×(N-1) acumulados antes
+  // del stage N. Con las 5 torres del arsenal de referencia el reparto
+  // equitativo da 600/5 = 120 por torre: la MISMA curva histórica.
+  assert.equal(poolFragsForStage(1), 0);
+  assert.equal(poolFragsForStage(50), 600 * 49);
+  assert.equal(poolFragsForStage(50) / POOL_FOCUS.length, 120 * 49);
   assert.equal(trajectoryMetaLevel(1), 1);
   assert.equal(trajectoryMetaLevel(10), 14);
   assert.equal(trajectoryMetaLevel(20), 23);
@@ -184,6 +195,73 @@ test('FASE 59.1: la trayectoria da los mismos niveles meta que docs/BALANCE.md',
   assert.equal(trajectoryMetaLevel(30), 32);
   assert.equal(trajectoryMetaLevel(40), 38);
   assert.equal(trajectoryMetaLevel(50), 44);
+});
+
+test('POOL-FOCUS: el reparto es equitativo entre las 5 torres del foco', () => {
+  const levels = trajectoryMetaLevels(50);
+  assert.deepEqual(Object.keys(levels).sort(), [...POOL_FOCUS].sort());
+  for (const key of POOL_FOCUS) {
+    assert.equal(levels[key], 44, `${key} debería llegar a Nvl.44 en el S50`);
+  }
+  // Las unidades FUERA del foco no reciben pool: quedan en Nvl.1.
+  assert.equal(levels.laser, undefined);
+  // El reparto usa el coste REAL de meta.js (75 + 35 por década): 5 880
+  // fragmentos por torre son Nvl.44, no un número inventado.
+  assert.equal(trajectoryMetaLevels(10).guardian, 14);
+});
+
+test('POOL-SPREAD: el mismo pool entre las 11 unidades del catálogo', () => {
+  assert.equal(POOL_SPREAD.length, META_TOWERS.length);
+  const levels = trajectoryMetaLevels(50, POOL_SPREAD);
+  assert.equal(Object.keys(levels).length, 11);
+  // 29 400 / 11 = 2 672 fragmentos por unidad → Nvl.26 (no 44).
+  for (const key of POOL_SPREAD) assert.equal(levels[key], 26, `${key} en S50`);
+  assert.ok(trajectoryMetaLevel(50, POOL_SPREAD) < trajectoryMetaLevel(50),
+    'pool-spread no puede dar el mismo nivel que pool-focus');
+  // Monótono y acotado, como la trayectoria de 5 torres.
+  let prev = 0;
+  for (let s = 1; s <= 50; s++) {
+    const lv = trajectoryMetaLevel(s, POOL_SPREAD);
+    assert.ok(lv >= prev, `S${s} (${lv}) < S${s - 1} (${prev})`);
+    assert.ok(lv >= 1 && lv <= 100, `S${s}: nivel fuera de rango: ${lv}`);
+    prev = lv;
+  }
+});
+
+test('POOL: --meta=trajectory es alias de pool-focus y el foco es explícito', () => {
+  assert.deepEqual(metaLevelsFor(30, 'trajectory'), metaLevelsFor(30, 'pool-focus'));
+  assert.deepEqual(metaLevelsFor(30, 'pool-spread'), trajectoryMetaLevels(30, POOL_SPREAD));
+  // Un nivel fijo se aplica a TODAS las unidades (comportamiento de siempre).
+  const fijo = metaLevelsFor(30, 12);
+  assert.equal(Object.keys(fijo).length, META_TOWERS.length);
+  for (const t of META_TOWERS) assert.equal(fijo[t.key], 12);
+});
+
+test('META: setMetaLevel escribe fragsPool y unlocked (todas las unidades)', () => {
+  setMetaLevel(7);
+  const m = currentMeta();
+  for (const t of META_TOWERS) assert.equal(m.levels[t.key], 7, `nivel de ${t.key}`);
+  // v2: el estado guarda UN pool compartido; el mapa `frags` por torreta ya
+  // no existe (se normaliza al pool).
+  assert.equal(m.fragsPool, 0);
+  assert.equal(m.frags, undefined);
+  for (const t of META_TOWERS) {
+    assert.equal(m.unlocked[t.key], true, `${t.key} tiene que estar desbloqueada`);
+    assert.equal(isUnitUnlocked(m, t.type), true, `${t.type} no debería estar bloqueada`);
+  }
+});
+
+test('META: setMetaLevels acepta un mapa por unidad y gatea los perks', () => {
+  setMetaLevels({ guardian: 40, missile: 10 }, 'optimal');
+  const m = currentMeta();
+  assert.equal(m.levels.guardian, 40);
+  assert.equal(m.levels.missile, 10);
+  assert.equal(m.levels.beam, 1, 'las unidades ausentes del mapa quedan en Nvl.1');
+  // PERK_EVERY = 10: Nvl.40 → 4 tiers elegidos, Nvl.10 → 1.
+  assert.ok(m.perkChoices.guardian[3] !== null, 'el tier 4 (Nvl.40) está elegido');
+  assert.equal(m.perkChoices.guardian[4], null, 'el tier 5 (Nvl.50) no puede estar elegido');
+  assert.ok(m.perkChoices.missile[0] !== null);
+  assert.equal(m.perkChoices.missile[1], null);
 });
 
 test('FASE 59.1: la trayectoria es monótona y nunca baja de 1', () => {
@@ -199,9 +277,35 @@ test('FASE 59.1: la trayectoria es monótona y nunca baja de 1', () => {
 test('FASE 59.1: la trayectoria da más poder que el piso (y el sim lo usa)', async () => {
   const piso = await runStage(21, 'inteligente', 4242, { metaLv: 1 });
   const tray = await runStage(21, 'inteligente', 4242, { metaLv: 'trajectory' });
-  // La trayectoria (meta 24) tiene que matar MÁS enemigos que el piso.
+  // La trayectoria (pool-focus → meta 24 en el S21) tiene que matar MÁS
+  // enemigos que el piso.
   assert.ok(tray.kills > piso.kills, `trayectoria ${tray.kills} kills vs piso ${piso.kills}`);
   assert.ok(tray.hpFrac >= piso.hpFrac, `trayectoria ${tray.hpFrac} HP vs piso ${piso.hpFrac}`);
+  // `--meta=trajectory` es alias de `pool-focus`: misma corrida, bit a bit.
+  const focus = await runStage(21, 'inteligente', 4242, { metaLv: 'pool-focus' });
+  assert.deepEqual(focus, tray, 'trajectory y pool-focus tienen que ser la misma run');
+});
+
+test('POOL-FOCUS: la cuota se aplica a las unidades que juegan (== meta fijo)', async () => {
+  // La política no reparte el pool entre una lista fija de torres: la cuota
+  // por unidad (pool / 5) se asigna a CADA torre/dron que entra en la run
+  // (el jugador invierte en lo que juega). Por eso la corrida es idéntica a
+  // la misma con `--metalv=<cuota>`: si alguien vuelve a la lista estática,
+  // las torres fuera del foco pelearían en Nvl.1 y este test cae.
+  const lv = trajectoryMetaLevel(21);
+  const focus = await runStage(21, 'inteligente', 4242, { metaLv: 'pool-focus' });
+  const fijo = await runStage(21, 'inteligente', 4242, { metaLv: lv });
+  assert.deepEqual(focus, fijo, `pool-focus (Nvl.${lv}) tiene que ser la misma run que --metalv=${lv}`);
+});
+
+test('POOL-SPREAD: el pool repartido entre 11 unidades llega al combate', async () => {
+  // S21: pool-focus Nvl.24 vs pool-spread Nvl.13. La política no puede
+  // quedarse en el mapa de niveles: tiene que mover la partida.
+  const focus = await runStage(21, 'inteligente', 4242, { metaLv: 'pool-focus' });
+  const spread = await runStage(21, 'inteligente', 4242, { metaLv: 'pool-spread' });
+  assert.ok(focus.killPct >= spread.killPct,
+    `bajas: focus ${focus.killPct.toFixed(3)} vs spread ${spread.killPct.toFixed(3)}`);
+  assert.ok(focus.leaks <= spread.leaks, `fugas: focus ${focus.leaks} vs spread ${spread.leaks}`);
 });
 
 test('FASE 59.2: --killrate recorta las bajas al presupuesto', async () => {

@@ -4,10 +4,36 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
-## [Unreleased]
+## [1.7.0] — 2026-10-30
+
+### Agregado
+
+- **Desbloqueo de unidades con oro** (`META_UNLOCK_COSTS`, `unlockTower`,
+  `isUnitUnlocked`): una cuenta nueva arranca solo con **Guardian** y las otras
+  10 unidades (7 torres y 3 drones) se compran con oro (150–500). Una unidad
+  bloqueada no entra en la oferta de cartas, no se mejora y su `metaDmgMul` es
+  1. Spec: `openspec/specs/meta-game/tower-unlocks/spec.md`.
+- **Pool de fragmentos compartido** (`fragsPool`): cada victoria suma 300 y la
+  primera limpieza de cada etapa 600, en lugar de 60 por torreta. Un save v1
+  suma sus saldos por torreta al pool (no se pierde nada).
+- `scripts/balance-sim.mjs`: `--meta=pool-focus|pool-spread` y
+  `trajectoryMetaLevels(stage, focus)`; `setMetaLevel(s)` escribe `fragsPool` y
+  `unlocked` (todas las unidades) en vez del mapa `frags` por torreta.
 
 ### Cambiado
 
+- **DPS nominal −25 %** (`DPS_SCALE = 0,75` en `towers-data.js`; la **Tesla
+  queda exenta**) en torres, drones y su daño en el tiempo. El HP de las olas
+  **no** se compensa: es el dial con el que se mide cuánto poder hacía falta.
+- `balance-sim`: `--meta=trajectory` pasa a ser alias de `pool-focus`. El pool
+  se reparte en cuotas de 5 (600 / 5 = 120 por unidad y etapa, la misma curva
+  histórica) y la cuota se aplica a las unidades que entran en la run. S50:
+  **Nvl.44** con las 5 unidades que juega el jugador y **Nvl.26** con las 11
+  (`pool-spread`).
+- Medición (10 semillas, `--mode=inteligente`): S50 sin heat 100 % win / 72 %
+  HP / 91 % bajas (antes 93 % / 99 %); Protocolo II 80 % / 41 % / 75 % (antes
+  70 % / 48 % / 61 %). El piso (meta 1) ya no gana el S50. Detalle en
+  `docs/BALANCE.md` §"Meta v2 — pool compartido".
 - **La URL pública pasa al dominio propio**: el juego se publica en
   <https://opendefensefortress.javierlust.net.ar/> (dominio verificado en
   here.now, con su propio certificado). `<faint-desert-zjv5>.here.now` sigue
@@ -17,6 +43,12 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
   se marca en rojo si el dominio propio se configura como *primary* (el alias
   responde 308). Se sumó un chequeo blando del dominio propio, que avisa por
   stderr sin tumbar un publish que ya se completó.
+
+### Tests / versión
+
+- **1021 tests, 0 skip** (35 archivos), incluidos `test-tower-skins.mjs` y
+  `test-dps-scale.mjs`.
+- Versión **1.7.0** / Android `versionCode 13`.
 
 ## [1.6.0] — 2026-10-30
 

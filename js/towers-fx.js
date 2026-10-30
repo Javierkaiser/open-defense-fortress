@@ -3,7 +3,7 @@
 // =============================================================================
 
 import { CONFIG, clamp, dist, rand } from './engine.js';
-import { TOWERS } from './towers-data.js';
+import { TOWERS, dpsScaleFor } from './towers-data.js';
 import { closestPointOnSegment, pointSegmentDistance, withAlpha } from './geometry.js';
 import { applyProjectileHit } from './enemies.js';
 import { applyMark, applyPoison, applySlow } from './enemies-status.js';
@@ -314,7 +314,10 @@ export class CraterFx {
     this.x = x;
     this.y = y;
     this.radius = opts.radius ?? TOWERS.mortar.blastR;
-    this.dps = opts.dps ?? TOWERS.mortar.mech?.dps ?? 8;
+    // El cráter es el DoT propio del Mortar: escala con el mismo dial que la
+    // torre (incluye `craterDpsAdd` de los perks, que ya viene sumado en
+    // `opts.dps`). La vida y el slow NO se tocan.
+    this.dps = (opts.dps ?? TOWERS.mortar.mech?.dps ?? 8) * dpsScaleFor('mortar');
     this.life = opts.life ?? TOWERS.mortar.mech?.duration ?? 3;
     this.slow = opts.slow ?? TOWERS.mortar.mech?.slow ?? 0.10;
     this.mods = opts.mods ?? null;

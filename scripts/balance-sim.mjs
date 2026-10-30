@@ -70,8 +70,11 @@
 //   node scripts/balance-sim.mjs --mode=mixto   → modo mixto (desbloqueo al azar: juega el arsenal)
 //   node scripts/balance-sim.mjs --mode=inteligente → el jugador que optimiza DPS
 //   node scripts/balance-sim.mjs --cards=ceiling → techo de poder (cartas reales topadas)
-//   node scripts/balance-sim.mjs --metalv=10    → nivel meta de las 9 torretas (1..100)
-//   node scripts/balance-sim.mjs --meta=trajectory → nivel meta REAL de la campaña
+//   node scripts/balance-sim.mjs --metalv=10    → nivel meta de las 11 unidades (1..100)
+//   node scripts/balance-sim.mjs --meta=trajectory → pool compartido repartido entre el
+//                                                   arsenal de 5 (alias de pool-focus)
+//   node scripts/balance-sim.mjs --meta=pool-focus  → pool 600/etapa entre 5 torres
+//   node scripts/balance-sim.mjs --meta=pool-spread → pool 600/etapa entre las 11 unidades
 //   node scripts/balance-sim.mjs --perks=optimal  → rama A/B óptima de los perks
 //   node scripts/balance-sim.mjs --killrate=75   → el jugador mata como máximo el 75 %
 //   node scripts/balance-sim.mjs --seeds=5       → seeds por stage
@@ -90,10 +93,13 @@
 // tabla de docs/BALANCE.md daba win 100 % en las 50 etapas — la base era una
 // esponja y eso era INVISIBLE para la medición. Tres cosas nuevas:
 //
-//   · `--meta=trajectory`: el nivel meta se deriva del stage con la
-//     política real (victoria → 60 frag por torreta, ×2 la primera vez →
-//     120; se sube cada torreta en cuanto `fragCost` lo permite). Da los
-//     mismos niveles que la tabla de docs/BALANCE.md (S10=14, S20=23, S50=44).
+//   · `--meta=trajectory` (alias de `pool-focus`): el nivel meta se deriva
+//     del stage con la política real del POOL COMPARTIDO (300 por victoria,
+//     600 la primera limpieza → 600 × (stage-1) acumulados y repartidos
+//     entre las 5 torres del arsenal de referencia). Con 5 torres el reparto
+//     equitativo da 120 por torre por etapa: la MISMA curva histórica de
+//     docs/BALANCE.md (S10=14, S20=23, S50=44). `pool-spread` reparte ese
+//     pool entre las 11 unidades (S50 ≈ Nvl.26). Ver `trajectoryMetaLevels`.
 //   · `--killrate=X`: el jugador mata como máximo el X % de los enemigos de
 //     la ola. Es un escenario de PRESIÓN: al agotarse el presupuesto las
 //     torres dejan de hacer daño y los que quedan se escapan pagando su HP
@@ -236,16 +242,22 @@ import {
 } from '../js/survival.js';
 import { rollOffer, applyCard, CATALOG } from '../js/cards.js';
 import {
-  saveMeta, META_TOWERS, PERKS, metaDmgMul, fragCost,
-  META_FRAG_PER_VICTORY, META_FIRST_CLEAR_MULT, META_MAX_LEVEL, PERK_EVERY,
+  saveMeta, currentMeta, META_TOWERS, PERKS, metaDmgMul, fragCost,
+  META_FRAG_PER_VICTORY, META_FIRST_CLEAR_MULT, META_MAX_LEVEL, PERK_EVERY, PERK_TIERS,
 } from '../js/meta.js';
 
 // ---------- defaults del CLI (los mismos de siempre) ----------
 const DEFAULT_MODE = 'greedy';   // greedy | tardy | mixto (elección de carta)
-const DEFAULT_META_LV = 1;       // 1..100 (v6) — nivel meta de las 9 torretas
+const DEFAULT_META_LV = 1;       // 1..100 (v6) — nivel meta de las 11 unidades
 const DEFAULT_PERKS = 'none';    // none | optimal (rama óptima A/B, fase 17)
 const DEFAULT_SEEDS = 5;
 const DEFAULT_STAGES = [1, 2, 3, 4, 5, 6, 10, 20, 30, 50]; // campaña (muestra de la curva)
+// Arsenal de referencia de la campaña (5 slots: Guardian + 4 desbloqueables).
+// Es el foco de la política `pool-focus` (alias de `--meta=trajectory`).
+export const POOL_FOCUS = ['guardian', 'missile', 'beam', 'tesla', 'mortar'];
+// Las 11 unidades del catálogo meta (8 torres + 3 drones): el foco de
+// `pool-spread`, que mide el pool repartido entre TODO el arsenal.
+export const POOL_SPREAD = META_TOWERS.map((t) => t.key);
 // fase 67: techo del parseo de --stages. La campaña son 50 etapas y el
 // modo infinito no tiene fin jugable, pero el instrumento necesita un tope
 // (200 = 4 decenas de profundidad, de sobra para medir la pared).
@@ -306,23 +318,48 @@ export function optimalPerkChoices(type, level = META_MAX_LEVEL) {
  * eso la tabla de docs/BALANCE.md nunca vio que la base es una esponja (win
  * 100 % en las 50 etapas).
  *
- * La trayectoria es la política REAL del juego:
- *   · cada victoria da META_FRAG_PER_VICTORY fragmentos a CADA torreta;
- *   · la PRIMERA vez de cada stage, ×META_FIRST_CLEAR_MULT (o sea 120);
- *   · el jugador sube cada torreta en cuanto puede (MEJORAR).
- * O sea, antes del stage N el jugador lleva (N-1) victorias y (N-1)
- * primeras veces → 120×(N-1) fragmentos por torreta, y el nivel es el
- * máximo que puede pagar con `fragCost` (el coste REAL de meta.js).
+ * Desde el rework del meta (v2) los fragmentos son UN POOL COMPARTIDO:
+ *   · cada victoria paga META_FRAG_PER_VICTORY (300) al pool;
+ *   · la PRIMERA limpieza de cada etapa lo duplica (×2 → 600);
+ *   · un jugador que limpia la campaña en orden acumula, antes del stage N,
+ *     600 × (N-1) fragmentos.
  *
- * Verificado contra la tabla de docs/BALANCE.md (fase 59): S10 → 14, S20 → 23,
- * S25 → 28, S30 → 32, S40 → 38, S45 → 41, S50 → 44. Coincide exacto.
+ * ARITMÉTICA DE LA EQUIVALENCIA HISTÓRICA (por qué 300/victoria): la
+ * trayectoria vieja daba 120 por torreta y por etapa (60 de victoria + 60
+ * de la primera vez). Con las 5 torres del arsenal de referencia el pool
+ * reparte 600 / 5 = 120 por torre: la MISMA curva (S10=14, S20=23,
+ * S25=28, S30=32, S40=38, S45=41, S50=44). Con las 11 unidades del
+ * catálogo (`pool-spread`) el mismo pool da ≈ Nvl.26 en el S50.
  *
- * @param {number} stage  1..50
- * @returns {number} nivel meta (1..100) de la trayectoria
+ * POLÍTICA (explícita, `trajectoryMetaLevels`):
+ *   · se reparte el pool acumulado en partes IGUALES entre las unidades de
+ *     `focus` (reparto equitativo: ninguna torre se prioriza, así el nivel
+ *     es comparable entre etapas);
+ *   · el resto entero (pool % n, siempre < n) va a la PRIMERA unidad de la
+ *     lista — son <11 fragmentos, nunca alcanzan para un nivel (75).
+ *
+ * @param {number} stage  1..200
+ * @returns {number} nivel meta (1..100) que alcanza CADA torre del foco
  */
-export function trajectoryMetaLevel(stage) {
-  const perClear = META_FRAG_PER_VICTORY * META_FIRST_CLEAR_MULT; // 60 + 60 = 120
-  const frags = perClear * Math.max(0, Math.trunc(stage) - 1);
+export function trajectoryMetaLevel(stage, focus = POOL_FOCUS) {
+  const n = Math.max(1, focus.length);
+  return levelForFrags(Math.floor(poolFragsForStage(stage) / n));
+}
+
+/**
+ * Fragmentos que el pool acumuló antes de `stage` (victorias + primeras
+ * limpiezas). Es la entrada de la política de reparto.
+ */
+export function poolFragsForStage(stage) {
+  return META_FRAG_PER_VICTORY * META_FIRST_CLEAR_MULT * Math.max(0, Math.trunc(stage) - 1);
+}
+
+/**
+ * Nivel meta máximo que se puede pagar con `frags` usando el coste REAL de
+ * meta.js (`fragCost`, 75 + 35 por década). Es el mismo bucle de la
+ * trayectoria de siempre, extraído para que las dos políticas lo compartan.
+ */
+export function levelForFrags(frags) {
   let lv = 1;
   let spent = 0;
   while (lv < META_MAX_LEVEL) {
@@ -334,18 +371,81 @@ export function trajectoryMetaLevel(stage) {
   return lv;
 }
 
+/**
+ * Niveles meta por unidad de la trayectoria (ver la política arriba).
+ *
+ * @param {number} stage
+ * @param {string[]} focus  unidades que se reparten el pool (default: las 5
+ *   torres del arsenal de referencia)
+ * @returns {Record<string, number>} {key: nivel} SOLO de las unidades del foco
+ */
+export function trajectoryMetaLevels(stage, focus = POOL_FOCUS) {
+  const keys = [...new Set(focus)].filter((k) => META_TOWERS.some((t) => t.key === k));
+  if (!keys.length) {
+    throw new Error('trajectoryMetaLevels: el foco no tiene unidades meta válidas');
+  }
+  const pool = poolFragsForStage(stage);
+  const base = Math.floor(pool / keys.length);
+  const resto = pool - base * keys.length;
+  const levels = {};
+  keys.forEach((k, i) => { levels[k] = levelForFrags(base + (i === 0 ? resto : 0)); });
+  return levels;
+}
+
+/**
+ * Resuelve el argumento meta del CLI/runStage a un mapa {key: nivel}:
+ *   · 'pool-focus' | 'trajectory' → pool entre las 5 torres del arsenal;
+ *   · 'pool-spread'              → pool entre las 11 unidades del catálogo;
+ *   · número                     → ese nivel en TODAS las unidades.
+ */
+export function metaLevelsFor(stage, metaLv = DEFAULT_META_LV) {
+  if (metaLv === 'pool-spread') return trajectoryMetaLevels(stage, POOL_SPREAD);
+  if (metaLv === 'pool-focus' || metaLv === 'trajectory') {
+    return trajectoryMetaLevels(stage, POOL_FOCUS);
+  }
+  const lv = Number(metaLv);
+  const levels = {};
+  for (const t of META_TOWERS) levels[t.key] = lv;
+  return levels;
+}
+
 /** Fija TODAS las torretas meta a `level` (100 = techo real del v6).
  *  Con perks='optimal' además elige la rama óptima A/B de cada torre. */
-function setMetaLevel(level, perks = 'none') {
+export function setMetaLevel(level, perks = 'none') {
   const levels = {};
-  const frags = {};
+  for (const t of META_TOWERS) levels[t.key] = level;
+  return setMetaLevels(levels, perks);
+}
+
+/**
+ * Fija un NIVEL POR UNIDAD (el mapa de `trajectoryMetaLevels`/`pool-spread`;
+ * las unidades ausentes quedan en Nvl.1) y persiste el meta del sim.
+ *
+ * Escribe el estado v2 COMPLETO: `levels`, `fragsPool` (0: los niveles se
+ * fijan directamente, no queda saldo) y `unlocked` con TODAS las unidades en
+ * `true` — así las cartas de desbloqueo y las mejoras de cualquier unidad
+ * siguen siendo elegibles en la simulación (`isUnitUnlocked`).
+ */
+export function setMetaLevels(levels, perks = 'none') {
+  const resolved = {};
+  const unlocked = {};
   const perkChoices = {};
   for (const t of META_TOWERS) {
-    levels[t.key] = level;
-    frags[t.key] = 0;
-    perkChoices[t.key] = perks === 'optimal' ? optimalPerkChoices(t.type, level) : Array(10).fill(null);
+    const lv = Math.max(1, Math.min(META_MAX_LEVEL, Math.trunc(Number(levels?.[t.key] ?? 1) || 1)));
+    resolved[t.key] = lv;
+    unlocked[t.key] = true;
+    perkChoices[t.key] = perks === 'optimal'
+      ? optimalPerkChoices(t.type, lv)
+      : Array(PERK_TIERS).fill(null);
   }
-  saveMeta({ levels, frags, victories: 999, firstClear: [1, 2, 3, 4, 5], perkChoices }, fakeStorage);
+  return saveMeta({
+    levels: resolved,
+    fragsPool: 0,
+    unlocked,
+    victories: 999,
+    firstClear: [1, 2, 3, 4, 5],
+    perkChoices,
+  }, fakeStorage);
 }
 
 // ---------- stub de engine: SIN canvas/DOM/audio (docs/BALANCE.md dixit) ----------
@@ -743,13 +843,20 @@ export function applyForcedUnlock(spec, game) {
  * techo sin correr una run entera.
  */
 export function createGame(stageId, { metaLv = DEFAULT_META_LV, perks = DEFAULT_PERKS, runMods = null } = {}) {
-  setMetaLevel(metaLv, perks); // v6 real: afecta metaDmgMul()/perkCount() en towers.js
+  // v2 real: `metaLv` es un nivel fijo o una POLÍTICA de pool compartido
+  // ('pool-focus' | 'pool-spread' | 'trajectory'). Afecta metaDmgMul()/
+  // perkMods() en towers.js.
+  setMetaLevels(metaLevelsFor(stageId, metaLv), perks);
   const engine = new EngineStub();
   const game = {
     engine, stageId, lv: 1, xp: 0, score: 0, streak: 0, mult: 1, kills: 0,
     timer: 0, _leaks: 0, _ultFires: 0, _bhFires: 0,
     _spawnScoreCarry: 0, // fracción de score de crías (ver onKill/economy.js)
     runMods, // fase 69: Protocolo/Heat (null = heat 0)
+    // Meta REAL de la partida (como game.js): `setMetaLevels` deja TODAS las
+    // unidades desbloqueadas, así las cartas de desbloqueo y las mejoras de
+    // cualquier torre/dron siguen siendo elegibles (`isUnitUnlocked`).
+    meta: currentMeta(),
   };
   game.fortress = new Fortress(game);
   // fase 69: Arsenal — un slot menos ANTES de colocar al Guardian.
@@ -891,11 +998,25 @@ export async function runStage(stageId, mode = DEFAULT_MODE, seed = 1, opts = {}
     // mismo meta que las torres (createGame lo vuelve a fijar, es
     // idempotente).
     // dev-7 fase 59 (54.1): `metaLv` puede ser el número fijo de siempre o
-    // la palabra 'trajectory' → el nivel meta REAL de la campaña.
-    const metaLv = opts.metaLv === 'trajectory'
-      ? trajectoryMetaLevel(stageId)
-      : (opts.metaLv ?? DEFAULT_META_LV);
-    setMetaLevel(metaLv, opts.perks ?? DEFAULT_PERKS);
+    // una política del POOL COMPARTIDO ('trajectory' | 'pool-focus' |
+    // 'pool-spread') → el nivel meta que la campaña alcanza en esta etapa.
+    const metaLv = opts.metaLv ?? DEFAULT_META_LV;
+    const perks = opts.perks ?? DEFAULT_PERKS;
+    const niveles = metaLevelsFor(stageId, metaLv);
+    setMetaLevels(niveles, perks);
+    // POOL-FOCUS: la cuota por unidad del arsenal (pool / 5 = 120 × (stage-1)
+    // fragmentos) se aplica también a las torres y drones que ENTRAN durante
+    // la run (ver `nivelar`): el jugador invierte el pool en las unidades que
+    // juega. Sin esto, una torre fuera del foco (thunderstroke, láser, gauss,
+    // un dron) pelearía en Nvl.1 y la medición sería un piso artificial, no
+    // la trayectoria real.
+    const poolFocus = metaLv === 'pool-focus' || metaLv === 'trajectory';
+    const nivelFoco = poolFocus ? trajectoryMetaLevel(stageId) : 0;
+    const nivelar = (type) => {
+      if (!poolFocus || !type || niveles[type] === nivelFoco) return;
+      niveles[type] = nivelFoco;
+      setMetaLevels(niveles, perks);
+    };
     // La tabla de olas se construye PRIMERO: para los stages 6..50 su
     // semilla es (Math.random()*1e9)|0 (waves.js:392) — el primer sorteo
     // del stream, reproducible.
@@ -1123,7 +1244,8 @@ export async function runStage(stageId, mode = DEFAULT_MODE, seed = 1, opts = {}
         // que el jugador habría elegido (la economía de cartas no se regala).
         if (forcedQueue.length) {
           const spec = forcedQueue.shift();
-          if (!applyForcedUnlock(spec, game)) forcedMissed += 1;
+          if (applyForcedUnlock(spec, game)) nivelar(spec.type);
+          else forcedMissed += 1;
           continue;
         }
         let offer = rollOffer(game, rngCards);
@@ -1137,7 +1259,12 @@ export async function runStage(stageId, mode = DEFAULT_MODE, seed = 1, opts = {}
         const card = mode === 'inteligente'
           ? pickCardSmart(offer)
           : pickCard(offer, lv, mode, game, rngCards);
-        if (card) applyCard(card, game);
+        if (card) {
+          applyCard(card, game);
+          // POOL-FOCUS: la unidad que entra recibe la cuota del arsenal.
+          if (card.tower) nivelar(card.tower);
+          if (card.drone) nivelar(card.drone);
+        }
       }
       syncCeiling(game); // torres nuevas → topar sus cartas de techo
       if (TIMELINE) {
@@ -1479,10 +1606,19 @@ async function main(argv = process.argv.slice(2)) {
   const CEILING_CARDS = args.cards === 'ceiling'; // cartas al tope (cartas REALES)
   const SEEDS = Number(args.seeds ?? DEFAULT_SEEDS);
   const PERKS_MODE = args.perks ?? DEFAULT_PERKS; // none | optimal
-  // dev-7 fase 59 (54.1): --meta=trajectory deriva el nivel meta del stage
-  // con la política real de la campaña. Por defecto sigue siendo el "piso"
-  // (meta 1) para no romper la comparación con las tablas de docs/BALANCE.md.
-  const META_ARG = args.meta === 'trajectory' ? 'trajectory' : Number(args.metalv ?? DEFAULT_META_LV);
+  // dev-7 fase 59 (54.1) + pool compartido (v2): `--meta` elige la política
+  // del pool (trajectory = pool-focus, el reparto histórico de 5 torres;
+  // pool-spread = las 11 unidades). `--metalv=N` sigue forzando un nivel
+  // fijo en TODAS las unidades y es el default (1 = piso) para no romper la
+  // comparación con las tablas viejas de docs/BALANCE.md.
+  const META_MODES = ['trajectory', 'pool-focus', 'pool-spread'];
+  if (args.meta != null && !META_MODES.includes(args.meta)) {
+    console.error(`balance-sim: --meta desconocido: ${args.meta} (válidos: ${META_MODES.join(', ')})`);
+    process.exit(1);
+  }
+  const META_SEL = META_MODES.includes(args.meta)
+    ? args.meta
+    : Number(args.metalv ?? DEFAULT_META_LV);
   // dev-7 fase 59 (54.2): --killrate=X → el jugador mata como máximo el X %
   // de los enemigos (escenario de presión; ya no hay una "regla del 75 %").
   const KILL_RATE = args.killrate != null ? Number(args.killrate) : null;
@@ -1527,7 +1663,7 @@ async function main(argv = process.argv.slice(2)) {
       + ` + ${FORCED.drone ?? 'sin dron'}`
     : '';
   console.log(`balance-sim (reconstruido dev-7) - modo=${MODE} cartas=${CEILING_CARDS ? 'ceiling' : 'normal'} `
-    + `meta=${META_ARG === 'trajectory' ? 'trayectoria' : META_ARG} perks=${PERKS_MODE} `
+    + `meta=${META_SEL === 'trajectory' ? 'trayectoria (pool-focus)' : META_SEL} perks=${PERKS_MODE} `
     + `killrate=${KILL_RATE ?? 'libre'} seeds=${SEEDS} logicalH=${LAYOUT.h} heat=${RUN_MODS?.heat ?? 0}${arsenalTxt}\n`);
 
   // fase 70 — MODO SUPERVIVENCIA: una run por semilla, sin etapas. Se mide
@@ -1540,7 +1676,7 @@ async function main(argv = process.argv.slice(2)) {
     let timeouts = 0;
     for (let s = 1; s <= SEEDS; s++) {
       const r = await runStage(SURVIVAL.baseStage, MODE, s * 7919 + 70, {
-        ceiling: CEILING_CARDS, metaLv: META_ARG, perks: PERKS_MODE,
+        ceiling: CEILING_CARDS, metaLv: META_SEL, perks: PERKS_MODE,
         runMods: RUN_MODS, survival: true,
       });
       totalWaves += r.wave;
@@ -1572,7 +1708,7 @@ async function main(argv = process.argv.slice(2)) {
     const runs = [];
     for (let seed = 1; seed <= SEEDS; seed++) {
       runs.push(await runStage(stageId, MODE, seed * 7919 + stageId, {
-        ceiling: CEILING_CARDS, metaLv: META_ARG, perks: PERKS_MODE,
+        ceiling: CEILING_CARDS, metaLv: META_SEL, perks: PERKS_MODE,
         killRate: KILL_RATE, forcedArsenal: FORCED,
         forceVariant: FORCED_VARIANT, runMods: RUN_MODS,
       }));
@@ -1590,7 +1726,12 @@ async function main(argv = process.argv.slice(2)) {
       r.towers.forEach((t) => towersSeen.add(t));
       r.drones.forEach((d) => dronesSeen.add(d));
     }
-    const metaUsado = META_ARG === 'trajectory' ? trajectoryMetaLevel(stageId) : META_ARG;
+    // Nivel meta de la fila: con una política de pool es el nivel que
+    // alcanza CADA unidad del foco (reparto equitativo); con --metalv es el
+    // nivel fijo. El desglose por unidad se imprime al pie.
+    const metaUsado = typeof META_SEL === 'string'
+      ? trajectoryMetaLevel(stageId, META_SEL === 'pool-spread' ? POOL_SPREAD : POOL_FOCUS)
+      : META_SEL;
     console.log(`| ${stageId} | ${metaUsado} | ${fmtPct(wins / runs.length)} | ${avg('duration').toFixed(0)} s | `
       + `${fmtPct(avg('hpFrac'))} | ${avg('leaks').toFixed(1)} | ${fmtPct(avg('killPct'))} | `
       + `${avg('leakDamage').toFixed(0)} | ${avg('lv').toFixed(1)} | `
@@ -1622,6 +1763,24 @@ async function main(argv = process.argv.slice(2)) {
     // su propio bloque (ver directorBlock), para no partir la tabla de
     // resultados con las filas del timeline.
     dirRows.push(directorRow(runs, stageId));
+  }
+  // Desglose del meta de una política de POOL: el nivel de la columna `meta`
+  // es la cuota por unidad del arsenal (pool / 5). `pool-focus` la asigna a
+  // cada torre/dron que ENTRA en la run; `pool-spread` la reparte entre las
+  // 11 unidades del catálogo desde el arranque.
+  if (typeof META_SEL === 'string') {
+    const ref = STAGES_TO_RUN.at(-1);
+    console.log(`\nmeta ${META_SEL}: ${poolFragsForStage(ref)} fragmentos acumulados antes del S${ref} `
+      + '(600 por etapa limpia: 300 de victoria + 300 de la primera vez)');
+    if (META_SEL === 'pool-spread') {
+      const niveles = trajectoryMetaLevels(ref, POOL_SPREAD);
+      console.log(`repartidos entre las ${POOL_SPREAD.length} unidades del catálogo → `
+        + `Nvl.${niveles[POOL_SPREAD[0]]} cada una`);
+    } else {
+      console.log(`repartidos entre las ${POOL_FOCUS.length} torres del arsenal → `
+        + `Nvl.${trajectoryMetaLevel(ref)} por unidad; cada torre/dron que entra en la run `
+        + 'recibe esa cuota y el resto del catálogo queda en Nvl.1');
+    }
   }
   directorBlock(dirRows);
   console.log(`\nUltimate (ORBITAL) disparado: ${(ultTotal / Math.max(1, runsTotal)).toFixed(2)} por run · `

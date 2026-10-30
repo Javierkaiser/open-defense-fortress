@@ -28,13 +28,10 @@ import { CONFIG } from './engine.js';
 import {
   META_TOWERS, META_MAX_LEVEL, META_RANKS,
   META_PLAYER_NAME, META_FRAG_PER_VICTORY, META_DMG_PER_LEVEL, META_GOLD_START,
-  loadMeta, fragCost, metaGold, metaDmgMul, playerRank,
-  totalMetaLevels, renderTowerIcon, upgradeTower,
+  META_UNLOCK_COSTS, loadMeta, fragCost, metaGold, metaDmgMul, playerRank,
+  totalMetaLevels, renderTowerIcon, upgradeTower, isUnitUnlocked,
   PERKS, PERK_TIERS, PERK_EVERY, PERK_RESET_COST,
   pendingPerkTiers, tierAtLevel, getPerkOptions, setPerkChoice, resetPerks,
-  // dev-7 fase 59.4: el meta invisible (el jugador nunca sabía que
-  // podía subir sus torretas) — "SUBIR TODO" + el aviso de pendientes.
-  pendingUpgrades, pendingUpgradeCost, upgradeAllTowers,
 } from './meta.js';
 import { THEMES, loadTheme, saveTheme, applyThemeToGame } from './theme.js';
 import { QUALITY_LEVELS, loadQuality, saveQuality, applyQualityToContext, applyQualityToDom, particleCapFor } from './quality.js';
@@ -631,7 +628,7 @@ export function heatSummaryRows(heat, { defeat = false } = {}) {
     : [];
   const frags = heatInt(heat.milestoneFrags);
   const hits = !defeat && milestones.length
-    ? `<div><dt>HITOS</dt><dd class="ok">${milestones.map((m) => `Heat ${m}`).join(' · ')}${frags > 0 ? ` · +${frags}/torreta` : ''}</dd></div>`
+    ? `<div><dt>HITOS</dt><dd class="ok">${milestones.map((m) => `Heat ${m}`).join(' · ')}${frags > 0 ? ` · +${frags} al pool` : ''}</dd></div>`
     : '';
   const safe = defeat && !milestones.length
     ? '<div><dt>PROTOCOLO</dt><dd>el récord no baja</dd></div>'
@@ -695,7 +692,7 @@ export function survivalDefeatBlock(sv) {
   const gold = Math.max(0, payloadInt(sv.rewardGold) ?? 0);
   const record = sv.isRecord ? ' · ¡NUEVO RÉCORD!' : '';
   const reward = [
-    frags > 0 ? `+${frags}/torreta` : '',
+    frags > 0 ? `+${frags} al pool` : '',
     gold > 0 ? `+${gold} oro` : '',
   ].filter(Boolean).join(' · ');
   return `
@@ -1710,14 +1707,9 @@ export function buildThemeSwatches(activeId = '') {
 /**
  * Pantalla del MENÚ principal.
  *
- * dev-7 fase 59.4: con `meta` se pinta el AVISO de mejoras pendientes
- * justo encima del botón JUGAR: el menú es donde el jugador decide
- * arrancar el siguiente stage, así que es el último lugar donde puede
- * ver "tenés X mejoras sin gastar" antes de entrar a la battle.
- *
- * @param {{theme?: string, quality?: string, confirmingReset?: boolean, meta?: object}} [opts]
+ * @param {{theme?: string, quality?: string, confirmingReset?: boolean}} [opts]
  */
-export function buildMenuScreen({ theme = '', quality = '', confirmingReset = false, meta = null } = {}) {
+export function buildMenuScreen({ theme = '', quality = '', confirmingReset = false } = {}) {
   // dev-7 fase 13: selector de temas — reskinea el HUD/paneles/botones
   // (no el canvas del juego, ver theme.js). El activo queda marcado.
   // dev-7 fase 55: el selector de tema es un bloque reutilizable (el
@@ -1735,8 +1727,9 @@ export function buildMenuScreen({ theme = '', quality = '', confirmingReset = fa
   const resetBlock = confirmingReset ? `
     <div class="reset-confirm">
       <p class="reset-warn">¿Seguro? Se pierden los stages desbloqueados,
-        los récords, las ${META_TOWERS.length} torretas mejoradas del meta-juego y tu saldo de
-        oro (vuelve a ${META_GOLD_START}). No se puede deshacer.</p>
+        los récords, las ${META_TOWERS.length} torretas mejoradas del meta-juego, las
+        unidades compradas con oro y tu saldo (vuelve a ${META_GOLD_START}; solo Guardian
+        queda desbloqueado). No se puede deshacer.</p>
       <div class="reset-confirm-row">
         <button class="btn ghost small" data-action-reset="cancel">CANCELAR</button>
         <button class="btn danger small" data-action-reset="confirm">SÍ, BORRAR TODO</button>
@@ -1747,7 +1740,6 @@ export function buildMenuScreen({ theme = '', quality = '', confirmingReset = fa
     <section class="screen">
       <h1 class="game-title">OPEN DEFENSE<span class="subtitle">FORTRESS</span></h1>
       <p class="tagline">Defiende la base · torres fijas · ${STAGES.length} stages</p>
-      ${meta ? buildPendingNoticeHtml(meta) : ''}
       <button class="btn big" data-action="play">▶ JUGAR</button>
       <button class="btn ghost" data-action="select-stage">SELECCIONAR STAGE</button>
       <button class="btn ghost" data-action="torretas">${UI_ICONS.torreta} TORRETAS · mejoras permanentes</button>
@@ -1768,14 +1760,12 @@ export function buildMenuScreen({ theme = '', quality = '', confirmingReset = fa
 // dev-7 fase 59.4 — EL META QUE SE VE
 //
 // El diagnóstico (fase 59.3): el meta es MANUAL y el coste de un nivel es
-// de 75-390 fragmentos. Con 11 torretas, la campaña entera son ~484
-// clics y el jugador NO VE que puede subir: llegó al S21 con miles de
-// fragmentos acumulados sin gastarlos nunca.
+// de 75-390 fragmentos. El jugador NO VEÍA que podía subir sus torretas.
 //
-// Acá van las piezas PURAS de la UX (testeables en Node, sin DOM):
-//  - el botón "SUBIR TODO" (un toque en vez de 11),
-//  - el AVISO de mejoras pendientes (menú y selector de stages),
-//  - la línea de PODER (el multiplicador real del meta).
+// v2 (pool compartido): el arsenal se compra con ORO (`meta.unlocked`) y
+// los fragmentos son UN pool que se gasta con MEJORAR. Acá vive la línea
+// de PODER (el multiplicador real del meta), que promedia SOLO las
+// unidades desbloqueadas.
 // ============================================================
 
 /**
@@ -1792,83 +1782,29 @@ export function fmtFrags(n) {
 
 /**
  * Multiplicador de daño REAL del meta: la MEDIA del `metaDmgMul` de las
- * 11 torretas (curva por nivel × hitos).
+ * torretas DESBLOQUEADAS (curva por nivel × hitos).
  *
  * POR QUÉ la media y no una torreta: cada card ya muestra SU propio
  * "+X% DAÑO EN PARTIDA"; lo que falta es el número del JUGADOR — su
  * poder global — para entender que subir las torretas es lo que lo hace
- * fuerte. La media es el mismo criterio para todos los arsenales (el
- * jugador NUNCA tiene las 11 unidades en partida: fase 61, entran como
- * máximo 5 torres + 1 dron, y solo las que salgan por carta).
+ * fuerte. v2: promedia SOLO las unidades desbloqueadas (las bloqueadas
+ * están en Nvl.1 y hundirían el número); sin `unlocked` (save viejo,
+ * tests, balance-sim) promedia todas.
  *
  * @param {object} meta estado meta
  * @returns {number} multiplicador (1 = sin mejoras)
  */
 export function metaPowerMul(meta) {
+  const units = META_TOWERS.filter((t) => isUnitUnlocked(meta, t.type));
+  const list = units.length ? units : META_TOWERS;
   let sum = 0;
-  for (const t of META_TOWERS) sum += metaDmgMul(t.type, meta);
-  return sum / META_TOWERS.length;
+  for (const t of list) sum += metaDmgMul(t.type, meta);
+  return sum / list.length;
 }
 
 /** Multiplicador con coma decimal (el idioma del repo: "×4,7"). */
 export function fmtMul(m) {
   return `×${(Number(m) || 0).toFixed(1).replace('.', ',')}`;
-}
-
-/**
- * Botón "SUBIR TODO LO POSIBLE" de la pantalla de torretas (fase 59.4).
- *
- * Aparece SOLO si hay mejoras pendientes (`pendingUpgrades > 0`) y DICE
- * cuántas son y cuántos fragmentos se gastan: sin ese dato el jugador no
- * sabe si le conviene (y sin el botón, la campaña entera son 484 clics).
- *
- * @param {object} meta estado meta
- * @returns {string} HTML de la barra ('' si no hay nada que subir)
- */
-export function buildUpgradeAllHtml(meta) {
-  const pending = pendingUpgrades(meta);
-  if (pending <= 0) return '';
-  const cost = pendingUpgradeCost(meta);
-  const mejoras = pending === 1 ? '1 mejora' : `${pending} mejoras`;
-  return `
-    <div class="meta-upgrade-all-bar" id="meta-upgrade-all-bar">
-      <button class="meta-upgrade-all" data-meta-upgrade-all
-        title="Sube cada torreta lo que pueda con tus fragmentos (un toque)">
-        SUBIR TODO (${mejoras} · ${fmtFrags(cost)} frag.)
-      </button>
-      <span class="meta-upgrade-all-note">Un toque: cada torreta sube lo que pueda</span>
-    </div>`;
-}
-
-/**
- * AVISO de mejoras pendientes (fase 59.4): aparece en el MENÚ y en el
- * SELECTOR DE STAGES, o sea ANTES de que el jugador entre a la pantalla
- * de torretas.
- *
- * POR QUÉ ahí y no en el HUD de combate: el combate es un momento de
- * tensión (el jugador no va a tocar el meta a mitad de una ola) y esta
- * fase no toca las pantallas de combate (ver el informe de la fase).
- *
- * @param {object} meta estado meta
- * @param {{withButton?: boolean}} [opts] con `withButton` se añade el
- *   botón que lleva a la pantalla de torretas (el selector no tiene
- *   ninguno: el aviso es la única entrada a esa pantalla desde ahí).
- * @returns {string} HTML del aviso ('' si no hay nada pendiente)
- */
-export function buildPendingNoticeHtml(meta, opts = {}) {
-  const pending = pendingUpgrades(meta);
-  if (pending <= 0) return '';
-  const cost = pendingUpgradeCost(meta);
-  const mejoras = pending === 1 ? '1 mejora' : `${pending} mejoras`;
-  const btn = opts.withButton
-    ? `<button class="btn ghost small" data-action="torretas">MEJORAR TORRETAS</button>`
-    : '';
-  return `
-    <p class="pending-notice" role="status">
-      ${UI_ICONS.torreta}
-      <span class="pending-notice-txt">Tenés <b>${mejoras}</b> de torretas listas · ${fmtFrags(cost)} frag.</span>
-      ${btn}
-    </p>`;
 }
 
 /**
@@ -1889,6 +1825,34 @@ export function buildPowerLineHtml(meta) {
 }
 
 /**
+ * Card de una unidad BLOQUEADA (v2): se compra con ORO. No muestra
+ * nivel, barra, perks, MEJORAR ni REDISTRIBUIR — solo el precio y el
+ * botón de compra (con confirmación en 2 pasos, `unlockArmed`).
+ *
+ * @param {{key:string,name:string,type:string}} t entrada de META_TOWERS
+ * @param {number} gold oro disponible (una sola normalización por render)
+ * @param {Record<string, boolean>} unlockArmed compras armadas por key
+ * @returns {string} HTML de la card
+ */
+function buildLockedTowerCard(t, gold, unlockArmed) {
+  const cost = META_UNLOCK_COSTS[t.key] ?? 0;
+  // Sin oro el botón queda deshabilitado y DICE cuánto falta: en un
+  // teléfono el `title` no se ve.
+  const missing = Math.max(0, cost - gold);
+  const armed = !!unlockArmed?.[t.key];
+  const label = missing > 0 ? `Faltan ${missing}●` : `DESBLOQUEAR (${cost}●)`;
+  return `
+    <div class="meta-card locked">
+      <span class="meta-card-name">${t.name}</span>
+      <canvas class="meta-card-icon" width="84" height="72" data-meta-icon="${t.key}"></canvas>
+      <span class="meta-card-lock">BLOQUEADA · Coste ${cost}●</span>
+      <button class="meta-unlock${armed ? ' armed' : ''}" data-meta-unlock="${t.key}"
+        ${missing > 0 ? 'disabled' : ''}
+        title="Desbloqueá ${attr(t.name)} con ${cost} de oro: queda disponible en las cartas de partida">${armed ? '¿SEGURO? ' : ''}${label}</button>
+    </div>`;
+}
+
+/**
  * Cards de TORRETAS (HTML puro, sin DOM): una por cada torreta de
  * META_TOWERS.
  *
@@ -1899,25 +1863,33 @@ export function buildPowerLineHtml(meta) {
  *  - el texto del pendiente nombra SIEMPRE ese mismo tier;
  *  - los perks ELEGIDOS se listan en ORDEN ASCENDENTE de nivel.
  *
+ * v2: los fragmentos son UN pool compartido por todo el arsenal. Cada
+ * card desbloqueada muestra el coste de SU mejora y el pool global, y su
+ * barra es min(pool, cost)/cost. Las unidades sin comprar (`unlocked`)
+ * solo ofrecen desbloquearse con oro.
+ *
  * @param {object} meta estado meta (normalizado)
- * @param {{resetArmed?: Record<string, boolean>}} [opts]
+ * @param {{resetArmed?: Record<string, boolean>, unlockArmed?: Record<string, boolean>}} [opts]
  * @returns {string} HTML de las cards concatenado
  */
 export function buildTowerCards(meta, opts = {}) {
   const resetArmed = opts.resetArmed ?? {};
+  const unlockArmed = opts.unlockArmed ?? {};
+  const pool = Math.max(0, Math.trunc(Number(meta.fragsPool) || 0));
+  const gold = metaGold(meta);
   return META_TOWERS.map((t) => {
+    if (!isUnitUnlocked(meta, t.type)) return buildLockedTowerCard(t, gold, unlockArmed);
     const level = meta.levels?.[t.key] ?? 1;
-    const frags = meta.frags?.[t.key] ?? 0;
     const cost = fragCost(level);
     const maxed = level >= META_MAX_LEVEL;
-    // v6: la barra se LLENA acumulando (+60/victoria) y MEJORAR se
-    // habilita exactamente cuando frags >= cost (sin rollover automático
-    // que consuma la barra antes de tiempo — corrección JK 28-08).
-    const ready = !maxed && frags >= cost;
-    const pct = maxed ? 100 : Math.min(100, Math.round((frags / cost) * 100));
+    // v2: MEJORAR se habilita cuando el POOL alcanza el coste (sin
+    // rollover automático que consuma la barra antes de tiempo —
+    // corrección JK 28-08); la barra compara el pool con ESTA mejora.
+    const ready = !maxed && pool >= cost;
+    const pct = maxed ? 100 : Math.min(100, Math.round((Math.min(pool, cost) / cost) * 100));
     const barTxt = maxed
       ? `MÁX`
-      : (ready ? `${frags}/${cost} · ¡LISTO!` : `${frags}/${cost} fragmentos`);
+      : `Coste ${fmtFrags(cost)} · pool ${fmtFrags(pool)}${ready ? ' · ¡LISTO!' : ''}`;
     // Efecto REAL en batalla: `metaDmgMul` = curva por nivel × hitos
     // (fase 28: +2 % por hito en Nvl.25/50/75/100). Antes el rótulo se
     // re-derivaba SOLO con META_DMG_PER_LEVEL y mentía: en Nvl.100 decía
@@ -1989,18 +1961,17 @@ export function buildTowerCards(meta, opts = {}) {
         : `<button class="meta-perk-reset" data-perk-reset-ask="${t.type}"
             title="Cuesta ${PERK_RESET_COST} de oro: volvés a elegir los perks de esta torreta (el nivel se mantiene)">REDISTRIBUIR (${PERK_RESET_COST}●)</button>`)
       : '';
-    // Botón MEJORAR (v5 5b/5): habilitado solo con fragmentos suficientes;
+    // Botón MEJORAR (v5 5b/5): habilitado solo con pool suficiente;
     // maxeado → sin botón (la card ya dice "MÁX"). dev-7 fase 18: el
     // texto de qué hace y qué falta ahora es VISIBLE en la card (antes
     // vivía solo en el atributo title, invisible en mobile).
-    const canUp = !maxed && frags >= cost;
     let upgrade = '';
     if (!maxed) {
-      const need = `<span class="meta-card-need">Faltan ${cost - frags} fragmentos</span>`;
+      const need = `<span class="meta-card-need">Faltan ${fmtFrags(cost - pool)} fragmentos del pool</span>`;
       upgrade = `
-        ${canUp ? '' : need}
-        <button class="meta-upgrade" data-meta-upgrade="${t.key}" ${canUp ? '' : 'disabled'}>
-          MEJORAR → Nvl.${level + 1} (${cost} frag.)
+        ${ready ? '' : need}
+        <button class="meta-upgrade" data-meta-upgrade="${t.key}" ${ready ? '' : 'disabled'}>
+          MEJORAR → Nvl.${level + 1} (${fmtFrags(cost)} frag.)
         </button>`;
     }
     return `
@@ -2024,12 +1995,13 @@ export function buildTowerCards(meta, opts = {}) {
  * Pantalla TORRETAS completa (HTML puro, sin DOM).
  *
  * @param {object} meta estado meta (normalizado)
- * @param {{resetArmed?: Record<string, boolean>}} [opts]
+ * @param {{resetArmed?: Record<string, boolean>, unlockArmed?: Record<string, boolean>}} [opts]
  * @returns {string} HTML de la pantalla
  */
 export function buildTorretasScreen(meta, opts = {}) {
   const rank = buildRankBadge(meta);
   const gold = metaGold(meta);
+  const pool = Math.max(0, Math.trunc(Number(meta.fragsPool) || 0));
   const totalLv = totalMetaLevels(meta);
   const cards = buildTowerCards(meta, opts);
   return `
@@ -2042,7 +2014,8 @@ export function buildTorretasScreen(meta, opts = {}) {
           <span class="meta-rank-min">${rank.text}</span>
         </div>
         <div class="meta-res">
-          <span class="meta-res-cell gold" title="Se gasta en REDISTRIBUIR perks (${PERK_RESET_COST} por torreta)"><i>●</i><b>${gold}</b></span>
+          <span class="meta-res-cell frag" title="Fragmentos del pool compartido: MEJORAR sube el nivel de cualquier unidad desbloqueada"><i>◆</i><b>${fmtFrags(pool)}</b></span>
+          <span class="meta-res-cell gold" title="Se gasta en DESBLOQUEAR unidades y REDISTRIBUIR perks (${PERK_RESET_COST} por torreta)"><i>●</i><b>${gold}</b></span>
         </div>
       </div>
 
@@ -2077,19 +2050,19 @@ export function buildTorretasScreen(meta, opts = {}) {
           aria-label="Ver cómo se sube de nivel"
           title="¿Cómo subo de nivel?">?</button>
         <div class="meta-banner-more hidden" id="meta-banner-more">
-          <span class="meta-banner-sub">Ganá CUALQUIER partida para sumar fragmentos (se
-            reparten entre las ${META_TOWERS.length} torretas) y oro. Con fragmentos: MEJORAR sube
+          <span class="meta-banner-sub">Ganá CUALQUIER partida para sumar fragmentos al pool
+            compartido de las ${META_TOWERS.length} torretas y oro. Con fragmentos: MEJORAR sube
             de nivel. Cada ${PERK_EVERY} niveles elegís un perk nuevo (✦). Con oro:
-            REDISTRIBUIR para volver a elegir los perks ya tomados.</span>
+            DESBLOQUEAR unidades del arsenal y REDISTRIBUIR para volver a elegir los
+            perks ya tomados.</span>
         </div>
       </div>
 
       <!-- dev-7 fase 59.4: el PODER del meta (el multiplicador REAL de
-           daño que leen las torres en el combate) y el botón "SUBIR
-           TODO". Sin esto el jugador no tenía NI idea de que sus
-           torretas se podían subir ni de cuánto daño le daba eso. -->
+           daño que leen las torres en el combate). Sin esto el jugador no
+           tenía NI idea de que sus torretas se podían subir ni de cuánto
+           daño le daba eso. -->
       ${buildPowerLineHtml(meta)}
-      ${buildUpgradeAllHtml(meta)}
 
       <div class="meta-grid" id="meta-grid">${cards}</div>
 

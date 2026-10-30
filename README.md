@@ -5,7 +5,7 @@
 [![CI](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml/badge.svg)](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml)
 [![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-3FD4FF.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-6DA55F.svg)](package.json)
-[![Tests](https://img.shields.io/badge/tests-988-3FD4FF.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-1021-3FD4FF.svg)](tests/)
 
 [Demo web](https://opendefensefortress.javierlust.net.ar/) · [English summary](README.en.md) · [Diseño técnico](docs/DESIGN.md) · [Balance](docs/BALANCE.md) · [Testing](docs/TESTING.md) · [Créditos](docs/CREDITS.md) · [Cómo contribuir](CONTRIBUTING.md) · [Código de conducta](CODE_OF_CONDUCT.md)
 
@@ -73,12 +73,13 @@ La demo se publica sola: cada push a `main` corre el workflow de deploy
 - **Desafío diario** con semilla por fecha.
 - **Protocolo / Heat**: 11 condiciones, presets I–V y recompensas extra.
 - **8 torres + 3 drones**, cada una con una **mecánica firma** (supresión, fusión, juicio, ion, cráter, riel, corte, ignición, veneno y burbuja), 84 cartas, 7 afijos de élite y 5 temas visuales con **skins de torres** (paleta, motivos, pad y FX por tema).
+- **Progresión con decisiones**: una cuenta nueva arranca solo con **Guardian**; las otras 10 unidades se desbloquean con oro. Los fragmentos son un **pool compartido**, así que subir una torreta deja menos para las demás.
 - **4 familias de enemigos** con enjambre y tanque propios (roca, virus,
   espora y cristal), cada una con su mecánica.
 - **Sin anuncios, sin compras, sin cuentas, sin telemetría.**
 - **Offline real**: fuentes, sprites y SFX locales.
 - **Calidad gráfica Alta/Baja** para equipos modestos.
-- **988 tests** en Node, sin DOM ni canvas.
+- **1021 tests** en Node, sin DOM ni canvas.
 
 ## Controles
 
@@ -97,7 +98,7 @@ El disparo es automático: no hay apuntado ni joystick.
 ## Tests
 
 ```bash
-node --test "tests/test-*.mjs"            # 988 tests (988 pass, 0 skip, 0 fail)
+node --test "tests/test-*.mjs"            # 1021 tests (1021 pass, 0 skip, 0 fail)
 node .github/scripts/ci-checks.mjs   # checks estáticos (sintaxis, zero-dep, refs)
 ```
 

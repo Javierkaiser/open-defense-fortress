@@ -71,11 +71,28 @@ La plataforma MUST ofrecer 5 slots de torre, todos en la misma fila, con el slot
 - **GIVEN** la plataforma de juego
 - **THEN** no hay una segunda fila de montaje del arsenal: no quedan lugares de construcción muertos que nunca se podrán ocupar
 
-### Requirement: El arsenal limitado no cambia la progresión del meta-juego
+### Requirement: El arsenal limitado solo ofrece unidades desbloqueadas
 
-El meta-juego MUST seguir otorgando fragmentos a las 11 unidades por igual, se hayan usado o no en la partida, y las mejoras permanentes de una unidad MUST aplicarse igual cuando esa unidad entra en una partida.
+Una unidad MUST estar desbloqueada en el meta-juego para que su carta de
+desbloqueo pueda aparecer en una partida. El Guardian es la única unidad
+desbloqueada por defecto; las demás se compran con oro en la pantalla
+TORRETAS. Los fragmentos son un pool compartido: una unidad no usada en la
+partida no recibe un saldo propio.
 
-#### Scenario: Fragmentos de una unidad no usada
+#### Scenario: Unidad bloqueada no aparece en la oferta
+
+- **GIVEN** una cuenta nueva con solo Guardian desbloqueado
+- **WHEN** el jugador sube de nivel en una partida
+- **THEN** las cartas `unlock_*` de las unidades bloqueadas no aparecen
+
+#### Scenario: Unidad comprada sí puede entrar
+
+- **GIVEN** una cuenta que compró Missile con oro
+- **WHEN** el jugador sube de nivel y hay un slot libre
+- **THEN** la carta de Missile puede aparecer en la oferta
+
+#### Scenario: El pool no se reparte por unidad
 
 - **GIVEN** una partida ganada en la que no se usó el Tesla
-- **THEN** el Tesla recibe los mismos fragmentos que las unidades que sí se usaron
+- **THEN** el pool compartido recibe los mismos 300/600 fragmentos; no hay
+  un saldo separado para Tesla

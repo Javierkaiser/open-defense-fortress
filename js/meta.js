@@ -2,9 +2,12 @@
 // meta.js — META-GAME v3.5 (task t_1c22add3): pantalla TORRETAS
 // Mejoras PERMANENTES entre partidas, fiel a reference-torretas.jpg.
 // localStorage['gdf_meta'] = {
-//   levels: {key: 1..100}, frags: {key: N},   // por torreta meta (11 torretas)
+//   metaVersion: 2,                           // versión del estado (META_VERSION)
+//   levels: {key: 1..100},                    // nivel meta por torreta (11 torretas)
+//   fragsPool: N,                             // fragmentos COMPARTIDOS por todo el arsenal
+//   unlocked: {key: bool},                    // unidades compradas con oro
 //   victories: N, firstClear: [stageIds],     // doble fragmento 1ª vez
-//   gold: N,                                  // oro gastable (reset de perks)
+//   gold: N,                                  // oro gastable (desbloqueos / reset de perks)
 //   perkChoices: {key: [null|0|1] × 10},      // elección A/B por tier (fase 16)
 // }
 // Funciones PURAS y testeables desde Node (storage inyectable, igual
@@ -34,13 +37,42 @@ import { safeLocalStorage } from './storage.js';
 const KEY = 'gdf_meta';
 
 // ---------- Constantes de balance (DECISIONES anotadas en docs/BALANCE.md) ----------
-/** Fragmentos por victoria (cada torreta meta recibe los mismos). */
-export const META_FRAG_PER_VICTORY = 60;
+/**
+ * Versión del ESTADO guardado. Un save con otra versión se normaliza con las
+ * reglas de migración de `normalizeMeta()` (v2 = pool compartido + unidades
+ * desbloqueables; v1 guardaba fragmentos POR TORRETA).
+ */
+export const META_VERSION = 2;
+/**
+ * Fragmentos por victoria al POOL COMPARTIDO del arsenal (ya no por torreta).
+ * El ×2 de la primera limpieza paga 600. Con 11 unidades y niveles de
+ * 75-390 fragmentos, el pool sostiene la progresión de todo el arsenal sin
+ * obligar a repartir entre torretas.
+ */
+export const META_FRAG_PER_VICTORY = 300;
 /** Bonus ×2 por la PRIMERA vez que se completa cada stage. */
 export const META_FIRST_CLEAR_MULT = 2;
 /** Coste base por nivel (v6): 75 en la primera década; sube +35 por década
  *  (75, 110, 145, … 390 en Nvl.91-100) — campaña de 100 niveles. */
 export const META_FRAG_PER_LEVEL = 75;
+/**
+ * Coste en ORO de desbloquear cada unidad (0 = disponible desde el inicio).
+ * `key`/`type` coinciden (invariante de META_TOWERS), así que se indexa por
+ * cualquiera de los dos. Guardian es la unidad inicial y cuesta 0.
+ */
+export const META_UNLOCK_COSTS = {
+  guardian: 0,
+  missile: 150,
+  thunderstroke: 200,
+  tesla: 400,
+  beam: 400,
+  wasps: 400,
+  mortar: 450,
+  firewheel: 450,
+  gauss: 450,
+  forcefield: 450,
+  laser: 500,
+};
 /** Tope de nivel meta por torreta (v6, JK 28-08: hasta Lvl.100). */
 export const META_MAX_LEVEL = 100;
 /**
@@ -505,22 +537,31 @@ function assertMetaTowerInvariants() {
 }
 assertMetaTowerInvariants();
 
-/** Estado por defecto: 11 torretas/drones en Nvl.1, 0 fragmentos,
- *  0 victorias, oro inicial, y todos los tiers de perks sin elegir
- *  (fase 16). */
+/**
+ * Campos de un save v1 (fragmentos POR TORRETA). Su presencia sin `unlocked`
+ * identifica a un jugador anterior al pool compartido: se le desbloquean
+ * TODAS las unidades (abuelo) para no quitarle arsenal ya comprado.
+ */
+const LEGACY_FIELDS = ['levels', 'frags', 'victories', 'firstClear', 'gold', 'perkChoices'];
+
+/** Estado por defecto: 11 torretas/drones en Nvl.1, pool de fragmentos en 0,
+ *  solo el Guardian desbloqueado, 0 victorias, oro inicial, y todos los
+ *  tiers de perks sin elegir (fase 16). */
 export function defaultMeta() {
   assertMetaTowerInvariants();
   const levels = {};
-  const frags = {};
+  const unlocked = {};
   const perkChoices = {};
   for (const t of META_TOWERS) {
     levels[t.key] = 1;
-    frags[t.key] = 0;
+    unlocked[t.key] = t.key === 'guardian';
     perkChoices[t.key] = Array(PERK_TIERS).fill(null);
   }
   return {
-    levels, frags, victories: 0, firstClear: [], gold: META_GOLD_START,
-    perkChoices, perkSchemaVersion: PERK_SCHEMA_VERSION,
+    metaVersion: META_VERSION,
+    levels, fragsPool: 0, unlocked, victories: 0, firstClear: [],
+    gold: META_GOLD_START, perkChoices,
+    perkSchemaVersion: PERK_SCHEMA_VERSION,
   };
 }
 
@@ -529,14 +570,31 @@ export function normalizeMeta(raw) {
   assertMetaTowerInvariants();
   const m = raw && typeof raw === 'object' ? raw : {};
   const levels = {};
-  const frags = {};
   for (const t of META_TOWERS) {
-    const lv = clampInt(m.levels?.[t.key], 1, META_MAX_LEVEL, 1);
-    levels[t.key] = lv;
-    // v6: los fragmentos NO se truncan al coste del nivel — el excedente
-    // es legítimo (el jugador acumula +60/victoria y decide cuándo gastar
-    // con MEJORAR; sin rollover automático ya no hay sobrante que recortar).
-    frags[t.key] = clampInt(m.frags?.[t.key], 0, 999999, 0);
+    levels[t.key] = clampInt(m.levels?.[t.key], 1, META_MAX_LEVEL, 1);
+  }
+  // v2: los fragmentos son UN pool compartido. Un save v1 los tenía por
+  // torreta: se suman TODOS al pool (el jugador no pierde lo acumulado).
+  // El excedente es legítimo (el jugador decide cuándo gastar con MEJORAR).
+  let fragsPool;
+  if (typeof m.fragsPool === 'number' && Number.isFinite(m.fragsPool)) {
+    fragsPool = clampInt(m.fragsPool, 0, 999999, 0);
+  } else if (m.frags && typeof m.frags === 'object') {
+    let sum = 0;
+    for (const v of Object.values(m.frags)) sum += clampInt(v, 0, 999999, 0);
+    fragsPool = clampInt(sum, 0, 999999, 0);
+  } else {
+    fragsPool = 0;
+  }
+  // v2: unidades desbloqueadas con oro. Si el save no trae `unlocked`:
+  //   - jugador viejo (campos legacy) → TODAS desbloqueadas (abuelo);
+  //   - cuenta nueva / save vacío     → solo el Guardian.
+  const unlocked = {};
+  const hasUnlocked = m.unlocked && typeof m.unlocked === 'object' && !Array.isArray(m.unlocked);
+  const isLegacy = LEGACY_FIELDS.some((k) => m[k] !== undefined && m[k] !== null);
+  for (const t of META_TOWERS) {
+    unlocked[t.key] = t.key === 'guardian'
+      || (hasUnlocked ? m.unlocked[t.key] === true : isLegacy);
   }
   const victories = Math.max(0, clampInt(m.victories, 0, 999999, 0));
   const firstClear = Array.isArray(m.firstClear)
@@ -557,7 +615,8 @@ export function normalizeMeta(raw) {
     perkChoices[t.key] = arr;
   }
   return {
-    levels, frags, victories, firstClear, gold, perkChoices,
+    metaVersion: META_VERSION,
+    levels, fragsPool, unlocked, victories, firstClear, gold, perkChoices,
     perkSchemaVersion: PERK_SCHEMA_VERSION,
   };
 }
@@ -575,7 +634,7 @@ export function loadMeta(storage = safeLocalStorage()) {
   try {
     const raw = JSON.parse(storage.getItem(KEY));
     // Migración explícita: un save anterior al rework de identidad guardaba
-    // índices A/B con OTRO significado. Se conservan nivel/frags/oro y se
+    // índices A/B con OTRO significado. Se conservan nivel/pool/oro y se
     // limpian SOLO las elecciones (el jugador vuelve a elegir sus perks).
     if (raw && typeof raw === 'object' && raw.perkSchemaVersion !== PERK_SCHEMA_VERSION) {
       raw.perkChoices = {};
@@ -598,8 +657,8 @@ export function saveMeta(meta, storage = safeLocalStorage()) {
   return m;
 }
 
-/** Borra el meta-juego (niveles/fragmentos/victorias de las 11
- *  torretas/drones) — vuelve al default (Nvl.1 en todas). Usado por el
+/** Borra el meta-juego (niveles, pool de fragmentos, unidades, victorias) —
+ *  vuelve al default (Nvl.1, solo Guardian, pool 0). Usado por el
  *  botón "Borrar progreso" del menú (dev-7 fase 14). No toca el progreso
  *  de stages ni el tema — eso son funciones separadas (ver progress.js/
  *  theme.js). */
@@ -612,6 +671,42 @@ export function currentMeta() {
   return _cache ?? loadMeta();
 }
 
+// ---------- Unidades desbloqueables (v2: oro) ----------
+
+/**
+ * ¿La unidad está desbloqueada?
+ *
+ * PERMISIVO a propósito: sin `meta` o sin el campo `unlocked` devuelve `true`
+ * (tests viejos, balance-sim y partidas sin meta siguen viendo todo el
+ * arsenal). Solo devuelve `false` cuando `meta.unlocked` existe y la clave
+ * vale exactamente `false`. `normalizeMeta(null)` sigue dando solo Guardian:
+ * el default de una cuenta nueva lo fija `defaultMeta()`, no este helper.
+ */
+export function isUnitUnlocked(meta, type) {
+  const key = TYPE_TO_KEY[type] ?? type;
+  if (!key) return true;
+  const unlocked = meta && typeof meta === 'object' ? meta.unlocked : undefined;
+  if (!unlocked || typeof unlocked !== 'object') return true;
+  return unlocked[key] !== false;
+}
+
+/**
+ * Compra una unidad con ORO y persiste. Devuelve { ok, reason, meta } —
+ * en éxito meta = estado persistido (saveMeta); en rechazo meta = entrada
+ * normalizada SIN cambios. reason: 'unknown' | 'owned' | 'insufficient'.
+ */
+export function unlockTower(meta, towerKey, storage = safeLocalStorage()) {
+  const base = normalizeMeta(meta);
+  const t = META_TOWERS.find((x) => x.key === towerKey || x.type === towerKey);
+  const cost = t ? META_UNLOCK_COSTS[t.key] : undefined;
+  if (!t || cost === undefined) return { ok: false, reason: 'unknown', meta: base };
+  if (base.unlocked[t.key]) return { ok: false, reason: 'owned', meta: base };
+  if ((base.gold ?? 0) < cost) return { ok: false, reason: 'insufficient', meta: base };
+  base.gold -= cost;
+  base.unlocked[t.key] = true;
+  return { ok: true, reason: null, meta: saveMeta(base, storage) };
+}
+
 // ---------- Costes y fórmulas (docs/BALANCE.md §Meta-game v3.5) ----------
 
 /**
@@ -620,7 +715,8 @@ export function currentMeta() {
  * (91–100). Los primeros niveles conservan el coste histórico 75; el
  * total REAL para llevar una torreta de Nvl.1 a Nvl.100 es de 22 860
  * fragmentos (suma de fragCost(1..99)), lo que sostiene una progresión
- * larga sin volverse inalcanzable con +60 por victoria.
+ * larga sin volverse inalcanzable con +300 por victoria (600 la primera
+ * limpieza de cada stage) al pool compartido.
  */
 export function fragCost(level) {
   const lv = Math.max(1, Math.trunc(level || 1));
@@ -853,16 +949,18 @@ export function pendingPerkTiers(type, meta = currentMeta()) {
 
 /**
  * Registra la elección de un tier (0 = opción A, 1 = opción B) y
- * persiste. Valida que el tier exista, esté desbloqueado por nivel
- * (docs/DESIGN.md D4: (tier+1)×PERK_EVERY <= nivel) y que la elección sea
- * 0|1. Devuelve { ok, reason, meta } — en éxito meta = estado persistido
- * (saveMeta); en rechazo meta = entrada normalizada SIN cambios.
- * reason: 'unknown' | 'badTier' | 'locked' | 'badChoice'.
+ * persiste. Valida que la unidad esté desbloqueada, que el tier exista,
+ * esté desbloqueado por nivel (docs/DESIGN.md D4: (tier+1)×PERK_EVERY <=
+ * nivel) y que la elección sea 0|1. Devuelve { ok, reason, meta } — en
+ * éxito meta = estado persistido (saveMeta); en rechazo meta = entrada
+ * normalizada SIN cambios.
+ * reason: 'unknown' | 'unit-locked' | 'badTier' | 'locked' | 'badChoice'.
  */
 export function setPerkChoice(type, tier, choice, meta = currentMeta(), storage = safeLocalStorage()) {
   const m = normalizeMeta(meta);
   const key = TYPE_TO_KEY[type];
   if (!key || !PERKS[type]) return { ok: false, reason: 'unknown', meta: m };
+  if (!isUnitUnlocked(m, type)) return { ok: false, reason: 'unit-locked', meta: m };
   const t = Number.isInteger(tier) ? tier : -1;
   if (t < 0 || t >= PERK_TIERS) return { ok: false, reason: 'badTier', meta: m };
   const lv = m.levels[key] ?? 1;
@@ -875,14 +973,15 @@ export function setPerkChoice(type, tier, choice, meta = currentMeta(), storage 
 /**
  * Redistribución de perks de una torreta COMPLETA (fase 16, docs/DESIGN.md
  * D4): cuesta PERK_RESET_COST de oro; los 10 tiers vuelven a "sin
- * elegir" para poder re-elegir. El nivel meta, los fragmentos y las
+ * elegir" para poder re-elegir. El nivel meta, el pool de fragmentos y las
  * victorias NO se tocan. Devuelve { ok, reason, meta } —
- * reason: 'unknown' | 'insufficient'.
+ * reason: 'unknown' | 'unit-locked' | 'insufficient'.
  */
 export function resetPerks(type, meta = currentMeta(), storage = safeLocalStorage()) {
   const m = normalizeMeta(meta);
   const key = TYPE_TO_KEY[type];
   if (!key || !PERKS[type]) return { ok: false, reason: 'unknown', meta: m };
+  if (!isUnitUnlocked(m, type)) return { ok: false, reason: 'unit-locked', meta: m };
   if ((m.gold ?? 0) < PERK_RESET_COST) return { ok: false, reason: 'insufficient', meta: m };
   m.gold -= PERK_RESET_COST;
   m.perkChoices[key] = Array(PERK_TIERS).fill(null);
@@ -953,7 +1052,10 @@ export function metaDmgMul(type, meta = currentMeta()) {
   // cachedMeta(): la normalización va cacheada por identidad (el hot path
   // la llama varias veces por torreta y frame). NO se comparte el objeto
   // normalizado con quien lo muta: aquí solo se lee.
-  const lv = cachedMeta(meta).levels[key] ?? 1;
+  const m = cachedMeta(meta);
+  // v2: una unidad bloqueada no aporta poder permanente.
+  if (m.unlocked?.[key] === false) return 1;
+  const lv = m.levels[key] ?? 1;
   const curva = 1 + META_DMG_PER_LEVEL * Math.max(0, lv - 1);
   return curva * milestoneDmgMul(type, meta);
 }
@@ -1020,19 +1122,19 @@ export function rewardGold(n, meta = currentMeta(), storage = safeLocalStorage()
  * El rango NO se persiste: es una FUNCIÓN de `victories` (misma idea que
  * el nivel meta, que también se deriva del progreso).
  *
- * UMBRALES y por qué son esos (cifras reales del meta-juego):
+ * UMBRALES y por qué son esos (cifras reales del meta-juego, con el pool
+ * compartido de 300 fragmentos por victoria y 600 la primera limpieza):
  *  - 0 victorias → Aprendiz: cuenta nueva.
- *  - 10 victorias → Centinela: ~600 fragmentos por torreta (Nvl.5-9).
- *  - 50 victorias → Guardia: ~3 000 fragmentos (Nvl.28-30: ya hay 2-3
- *    perks elegidos por torreta).
- *  - 150 victorias → Comandante: ~9 000 fragmentos (Nvl.57-60: la mitad
- *    de los perks de cada torre).
- *  - 331 victorias → Almirante: 22 860 fragmentos por torreta = Nvl.100
- *    EXACTO (60 por victoria × 331 + 60 extra por cada uno de los 50
- *    primacleares de la campaña). Sin el bonus de primera vez harían
- *    falta 381 victorias (22 860 / 60).
- *  - 1000 victorias → Arquitecto: 60 000 fragmentos por torreta = las 2
- *    primeras torres al máximo (Nvl.100) y una tercera a ~Nvl.85.
+ *  - 10 victorias → Centinela: ~3 000 fragmentos al pool (Nvl.20-25 de
+ *    una torreta, o el arsenal temprano repartido).
+ *  - 50 victorias → Guardia: ~15 000 fragmentos (Nvl.57-60 de una torreta:
+ *    ya hay 5-6 perks elegidos).
+ *  - 150 victorias → Comandante: ~45 000 fragmentos (dos torretas al
+ *    máximo y una tercera a mitad de camino).
+ *  - 331 victorias → Almirante: ~99 300 fragmentos al pool = 4 torretas a
+ *    Nvl.100 (22 860 cada una) y el resto del arsenal desbloqueado.
+ *  - 1000 victorias → Arquitecto: ~300 000 fragmentos = todo el arsenal
+ *    al máximo varias veces.
  */
 export const META_RANKS = [
   { id: 'aprendiz',   name: 'Aprendiz',   min: 0,    color: 'var(--rank-1)' },
@@ -1080,22 +1182,21 @@ export function totalMetaLevels(meta = currentMeta()) {
 // ---------- Recompensas ----------
 
 /**
- * Victoria de stage: +60 fragmentos a CADA torreta meta (×2 la primera vez
- * que se completa ese stage). Los fragmentos se ACUMULAN puros en la barra
- * y el nivel sube SOLO con el botón MEJORAR (upgradeTower) — corrección
+ * Victoria de stage: +300 fragmentos AL POOL COMPARTIDO (×2 = 600 la primera
+ * vez que se completa ese stage). Los fragmentos se ACUMULAN puros en la
+ * barra y el nivel sube SOLO con el botón MEJORAR (upgradeTower) — corrección
  * v6 (JK 28-08): el rollover automático consumía la barra antes de llegar
  * al coste, dejando el botón MEJORAR permanentemente deshabilitado en el
  * flujo real. Ahora el jugador junta 75/150/… y decide cuándo gastar; el
- * excedente se conserva (normalizeMeta ya no lo trunca). Adjunta
- * lastGain/lastFirst para el resumen STAGE_CLEAR (fuera de normalizeMeta
- * a propósito).
+ * excedente se conserva. Adjunta lastGain/lastFirst para el resumen
+ * STAGE_CLEAR (fuera de normalizeMeta a propósito).
  *
  * fase 67: en el INFINITO la ganancia escala con la profundidad
  * (`endlessRewardMul`: ×1 en 51-60, ×2 en 61-70, … + ×1,5 en los hitos) y
  * `firstClear` NO se toca (no puede crecer sin techo).
  *
  * fase 69: `heatMul` (`heatRewardMul`, 1 + 0,08 × heat) multiplica la
- * ganancia por torreta. Nunca reduce: el Protocolo es opcional y el heat 0
+ * ganancia. Nunca reduce: el Protocolo es opcional y el heat 0
  * paga exactamente lo de la fase 68.
  *
  * @param {object} meta
@@ -1115,22 +1216,18 @@ export function rewardVictory(meta, stageId, storage = safeLocalStorage(), { hea
     * endlessRewardMul(id)
     * (Math.max(1, Number(heatMul) || 1)),
   );
-  // v6: acumulación SIN rollover — el nivel lo sube el botón MEJORAR
-  // (upgradeTower). En Nvl.100 (maxed) los fragmentos siguen acumulándose
-  // (barra MÁX en pantalla) sin efecto.
-  for (const t of META_TOWERS) {
-    m.frags[t.key] = (m.frags[t.key] ?? 0) + gain;
-  }
+  // v2: UNA sola vez al pool compartido (antes se sumaba a las 11 torretas).
+  m.fragsPool = clampInt((m.fragsPool ?? 0) + gain, 0, 999999, 0);
   m.victories += 1;
   if (first) m.firstClear.push(id);
   const saved = saveMeta(m, storage);
-  saved.lastGain = gain;   // por torreta (60 | 120 | ∞) — no persisten
+  saved.lastGain = gain;   // al pool (300 | 600 | ∞) — no persisten
   saved.lastFirst = first; // solo para el resumen STAGE_CLEAR
   return saved;
 }
 
 /**
- * fase 69 — BONUS de fragmentos por torreta, sin victoria: lo paga el hito
+ * fase 69 — BONUS de fragmentos al pool, sin victoria: lo paga el hito
  * del Protocolo (5/10/20/35) UNA sola vez por cuenta (`progress.heat.
  * claimed`). Mismo patrón de guardado que `rewardVictory`, pero NO suma
  * `victories` ni escribe `firstClear` (un hito no es un stage limpiado).
@@ -1139,142 +1236,40 @@ export function rewardVictory(meta, stageId, storage = safeLocalStorage(), { hea
  * victoria (`rewardVictory`), que se llama después de los hitos.
  *
  * @param {object} meta
- * @param {number} perTower fragmentos por torreta
+ * @param {number} add fragmentos al pool compartido
  * @param {object} [storage]
  * @returns {object} meta persistido
  */
-export function rewardFrags(meta, perTower, storage = safeLocalStorage()) {
+export function rewardFrags(meta, add, storage = safeLocalStorage()) {
   const m = normalizeMeta(meta);
-  const add = Number.isFinite(perTower) ? Math.trunc(perTower) : 0;
-  if (add <= 0) return saveMeta(m, storage);
-  for (const t of META_TOWERS) {
-    m.frags[t.key] = (m.frags[t.key] ?? 0) + add;
-  }
+  const n = Number.isFinite(add) ? Math.trunc(add) : 0;
+  if (n <= 0) return saveMeta(m, storage);
+  m.fragsPool = clampInt((m.fragsPool ?? 0) + n, 0, 999999, 0);
   return saveMeta(m, storage);
 }
 
 /**
  * v5 5b/5 + v6 — Upgrade MANUAL (botón MEJORAR en la pantalla TORRETAS).
- * Gasta fragCost(level) fragmentos y sube 1 nivel al instante, siempre
- * que haya fragmentos suficientes y la torreta no esté maxeada. Desde
- * v6 es LA ÚNICA vía de subir de nivel (rewardVictory solo acumula
- * fragmentos). Devuelve { ok, reason, meta } — en éxito meta = estado
- * persistido (saveMeta); en rechazo meta = entrada normalizada SIN
- * cambios. reason: 'unknown' | 'maxed' | 'insufficient'.
+ * Gasta fragCost(level) del POOL COMPARTIDO y sube 1 nivel al instante,
+ * siempre que la unidad esté desbloqueada, haya fragmentos suficientes y
+ * la torreta no esté maxeada. Desde v6 es LA ÚNICA vía de subir de nivel
+ * (rewardVictory solo acumula fragmentos). Devuelve { ok, reason, meta } —
+ * en éxito meta = estado persistido (saveMeta); en rechazo meta = entrada
+ * normalizada SIN cambios. reason: 'unknown' | 'locked' | 'maxed' |
+ * 'insufficient'.
  */
 export function upgradeTower(meta, towerKey, storage = safeLocalStorage()) {
   const base = normalizeMeta(meta);
   const t = META_TOWERS.find((x) => x.key === towerKey);
   if (!t) return { ok: false, reason: 'unknown', meta: base };
-  const lv = base.levels[towerKey] ?? 1;
+  if (!isUnitUnlocked(base, t.key)) return { ok: false, reason: 'locked', meta: base };
+  const lv = base.levels[t.key] ?? 1;
   if (lv >= META_MAX_LEVEL) return { ok: false, reason: 'maxed', meta: base };
   const cost = fragCost(lv);
-  // Fragmentos del input CRUDO (no de base): la normalización trunca todo
-  // sobrante a fragCost(lv), y un excedente legítimo (80 en Nvl.1) debe
-  // poder gastarse entero y conservar el resto del sobrante.
-  const frags = clampInt(meta?.frags?.[towerKey], 0, 999999, 0);
-  if (frags < cost) return { ok: false, reason: 'insufficient', meta: base };
-  base.levels[towerKey] = lv + 1;
-  base.frags[towerKey] = frags - cost;
+  if ((base.fragsPool ?? 0) < cost) return { ok: false, reason: 'insufficient', meta: base };
+  base.levels[t.key] = lv + 1;
+  base.fragsPool -= cost;
   return { ok: true, reason: null, meta: saveMeta(base, storage) };
-}
-
-// ---------- SUBIR TODO LO POSIBLE (fase 59.3) ----------
-
-/**
- * PLAN de mejora de las 11 torretas: cuántos niveles pagaría el jugador
- * con los fragmentos que tiene, torreta por torreta.
- *
- * POR QUÉ EXISTE (el diagnóstico de la UX, fase 59.3): el meta es
- * MANUAL y el coste de un nivel es 75-390 fragmentos. Con 11 torres, la
- * campaña entera son ~484 clics y el jugador NO VE que puede subir: llegó
- * al S21 con 5 000 fragmentos acumulados sin gastarlos nunca. El plan es
- * la versión de lectura de "subir todo lo posible" (la UI puede pintar el
- * número sin tocar nada) y `upgradeAllTowers` es la versión que escribe.
- *
- * La política es GREEDY por torreta: subir mientras
- * `frags >= fragCost(nivel)`. Es la misma política que usa el simulador
- * para la trayectoria real (`trajectoryMetaLevel` en balance-sim.mjs), así
- * que lo que el jugador ve al pulsar el botón es lo que el juego mide.
- *
- * @param {object} meta estado meta (crudo o normalizado)
- * @returns {{key:string, from:number, to:number, cost:number}[]}
- */
-export function upgradePlan(meta = currentMeta()) {
-  const m = normalizeMeta(meta);
-  const plan = [];
-  for (const t of META_TOWERS) {
-    let frags = m.frags[t.key] ?? 0;
-    let lv = m.levels[t.key] ?? 1;
-    const from = lv;
-    let cost = 0;
-    while (lv < META_MAX_LEVEL && frags >= fragCost(lv)) {
-      const c = fragCost(lv);
-      frags -= c;
-      cost += c;
-      lv += 1;
-    }
-    plan.push({ key: t.key, from, to: lv, cost });
-  }
-  return plan;
-}
-
-/**
- * Niveles de mejora que el jugador PODRÍA subir YA con sus fragmentos
- * (sin gastarlos todavía). Es el aviso de la UI: "hay mejoras
- * pendientes" → el botón "SUBIR TODO LO POSIBLE" se enciende.
- *
- * @param {object} meta estado meta
- * @returns {number} total de niveles disponibles (0 = nada que hacer)
- */
-export function pendingUpgrades(meta = currentMeta()) {
-  return upgradePlan(meta).reduce((s, p) => s + (p.to - p.from), 0);
-}
-
-/**
- * Fragmentos que costaría SUBIR TODO (fase 59.4): la suma de los costes
- * del plan greedy.
- *
- * POR QUÉ hace falta: el botón "SUBIR TODO" tiene que DECIR lo que va a
- * gastar (si no, el jugador no sabe si le conviene). Es la suma de
- * `upgradePlan` — el mismo plan que `upgradeAllTowers` ejecuta, así que
- * el número del botón y el gasto real coinciden siempre.
- *
- * @param {object} meta estado meta
- * @returns {number} fragmentos que se gastarían (0 si no hay nada que subir)
- */
-export function pendingUpgradeCost(meta = currentMeta()) {
-  return upgradePlan(meta).reduce((s, p) => s + p.cost, 0);
-}
-
-/**
- * SUBIR TODO LO POSIBLE (fase 59.3): gasta TODOS los fragmentos
- * disponibles subiendo cada torreta lo que pueda (política greedy, la
- * misma que `upgradePlan`). Es la respuesta al meta invisible: el jugador
- * apretó 484 veces "MEJORAR" en la campaña; con este botón apretó UNA.
- *
- * Función PURA y testeable: recibe el meta y el storage inyectables (como
- * el resto de meta.js), NO muta la entrada (normaliza a una copia) y
- * persiste el resultado con `saveMeta`.
- *
- * @param {object} meta estado meta
- * @param {object} [storage] storage inyectable (localStorage por defecto)
- * @returns {{meta: object, levels: number}} el meta guardado y los niveles
- *   que se subieron en total
- */
-export function upgradeAllTowers(meta, storage = safeLocalStorage()) {
-  const m = normalizeMeta(meta);
-  const plan = upgradePlan(m);
-  let levels = 0;
-  for (const p of plan) {
-    if (p.to <= p.from) continue;
-    m.levels[p.key] = p.to;
-    m.frags[p.key] = Math.max(0, (m.frags[p.key] ?? 0) - p.cost);
-    levels += p.to - p.from;
-  }
-  const saved = saveMeta(m, storage);
-  saved.lastUpgrades = levels; // no persiste (como lastGain/lastFirst)
-  return { meta: saved, levels };
 }
 
 // ---------- Icono (reusa el render canvas real de la torre/dron) ----------

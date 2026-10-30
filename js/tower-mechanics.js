@@ -20,7 +20,7 @@
 // vivir en su dueño. El test tests/test-tower-identity.mjs es el guardián.
 // =============================================================================
 
-import { DRONES, TOWERS } from './towers-data.js';
+import { DRONES, TOWERS, dpsScaleFor } from './towers-data.js';
 import { applyMark, applyPoison, hasMark } from './enemies-status.js';
 
 /**
@@ -180,7 +180,10 @@ export function onMechanicHit(type, enemy, game, ctx = {}) {
       applyMark(enemy, 'cut', mech.duration ?? 2);
       break;
     case 'burn': {
-      const dps = (mech.dps ?? 8) + (ctx.mods?.burnDpsAdd ?? 0);
+      // La quemadura es el DoT propio de la Rueda de Fuego: escala con el
+      // dial de la unidad (base + `burnDpsAdd`). La duración no se toca.
+      const dps = ((mech.dps ?? 8) + (ctx.mods?.burnDpsAdd ?? 0))
+        * dpsScaleFor('firewheel');
       const time = (mech.duration ?? 3) + (ctx.mods?.burnTimeAdd ?? 0);
       applyPoison(enemy, dps, time, 'burn');
       break;

@@ -3,7 +3,7 @@
 // =============================================================================
 
 import { CONFIG, clamp, dist, rand } from './engine.js';
-import { DRONES, WASPS, FIREWHEEL } from './towers-data.js';
+import { DRONES, WASPS, FIREWHEEL, dpsScaleFor } from './towers-data.js';
 import { metaDmgMul, metaSlowFrac, perkDmgFor, META_SLOW_CAP } from './meta.js';
 import { applyPoison, applySlow, applyMark } from './enemies.js';
 import { unitMods, hurtP } from './towers-core.js';
@@ -196,10 +196,11 @@ export class Drone {
         // un barrido circular chico. Fase 76.1: sin enemigos PATRULLA el
         // campo con waypoints cercanos; no vuelve a la base (el viaje de
         // ida y vuelta entre oleadas era tiempo sin daño).
-        // DPS 25/s escalado por meta (+5 %/nivel,
-        // META_DMG_PER_LEVEL en meta.js — el comentario viejo decía
-        // "+10 %/nivel" y mentía) y por la carta exclusiva del dron
-        // (dmg_firewheel escribe `this.dmgMul`).
+        // DPS 25/s de tabla (el dial de presentación lo deja en 18,75)
+        // escalado por meta (META_DMG_PER_LEVEL en meta.js — hoy
+        // +18 %/nivel; el comentario viejo decía "+10 %/nivel" y mentía) y
+        // por la carta exclusiva del dron (dmg_firewheel escribe
+        // `this.dmgMul`).
         // v6 perk: +3 DPS del barrido por cada 10 niveles meta
         //
         // dev-7 fase 31: la rueda se QUEDA con el blanco hasta matarlo
@@ -207,8 +208,8 @@ export class Drone {
         // QUEMA también durante el vuelo. Medido en una etapa real: el
         // DPS realizado subía del 74-83 % del nominal (y el hueco
         // CRECÍA con el meta) al 88-99 %.
-        const dps = d.dps * (metaDmgMul('firewheel') ?? 1) * (this.dmgMul ?? 1)
-          + (unitMods(this).dpsAdd ?? 0);
+        const dps = (d.dps * (metaDmgMul('firewheel') ?? 1) * (this.dmgMul ?? 1)
+          + (unitMods(this).dpsAdd ?? 0)) * dpsScaleFor('firewheel');
         const alive = [];
         for (const e of enemies || []) {
           if (e && !e.dead && Number.isFinite(e.x) && Number.isFinite(e.y)) {
@@ -351,11 +352,14 @@ export class Drone {
         // dev-7 fase 30: el veneno escala igual que la picadura (meta +
         // perks + cartas), así que el DoT também crece con la build.
         const metaMul = metaDmgMul('wasps') ?? 1;
+        // El dial de presentación escala la picadura Y el veneno (y sus
+        // addons de perk) con la MISMA proporción que el resto del arsenal.
+        const waspScale = dpsScaleFor('wasps');
         const stingDmg = Math.round(d.stingDamage * metaMul
-          * (waspMods.dmgMul ?? 1) * (this.dmgMul ?? 1));
+          * (waspMods.dmgMul ?? 1) * (this.dmgMul ?? 1)) * waspScale;
         const venomDps = Math.round((d.venomDps ?? 0) * metaMul
           * (waspMods.dmgMul ?? 1) * (this.dmgMul ?? 1)
-          + (waspMods.venomDpsAdd ?? 0));
+          + (waspMods.venomDpsAdd ?? 0)) * waspScale;
         const venomTime = (d.venomTime ?? 0) + (waspMods.venomTimeAdd ?? 0);
         // El cooldown de picadura lo escalan el perk de cadencia del meta
         // (cadMul) y la carta `cadence_up` (this.cadMul, fase 30).
@@ -553,12 +557,15 @@ export class Drone {
           const bubbleR = forcefieldBubbleR(this);
           // dev-7 fase 28: las espinas son el ÚNICO daño del Campo de
           // Fuerza. `perkDmgFor` = thornDps del perk × metaDmgMul (la
-          // curva +5 %/nivel del meta y el bonus de HITOS): antes se usaba
+          // curva de META_DMG_PER_LEVEL y el bonus de HITOS): antes se usaba
           // el thornDps PLANO, así que del nivel 21 al 100 de meta el dron
           // no escalaba NADA. Se calcula UNA vez por frame (no por
           // enemigo) y multiplica por el `dmgMul` de la carta exclusiva
-          // "Burbuja Reforzada" (dmg_forcefield, ×1.6).
-          const thornDps = perkDmgFor('forcefield') * (this.dmgMul ?? 1);
+          // "Burbuja Reforzada" (dmg_forcefield, ×1.6). El dial de
+          // presentación escala las espinas ACÁ (no en meta.js): `perkDmgFor`
+          // sigue devolviendo el DPS de perk × meta.
+          const thornDps = perkDmgFor('forcefield') * (this.dmgMul ?? 1)
+            * dpsScaleFor('forcefield');
           let inside = 0;
           for (const e of enemies || []) {
             if (!e || e.dead) continue;

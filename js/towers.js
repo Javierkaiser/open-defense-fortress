@@ -12,7 +12,7 @@
 import { CONFIG, LAYOUT, clamp, dist, rand, fallYAfter } from './engine.js';
 import { closestPointOnSegment, pointSegmentDistance, withAlpha } from './geometry.js';
 import {
-  TOWERS, DRONES, WASPS, FIREWHEEL, MAX_TOWER_LEVEL,
+  TOWERS, DRONES, WASPS, FIREWHEEL, MAX_TOWER_LEVEL, dpsScaleFor,
 } from './towers-data.js';
 export { TOWERS, DRONES, WASPS, FIREWHEEL, MAX_TOWER_LEVEL };
 import { applyStun, rollCrit, tryFreeze } from './combat-crit.js';
@@ -355,14 +355,19 @@ export class Tower {
   }
 
   /** Daño escalado: +25% por nivel (§2.2) × multiplicadores de carta ×
-   *  META-GAME v6 (mejora permanente de la torreta, +5 %/nivel meta —
-   *  META_DMG_PER_LEVEL en meta.js; hasta Nvl.100 = ×5.95 — el comentario
-   *  viejo decía "v3.5, +10 %/nivel" y mentía) × perks.
+   *  META-GAME v6 (mejora permanente de la torreta, META_DMG_PER_LEVEL en
+   *  meta.js — hoy +18 %/nivel meta, con el comentario viejo de "v3.5,
+   *  +10 %/nivel" ya corregido) × perks.
    *  El multiplicador meta INCLUYE además el bonus de HITOS (+2 % por
    *  hito alcanzado: Nvl.25/50/75/100 → ×1.08 en Nvl.100), aplicado
-   *  dentro de `metaDmgMul()` — por eso el tope real en Nvl.100 es
-   *  ×5.95 × 1.08 = ×6.43 (ver meta.js `milestoneDmgMul`).
-   *  Las torres DPS (beam y láser v4 4c/5) escalan su damagePerSec. */
+   *  dentro de `metaDmgMul()` (ver meta.js `milestoneDmgMul`): el tope
+   *  real sale de combinar ambas curvas, no de un número fijo acá.
+   *  Las torres DPS (beam y láser v4 4c/5) escalan su damagePerSec.
+   *
+   *  El resultado se multiplica por `dpsScaleFor(type)` — el dial de
+   *  presentación/balance de towers-data.js — DESPUÉS del redondeo, para
+   *  preservar la proporción exacta de la curva (el daño puede quedar
+   *  decimal; el combate lo soporta). La Tesla escala ×1 (anti-enjambre). */
   get damage() {
     const d = this.data;
     const base = (d.kind === 'beam' || d.kind === 'laser') ? d.damagePerSec : d.damage;
@@ -370,8 +375,9 @@ export class Tower {
     // acá una sola vez para las torretas con tabla — reemplaza las
     // fórmulas por-sitio viejas (perkCount('x') * algo).
     const perkDmgMul = unitMods(this).dmgMul ?? 1;
-    return Math.round(base * (1 + 0.25 * (this.level - 1)) * (this.dmgMul ?? 1)
+    const escalado = Math.round(base * (1 + 0.25 * (this.level - 1)) * (this.dmgMul ?? 1)
       * (metaDmgMul(this.type) ?? 1) * perkDmgMul);
+    return escalado * dpsScaleFor(this.type);
   }
 
   /** Cadencia escalada: −8% por nivel (§2.2) × cartas (Servomecanismos)

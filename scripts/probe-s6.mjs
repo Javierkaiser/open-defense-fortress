@@ -42,9 +42,12 @@ const fakeStorage = (() => {
 /** Fija TODAS las torretas meta a 1 (cuenta fresca, piso sin meta). */
 function setMetaLevel(level) {
   const levels = {};
-  const frags = {};
-  for (const t of META_TOWERS) { levels[t.key] = level; frags[t.key] = 0; }
-  saveMeta({ levels, frags, victories: 0 }, fakeStorage);
+  const unlocked = {};
+  for (const t of META_TOWERS) {
+    levels[t.key] = level;
+    unlocked[t.key] = true; // el probe mide el arsenal completo
+  }
+  saveMeta({ levels, fragsPool: 0, unlocked, victories: 0 }, fakeStorage);
 }
 
 // ---------- stub de engine (mismo que balance-sim.mjs, sin render) ----------

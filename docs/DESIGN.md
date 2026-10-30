@@ -249,7 +249,7 @@ inmune: todo se puede matar, solo cambia el costo.
 | Infinito (∞) | 51+; HP de base de la misma curva; jefe cada 10; profundidad “mejor + 1”; hitos y recompensas. |
 | Supervivencia | Olas infinitas; sin contador de fugas; cada fuga resta el HP máximo del enemigo; base 25 500 HP; jefe cada 5; tema cada 5; presupuesto lineal `60 + 30·oleada`. |
 | Desafío diario | Etapa 51–60 elegida por la fecha local; semilla FNV. |
-| Protocolo / Heat | 11 condiciones sobre la campaña; presets I–V (5/10/16/24/35); máximo 49; recompensa ×1 + 0,08·heat; hitos 60/120/240/420 fragmentos por torreta. |
+| Protocolo / Heat | 11 condiciones sobre la campaña; presets I–V (5/10/16/24/35); máximo 49; recompensa ×1 + 0,08·heat; hitos 60/120/240/420 fragmentos al pool. |
 
 ## 10. Progresión y economía
 
@@ -258,13 +258,22 @@ inmune: todo se puede matar, solo cambia el costo.
 - **XP**: escala con el `hpMul` de la etapa; al subir de nivel se ofrece 1 de 3
   cartas. La campaña reparte ~20 cartas por etapa; el tope es 21 en campaña y
   31 en supervivencia.
-- **Cartas**: 81; pueden desbloquear torres/drones, mejorar una unidad,
+- **Cartas**: 84; pueden desbloquear torres/drones, mejorar una unidad,
   agregar mecánicas, combos con prerrequisitos de tags o dar bonuses globales.
   Tienen topes por carta y por run. El daño global da +10 % por stack (×2) y
   el daño por tipo +20 % (×2); los combos exigen sus dos piezas.
-- **Meta**: 100 niveles; fragmentos por victoria (60, ×2 la primera vez), oro,
-  perks por torre y rangos. Las mejoras meta se aplican en batalla
-  (`metaDmgMul`, `critBonusPct`).
+- **Meta**: 100 niveles por unidad con **un pool compartido de fragmentos**
+  (`fragsPool`): 300 por victoria y 600 la primera limpieza de cada etapa;
+  `fragCost(nivel) = 75 + 35·década` y +18 % de daño por nivel. No hay botón
+  para subir todas las torretas a la vez: el jugador elige dónde invertir el
+  pool. Las mejoras se aplican en batalla (`metaDmgMul`, `critBonusPct`).
+- **Desbloqueos con oro**: una cuenta nueva arranca **solo con Guardian**; las
+  otras 10 unidades se compran con oro (150–500) y una unidad bloqueada no entra
+  en la oferta de cartas, no se mejora y su `metaDmgMul` es 1. Contrato en
+  `openspec/specs/meta-game/tower-unlocks/spec.md` y economía de recursos en
+  `openspec/specs/meta-game/meta-resources/spec.md`. Los saves v1 migran: los
+  fragmentos por torreta se suman al pool y las unidades ya compradas siguen
+  desbloqueadas.
 - **Récords**: por etapa, por modo, por heat y por oleada; se guardan en
   `progress.js` de forma tolerante a datos viejos/corruptos.
 
@@ -323,7 +332,7 @@ inmune: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 988 tests (988 pass, 0 skip) en 34 archivos.
+- 1021 tests (1021 pass, 0 skip) en 35 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 
