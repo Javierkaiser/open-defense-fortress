@@ -139,7 +139,7 @@ no sólo un multiplicador de daño:
 - **5 slots**, **5 torres + 1 dron por run**. Las torres y drones entran por
   cartas; no hay colocación libre.
 - **8 torres**: Guardian, Missile, Beam, Thunderstroke, Tesla, Mortar, Gauss y
-  Láser. **3 drones**: Rueda de Fuego, Avispas y Campo de Fuerza.
+  Láser. **3 drones**: Rueda de Fuego, Mosquitos y Campo de Fuerza.
 - **Guardian (fase 73)**: balas paralelas separadas 10 px (antes 13) y
   colisión barrida (CCD): una bala a 920 px/s ya no se salta a una espora
   entre frames a 30 fps o 2×. El multi-blanco de Lv.4 se mantiene.
@@ -203,7 +203,7 @@ no sólo un multiplicador de daño:
 6. La suite tiene guardas de regresión de HP por etapa, apertura, jefes,
    variantes y supervivencia.
 
-## Estado actual (v1.5.2)
+## Estado actual (v1.5.3)
 
 - Campaña: 50 etapas, win 100 % con la trayectoria real de meta y cartas.
 - S50 sin heat: 100 % / 92 % de HP / 99 % de bajas (20 semillas).
@@ -222,5 +222,7 @@ no sólo un multiplicador de daño:
 - Cráter del Mortar (1.5.2): el fix de parámetros recupera el DoT/slow de zona
   que antes no se instanciaba. El S50 sube a 92 % HP / 99 % bajas, dentro del
   margen; no hizo falta tocar `craterDps`.
+- Renombre (1.5.3): Avispas → Mosquitos es sólo texto/flavor; no cambia
+  stats, cartas ni balance.
 - El balance sigue siendo un trabajo abierto: el simulador es una herramienta
   de comparación, no un oráculo.

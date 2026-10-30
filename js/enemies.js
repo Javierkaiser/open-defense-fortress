@@ -148,7 +148,7 @@ export function threatFactor(y, baseY = baseImpactY(), spawnY = THREAT_SPAWN_Y) 
  * Aplica (o refresca) VENENO a un enemigo (dev-7 fase 30).
  *
  * El veneno es un DOT: hace `dps` de daño por segundo durante `seconds`.
- * Se REFRESCA (no se acumula) para que dos avispas sobre el mismo
+ * Se REFRESCA (no se acumula) para que dos mosquitos sobre el mismo
  * enemigo no multiplicen el daño por dos: el que llega más fuerte manda.
  *
  * NO dispara lifesteal ni el remate de los perks: el veneno es daño
@@ -465,13 +465,13 @@ export class Enemy {
     this.slowFactor = 1;  // compatibilidad con lead/render
     this.slowSources = {}; // fase 75: una entrada por mecánica de slow
     this.marks = {};
-    // dev-7 fase 30: VENENO (picadura del Dron Avispas). Es un DoT: hace
+    // dev-7 fase 30: VENENO (picadura del Dron Mosquitos). Es un DoT: hace
     // daño por segundo durante un tiempo, así que la picadura sigue
     // rindiendo aunque el objetivo NO muera con ella (antes la picadura
     // se consumía igual y el 90 % del daño se perdía contra un jefe).
     this.poisonT = 0;      // s restantes de veneno/quemadura
     this.poisonDps = 0;    // daño por segundo del DoT activo
-    this.poisonKind = 'poison'; // 'poison' (Avispas) | 'burn' (Rueda de Fuego)
+    this.poisonKind = 'poison'; // 'poison' (Mosquitos) | 'burn' (Rueda de Fuego)
     // dev-7 fase 32: la FAMILIA del enemigo (roca / cristal / espora /
     // virus). Decide cuánto le hace cada tipo de daño (js/damagetypes.js).
     this.family = this.data.family ?? null;
@@ -514,7 +514,7 @@ export class Enemy {
    * Aplica (o refresca) VENENO (dev-7 fase 30).
    *
    * El veneno es un DOT: hace `dps` de daño por segundo durante
-   * `seconds`. Se refresca (no se acumula) para que dos avispas al
+   * `seconds`. Se refresca (no se acumula) para que dos mosquitos al
    * mismo enemigo no multiplicen el daño por dos: el que llega más
    * fuerte manda.
    *
@@ -641,7 +641,7 @@ export class Enemy {
   die() {
     if (this.dead) return;
     this.dead = true;
-    // Identidad de las Avispas: el veneno del cadáver salpica a los vecinos
+    // Identidad de los Mosquitos: el veneno del cadáver salpica a los vecinos
     // (antes de limpiar `poisonDps`, que es la fuente de la propagación).
     onMechanicKill(this, this.game);
     // fase 68 — el `divisor` se parte ANTES de la explosión y del
@@ -937,7 +937,7 @@ export class Enemy {
     }
     // dev-7 fase 32: decaimiento del destello de impacto por tipo.
     if (this._hitT > 0) this._hitT = Math.max(0, this._hitT - dt);
-    // dev-7 fase 30: VENENO (picadura del Dron Avispas). Se consume
+    // dev-7 fase 30: VENENO (picadura del Dron Mosquitos). Se consume
     // ANTES del movimiento: el daño por segundo es continuo y la muerte
     // pasa por `die()` (el MISMO camino que un golpe normal: score, XP,
     // partículas y el evento 'enemy:killed').
@@ -1806,7 +1806,7 @@ export class Enemy {
     // --- T3: el jefe se siente grande: halo + anillo de aviso ----------
     if (this.isBoss) this._drawBossAura(ctx);
 
-    // dev-7 fase 30: VENENO activo (picadura del Dron Avispas). Un tinte
+    // dev-7 fase 30: VENENO activo (picadura del Dron Mosquitos). Un tinte
     // verde + burbujas: el jugador tiene que VER que el enemigo está
     // envenenado (y que por eso sigue perdiendo vida).
     if ((this.poisonT ?? 0) > 0) this._drawPoison(ctx);

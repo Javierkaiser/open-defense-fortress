@@ -181,17 +181,19 @@ export const DRONES = {
     mech: { id: 'burn', dps: 8, duration: 3 },
   },
   wasps: {
-    name: 'Dron Avispas', kind: 'wasps',
+    // El id interno sigue siendo `wasps` (clave persistida del meta y de
+    // cartas); el nombre visible es Mosquitos desde la fase 76.3.
+    name: 'Dron Mosquitos', kind: 'wasps',
     dmgType: 'drone', // fase 32: tipo de daño
-    // dev-7 fase 30 (rework del dron): antes la avispa picaba UNA vez y
+    // dev-7 fase 30 (rework del dron): antes el mosquito picaba UNA vez y
     // desaparecía `respawnTime` (4 s). Eso la convertía en 3 × 12 dmg /
     // 4 s = 9 DPS: el peor del arsenal (la Rueda da 25) y con el 75 % del
-    // tiempo muerta. Ahora la avispa pica, entra en COOLDOWN y sigue
+    // tiempo muerta. Ahora el mosquito pica, entra en COOLDOWN y sigue
     // volando: el DPS lo marca el ritmo de picadura, no el downtime.
     count: 3,
     stingDamage: 14,
-    stingCooldown: 1.9,   // s entre picaduras de la misma avispa
-  // dev-7 fase 33: los drones VARIAN. Cada avispa re-elige blanco cada
+    stingCooldown: 1.9,   // s entre picaduras del mismo mosquito
+  // dev-7 fase 33: los drones VARIAN. Cada mosquito re-elige blanco cada
     // VENENO: la picadura envenena al objetivo (D0T). Así la picadura
     // sigue rindiendo aunque el objetivo NO muera con ella (antes se
     // consumía igual: contra un jefe el 90 % del daño se perdía).
@@ -217,18 +219,18 @@ export const DRONES = {
 };
 
 /**
- * dev-7 fase 30 (rework del Dron Avispas) — ENJAMBRE CONTINUO.
+ * dev-7 fase 30 (rework del Dron Mosquitos) — ENJAMBRE CONTINUO.
  *
- * Antes (fase 21): cada avispa era un "misil" de un solo uso — volaba al
+ * Antes (fase 21): cada mosquito era un "misil" de un solo uso — volaba al
  * enemigo más avanzado, le clavaba la picadura y desaparecía 4 s. El
  * resultado medido eran 8,1 DPS por dron (3 × 12 dmg / 4 s): el peor
  * del arsenal, con dos problemas:
  *   - el DPS estaba gateado por el TIEMPO MUERTO, no por el daño;
  *   - la picadura se consumía aunque el objetivo sobreviviera (contra un
- *     jefe de 44 032 HP, las 3 avispas quemaban sus picaduras contra un
+ *     jefe de 44 032 HP, los 3 mosquitos quemaban sus picaduras contra un
  *     blanco que no moría).
  *
- * Ahora la avispa es una unidad persistente: pica, entra en cooldown y
+ * Ahora el mosquito es una unidad persistente: pica, entra en cooldown y
  * sigue volando. Y la picadura aplica VENENO (D0T), de modo que sigue
  * haciendo daño aunque no mate.
  */
@@ -238,15 +240,15 @@ export const WASPS = {
   returnSpeed: 300,   // px/s de regreso al panal (sin enemigos)
   swarmRadius: 9,     // px: separación del enjambre alrededor del blanco
   stingCooldown: 1.9, // s entre picaduras (fallback si falta en la tabla)
-  // dev-7 fase 33: los drones VARIAN. Cada avispa re-elige blanco cada
+  // dev-7 fase 33: los drones VARIAN. Cada mosquito re-elige blanco cada
   // WASPS.retarget segundos (o antes si el suyo se aleja más de
   // WASPS.retargetDist px), sin esperar a que muera.
   retarget: 1.4,        // s entre re-elegir blanco
   retargetDist: 220,     // px: si el blanco se aleja más, se cambia ya
-  // dev-7 fase 33: los drones VARIAN. Cada avispa re-elige blanco cada
-  // Tope del enjambre: 3 avispas de base + hasta 3 del perk de meta
-  // ("+1 avispa" ×4 y el capstone "+3"). Con el enjambre continuo cada
-  // avispa extra vale 4× más que antes (ya no hay 4 s de tiempo muerto),
+  // dev-7 fase 33: los drones VARIAN. Cada mosquito re-elige blanco cada
+  // Tope del enjambre: 3 mosquitos de base + hasta 3 del perk de meta
+  // ("+1 mosquito" ×4 y el capstone "+3"). Con el enjambre continuo cada
+  // mosquito extra vale 4× más que antes (ya no hay 4 s de tiempo muerto),
   // así que sin tope el dron endgame valía más que una torre entera.
   maxSwarm: 6,
 };

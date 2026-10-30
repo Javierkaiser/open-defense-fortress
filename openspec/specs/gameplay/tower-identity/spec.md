@@ -40,15 +40,18 @@ la unidad que lo declara.
 | Gauss | Riel anti-blindaje | `rail`: marca que amplifica el balístico de OTRAS torres | execute, lifesteal, explodeOnKill, bounce, slow |
 | Láser | Corte estático | `cut`: marca que amplifica todo el daño sobre el cortado | execute, lifesteal, explodeOnKill |
 | Firewheel | Ignición | `burn`: DoT de fuego y única explosión al matar | execute, lifesteal, stun, slow |
-| Wasps | Enjambre venenoso | `venom`: DoT que se propaga al morir el envenenado | execute, explodeOnKill, stun |
+| Mosquitos | Enjambre venenoso | `venom`: DoT que se propaga al morir el envenenado | execute, explodeOnKill, stun |
 | Forcefield | Burbuja de control | `bubble`: slow intrínseco, sostén y marca de área | execute, explodeOnKill, lifesteal, daño de contacto |
+
+> El id interno de Mosquitos sigue siendo `wasps` para no romper saves ni
+> IDs de cartas; el nombre visible es "Dron Mosquitos".
 
 ### Requirement: Vocabulario acotado
 
 Las claves genéricas de los perks MUST quedar restringidas a su dueño:
 
 - `executeThreshold`: solo Missile.
-- `lifesteal`: solo Beam y Wasps.
+- `lifesteal`: solo Beam y Mosquitos.
 - `explodeOnKillChance` / `explodeOnKillDmg` / `explodeOnKillRadius`: solo
   Firewheel.
 - `slowOnHit`: solo Beam (el slow del Forcefield es intrínseco, no un perk).
@@ -56,7 +59,7 @@ Las claves genéricas de los perks MUST quedar restringidas a su dueño:
 - `bounceCount`: solo Guardian.
 - `critChanceAdd` / `critDmgMul`: solo Guardian y Gauss.
 - `chainFork`: solo Tesla.
-- `extraCount`: solo Missile, Tesla, Wasps y Láser.
+- `extraCount`: solo Missile, Tesla, Mosquitos y Láser.
 - `areaMul`: solo Mortar.
 - `radiusAdd`: solo Firewheel y Forcefield.
 
@@ -91,7 +94,7 @@ torre dentro de `Enemy.takeDamage`:
 
 #### Scenario: Veneno que salpica
 
-- **WHEN** un enemigo envenenado por las Avispas muere
+- **WHEN** un enemigo envenenado por los Mosquitos muere
 - **THEN** hasta 2 vecinos en 110 px reciben el 50 % del DPS de veneno
 
 ### Requirement: El cráter del Mortar es visible

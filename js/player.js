@@ -657,7 +657,7 @@ export class Fortress {
       if (this.invuln > 0) this.invuln -= dt;
       if (this.flash > 0) this.flash = Math.max(0, this.flash - dt * 2.5);
       if (this._miniBhCd > 0) this._miniBhCd = Math.max(0, this._miniBhCd - dt);
-      // fase 74.2 — Transfusión: los enemigos envenenados por Avispas
+      // fase 74.2 — Transfusión: los enemigos envenenados por Mosquitos
       // regeneran escudo, con tope de 5 HP/s.
       const poisonRegen = this.comboMods?.poisonRegen ?? 0;
       if (poisonRegen > 0 && Number.isFinite(this.hp) && this.hp > 0) {

@@ -52,6 +52,12 @@ test('identidad: las 11 unidades declaran una mecánica firma ÚNICA', () => {
     `hay mecánicas repetidas: ${ids.join(', ')}`);
 });
 
+test('identidad: Mosquitos es el nombre visible y wasps el id interno', () => {
+  assert.equal(DRONES.wasps.name, 'Dron Mosquitos');
+  assert.equal(mechIdOf('wasps'), 'venom');
+  assert.equal(MECHANICS.venom.owner, 'wasps');
+});
+
 test('identidad: el vocabulario genérico sólo vive en su dueño', () => {
   const DUEÑOS = {
     executeThreshold: ['missile'],
@@ -211,7 +217,7 @@ test('identidad: las marcas amplifican sólo donde corresponde', () => {
     'el Gauss no se buffea con su propia marca de riel');
 });
 
-test('identidad: el veneno de las Avispas se propaga al morir', () => {
+test('identidad: el veneno de los Mosquitos se propaga al morir', () => {
   const a = dummy({ x: 20, y: 0, poisonKind: 'poison', poisonDps: 10 });
   const b = dummy({ x: 60, y: 0 });
   const game = { fortress: { enemies: [a, b] } };

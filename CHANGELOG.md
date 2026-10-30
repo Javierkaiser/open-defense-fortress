@@ -6,6 +6,21 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 
 ## [Unreleased]
 
+## [1.5.3] — 2026-10-30
+
+### Cambiado
+
+- **Dron Avispas → Dron Mosquitos** en todos los textos visibles: pantalla
+  de torretas, cartas, perks, combos, docs y specs.
+- El id interno sigue siendo `wasps` (clave persistida del meta y de cartas)
+  para no romper saves.
+- Flavor de perks alineado con la identidad de sangre: `Néctar` →
+  `Hematofagia` y `Aguijón potente` → `Picadura potente`.
+- La carta de desbloqueo ahora describe la mecánica actual: 3 mosquitos que
+  pican e inyectan veneno; la hematofagia drena vida al escudo.
+- **974 tests, 0 skip**. Sin cambios de stats ni de balance.
+- Versión 1.5.3 / Android `versionCode 10`.
+
 ## [1.5.2] — 2026-10-29
 
 ### Corregido

@@ -368,25 +368,25 @@ export const PERKS = {
       B: { desc: 'DEFINITIVO Cámara de tortura: espinas 40/s base y +10 px de radio', mods: { thornDps: 40, radiusAdd: 10 } } },
   ],
   wasps: [
-    { A: { desc: '+1 avispa', mods: { extraCount: 1 } },
+    { A: { desc: '+1 mosquito', mods: { extraCount: 1 } },
       B: { desc: 'Veneno fuerte: +1 de daño por segundo', mods: { venomDpsAdd: 1 } } },
     { A: { desc: 'Veneno duradero: +1 s de veneno', mods: { venomTimeAdd: 1 } },
-      B: { desc: 'Néctar: 2% del daño cura al escudo', mods: { lifesteal: 0.02 } } },
-    { A: { desc: 'Aguijón potente: +20% de daño de picadura', mods: { dmgMul: 1.2 } },
+      B: { desc: 'Hematofagia: 2% del daño cura al escudo', mods: { lifesteal: 0.02 } } },
+    { A: { desc: 'Picadura potente: +20% de daño de picadura', mods: { dmgMul: 1.2 } },
       B: { desc: 'Cría rápida: -15% de tiempo entre picaduras', mods: { cadMul: 0.85 } } },
     { A: { desc: 'Veneno fuerte II: +1 de daño por segundo', mods: { venomDpsAdd: 1 } },
-      B: { desc: 'Néctar II: +2% de robo de vida', mods: { lifesteal: 0.02 } } },
+      B: { desc: 'Hematofagia II: +2% de robo de vida', mods: { lifesteal: 0.02 } } },
     { A: { desc: 'Veneno duradero II: +1 s de veneno', mods: { venomTimeAdd: 1 } },
-      B: { desc: 'Aguijón potente II: +20% de daño', mods: { dmgMul: 1.2 } } },
-    { A: { desc: '+1 avispa (II)', mods: { extraCount: 1 } },
+      B: { desc: 'Picadura potente II: +20% de daño', mods: { dmgMul: 1.2 } } },
+    { A: { desc: '+1 mosquito (II)', mods: { extraCount: 1 } },
       B: { desc: 'Cría rápida II: -15% entre picaduras', mods: { cadMul: 0.85 } } },
     { A: { desc: 'Veneno fuerte III: +1 de daño por segundo', mods: { venomDpsAdd: 1 } },
-      B: { desc: 'Aguijón potente III: +20% de daño', mods: { dmgMul: 1.2 } } },
+      B: { desc: 'Picadura potente III: +20% de daño', mods: { dmgMul: 1.2 } } },
     { A: { desc: 'Veneno duradero III: +1 s de veneno', mods: { venomTimeAdd: 1 } },
-      B: { desc: 'Néctar III: +2,5% de robo de vida', mods: { lifesteal: 0.025 } } },
+      B: { desc: 'Hematofagia III: +2,5% de robo de vida', mods: { lifesteal: 0.025 } } },
     { A: { desc: 'Veneno fuerte IV: +1 de daño por segundo', mods: { venomDpsAdd: 1 } },
       B: { desc: 'Cría rápida III: -15% entre picaduras', mods: { cadMul: 0.85 } } },
-    { A: { desc: 'DEFINITIVO Enjambre: +1 avispa y -25% entre picaduras', mods: { extraCount: 1, cadMul: 0.75 } },
+    { A: { desc: 'DEFINITIVO Enjambre: +1 mosquito y -25% entre picaduras', mods: { extraCount: 1, cadMul: 0.75 } },
       B: { desc: 'DEFINITIVO Reina asesina: +40% de daño, +3 de veneno y +2 s', mods: { dmgMul: 1.4, venomDpsAdd: 3, venomTimeAdd: 2 } } },
   ],
   laser: [
@@ -422,7 +422,7 @@ export const META_PLAYER_NAME = 'Planet Defender';
 
 /**
  * dev-7 fase 21 (reportado jugando por el usuario: "siguen con nombres
- * distintos" y "falta el dron de avispas"): esta lista usaba nombres "de
+ * distintos" y "falta el dron de mosquitos"): esta lista usaba nombres "de
  * fantasía" tomados de una diseño de referencia (reference-torretas.jpg)
  * en vez de los nombres reales de `towers.js`/`cards.js` — la fase 8 solo
  * había corregido el caso de Beam/Láser (una colisión real de nombres),
@@ -438,7 +438,7 @@ export const META_PLAYER_NAME = 'Planet Defender';
  *   Dron de Rueda de Fuego → Dron Rueda de Fuego (sin el "de" de más)
  * Beam ya se había corregido en la fase 8.
  *
- * También se agrega el Dron Avispas (`wasps`), que había quedado
+ * También se agrega el Dron Mosquitos (`wasps`), que había quedado
  * EXCLUIDO a propósito porque la diseño de referencia solo mostraba 9
  * lugares — pero la grilla de esta pantalla ya tiene scroll (`.meta-grid`
  * en css/style.css), así que esa limitación de "slots fijos" ya no
@@ -464,10 +464,10 @@ export const META_TOWERS = [
   { key: 'firewheel',     name: 'Dron Rueda de Fuego',  type: 'firewheel' },
   { key: 'missile',       name: 'Missile',              type: 'missile' },
   { key: 'gauss',         name: 'Gauss',                type: 'gauss' },
-  { key: 'wasps',         name: 'Dron Avispas',         type: 'wasps' },
+  { key: 'wasps',         name: 'Dron Mosquitos',         type: 'wasps' },
   // dev-7 fase 22 (reportado jugando: "la torre láser tampoco figura"):
   // Láser (arsenal extendido, kind 'laser' en towers.js) había quedado
-  // afuera igual que Avispas en la fase 21 — mismo motivo (el límite de
+  // afuera igual que Mosquitos en la fase 21 — mismo motivo (el límite de
   // "9/10 slots" de la diseño de referencia ya no aplica, la grilla
   // scrollea). Nombre EXACTO al de towers.js (ya se había corregido en
   // la fase 8 la colisión donde Beam usaba este mismo nombre).
@@ -1325,7 +1325,7 @@ export function renderTowerIcon(canvas, metaKey) {
   ctx.save();
 
   const isDrone = !!DRONES[entry.type];
-  // dev-7 fase 21: Avispas es un dron chico (panal de 8 px de radio, sin
+  // dev-7 fase 21: Mosquitos es un dron chico (panal de 8 px de radio, sin
   // burbuja) — con la escala 0.30 pensada para Campo de Fuerza (burbuja
   // de 140 px) quedaría casi invisible en el ícono.
   const s = isDrone

@@ -296,7 +296,7 @@ function appsOf(cardId, game) {
     // dev-7 fase 30: el contador de "Nido Ampliado" es del propio dron.
     case 'swarm_grow': return findDrone(game, 'wasps')?.swarmApps ?? 0;
     case 'rapid_bullets': return findTower(game, 'guardian')?.rapidApps ?? 0;
-    // dev-7 fase 30: `cadence_up` también la aplica el Dron Avispas (su
+    // dev-7 fase 30: `cadence_up` también la aplica el Dron Mosquitos (su
     // cooldown de picadura), así que el tope se cuenta sobre torres Y
     // drones: si sólo mirara las torres, la carta se seguiría ofreciendo
     // después de 3 usos (con un dron presente) sin efecto real.
@@ -478,7 +478,7 @@ export function isRelevant(card, game) {
   const techType = TECH_UNIT[card.id];
   if (techType && !findUnit(game, techType)) return false;
   // dev-7 fase 30: "Nido Ampliado" sólo si el jugador tiene el dron
-  // Avispas y su enjambre no está al tope.
+  // Mosquitos y su enjambre no está al tope.
   if (card.id === 'swarm_grow') {
     const d = findDrone(game, 'wasps');
     if (!d) return false;
@@ -724,7 +724,7 @@ function applyComboIgnition(game) {
 
 /**
  * Fase 76 — CONCHA DE VENENO: el cráter del Mortar propaga el veneno de
- * las Avispas a todo lo que sigue dentro de la zona.
+ * los Mosquitos a todo lo que sigue dentro de la zona.
  */
 function applyComboVenomShell(game) {
   const f = game?.fortress;
@@ -1073,7 +1073,7 @@ export const CATALOG = [
   // TODO (dev-7): el multiplicador se guarda en `dmgMul` de la unidad. La
   // torre Láser ya lo lee (`Tower.damage`), pero los DRONES todavía no:
   // su daño sale de `data.dps` (Rueda de Fuego) / `data.stingDamage`
-  // (Avispas) / las espinas del perk (Campo de Fuerza) en towers.js. Hasta
+  // (Mosquitos) / las espinas del perk (Campo de Fuerza) en towers.js. Hasta
   // que esas rutas multipliquen por `this.dmgMul`, las 3 cartas de dron no
   // tienen efecto numérico (las de torre sí).
   {
@@ -1122,14 +1122,14 @@ export const CATALOG = [
     },
   },
   {
-    // dev-7 fase 30 (rework del Dron Avispas): con el enjambre continuo,
-    // más avispas = más picaduras = más DPS. Es la palanca de carta
-    // natural del dron (el equivalente de su perk de meta "+1 avispa"),
+    // dev-7 fase 30 (rework del Dron Mosquitos): con el enjambre continuo,
+    // más mosquitos = más picaduras = más DPS. Es la palanca de carta
+    // natural del dron (el equivalente de su perk de meta "+1 mosquito"),
     // y antes el dron NO tenía ninguna carta de crecimiento de cantidad.
     id: 'swarm_grow',
     rarity: 'common',
     name: 'Nido Ampliado',
-    desc: 'Dron Avispas: +1 avispa en el enjambre (hasta 2 veces).',
+    desc: 'Dron Mosquitos: +1 mosquito en el enjambre (hasta 2 veces).',
     weight: 8,
     apply: (g) => {
       const d = findDrone(g, 'wasps');
@@ -1170,7 +1170,7 @@ export const CATALOG = [
     name: 'Servos Acelerados',
     // dev-7 fase 12: antes −15%/stack (×0.85³≈0.614, −38.6% al tope).
     // Ahora −10%/stack (×0.9³≈0.729, −27.1% al tope) — más suave.
-    desc: '-10% de tiempo de recarga en todas las torres y en el Dron Avispas (hasta 3 veces).',
+    desc: '-10% de tiempo de recarga en todas las torres y en el Dron Mosquitos (hasta 3 veces).',
     weight: 10,
     apply: (g) => { applyGlobalCadence(g); },
   },
@@ -1345,8 +1345,8 @@ export const CATALOG = [
   {
     id: 'unlock_drone_wasps',
     rarity: 'legendary',
-    name: 'ARSENAL: Dron Avispas',
-    desc: '3 avispas que persiguen enemigos y pican con 12 de daño; regeneran su enjambre cada 4 s. Un dron por partida.',
+    name: 'ARSENAL: Dron Mosquitos',
+    desc: '3 mosquitos que persiguen enemigos, pican e inyectan veneno; sus perks de hematofagia drenan vida al escudo. Un dron por partida.',
     weight: 10,
     minStage: 2,
     drone: 'wasps',
@@ -1628,7 +1628,7 @@ export const CATALOG = [
     id: 'combo_venom_shell',
     rarity: 'rare',
     name: 'Concha de Veneno',
-    desc: 'El cráter del Mortar propaga el veneno de las Avispas a todo lo que queda dentro de la zona. Requiere Mortar y Avispas.',
+    desc: 'El cráter del Mortar propaga el veneno de los Mosquitos a todo lo que queda dentro de la zona. Requiere Mortar y Mosquitos.',
     weight: 5,
     requiresUnits: ['mortar'],
     requiresTags: ['swarm'],
@@ -1687,7 +1687,7 @@ export const CATALOG = [
     id: 'combo_transfusion',
     rarity: 'rare',
     name: 'Transfusión',
-    desc: 'Cada enemigo envenenado por las Avispas regenera 0,5 HP/s al escudo (tope 5 HP/s). Requiere Drenaje del Haz, Beam y el dron Avispas.',
+    desc: 'Cada enemigo envenenado por los Mosquitos regenera 0,5 HP/s al escudo (tope 5 HP/s). Requiere Drenaje del Haz, Beam y el dron Mosquitos.',
     weight: 5,
     requiresCards: ['tech_lifesteal'],
     requiresUnits: ['beam', 'wasps'],

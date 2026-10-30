@@ -67,7 +67,7 @@ const REPEATABLE_CARDS = [
   'cadence_up', 'rapid_bullets', 'detect_up', 'pierce_up',
   'xp_boost', 'score_gain', 'streak_shield', 'ult_charge', 'ult_power',
   'repair_500', 'armor_plate',
-  // dev-7 fase 30: "Nido Ampliado" (+1 avispa del Dron Avispas).
+  // dev-7 fase 30: "Nido Ampliado" (+1 mosquito del Dron Mosquitos).
   'swarm_grow',
   // dev-7 fase 51: las CARTAS DE TÉCNICA.
   'tech_pierce', 'tech_bounce', 'tech_explode', 'tech_slow',
@@ -441,9 +441,9 @@ test('arsenal: las 4 cartas nuevas de daño exclusivo son elegibles SOLO con su 
   assert.equal(isCardEligible(CATALOG.find((c) => c.id === 'dmg_firewheel'), conUnidades), true);
   assert.equal(isCardEligible(CATALOG.find((c) => c.id === 'dmg_wasps'), conUnidades), false,
     'con el cupo de drones lleno, la carta de OTRO dron no debe ofrecerse');
-  const conAvispas = makeRealGame({ stageId: 2 });
-  conAvispas.fortress.addDrone('wasps');
-  assert.equal(isCardEligible(CATALOG.find((c) => c.id === 'dmg_wasps'), conAvispas), true);
+  const conMosquitos = makeRealGame({ stageId: 2 });
+  conMosquitos.fortress.addDrone('wasps');
+  assert.equal(isCardEligible(CATALOG.find((c) => c.id === 'dmg_wasps'), conMosquitos), true);
   // Sin un dron Campo de Fuerza, su carta no entra al pool.
   assert.equal(isCardEligible(CATALOG.find((c) => c.id === 'dmg_forcefield'), conUnidades), false);
   // Con el dron Campo de Fuerza: entra SÓLO si el jugador tiene el perk
@@ -483,14 +483,14 @@ test('arsenal: las 4 cartas nuevas multiplican SOLO el dmgMul de SU unidad (×1.
   assert.ok(Math.abs(firewheel.dmgMul - 1.6) < 1e-9, 'la Rueda de Fuego sube ×1.6');
   assert.equal(laser.dmgMul, 1.6, 'la torre NO se vuelve a tocar');
 
-  // Las Avispas, en su propia partida: su carta toca SU dron y a nadie más.
+  // Los Mosquitos, en su propia partida: su carta toca SU dron y a nadie más.
   const gameWasps = makeRealGame({ stageId: 2 });
   gameWasps.fortress.addTower('laser');
   gameWasps.fortress.addDrone('wasps');
   const laserW = findTower(gameWasps, 'laser');
   const wasps = findDrone(gameWasps, 'wasps');
   applyCard(CATALOG.find((c) => c.id === 'dmg_wasps'), gameWasps);
-  assert.ok(Math.abs(wasps.dmgMul - 1.6) < 1e-9, 'las Avispas suben ×1.6');
+  assert.ok(Math.abs(wasps.dmgMul - 1.6) < 1e-9, 'los Mosquitos suben ×1.6');
   assert.equal(laserW.dmgMul, 1, 'la torre NO se toca');
 });
 
@@ -625,7 +625,7 @@ test('fase 74: dmg_all alcanza a una torre desbloqueada DESPUÉS', () => {
     `el 2º stack debe componer ×1.21 (dmgMul=${ms.dmgMul})`);
 });
 
-test('fase 30: "Servos Acelerados" (cadence_up) reduce el cooldown de picadura del Avispas', () => {
+test('fase 30: "Servos Acelerados" (cadence_up) reduce el cooldown de picadura de los Mosquitos', () => {
   const game = makeRealGame();
   game.fortress.addDrone('wasps');
   const dron = game.fortress.drones[0];
@@ -640,7 +640,7 @@ test('fase 30: "Servos Acelerados" (cadence_up) reduce el cooldown de picadura d
   assert.equal(isCardEligible(card, game), false, 'alcanzado el tope sale del pool');
 });
 
-test('fase 30: "Nido Ampliado" (swarm_grow) añade avispas al enjambre y sale del pool al tope', () => {
+test('fase 30: "Nido Ampliado" (swarm_grow) añade mosquitos al enjambre y sale del pool al tope', () => {
   const game = makeRealGame();
   const card = CATALOG.find((c) => c.id === 'swarm_grow');
   assert.equal(isCardEligible(card, game), false, 'sin el dron no se ofrece');
@@ -649,7 +649,7 @@ test('fase 30: "Nido Ampliado" (swarm_grow) añade avispas al enjambre y sale de
   const antes = dron.waspCount();
   assert.equal(isCardEligible(card, game), true);
   applyCard(card, game);
-  assert.equal(dron.waspCount(), antes + 1, 'debe añadir una avispa');
+  assert.equal(dron.waspCount(), antes + 1, 'debe añadir un mosquito');
   applyCard(card, game);
   assert.equal(dron.waspCount(), antes + 2, 'la 2ª vez añade otra');
   assert.equal(isCardEligible(card, game), false, 'alcanzado el tope sale del pool');

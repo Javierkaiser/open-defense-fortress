@@ -27,7 +27,7 @@ import {
 import { TOWERS, DRONES } from '../js/towers.js';
 import { rigBox, TOWER_RIGS } from '../js/tower-art.js';
 
-test('META_TOWERS: 11 entradas (9 torres/drones + Avispas fase 21 + Láser fase 22), keys únicas', () => {
+test('META_TOWERS: 11 entradas (9 torres/drones + Mosquitos fase 21 + Láser fase 22), keys únicas', () => {
   assert.equal(META_TOWERS.length, 11);
   const keys = META_TOWERS.map((t) => t.key);
   assert.equal(new Set(keys).size, keys.length);
@@ -39,10 +39,10 @@ test('META_TOWERS: nombres únicos entre sí (sin duplicados internos)', () => {
     `nombres duplicados en META_TOWERS: ${names.join(', ')}`);
 });
 
-test('META_TOWERS: incluye a Avispas (regresión fase 21 — había quedado excluido)', () => {
+test('META_TOWERS: incluye a Mosquitos (regresión fase 21 — había quedado excluido)', () => {
   const wasps = META_TOWERS.find((t) => t.type === 'wasps');
-  assert.ok(wasps, 'Avispas no está en META_TOWERS');
-  assert.equal(wasps.name, 'Dron Avispas');
+  assert.ok(wasps, 'Mosquitos no está en META_TOWERS');
+  assert.equal(wasps.name, 'Dron Mosquitos');
 });
 
 test('META_TOWERS: incluye a Láser (regresión fase 22 — había quedado excluido)', () => {
@@ -216,7 +216,7 @@ test('fase 72: los perks de robo de vida usan la escala nueva y el texto coincid
       }
     }
   }
-  // Fase 1 — identidad: el robo de vida es de Beam y Avispas, no de las 11.
+  // Fase 1 — identidad: el robo de vida es de Beam y Mosquitos, no de las 11.
   // Antes había >= 30 opciones repartidas por todo el arsenal.
   const conLifesteal = META_TOWERS
     .filter((t) => PERKS[t.type].some((tier) => (tier.A.mods?.lifesteal ?? 0) > 0
@@ -928,7 +928,7 @@ test('PERKS: TODO mod de TODA opción lo consume el combate de esa torre (nada d
       ...(t.type === 'guardian' ? bloquesDeMetodo('bulletSpeedNow') : []),
       ...(t.type === 'guardian' ? bloquesDeMetodo('bulletsPerBurst') : []),
       ...(t.type === 'guardian' ? bloquesDeMetodo('_spawnBullet') : []),
-      // El enjambre de las Avispas (extraCount del perk).
+      // El enjambre de los Mosquitos (extraCount del perk).
       ...(t.type === 'wasps' ? bloquesDeMetodo('rebuildSwarm') : []),
       // El radio de la burbuja se lee en el helper único (update y draw).
       ...(t.type === 'forcefield' ? bloquesDeFuncion('forcefieldBubbleR') : []),

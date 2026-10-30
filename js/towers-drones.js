@@ -69,15 +69,15 @@ export class Drone {
     this.dead = false;
     // dev-7 fase 28: reloj del sample 'drone:fire' (ver DRONE_SFX_GAP).
     this._sfxAcc = 0;
-    // Avispas: enjambre CONTINUO (fase 30). Antes eran {null|{enemy}} con
-    // un "respawn" de 4 s (la avispa moría tras picar). Ahora cada avispa
+    // Mosquitos: enjambre CONTINUO (fase 30). Antes eran {null|{enemy}} con
+    // un "respawn" de 4 s (el mosquito moría tras picar). Ahora cada mosquito
     // es una unidad persistente: {x, y, target, cd} — `cd` es el cooldown
     // entre picaduras.
-    // dev-7 fase 21: +1/+2 avispas simultáneas vía perk (extraCount,
+    // dev-7 fase 21: +1/+2 mosquitos simultáneos vía perk (extraCount,
     // mismo campo genérico que ya usan Guardian/Missile/etc.).
     // dev-7 fase 30: + la carta "Nido Ampliado" (extraWasps) y un tope
     // de enjambre (WASPS.maxSwarm).
-    this.extraWasps = 0;      // avispas extra por carta
+    this.extraWasps = 0;      // mosquitos extra por carta
     // dev-7 fase 51: canal de CARTAS (mods de mecánicas por partida).
     this.cardMods = {};
     this.cardApps = {};
@@ -117,11 +117,11 @@ export class Drone {
   }
 
   /**
-   * (Re)construye el enjambre de avispas (fase 30).
+   * (Re)construye el enjambre de mosquitos (fase 30).
    *
    * Tamaño = base (3) + perk de meta (`extraCount`) + carta "Nido
    * Ampliado" (`extraWasps`), con un tope de diseño (WASPS.maxSwarm):
-   * con el enjambre continuo cada avispa extra vale 4× más que antes
+   * con el enjambre continuo cada mosquito extra vale 4× más que antes
    * (ya no hay 4 s de tiempo muerto), así que sin tope el dron endgame
    * valía más que una torre entera.
    *
@@ -133,7 +133,7 @@ export class Drone {
     const perkExtra = unitMods(this).extraCount ?? 0;
     const cardExtra = this.extraWasps ?? 0;
     const want = Math.min(WASPS.maxSwarm, base + perkExtra + cardExtra);
-    // Conserva las avispas que ya existían (con su blanco y su cooldown)
+    // Conserva los mosquitos que ya existían (con su blanco y su cooldown)
     // y añade las nuevas desde el panal.
     const prev = this.wasps ?? [];
     this.wasps = [];
@@ -142,7 +142,7 @@ export class Drone {
     }
   }
 
-  /** Nº de avispas del enjambre (para la carta "Nido Ampliado"). */
+  /** Nº de mosquitos del enjambre (para la carta "Nido Ampliado"). */
   waspCount() {
     return this.wasps?.length ?? 0;
   }
@@ -158,7 +158,7 @@ export class Drone {
    * main.js y la traduce al sample 'drone').
    *
    * Se emite UNA vez por TICK DE ATAQUE del dron, NO una vez por enemigo
-   * tocado: las 3 avispas que pican en el mismo frame son un solo
+   * tocado: los 3 mosquitos que pican en el mismo frame son un solo
    * disparo, y la rueda de fuego quemando a 3 enemigos también. El
    * limitador interno (DRONE_SFX_GAP) evita además que los drones
    * CONTINUOS repitan el sample cada frame (el audio tiene su propio
@@ -327,10 +327,10 @@ export class Drone {
         break;
       }
       case 'wasps': { // dev-7 fase 30: ENJAMBRE CONTINUO (rework del dron)
-        // Antes (fase 21) la avispa picaba UNA vez y desaparecía 4 s
+        // Antes (fase 21) el mosquito picaba UNA vez y desaparecía 4 s
         // (`respawnTime`): 3 × 12 dmg / 4 s = 9 DPS medidos, el peor del
         // arsenal, con el DPS gateado por el tiempo muerto. Ahora la
-        // avispa es persistente: pica, entra en cooldown y sigue volando.
+        // mosquito es persistente: pica, entra en cooldown y sigue volando.
         const waspMods = unitMods(this);
         // dev-7 fase 28: la carta exclusiva del dron (dmg_wasps) escribe
         // `this.dmgMul` en la unidad — sin este factor la picadura era
@@ -349,10 +349,10 @@ export class Drone {
         const stingCd = Math.max(0.2,
           (d.stingCooldown ?? WASPS.stingCooldown)
           * (waspMods.cadMul ?? 1) * (this.cadMul ?? 1));
-        // Flota sobre la base; las avispas persiguen y pican
+        // Flota sobre la base; los mosquitos persiguen y pican
         this.x = c.x + Math.sin(this._bobT * 0.9) * 26;
         this.y = c.y - 26 + Math.cos(this._bobT * 1.3) * 6;
-        // Cada avispa toma un blanco DISTINTO cuando hay para todas: el
+        // Cada mosquito toma un blanco DISTINTO cuando hay para todos: el
         // enjambre reparte el frente en vez de apilarse en un enemigo.
         // Los blancos ya tomados por OTRO dron también cuentan: si no, los
         // 2 drones se apilan sobre los mismos 3 enemigos y el segundo no
@@ -370,7 +370,7 @@ export class Drone {
           const w = this.wasps[i];
           if (!w) continue;
           if (w.target && w.target.dead) w.target = null;
-          // dev-7 fase 33: los drones VARIAN — la avispa re-elige blanco
+          // dev-7 fase 33: los drones VARIAN — el mosquito re-elige blanco
           // cada WASPS.retarget segundos (o si el suyo se aleja mucho), sin
           // esperar a que muera. Antes se quedaba con el blanco hasta
           // que lo destruían.
@@ -391,7 +391,7 @@ export class Drone {
           }
           if (w.cd > 0) w.cd -= dt;
           if (!w.target) {
-            // Sin blanco: la avispa vuelve al panal.
+            // Sin blanco: el mosquito vuelve al panal.
             const dx = this.x - w.x, dy = this.y - w.y;
             const dc = Math.hypot(dx, dy) || 1;
             if (dc > 3) {
@@ -401,7 +401,7 @@ export class Drone {
             continue;
           }
           // VUELO con velocidad propia (antes: un lerp exponencial que
-          // hacía que la avispa se "teletransportase" al blanco). El
+          // hacía que el mosquito se "teletransportase" al blanco). El
           // enjambre se reparte en un círculo alrededor del objetivo.
           const ang = (i / Math.max(1, this.wasps.length)) * Math.PI * 2;
           const tx = w.target.x + Math.cos(ang) * WASPS.swarmRadius;
@@ -411,7 +411,7 @@ export class Drone {
           const step = Math.min(dc, WASPS.speed * dt);
           w.x += (dx / dc) * step;
           w.y += (dy / dc) * step;
-          // Velocidad (px/s) para el render: la avispa se dibuja orientada
+          // Velocidad (px/s) para el render: el mosquito se dibuja orientado
           // hacia donde vuela y deja una estela corta detrás.
           w.vx = (dx / dc) * WASPS.speed;
           w.vy = (dy / dc) * WASPS.speed;
@@ -424,7 +424,7 @@ export class Drone {
             if (venomDps > 0 && venomTime > 0) {
               applyPoison(w.target, venomDps, venomTime, 'poison');
             }
-            // Identidad de las Avispas: el veneno se propaga al morir
+            // Identidad de los Mosquitos: el veneno se propaga al morir
             // (onMechanicKill en Enemy.die). El hook de impacto mantiene
             // la simetría con el resto de las unidades.
             onMechanicHit('wasps', w.target, this.game, { dmg: stingDmg, mods: waspMods });
@@ -433,7 +433,7 @@ export class Drone {
             }
             w.cd = stingCd;
             // dev-7 fase 28: el sample del dron suena UNA vez por tick
-            // de ataque (las 3 avispas que pican en el mismo frame
+            // de ataque (los 3 mosquitos que pican en el mismo frame
             // cuentan como un solo disparo, no como 3).
             this._sfxFire();
             this.game.engine.spawnParticles(w.x, w.y, d.accent, 2, {
@@ -585,8 +585,8 @@ export class Drone {
   }
 
   /**
-   * Blanco para una avispa: el más cercano A LA BASE, evitando los
-   * blancos ya tomados por otras avispas (si hay suficientes).
+   * Blanco para un mosquito: el más cercano A LA BASE, evitando los
+   * blancos ya tomados por otros mosquitos (si hay suficientes).
    */
   _pickWaspTarget(enemies, taken = null) {
     let best = null;
@@ -632,8 +632,8 @@ export class Drone {
         }
         break;
       }
-      case 'wasps': { // panal hexagonal + enjambre de avispas (fase 30)
-        // El panal: cuerpo oscuro + celdas + el número de avispas vivas
+      case 'wasps': { // panal hexagonal + enjambre de mosquitos (fase 30)
+        // El panal: cuerpo oscuro + celdas + el número de mosquitos vivos
         // (fase 30: el enjambre es continuo, así que el panal muestra
         // cuántas hay en vez de "cuántas esperan el respawn").
         ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -653,7 +653,7 @@ export class Drone {
           const dx = w.x - this.x, dy = w.y - this.y;
           ctx.save();
           ctx.translate(dx, dy);
-          // dev-7 fase 30: la avispa es más grande y legible (era un
+          // dev-7 fase 30: el mosquito es más grande y legible (era un
           // elipse de 4,5x3 px, diminuta) y se ve de qué lado vuela.
           const ang = Math.atan2(w.vy ?? 0, w.vx ?? 0);
           ctx.rotate(ang);

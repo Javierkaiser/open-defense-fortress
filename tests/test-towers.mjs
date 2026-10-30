@@ -585,7 +585,7 @@ test('fase 28: la carta de la Rueda de Fuego (dmg_firewheel) multiplica su daño
     `la carta ×1.6 debe multiplicar el DPS quemado (${base} → ${conCarta})`);
 });
 
-test('fase 28: la carta de Avispas (dmg_wasps) multiplica la picadura ×1.6', () => {
+test('fase 28: la carta de los Mosquitos (dmg_wasps) multiplica la picadura ×1.6', () => {
   setMeta({});
   const picar = (mul) => {
     const juego = mkGame();
@@ -593,14 +593,14 @@ test('fase 28: la carta de Avispas (dmg_wasps) multiplica la picadura ×1.6', ()
     dr.dmgMul = mul;
     const e = mkTank(dr.x, dr.y);
     juego.fortress.enemies = [e];
-    dr.update(0.1, [e]); // 1er update: las avispas salen
+    dr.update(0.1, [e]); // 1er update: los mosquitos salen
     dr.update(1, [e]);   // 2do update: pican (3 picaduras)
     return 1e6 - e.hp;
   };
   const base = picar(1);
   const conCarta = picar(1.6);
   setMeta({});
-  assert.ok(base > 0, 'las avispas deben picar');
+  assert.ok(base > 0, 'los mosquitos deben picar');
   // La picadura se redondea a entero (12 → 19), así que la razón es ≈1.6.
   assert.ok(Math.abs(conCarta / base - 1.6) < 0.05,
     `la carta ×1.6 debe multiplicar la picadura (${base} → ${conCarta})`);
@@ -695,7 +695,7 @@ test('fase 28: los drones emiten "drone:fire" una vez por tick de ataque', () =>
     assert.deepEqual(emits, ['drone:fire'],
       `la rueda debe emitir UN evento por tick (emitió ${JSON.stringify(emits)})`);
   }
-  // Avispas: las 3 avispas que pican en el mismo frame = 1 evento.
+  // Mosquitos: los 3 mosquitos que pican en el mismo frame = 1 evento.
   {
     const { juego, emits } = sfxGame();
     const dr = new Drone('wasps', juego, 0);
@@ -704,7 +704,7 @@ test('fase 28: los drones emiten "drone:fire" una vez por tick de ataque', () =>
     dr.update(0.1, [e]);
     dr.update(1, [e]);
     assert.deepEqual(emits, ['drone:fire'],
-      `las avispas deben emitir UN evento por tick (emitió ${JSON.stringify(emits)})`);
+      `los mosquitos deben emitir UN evento por tick (emitió ${JSON.stringify(emits)})`);
   }
   // Campo de Fuerza: el campo con enemigos adentro = 1 evento.
   {
@@ -1120,7 +1120,7 @@ function trazaCtx() {  const trazos = [];
 }
 
 // ============================================================
-// dev-7 fase 30 — REWORK DEL DRON AVISPAS (enjambre continuo + veneno)
+// dev-7 fase 30 — REWORK DEL DRON MOSQUITOS (enjambre continuo + veneno)
 // ============================================================
 
 /** Enemigo con veneno (para el combate real del dron). */
@@ -1140,8 +1140,8 @@ function mkVeneno(x, y, hp = 1e6) {
   };
 }
 
-test('fase 30: la avispa pica REPETIDAS veces (ya no se consume con la picadura)', () => {
-  // Antes (fase 21): la avispa picaba una vez y desaparecía 4 s
+test('fase 30: el mosquito pica REPETIDAS veces (ya no se consume con la picadura)', () => {
+  // Antes (fase 21): el mosquito picaba una vez y desaparecía 4 s
   // (respawnTime) → 3 × 12 dmg / 4 s = 9 DPS medidos, el peor del
   // arsenal. Ahora: pica, entra en cooldown y sigue volando.
   setMeta({});
@@ -1149,16 +1149,16 @@ test('fase 30: la avispa pica REPETIDAS veces (ya no se consume con la picadura)
   const dr = new Drone('wasps', juego, 0);
   const e = mkTank(dr.x, dr.y);
   juego.fortress.enemies = [e];
-  dr.update(0.1, [e]);          // salen las avispas
+  dr.update(0.1, [e]);          // salen los mosquitos
   dr.update(1.0, [e]);         // pican (1ª vez)
   const tras1 = 1e6 - e.hp;
   dr.update(2.0, [e]);         // 2ª picadura (el cooldown ya venció)
   const tras2 = 1e6 - e.hp;
   assert.ok(tras1 > 0, 'la primera picadura debe hacer daño');
   assert.ok(tras2 > tras1,
-    `la avispa debe volver a picar (daño ${tras1} → ${tras2}): no puede ser un misil de un solo uso`);
-  // Y las 3 avispas siguen vivas (no se "consumen").
-  assert.equal(dr.wasps.length, 3, 'el enjambre no pierde avispa al picar');
+    `el mosquito debe volver a picar (daño ${tras1} → ${tras2}): no puede ser un misil de un solo uso`);
+  // Y los 3 mosquitos siguen vivos (no se "consumen").
+  assert.equal(dr.wasps.length, 3, 'el enjambre no pierde mosquito al picar');
   assert.equal(dr.wasps.filter((w) => w).length, 3);
 });
 
@@ -1173,7 +1173,7 @@ test('fase 30: el veneno de la picadura hace daño con el tiempo y mata al enemi
   assert.ok(e.poisonT > 0, 'la picadura debe envenenar al objetivo');
   assert.ok(e.poisonDps > 0, 'el veneno debe tener daño por segundo');
   const hpTrasPicadura = e.hp;
-  // El veneno sigue haciendo daño aunque la avispa no vuelva a picar.
+  // El veneno sigue haciendo daño aunque el mosquito no vuelva a picar.
   e.update(1.0);
   assert.ok(e.hp < hpTrasPicadura, 'el veneno debe hacer daño con el tiempo');
 });
@@ -1203,7 +1203,7 @@ test('fase 30: el enjambre respeta el tope de diseño (WASPS.maxSwarm)', () => {
     `con la carta el enjambre (${dr.wasps.length}) no puede pasar de ${WASPS.maxSwarm}`);
 });
 
-test('fase 30: el DPS del dron Avispas es al menos el doble del valor de la fase 29', () => {
+test('fase 30: el DPS del dron Mosquitos es al menos el doble del valor de la fase 29', () => {
   // Regresión de VALOR: en la fase 29 el dron daba 8,1 DPS (medido con
   // el simulador de daño por fuente). Si el rework se rompe, el dron
   // vuelve a ser inútil y nadie lo quiere.
@@ -1220,7 +1220,7 @@ test('fase 30: el DPS del dron Avispas es al menos el doble del valor de la fase
   for (let t = 0; t < SEG; t += DT) dr.update(DT, [e]);
   const dps = (1e6 - e.hp) / SEG;
   // Objetivo medido tras el rework: ~22 DPS de picadura (meta Nvl.1).
-  assert.ok(dps >= 12, `el dron Avispas debe dar al menos 12 DPS (dio ${dps.toFixed(1)})`);
+  assert.ok(dps >= 12, `el dron Mosquitos debe dar al menos 12 DPS (dio ${dps.toFixed(1)})`);
 });
 
 test('fase 30: la picadura NO es un remate (el veneno no dispara lifesteal ni execute)', () => {
@@ -1465,7 +1465,7 @@ test('fase 33: los drones VARIAN (re-eligen sin esperar a que el blanco muera)',
   juego.fortress.enemies = [a, b];
   dr.update(0.016, [a, b]);
   const w = dr.wasps[0];
-  assert.ok(w.target, 'la avispa toma un blanco');
+  assert.ok(w.target, 'el mosquito toma un blanco');
   // El blanco sigue vivo: tras el periodo de re-elección puede cambiar.
   w.retargetT = 0;
   dr.update(0.016, [a, b]);

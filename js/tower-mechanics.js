@@ -228,7 +228,7 @@ export function onMechanicTick(type, enemy, game, ctx = {}) {
 }
 
 /**
- * Hook de muerte: el veneno de las Avispas se propaga a los vecinos. Se llama
+ * Hook de muerte: el veneno de los Mosquitos se propaga a los vecinos. Se llama
  * desde Enemy.die() ANTES de limpiar el estado de veneno.
  */
 export function onMechanicKill(enemy, game) {

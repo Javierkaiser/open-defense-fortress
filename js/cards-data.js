@@ -2,7 +2,7 @@
 // cards-data.js — datos puros del catálogo de cartas
 // -----------------------------------------------------------------------------
 // Extraído de cards.js (fase 75): topes, tags de unidad, técnicas y cazas.
-// No importa la lógica de la partida; solo la tabla de avispas para el tope
+// No importa la lógica de la partida; solo la tabla de mosquitos para el tope
 // del enjambre y la constante de daño de caza.
 // =============================================================================
 
@@ -25,7 +25,7 @@ export const CARD_OFFER_COUNT = 3;
 //   · economía/defensa → xp_boost 2, score_gain 2, streak_shield 2,
 //                         ult_charge 1, ult_power 2, repair_500 3,
 //                         armor_plate 1
-// dev-7 fase 30: swarm_grow 2 (+1 avispa del Dron Avispas).
+// dev-7 fase 30: swarm_grow 2 (+1 mosquito del Dron Mosquitos).
 export const CAPS = {
   dmg_all: 2,        // Munición Reforzada ×2 como máximo
   // fase 74: cartas de DAÑO POR TIPO (afectan a todas las unidades de
@@ -52,8 +52,8 @@ export const CAPS = {
   dmg_firewheel: 2,
   dmg_wasps: 2,
   dmg_forcefield: 2,
-  // dev-7 fase 30: "Nido Ampliado" (+1 avispa del enjambre del Dron
-  // Avispas). Tope 2: el enjambre base son 3 avispas y el tope de diseño
+  // dev-7 fase 30: "Nido Ampliado" (+1 mosquito del enjambre del Dron
+  // Mosquitos). Tope 2: el enjambre base son 3 mosquitos y el tope de diseño
   // son 5 (+ el +1/+2 del perk de meta, que va por otro lado).
   swarm_grow: 2,
   cadence_up: 3,     // Servos Acelerados ×3 (×0.9³ ≈ 0.73 cadencia)
@@ -329,7 +329,7 @@ export const TECH_CARDS = [
     id: 'tech_wasps_venom',
     rarity: 'uncommon',
     name: 'Veneno Concentrado',
-    desc: 'El veneno de las Avispas hace +1 de daño por segundo (hasta 2 veces).',
+    desc: 'El veneno de los Mosquitos hace +1 de daño por segundo (hasta 2 veces).',
     weight: 5,
     minStage: 2,
     unit: 'wasps',
