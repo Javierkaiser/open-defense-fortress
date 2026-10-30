@@ -65,7 +65,7 @@ const REPEATABLE_CARDS = [
   'dmg_missile', 'dmg_beam', 'dmg_thunder', 'dmg_tesla', 'dmg_mortar', 'dmg_gauss',
   'dmg_laser', 'dmg_firewheel', 'dmg_wasps', 'dmg_forcefield',
   'cadence_up', 'rapid_bullets', 'detect_up', 'pierce_up',
-  'xp_boost', 'score_gain', 'streak_shield', 'ult_charge', 'ult_power',
+  'base_shield', 'ult_charge', 'ult_power',
   'repair_500', 'armor_plate',
   // dev-7 fase 30: "Nido Ampliado" (+1 mosquito del Dron Mosquitos).
   'swarm_grow',
@@ -133,8 +133,23 @@ test('CATALOG: 86 cartas (74 repetibles + 12 de un solo uso)', () => {
   // fase 74: +22 cartas (5 de tipo + 12 técnicas + 3 combos + 2 Black Hole).
   // fase 74.2: +11 combos de frío/lifesteal/tipo-mecánica.
   // fase 76: -6 combos débiles +11 combos de identidad = +5.
-  assert.equal(CATALOG.length, 86);
-  assert.equal(REPEATABLE_CARDS.length, 74);
+  assert.equal(CATALOG.length, 84);
+  assert.equal(REPEATABLE_CARDS.length, 72);
+});
+
+test('limpieza 1.5.4: fuera XP/score; el escudo queda como Escudo de Base', () => {
+  for (const id of ['xp_boost', 'score_gain']) {
+    assert.equal(CATALOG.some((c) => c.id === id), false, `${id} no debe existir`);
+    assert.equal(CAPS[id], undefined, `${id} no debe tener tope`);
+  }
+  const shield = CATALOG.find((c) => c.id === 'base_shield');
+  assert.ok(shield, 'base_shield debe existir');
+  assert.equal(shield.name, 'Escudo de Base');
+  assert.equal(CAPS.base_shield, 2);
+  const game = makeRealGame();
+  assert.equal(game.fortress.xpMul, undefined, 'xpMul ya no existe');
+  assert.equal(game.fortress.scoreMul, undefined, 'scoreMul ya no existe');
+  assert.equal(game.fortress.baseShields, 0, 'baseShields arranca en 0');
 });
 
 test('CAPS: TODA carta repetible del catálogo tiene tope (anti-stack infinito)', () => {
@@ -526,17 +541,6 @@ test('arsenal: las 4 cartas nuevas pesan lo mismo que sus hermanas (9)', () => {
   }
 });
 
-test('xp_boost: pesa 10 (compite con las cartas de daño: el XP abre ofertas)', () => {
-  // dev-7 fase 59.3: el peso de xp_boost baja de 12 a 10. Con el XP por
-  // kill escalando con la etapa (score.js: xpForKill), la carta que sube
-  // el XP vale un poco menos que antes (ya no multiplica un XP plano), y
-  // la oferta de 3 cartas se llena mejor con las cartas de daño y de
-  // desbloqueo (que son las que suben el DPS).
-  const card = CATALOG.find((c) => c.id === 'xp_boost');
-  assert.equal(card.weight, 10);
-  assert.equal(CATALOG.find((c) => c.id === 'dmg_all').weight, 12);
-});
-
 test('armor_plate: una sola vez y +600 de HP máximo (la base sigue siendo mortal)', () => {
   // Antes: +800 ×2 = +1 600 sobre 3 000 (+53%) → con LEAK_DMG_CAP=50
   // toleraba 32 leaks extra: base prácticamente inmatable (anulaba el
@@ -875,7 +879,7 @@ test('fase 59.3: las cartas de desbloqueo pesan más que antes (el arsenal es pr
 });
 
 test('fase 59.3: la utilidad no compite con el daño en la oferta de 3', () => {
-  const utility = ['repair_500', 'armor_plate', 'score_gain', 'streak_shield', 'detect_up'];
+  const utility = ['repair_500', 'armor_plate', 'base_shield', 'detect_up'];
   for (const id of utility) {
     const c = CATALOG.find((x) => x.id === id);
     assert.ok(c.weight <= 5, `${id} (utilidad) pesa ${c.weight}: debería pesar 5 o menos`);
@@ -1022,9 +1026,7 @@ function toparTodo(f) {
     }
   }
   f.detectApps = CAPS.detect_up;
-  f.xpBoostApps = CAPS.xp_boost;
-  f.scoreGainApps = CAPS.score_gain;
-  f.streakShieldApps = CAPS.streak_shield;
+  f.baseShieldApps = CAPS.base_shield;
   f.orbitalPowerApps = CAPS.ult_power;
   f.repairApps = CAPS.repair_500;
   f.armorApps = CAPS.armor_plate;

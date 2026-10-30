@@ -20,7 +20,7 @@ import { baseScoreForEnemy, speedMult, scoreWithCarry, xpForKill } from './score
  * @param {object} [opts]
  * @param {number} [opts.mult] multiplicador de racha
  * @param {number} [opts.timeScale] velocidad de juego (x1/x1.5/x2)
- * @param {number} [opts.scoreMul] Prima de Combate de las cartas
+ * @param {number} [opts.scoreMul] multiplicador externo opcional de score
  * @param {number} [opts.carry] fracción acumulada de crías anteriores
  * @returns {{gained:number, carry:number, base:number, raw:number}}
  */
@@ -46,7 +46,7 @@ export function resolveKillScore(enemy, {
  * @param {object} [opts]
  * @param {number} [opts.stage] etapa que paga la energía (1 = sin escala)
  * @param {number} [opts.bonusFrac] bonus de energía del tipo (D12)
- * @param {number} [opts.xpMul] multiplicador de energía de las cartas
+ * @param {number} [opts.xpMul] multiplicador externo opcional de energía
  * @returns {number} XP de la baja
  */
 export function resolveKillXp(enemy, { stage = 1, bonusFrac = 0, xpMul = 1 } = {}) {

@@ -273,10 +273,10 @@ test('FASE 59.3: un meta bajo con perks NO rinde como un meta alto', async () =>
 test('FASE 59.4: el jugador que optimiza puntúa el DAÑO por encima del utility', () => {
   const byId = (id) => CATALOG.find((c) => c.id === id);
   const dpm = cardDpsScore(byId('dmg_all'));
-  const util = cardDpsScore(byId('score_gain'));
+  const util = cardDpsScore(byId('repair_500'));
   const unlock = cardDpsScore(byId('unlock_missile'));
-  assert.ok(dpm > util, `dmg_all (${dpm}) debe puntuar más que score_gain (${util})`);
-  assert.ok(unlock > util, `unlock_missile (${unlock}) debe puntuar más que score_gain (${util})`);
+  assert.ok(dpm > util, `dmg_all (${dpm}) debe puntuar más que repair_500 (${util})`);
+  assert.ok(unlock > util, `unlock_missile (${unlock}) debe puntuar más que repair_500 (${util})`);
   assert.ok(cardDpsScore(null) < util, 'una carta inexistente puntúa menos que cualquier otra');
 });
 

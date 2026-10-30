@@ -1826,9 +1826,7 @@ export class HUD {
     const mods = [
       ...(sum.tags ?? []).map((tag) => `<span>#${esc(tag)}</span>`),
       sum.pierce > 0 ? `<span>Perforación +${sum.pierce}</span>` : '',
-      sum.xpMul !== 1 ? `<span>Energía ×${sum.xpMul.toFixed(2)}</span>` : '',
-      sum.scoreMul !== 1 ? `<span>Score ×${sum.scoreMul.toFixed(2)}</span>` : '',
-      sum.streakShields > 0 ? `<span>Escudo de racha ×${sum.streakShields}</span>` : '',
+      sum.baseShields > 0 ? `<span>Escudo de Base ×${sum.baseShields}</span>` : '',
       sum.orbitalDmgMul !== 1 ? `<span>Orbital ×${sum.orbitalDmgMul.toFixed(2)}</span>` : '',
     ].filter(Boolean).join('');
     // Arsenal §2.3: drones activos + medidor de Black Hole (v4 4b/5)

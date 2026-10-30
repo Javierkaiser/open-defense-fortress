@@ -659,7 +659,7 @@ const OFFER = [
 /** Resumen de combo (como lo arma main.js: comboSummary(game)). */
 const comboSum = () => ({
   towers: [{ name: 'Guardian', slot: 2, level: 3, dmgMul: 1.2, cadMul: 1 }],
-  pierce: 1, xpMul: 1, scoreMul: 1, streakShields: 0, orbitalDmgMul: 1,
+  pierce: 1, baseShields: 0, orbitalDmgMul: 1,
   drones: [], blackHoleCharge: 0, lv: 4, kills: 7,
 });
 
@@ -1450,12 +1450,12 @@ test('fase 39: la rareza mide la POTENCIA de la carta (no el peso de sorteo)', (
       `${id} debería ser legendaria`);
   }
   // Los buffs generales muy potentes son RAROS.
-  for (const id of ['dmg_all', 'xp_boost', 'armor_plate']) {
+  for (const id of ['dmg_all', 'armor_plate']) {
     assert.equal(CATALOG.find((c) => c.id === id)?.rarity, 'rare',
       `${id} debería ser rara`);
   }
   // Y los ajustes puntuales son COMUNES.
-  for (const id of ['repair_500', 'score_gain', 'rapid_bullets', 'swarm_grow']) {
+  for (const id of ['repair_500', 'rapid_bullets', 'swarm_grow']) {
     assert.equal(CATALOG.find((c) => c.id === id)?.rarity, 'common',
       `${id} debería ser común`);
   }
@@ -1463,20 +1463,13 @@ test('fase 39: la rareza mide la POTENCIA de la carta (no el peso de sorteo)', (
 
 test('fase 39: la rareza NO sale del peso de sorteo', () => {
   // Regresión: la rareza se derivaba del weight, así que dos cartas del
-  // mismo peso salían con la misma etiqueta.
-  // dev-7 fase 59.3: los pesos cambiaron (el arsenal pesa más y la
-  // utilidad menos), así que el par de la regresión ya no comparte peso:
-  // ahora son "Acelerador de Energía" (Raro) y "Servos Acelerados"
-  // (Poco común), las dos de peso 10.
-  const abanico = CATALOG.find((c) => c.id === 'bullets_5');
-  const acelerador = CATALOG.find((c) => c.id === 'xp_boost');
-  const cadencia = CATALOG.find((c) => c.id === 'cadence_up');
-  const reparacion = CATALOG.find((c) => c.id === 'repair_500');
-  assert.equal(acelerador.weight, cadencia.weight, 'el caso de la regresión usa el mismo peso');
-  assert.notEqual(acelerador.rarity, cadencia.rarity,
+  // mismo peso salían con la misma etiqueta. Blindaje de Base (Raro) y
+  // Escudo de Base (Poco común) comparten peso 4 y NO comparten rareza.
+  const blindaje = CATALOG.find((c) => c.id === 'armor_plate');
+  const escudo = CATALOG.find((c) => c.id === 'base_shield');
+  assert.equal(blindaje.weight, escudo.weight, 'el caso de la regresión usa el mismo peso');
+  assert.notEqual(blindaje.rarity, escudo.rarity,
     'mismo peso NO puede implicar la misma rareza: mide la potencia');
-  assert.notEqual(abanico.rarity, reparacion.rarity,
-    'y dos cartas de pesos distintos tampoco tienen que coincidir');
 });
 
 test('fase 39: cardRarity traduce la rareza a etiqueta, clase y nivel', () => {

@@ -65,7 +65,7 @@ export const SFX_FILES = {
   laser: 'assets/sfx/laser_beam.ogg',
   // --- fase 26: la base deja de ser muda ---
   baseHit: 'assets/sfx/impact_light.ogg',  // la base recibe daño
-  baseBlocked: 'assets/sfx/shield_field.ogg', // golpe ABSORBIDO por el escudo de racha
+  baseBlocked: 'assets/sfx/shield_field.ogg', // golpe ABSORBIDO por el Escudo de Base
   // --- fase 26: el arsenal se oye (eventos que emite js/towers.js) ---
   missile: 'assets/sfx/shot_pew.ogg',      // missile:fire
   gauss: 'assets/sfx/laser_digital.ogg',  // gauss:fire
@@ -837,7 +837,7 @@ export class AudioManager {
         this._noise({ dur: 0.22, vol: 0.34, f: 420, sweepTo: 120 });
         this._tone({ type: 'sine', f0: 160, f1: 70, dur: 0.22, vol: 0.26 });
         break;
-      case 'baseBlocked': // escudo de racha: campo de fuerza
+      case 'baseBlocked': // Escudo de Base: campo de fuerza
         this._tone({ type: 'sine', f0: 520, f1: 900, dur: 0.22, vol: 0.18 });
         this._noise({ dur: 0.3, vol: 0.12, f: 2400, type: 'bandpass', q: 3 });
         break;

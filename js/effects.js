@@ -126,7 +126,7 @@ export function spawnGoldenFireworks(engine, x = CONFIG.BASE_X, y = 300) {
  * Entidad del engine ({update(dt), draw(ctx), dead}): nace donde murió
  * el cristal, CAE hacia la base con leve vaivén, brilla pulsante, y al
  * llegar a la zona de la base SE RECOGE: aplica el bonus REAL
- * (xpMul × dropXpBonusFrac sobre el score base del cristal), suma score
+ * (dropXpBonusFrac sobre el score base del cristal), suma score
  * y lanza float "+N" verde-energía. Sin tocar stats ni balance: usa los
  * mismos números que ya aplicaba _onKill().
  */
@@ -173,11 +173,9 @@ export class EnergyOrb {
     this.dead = true;
     const eng = this.game?.engine;
     const g = this.game;
-    // Bonus REAL: mismo número que aplicaba _onKill (fracción del base
-    // escalada por xpMul). Score sube igual (la energía ES score §2.7).
-    const bonus = Math.max(1, Math.round(
-      this.value * (g?.fortress?.xpMul ?? 1),
-    ));
+    // Bonus REAL: mismo número que aplica _onKill (fracción del base).
+    // Score sube igual (la energía ES score §2.7).
+    const bonus = Math.max(1, Math.round(this.value));
     if (g && typeof g.score === 'number') g.score += bonus;
     eng?.floatText(this.x, Math.min(this.y, orbPickupY()) - 14, `+${bonus}`, '#35E0C8');
     eng?.spawnParticles(this.x, orbPickupY(), '#35E0C8', 8, {

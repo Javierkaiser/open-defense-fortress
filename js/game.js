@@ -199,10 +199,10 @@ export class Game {
       }
     });
 
-    // v3 3j/7 (BUG-R1): golpe ABSORBIDO por Escudo de Racha — float `~N` cian
-    // con el daño REAL bloqueado (payload base:blocked ya trae blocked).
+    // v3 3j/7 (BUG-R1): golpe ABSORBIDO por el Escudo de Base — float `~N`
+    // cian con el daño REAL bloqueado (payload base:blocked ya trae blocked).
     engine.on('base:blocked', ({ blocked }) => {
-      // dev-7 fase 28: el Escudo de Racha es un SALVAVIDAS: el jugador
+      // dev-7 fase 28: el Escudo de Base es un SALVAVIDAS: el jugador
       // tiene que OÍR que su escudo bloqueó el golpe, no ver un float
       // cian que se pierde entre el ruido.
       this.audio.sfx('baseBlocked');
@@ -1359,7 +1359,6 @@ export class Game {
     const reward = resolveKillScore(enemy, {
       mult: this.mult,
       timeScale: this.engine.timeScale,
-      scoreMul: this.fortress.scoreMul ?? 1,
       carry: this._spawnScoreCarry,
     });
     this._spawnScoreCarry = reward.carry;
@@ -1404,7 +1403,6 @@ export class Game {
     this._gainXp(resolveKillXp(enemy, {
       stage: this._xpStageNow(),
       bonusFrac: enemy?.data?.dropXpBonusFrac ?? 0,
-      xpMul: this.fortress.xpMul ?? 1,
     }));
 
     // Ultimate: carga SOLO por kills (§2.8); el boss suma cargas extra

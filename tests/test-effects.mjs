@@ -37,7 +37,7 @@ test('fase 75: MultiKillWatcher dispara una salva por cada 3 kills en 0.5 s', ()
 
 test('fase 75: EnergyOrb se recoge al llegar a la base y suma score', () => {
   const engine = mkEngine();
-  const game = { engine, fortress: { xpMul: 1 }, score: 0 };
+  const game = { engine, fortress: {}, score: 0 };
   const orb = new EnergyOrb(game, 100, CONFIG.TOWER_Y - 61, 10);
   orb.update(1);
   assert.equal(orb.dead, true);

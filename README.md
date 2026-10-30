@@ -63,7 +63,7 @@ La demo se publica sola: cada push a `main` corre el workflow de deploy
 - **Supervivencia**: olas infinitas, atrición de base y jefe cada 5 oleadas.
 - **Desafío diario** con semilla por fecha.
 - **Protocolo / Heat**: 11 condiciones, presets I–V y recompensas extra.
-- **8 torres + 3 drones**, cada una con una **mecánica firma** (supresión, fusión, juicio, ion, cráter, riel, corte, ignición, veneno y burbuja), 86 cartas, 7 afijos de élite y 5 temas visuales.
+- **8 torres + 3 drones**, cada una con una **mecánica firma** (supresión, fusión, juicio, ion, cráter, riel, corte, ignición, veneno y burbuja), 84 cartas, 7 afijos de élite y 5 temas visuales.
 - **4 familias de enemigos** con enjambre y tanque propios (roca, virus,
   espora y cristal), cada una con su mecánica.
 - **Sin anuncios, sin compras, sin cuentas, sin telemetría.**

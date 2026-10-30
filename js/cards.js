@@ -306,9 +306,7 @@ function appsOf(cardId, game) {
     case 'detect_up': return f.detectApps ?? 0;
     // dev-7: `pierce_up` y `ult_charge` no tenían tope (contadores nuevos).
     case 'pierce_up': return f.pierceApps ?? 0;
-    case 'xp_boost': return f.xpBoostApps ?? 0;
-    case 'score_gain': return f.scoreGainApps ?? 0;
-    case 'streak_shield': return f.streakShieldApps ?? 0;
+    case 'base_shield': return f.baseShieldApps ?? 0;
     case 'ult_charge': return f.ultChargeApps ?? 0;
     case 'ult_power': return f.orbitalPowerApps ?? 0;
     // dev-7 fase 26: contadores de las dos cartas de defensa (ver CAPS).
@@ -1423,56 +1421,16 @@ export const CATALOG = [
     },
   },
   {
-    id: 'xp_boost',
-    rarity: 'rare',
-    name: 'Acelerador de Energía',
-    // dev-7 (recalibración): el peso sube de 9 a 12. No es "otra mejora de
-    // daño": el XP se convierte en NIVELES y cada nivel abre una oferta de
-    // 3 cartas → es un multiplicador COMPUESTO sobre cuántas cartas ve el
-    // jugador en TODA la run (×1.25 de XP ≈ +25% de ofertas, en cadena),
-    // no solo sobre su daño. Con peso 9 competía por debajo de `dmg_all`
-    // (12) y de las exclusivas (9) pese a valer más que todas ellas.
-    // 12 = "tan valiosa como la mejora de daño genérica".
-    desc: '+25% de energía (XP) por kill: niveles más frecuentes (hasta 2 veces).',
-    weight: 10,
-    apply: (g) => {
-      const f = g.fortress;
-      if ((f.xpBoostApps ?? 0) < CAPS.xp_boost) {
-        f.xpBoostApps = (f.xpBoostApps ?? 0) + 1;
-        f.xpMul *= 1.25;
-      }
-    },
-  },
-  {
-    id: 'score_gain',
-    rarity: 'common',
-    name: 'Prima de Combate',
-    // TODO (dev-7): el multiplicador SÍ se aplica (`f.scoreMul`), pero el
-    // score nunca se ve porque main.js lee `progressData.best` en vez de
-    // `progressData.bestScore` (bug de la pantalla de récords, que se
-    // corrige en otro archivo). Cuando ese bug esté arreglado, el efecto
-    // de esta carta se vuelve visible — no tocar el comportamiento antes.
-    desc: '+20% de SCORE por kill (hasta 2 veces).',
-    weight: 4,
-    apply: (g) => {
-      const f = g.fortress;
-      if ((f.scoreGainApps ?? 0) < CAPS.score_gain) {
-        f.scoreGainApps = (f.scoreGainApps ?? 0) + 1;
-        f.scoreMul *= 1.2;
-      }
-    },
-  },
-  {
-    id: 'streak_shield',
+    id: 'base_shield',
     rarity: 'uncommon',
-    name: 'Escudo de Racha',
-    desc: 'Bloquea el próximo golpe que recibiría la base (máx 2 cargas). La racha NO se rompe.',
+    name: 'Escudo de Base',
+    desc: 'Bloquea el próximo golpe que recibiría la base (máx 2 cargas).',
     weight: 4,
     apply: (g) => {
       const f = g.fortress;
-      if ((f.streakShieldApps ?? 0) < CAPS.streak_shield) {
-        f.streakShieldApps = (f.streakShieldApps ?? 0) + 1;
-        f.streakShields = Math.min(CAPS.streak_shield, f.streakShields + 1);
+      if ((f.baseShieldApps ?? 0) < CAPS.base_shield) {
+        f.baseShieldApps = (f.baseShieldApps ?? 0) + 1;
+        f.baseShields = Math.min(CAPS.base_shield, f.baseShields + 1);
       }
     },
   },
@@ -1984,9 +1942,7 @@ export function comboSummary(game) {
     // sinergias están disponibles (eléctrico, explosivo, etc.).
     tags: [...ownedTags(game)].sort(),
     pierce: f?.pierce ?? 0,
-    xpMul: f?.xpMul ?? 1,
-    scoreMul: f?.scoreMul ?? 1,
-    streakShields: f?.streakShields ?? 0,
+    baseShields: f?.baseShields ?? 0,
     orbitalDmgMul: f?.orbitalDmgMul ?? 1,
     lv: game?.lv ?? 1,
     kills: game?.kills ?? 0,

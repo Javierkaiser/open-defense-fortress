@@ -194,9 +194,7 @@ export class Fortress {
     // Mejoras por CARTAS (cards.js v3-1/7): estado de modificadores.
     this.pierce = 0;          // Núcleos Perforantes: atravesamientos extra
     this.detectMul = 1;       // Sensores Ampliados: ancho/rango ×mul
-    this.xpMul = 1;           // Acelerador de Energía: XP ×mul
-    this.scoreMul = 1;        // Prima de Combate: score ×mul
-    this.streakShields = 0;   // Escudo de Racha: golpes bloqueados restantes
+    this.baseShields = 0;     // Escudo de Base: golpes bloqueados restantes
     this.orbitalDmgMul = 1;   // Impacto Orbital+: daño del ultimate ×mul
     // Arsenal extendido (v3-3/7, §2.3):
     this.drones = [];         // máx MAX_DRONES (§2.3, fase 61: 1)
@@ -226,9 +224,7 @@ export class Fortress {
     this.comboMods = createComboMods();
     // Contadores de aplicaciones para caps de cartas repetibles:
     this.detectApps = 0;
-    this.xpBoostApps = 0;
-    this.scoreGainApps = 0;
-    this.streakShieldApps = 0;
+    this.baseShieldApps = 0;
     this.orbitalPowerApps = 0;
 
     /**
@@ -486,9 +482,9 @@ export class Fortress {
    * `stages.leakDamageFor(enemy)` = HP MÁXIMO del bicho (fase 72), no el
    * que le quedaba. balance v7: la invuln post-hit 0.4 s ya NO anula el
    * golpe — un clúster de leaks no regala golpes gratis. El invuln/flash
-   * queda como feedback visual. Con cargas de ESCUDO DE RACHA (carta
-   * streak_shield): bloquea el golpe completo, consume una carga y NO
-   * rompe la racha (emite base:blocked).
+   * queda como feedback visual. Con cargas de ESCUDO DE BASE (carta
+   * base_shield): bloquea el golpe completo y consume una carga (emite
+   * base:blocked).
    *
    * fase 72: SIN contador de fugas. La base es la ÚNICA condición de
    * derrota; el daño acumulado de las fugas la tumba al escaparse ~20-34 %
@@ -510,12 +506,12 @@ export class Fortress {
     // La invuln post-hit ya no anula el golpe (cada leak paga su HP
     // restante) con el factor LEAK_INVULN_MULT durante la ventana de 0.4 s.
     const total = Math.round(amount * leakMul * (this.invuln > 0 ? LEAK_INVULN_MULT : 1));
-    if (this.streakShields > 0) {
-      this.streakShields -= 1;
+    if (this.baseShields > 0) {
+      this.baseShields -= 1;
       this.invuln = 0.4;
       this.flash = 1;
       this.game?.engine?.emit('base:blocked', {
-        shieldsLeft: this.streakShields,
+        shieldsLeft: this.baseShields,
         blocked: total, // daño REAL que se estaba por aplicar
       });
       return true;

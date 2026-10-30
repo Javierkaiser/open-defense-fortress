@@ -36,7 +36,7 @@ En Windows/PS 5.1 el glob `js/*.js` no se expande solo; usá
 - `js/tower-mechanics.js` — identidad firma por unidad y hooks de mecánicas
   (supresión, fusión, juicio, ion, cráter, riel, corte, ignición, veneno, burbuja).
 - `js/player.js` — `Fortress`: base, slots, drones, HP, Black Hole.
-- `js/cards.js` — 86 cartas y ofertas.
+- `js/cards.js` — 84 cartas y ofertas.
 - `js/perks.js` — única implementación de perks en combate.
 - `js/meta.js`, `js/progress.js`, `js/score.js` — meta, persistencia y fórmulas.
 - `js/hud.js` — HUD y overlays DOM.

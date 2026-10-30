@@ -18,7 +18,7 @@
 //   1. el import:  xpForLevel, multForStreak, baseScoreForEnemy, speedMult,
 //                   stageClearBonus, xpForKill, applyXp, overflowScore,
 //   2. `_onKill`:  this._gainXp(xpForKill(enemy, this.stageId)
-//                    * (1 + bonusFrac) * (this.fortress.xpMul ?? 1))
+//                    * (1 + bonusFrac))
 //      (el SCORE de la baja sigue usando `base`: la leaderboard no escala)
 //   3. `_gainXp`:  `applyXp(lv, xp, amount, stage)`
 //                    → { lv, xp, ups, overflow }: `ups` son los niveles

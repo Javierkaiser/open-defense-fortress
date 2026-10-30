@@ -22,9 +22,8 @@ export const CARD_OFFER_COUNT = 3;
 //   · daño exclusivo   → 10 cartas (6 torres clásicas + Láser + 3 drones), 2 c/u
 //   · cadencia/detección→ cadence_up 3, rapid_bullets 2, detect_up 2
 //   · puntería         → pierce_up 3
-//   · economía/defensa → xp_boost 2, score_gain 2, streak_shield 2,
-//                         ult_charge 1, ult_power 2, repair_500 3,
-//                         armor_plate 1
+//   · economía/defensa → base_shield 2, ult_charge 1, ult_power 2,
+//                         repair_500 3, armor_plate 1
 // dev-7 fase 30: swarm_grow 2 (+1 mosquito del Dron Mosquitos).
 export const CAPS = {
   dmg_all: 2,        // Munición Reforzada ×2 como máximo
@@ -62,9 +61,7 @@ export const CAPS = {
   // dev-7: `pierce_up` NO tenía tope → apilado infinito de atravesamientos
   // por enemigo. Tope 3 (3 extras es el techo de diseño).
   pierce_up: 3,      // Núcleos Perforantes ×3
-  xp_boost: 2,       // ×1.25² = ×1.56 XP máximo
-  score_gain: 2,     // ×1.2² = ×1.44 score máximo
-  streak_shield: 2,  // hasta 2 cargas de escudo de racha
+  base_shield: 2,    // hasta 2 cargas de Escudo de Base
   // dev-7: `ult_charge` NO tenía tope → se ofrecía en CADA level-up de
   // toda la run. Tope 1: una sola recarga extra del ultimate por partida.
   ult_charge: 1,     // una sola carga extra del ORBITAL STRIKE

@@ -6,6 +6,22 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 
 ## [Unreleased]
 
+## [1.5.4] — 2026-10-30
+
+### Cambiado
+
+- **Limpieza de cartas**: eliminadas `xp_boost` (Acelerador de Energía) y
+  `score_gain` (Prima de Combate). El XP deja de tener una carta propia y el
+  score queda sólo como display/récord.
+- Eliminados `xpMul` y `scoreMul` del `Fortress`, `Game._onKill`,
+  `EnergyOrb`, el resumen de combos y el HUD.
+- **Escudo de Racha → Escudo de Base** (`base_shield`): misma mecánica de
+  bloquear un golpe completo a la base, sin relación con la racha. Internos
+  renombrados a `baseShields` / `baseShieldApps`.
+- Catálogo **86 → 84 cartas** (74 → 72 repetibles).
+- **974 tests, 0 skip**; sin cambios de stats.
+- Versión 1.5.4 / Android `versionCode 11`.
+
 ## [1.5.3] — 2026-10-30
 
 ### Cambiado

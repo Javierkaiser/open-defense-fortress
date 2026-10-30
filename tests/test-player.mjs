@@ -177,15 +177,15 @@ test('takeDamage (fase 59): un enemigo casi muerto se escapa barato', () => {
   assert.equal(fortress.hp, 4993, 'matar casi todo el enemigo antes de que llegue lo abarata');
 });
 
-test('takeDamage (fase 59): el ESCUDO DE RACHA bloquea el golpe completo', () => {
+test('takeDamage (fase 59): el ESCUDO DE BASE bloquea el golpe completo', () => {
   const { fortress } = makeGame();
   fortress.maxHp = 5000;
   fortress.hp = 5000;
   fortress.invuln = 0;
-  fortress.streakShields = 1;
+  fortress.baseShields = 1;
   fortress.takeDamage(1200);
-  assert.equal(fortress.hp, 5000, 'el escudo de racha no deja entrar el daño');
-  assert.equal(fortress.streakShields, 0, 'el escudo se consume');
+  assert.equal(fortress.hp, 5000, 'el Escudo de Base no deja entrar el daño');
+  assert.equal(fortress.baseShields, 0, 'el escudo se consume');
 });
 
 test('takeDamage: daños íntegros se respetan', () => {

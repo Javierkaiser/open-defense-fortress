@@ -74,7 +74,7 @@ openspec/specs/         specs de comportamiento
 | `towers-fx.js` | Black Hole, Láser, Beam, Bolt y cráter del Mortar. |
 | `towers-drones.js` | Drones orbitales: ignición, veneno y burbuja. |
 | `player.js` | `Fortress`: base, slots, drones, HP/escudo, Black Hole y render de la plataforma. |
-| `cards.js` | 86 cartas, efectos, combos, ofertas y topes. |
+| `cards.js` | 84 cartas, efectos, combos, ofertas y topes. |
 | `cards-data.js` | Topes, tags de unidad, técnicas y cazas de familia. |
 | `card-constants.js` | Multiplicadores compartidos por cartas y unidades futuras. |
 | `combo-mods.js` | Schema único de los flags de combos. |
