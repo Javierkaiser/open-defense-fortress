@@ -21,11 +21,14 @@
 #
 # Variables:
 #   HERENOW_API_KEY  obligatoria (API key de here.now)
-#   HERENOW_SLUG     opcional, default faint-desert-zjv5
+#   HERENOW_SLUG     opcional, default faint-desert-zjv5 (slug del sitio en here.now)
+#   HERENOW_PUBLIC_URL  opcional, default el dominio propio. Es la URL canónica
+#                       que se muestra al final; el chequeo contra ella es blando.
 # =============================================================================
 set -euo pipefail
 
 SLUG="${HERENOW_SLUG:-faint-desert-zjv5}"
+PUBLIC_URL="${HERENOW_PUBLIC_URL:-https://opendefensefortress.javierlust.net.ar}"
 API_KEY="${HERENOW_API_KEY:-}"
 if [[ -z "$API_KEY" ]]; then
   echo "error: falta HERENOW_API_KEY (secret de GitHub Actions)" >&2
@@ -159,26 +162,35 @@ if echo "$FIN" | jq -e '.error' >/dev/null 2>&1; then
 fi
 
 # --- 5. Verificación post-deploy ---------------------------------------------
+# -L en los tres chequeos: si el dominio propio está configurado como primary,
+# <slug>.here.now responde 308 y sin -L el grep vería la redirección vacía en
+# vez del index publicado.
 echo ">> verificando..."
-INDEX=$(curl -sS "https://$SLUG.here.now/")
+INDEX=$(curl -sSL "https://$SLUG.here.now/")
 SERVED_JS=$(echo "$INDEX" | grep -oE '[a-zA-Z0-9_]*js_v[^"]*/main\.js' | head -1)
 if [[ "$SERVED_JS" != "$JS_DIR/main.js" ]]; then
   die "el index servido referencia '$SERVED_JS' (esperado '$JS_DIR/main.js')"
 fi
-JS_HTTP=$(curl -sS -o /dev/null -w "%{http_code}" "https://$SLUG.here.now/$JS_DIR/main.js")
+JS_HTTP=$(curl -sSL -o /dev/null -w "%{http_code}" "https://$SLUG.here.now/$JS_DIR/main.js")
 [[ "$JS_HTTP" == "200" ]] || die "main.js servido con HTTP $JS_HTTP"
 
 SERVED_CSS=$(echo "$INDEX" | grep -oE 'css/style\.css\?v=[^"]*' | head -1)
 if [[ "$SERVED_CSS" != "css/style.css?v=$JS_TAG" ]]; then
   die "el index servido referencia '$SERVED_CSS' (esperado 'css/style.css?v=$JS_TAG')"
 fi
-CSS_HTTP=$(curl -sS -o /dev/null -w "%{http_code}" "https://$SLUG.here.now/css/style.css?v=$JS_TAG")
+CSS_HTTP=$(curl -sSL -o /dev/null -w "%{http_code}" "https://$SLUG.here.now/css/style.css?v=$JS_TAG")
 [[ "$CSS_HTTP" == "200" ]] || die "style.css servido con HTTP $CSS_HTTP"
+
+# Chequeo BLANDO del dominio propio: si el DNS o el mount todavía no llegan,
+# avisa pero no tumba un deploy que ya salió bien.
+PUBLIC_HTTP=$(curl -sSL -o /dev/null -w "%{http_code}" "$PUBLIC_URL/" || echo "000")
+[[ "$PUBLIC_HTTP" == "200" ]] || echo "warning: $PUBLIC_URL/ respondió HTTP $PUBLIC_HTTP (el publish sí se completó)" >&2
 
 echo ""
 echo "publish_result.site_url=$SITE_URL"
+echo "publish_result.public_url=$PUBLIC_URL (HTTP $PUBLIC_HTTP)"
 echo "publish_result.slug=$SLUG"
 echo "publish_result.js_dir=$JS_DIR"
 echo "publish_result.css_url=css/style.css?v=$JS_TAG"
 echo "publish_result.verified=ok (index -> $JS_DIR/main.js + style.css?v=$JS_TAG, HTTP $JS_HTTP/$CSS_HTTP)"
-echo "✅ Publicado: $SITE_URL"
+echo "✅ Publicado: $PUBLIC_URL  (here.now: $SITE_URL)"

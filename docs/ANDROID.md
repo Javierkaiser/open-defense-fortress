@@ -91,7 +91,7 @@ Cuando estén el keystore y la cuenta:
    guardar el JSON en `PLAY_SERVICE_ACCOUNT_JSON`; el workflow puede subir a
    internal/alpha/beta.
 6. Completar ficha, Data safety (sin datos), content rating, privacy policy
-   (`https://faint-desert-zjv5.here.now/privacy.html`).
+   (`https://opendefensefortress.javierlust.net.ar/privacy.html`).
 7. Closed testing 12 testers / 14 días si la cuenta personal es nueva.
 8. Producción con staged rollout y pre-launch report.
 

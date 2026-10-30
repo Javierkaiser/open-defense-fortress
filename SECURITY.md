@@ -36,4 +36,4 @@ Open Defense Fortress es un juego estático:
 Las vulnerabilidades relevantes serían, por ejemplo, XSS en el HUD, ejecución
 de código desde datos guardados, o dependencias comprometidas en el toolchain
 de desarrollo. La política de privacidad está en
-[privacy.html](https://faint-desert-zjv5.here.now/privacy.html).
+[privacy.html](https://opendefensefortress.javierlust.net.ar/privacy.html).
