@@ -103,5 +103,6 @@ Para eso hay **smoke manual** y una checklist Android (APK debug).
 ## CI
 
 La suite corre en GitHub Actions antes del build de Android. El build web se
-publica en here.now desde `main`; el APK debug se compila con el workflow
-manual “Android CI (debug)” (ver [ANDROID.md](ANDROID.md)).
+publica en here.now desde `main` — <https://opendefensefortress.javierlust.net.ar/>
+(alias: <https://faint-desert-zjv5.here.now/>) —; el APK debug se compila con el
+workflow manual “Android CI (debug)” (ver [ANDROID.md](ANDROID.md)).

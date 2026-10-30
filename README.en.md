@@ -21,6 +21,10 @@ and the upgrade cards offered on level-up. Every run is a roguelike.
 
 ## Run it
 
+The fastest way is the web build: <https://opendefensefortress.javierlust.net.ar/>
+(the same build is also served at <https://faint-desert-zjv5.here.now/>). No
+install needed, and it keeps working offline after the first load.
+
 ```bash
 # Node 22+
 node scripts/serve.mjs 8080

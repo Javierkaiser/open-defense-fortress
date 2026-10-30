@@ -29,6 +29,15 @@ step, no hay servidor y no hay llamadas de red.
 La forma más rápida es la [demo web](https://opendefensefortress.javierlust.net.ar/): no
 requiere instalación y funciona offline después de la primera carga.
 
+| URL pública | Qué es |
+|---|---|
+| <https://opendefensefortress.javierlust.net.ar/> | **Canónica** — el juego |
+| <https://opendefensefortress.javierlust.net.ar/privacy.html> | Política de privacidad |
+| <https://faint-desert-zjv5.here.now/> | Alias en here.now: sirve el mismo build |
+
+El sitio vive en **here.now** con el dominio propio conectado; cada push a `main`
+lo publica en las dos URLs a la vez.
+
 Para correrlo desde el código hace falta un servidor estático, porque los módulos
 ES no cargan desde `file://`:
 

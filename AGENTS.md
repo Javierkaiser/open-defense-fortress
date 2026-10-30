@@ -89,6 +89,21 @@ Kilo, Hermes u otro agente, podés aprovecharlas; si no, ignoralas.
    corresponde.
 5. Commits en español, conventional-ish (`feat:`, `fix:`, `docs:`, `test:`).
 
+## Deploy y URLs públicas
+
+- **Juego (canónica):** <https://opendefensefortress.javierlust.net.ar/>
+- **Alias here.now:** <https://faint-desert-zjv5.here.now/> (mismo build)
+- **Privacidad:** `https://opendefensefortress.javierlust.net.ar/privacy.html`
+
+Cada push a `main` corre `.github/workflows/deploy-herenow.yml`, que publica el
+sitio completo en here.now con el slug `faint-desert-zjv5` (ver
+`.github/scripts/deploy-herenow.sh`). No hay build step: se suben `index.html`,
+`privacy.html`, `css/` y `assets/`, y `js/` versionado como `js_v<sha>` para
+romper el cache. **Si cambiás la URL pública, barré el repo** con
+`grep -rn "here.now"` — el `homepage` de `package.json`, los README, `SECURITY.md`,
+este archivo y las plantillas de issues llevan URLs absolutas que ninguna suite
+de tests detecta.
+
 ## Android / Play
 
 La base Android está en `mobile/` (Capacitor 8). El CI manual **Android CI
