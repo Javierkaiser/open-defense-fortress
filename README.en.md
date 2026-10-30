@@ -2,7 +2,7 @@
 
 **A fixed-tower tower-defense roguelike. 100% offline, zero runtime dependencies.**
 
-[Español](README.md) · [Web demo](https://faint-desert-zjv5.here.now/) · [Design](docs/DESIGN.md) · [Credits](docs/CREDITS.md) · [Contributing (ES)](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md)
+[Español](README.md) · [Web demo](https://opendefensefortress.javierlust.net.ar/) · [Design](docs/DESIGN.md) · [Credits](docs/CREDITS.md) · [Contributing (ES)](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md)
 
 [![CI](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml/badge.svg)](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml)
 

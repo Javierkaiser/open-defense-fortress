@@ -7,7 +7,7 @@
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-6DA55F.svg)](package.json)
 [![Tests](https://img.shields.io/badge/tests-988-3FD4FF.svg)](tests/)
 
-[Demo web](https://faint-desert-zjv5.here.now/) · [English summary](README.en.md) · [Diseño técnico](docs/DESIGN.md) · [Balance](docs/BALANCE.md) · [Testing](docs/TESTING.md) · [Créditos](docs/CREDITS.md) · [Cómo contribuir](CONTRIBUTING.md) · [Código de conducta](CODE_OF_CONDUCT.md)
+[Demo web](https://opendefensefortress.javierlust.net.ar/) · [English summary](README.en.md) · [Diseño técnico](docs/DESIGN.md) · [Balance](docs/BALANCE.md) · [Testing](docs/TESTING.md) · [Créditos](docs/CREDITS.md) · [Cómo contribuir](CONTRIBUTING.md) · [Código de conducta](CODE_OF_CONDUCT.md)
 
 ![Menú principal](docs/screenshots/menu.webp)
 
@@ -26,7 +26,7 @@ step, no hay servidor y no hay llamadas de red.
 
 ## Jugar / correr
 
-La forma más rápida es la [demo web](https://faint-desert-zjv5.here.now/): no
+La forma más rápida es la [demo web](https://opendefensefortress.javierlust.net.ar/): no
 requiere instalación y funciona offline después de la primera carga.
 
 Para correrlo desde el código hace falta un servidor estático, porque los módulos
@@ -194,4 +194,4 @@ contribuciones en **español o inglés**.
 No se recolectan datos. Para reportar una vulnerabilidad, usá el
 [reporte privado de GitHub](https://github.com/Javierkaiser/open-defense-fortress/security/advisories/new)
 o escribí a `contacto@javierlust.net.ar`; ver [SECURITY.md](SECURITY.md) y la
-[política de privacidad](https://faint-desert-zjv5.here.now/privacy.html).
+[política de privacidad](https://opendefensefortress.javierlust.net.ar/privacy.html).

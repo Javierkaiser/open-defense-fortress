@@ -1,6 +1,6 @@
 # Deploy de Open Defense Fortress a here.now
 #
-# Publica el juego en https://faint-desert-zjv5.here.now/ con cada push a main.
+# Publica el juego en https://opendefensefortress.javierlust.net.ar/ con cada push a main.
 # El deploy replica el flujo manual validado:
 #   - staging limpio (index.html + privacy.html + css/ + assets/) con js/ versionado
 #     como js_v<commit-sha> para romper el cache-control max-age=3600 de
@@ -65,7 +65,7 @@ jobs:
       - name: Resumen
         run: |
           echo "## Deploy here.now" >> "$GITHUB_STEP_SUMMARY"
-          echo "- URL: https://faint-desert-zjv5.here.now/" >> "$GITHUB_STEP_SUMMARY"
+          echo "- URL: https://opendefensefortress.javierlust.net.ar/" >> "$GITHUB_STEP_SUMMARY"
           echo "- Commit: \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "> Caché de JS: carpeta \`js_v\` nueva por push (max-age 3600)." >> "$GITHUB_STEP_SUMMARY"
-          echo "Publicado: https://faint-desert-zjv5.here.now/"
+          echo "Publicado: https://opendefensefortress.javierlust.net.ar/"

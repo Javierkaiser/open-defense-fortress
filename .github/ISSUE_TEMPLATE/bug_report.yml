@@ -92,7 +92,7 @@ body:
       placeholder: |
         - OS: Windows 11 24H2
         - Navegador: Chrome 141
-        - Origen: demo web (faint-desert-zjv5.here.now) / local (node scripts/serve.mjs)
+        - Origen: demo web (opendefensefortress.javierlust.net.ar) / local (node scripts/serve.mjs)
         - Versión o commit: 1.0.0
     validations:
       required: true
