@@ -66,6 +66,22 @@ test('skins: los 5 temas cubren las 8 torres y los 3 drones', () => {
         assert.ok(skin.palette?.accent, `${theme}/${type}: falta accent`);
         assert.ok(Array.isArray(skin.motifs) && skin.motifs.length >= 3,
           `${theme}/${type}: faltan motivos de forma`);
+        // El catálogo no puede referenciar piezas que el rig no tiene.
+        const rig = TOWER_RIGS[TOWERS[type].kind];
+        const ids = new Set(rig.parts.map((p) => p.id));
+        const per = skin.perUnit ?? {};
+        for (const id of per.remove ?? []) {
+          assert.ok(ids.has(id), `${theme}/${type}: remove de pieza inexistente (${id})`);
+        }
+        for (const id of Object.keys(per.patch ?? {})) {
+          assert.ok(ids.has(id), `${theme}/${type}: patch de pieza inexistente (${id})`);
+        }
+        for (const extra of per.add ?? []) {
+          assert.ok(extra.id && extra.role, `${theme}/${type}: add sin id/rol`);
+          assert.equal(['d', 'circle', 'ellipse', 'rect', 'line']
+            .filter((k) => extra[k] != null).length, 1,
+          `${theme}/${type}: add con shape inválida`);
+        }
       }
     }
     for (const type of DRONE_TYPES) {
