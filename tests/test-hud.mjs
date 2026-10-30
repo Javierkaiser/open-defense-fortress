@@ -3130,7 +3130,7 @@ const endlessPayload = (over = {}) => ({
   open: true,
   best: 62,
   next: 63,
-  daily: { date: '2026-10-26', stage: 57, bestScore: 0 },
+  daily: { date: '2026-10-26', stage: 57, bestScore: 0, heat: 0 },
   ...over,
 });
 
@@ -3163,9 +3163,10 @@ test('fase 67: el récord del día se muestra formateado (o "sin récord")', () 
   assert.ok(sin.includes('sin récord hoy'), 'un bestScore 0 no es un récord');
   assert.ok(!sin.includes('récord de hoy'), 'y no se inventa uno');
   const con = buildDailyCardHtml(endlessPayload({
-    daily: { date: '2026-10-26', stage: 57, bestScore: 12345 },
+    daily: { date: '2026-10-26', stage: 57, bestScore: 12345, heat: 5 },
   }));
   assert.ok(con.includes('récord de hoy: 012345'), 'el score usa el formato del HUD');
+  assert.ok(con.includes('Heat 5'), 'y el Heat con el que se logró el récord');
 });
 
 test('fase 67: un payload corrupto no pinta tarjeta (y no lanza)', () => {
@@ -3268,7 +3269,8 @@ test('fase 67: el S50 convive con el cartel de campaña completa y el botón del
 test('fase 67: el score del día aparece en las DOS pantallas de fin de run', () => {
   const hud = Object.create(HUD.prototype);
   const daily = {
-    date: '2026-10-26', stage: 57, score: 4321, best: 4321, isRecord: true, cleared: false,
+    date: '2026-10-26', stage: 57, score: 4321, best: 4321, bestHeat: 8,
+    isRecord: true, cleared: false,
   };
   const clear = hud._screenStageClear({
     stageName: '∞ Stage 57', time: 10, score: 4321, clearBonus: 0, hpBonus: 0,
@@ -3277,6 +3279,7 @@ test('fase 67: el score del día aparece en las DOS pantallas de fin de run', ()
   assert.ok(clear.includes('DESAFÍO DIARIO'), 'la victoria diaria deja el reto a la vista');
   assert.ok(clear.includes('004321'), 'con el score del día formateado');
   assert.ok(clear.includes('¡RÉCORD DEL DÍA!'), 'y avisa si es el mejor de hoy');
+  assert.ok(clear.includes('récord a Heat 8'), 'y registra el Heat con el que se logró');
   const over = hud._screenGameOver({
     stageName: '∞ Stage 57', score: 4321, kills: 3, time: 60, reason: 'hp', daily,
   });
@@ -3651,7 +3654,7 @@ const recordsPayload = (over = {}) => ({
   endless: { best: 62, next: 63 },
   heat: { best: 24, stage50: 8, next: 35 },
   survival: { bestWave: 18, bestScore: 9876, runs: 12, nextWave: 20 },
-  daily: { date: '2026-10-26', bestScore: 5000 },
+  daily: { date: '2026-10-26', bestScore: 5000, heat: 5 },
   ...over,
 });
 
@@ -3774,6 +3777,7 @@ test('fase 70: la sala de récords pinta los cinco modos y sus hitos', () => {
   assert.ok(html.includes('Heat 24') && html.includes('Heat 35'), 'el protocolo: récord y siguiente heat');
   assert.ok(html.includes('Oleada 18') && html.includes('Oleada 20'), 'la supervivencia: oleada y próximo hito');
   assert.ok(html.includes('score 005000') && html.includes('2026-10-26'), 'el diario, con su score y fecha');
+  assert.ok(html.includes('Heat 5'), 'y el Heat con el que se logró el récord');
   assert.ok(html.includes('data-action="menu"'), 'la salida es `menu` (main ya la entiende)');
   assert.ok(html.includes('data-action="select-stage"'), 'y el atajo a jugar');
 });

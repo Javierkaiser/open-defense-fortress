@@ -557,7 +557,10 @@ export function buildDailyCardHtml(endless) {
   const date = typeof daily?.date === 'string' ? daily.date.trim() : '';
   if (stage == null || stage < ENDLESS_MIN_STAGE || !date) return '';
   const bestScore = Math.max(0, payloadInt(daily.bestScore) ?? 0);
-  const record = bestScore > 0 ? `récord de hoy: ${fmt(bestScore)}` : 'sin récord hoy';
+  const bestHeat = heatInt(daily.heat);
+  const record = bestScore > 0
+    ? `récord de hoy: ${fmt(bestScore)}${bestHeat > 0 ? ` · Heat ${bestHeat}` : ''}`
+    : 'sin récord hoy';
   return `
     <button class="stage-daily" data-action="start-daily">
       <span class="card-kicker">DESAFÍO DIARIO</span>
@@ -602,7 +605,10 @@ export function dailySummaryRow(daily) {
   if (!daily || typeof daily !== 'object') return '';
   const score = Math.max(0, payloadInt(daily.score) ?? 0);
   const record = daily.isRecord ? ' · ¡RÉCORD DEL DÍA!' : '';
-  return `<div><dt>DESAFÍO DIARIO</dt><dd class="ok">${fmt(score)}${record}</dd></div>`;
+  // v1.7.2: el récord es global, pero se informa el Heat con el que se logró.
+  const bestHeat = heatInt(daily.bestHeat);
+  const heatTxt = bestHeat > 0 ? ` · récord a Heat ${bestHeat}` : '';
+  return `<div><dt>DESAFÍO DIARIO</dt><dd class="ok">${fmt(score)}${record}${heatTxt}</dd></div>`;
 }
 
 /**
@@ -749,7 +755,7 @@ export function buildProtocolCardHtml(heat) {
   const record = best > 0 ? `récord: ${best}` : 'sin récord';
   return `
     <button class="stage-protocol" data-action="protocol">
-      <span class="card-kicker">DIFICULTAD · CAMPAÑA</span>
+      <span class="card-kicker">DIFICULTAD · TODOS LOS MODOS</span>
       <span class="card-title">PROTOCOLO — HEAT ${active}</span>
       <span class="card-sub">${esc(record)}</span>
     </button>`;
@@ -1005,6 +1011,7 @@ export function buildRecordsHtml(data) {
   const nextWave = Math.max(1, payloadInt(survival.nextWave) ?? (bestWave + 1));
   const dailyDate = typeof daily.date === 'string' ? daily.date.trim() : '';
   const dailyScore = Math.max(0, payloadInt(daily.bestScore) ?? 0);
+  const dailyHeat = heatInt(daily.heat);
 
   const rows = [
     recordRowHtml({
@@ -1033,7 +1040,7 @@ export function buildRecordsHtml(data) {
     }),
     recordRowHtml({
       kicker: 'DESAFÍO DIARIO',
-      best: `score ${fmt(dailyScore)}`,
+      best: `score ${fmt(dailyScore)}${dailyHeat > 0 ? ` · Heat ${dailyHeat}` : ''}`,
       detail: dailyDate || 'sin reto hoy',
       next: 'el reto nuevo',
     }),

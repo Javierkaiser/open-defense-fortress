@@ -4,6 +4,28 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.7.2] — 2026-10-30
+
+### Corregido
+
+- **Heat en el modo infinito post-campaña**: `startStage` ya no fuerza
+  `heatProtocol = {}` para `isEndless`. El `runMods` del ∞ incluye el
+  Protocolo activo, así que **Apagón** bloquea de verdad el Ultimate y el
+  Black Hole (`noUlt`), y también aplican Vigor, Prisa, Leva, Censura,
+  Arsenal, etc.
+- **Daily con Protocolo**: el desafío diario ya no fuerza heat 0; usa el
+  Protocolo activo. Su récord de score sigue siendo **global por fecha**, pero
+  ahora guarda el **Heat con el que se logró** (`endless.daily.heat`). Un score
+  peor no pisa ni el récord ni su Heat.
+- **HUD**: la tarjeta del ∞ muestra `Heat N · récord H`; la del Daily muestra
+  el Heat del récord; la tarjeta del Protocolo pasa a “TODOS LOS MODOS”.
+- Migración: saves viejos sin `endless.daily.heat` arrancan en Heat 0.
+
+### Tests / versión
+
+- **1026 tests, 0 skip** (35 archivos).
+- Versión **1.7.2** / Android `versionCode 15`.
+
 ## [1.7.1] — 2026-10-30
 
 ### Cambiado

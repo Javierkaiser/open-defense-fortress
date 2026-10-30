@@ -249,7 +249,7 @@ inmune: todo se puede matar, solo cambia el costo.
 | Infinito (∞) | 51+; HP de base de la misma curva; jefe cada 10; profundidad “mejor + 1”; hitos y recompensas. |
 | Supervivencia | Olas infinitas; sin contador de fugas; cada fuga resta el HP máximo del enemigo; base 25 500 HP; jefe cada 5; tema cada 5; presupuesto lineal `60 + 30·oleada`. |
 | Desafío diario | Etapa 51–60 elegida por la fecha local; semilla FNV. |
-| Protocolo / Heat | 11 condiciones sobre la campaña; presets I–V (5/10/16/24/35); máximo 49; recompensa ×1 + 0,08·heat; hitos 60/120/240/420 fragmentos al pool. |
+| Protocolo / Heat | 11 condiciones sobre campaña, ∞, daily y supervivencia; presets I–V (5/10/16/24/35); máximo 49; recompensa ×1 + 0,08·heat; hitos 60/120/240/420 fragmentos al pool. |
 
 ## 10. Progresión y economía
 
@@ -332,7 +332,7 @@ inmune: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1022 tests (1022 pass, 0 skip) en 35 archivos.
+- 1026 tests (1026 pass, 0 skip) en 35 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

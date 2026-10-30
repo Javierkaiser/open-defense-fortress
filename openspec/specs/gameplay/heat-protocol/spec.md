@@ -4,7 +4,8 @@
 El Protocolo de asedio (Heat) es la pista de dificultad opcional de la campaña: el jugador
 elige un conjunto de handicaps con rangos (más enemigos, más HP, fugas más caras, menos cartas,
 sin Ultimate, etc.), el heat total mide cuánto se castigó y cada etapa guarda su propio récord
-de heat. En v1 se aplica a la campaña; el ∞ y el diario juegan a heat 0.
+de heat. Se aplica a campaña, ∞, daily y supervivencia; el daily guarda el Heat
+con el que se logró su récord global.
 
 ## Requirements
 
@@ -45,25 +46,27 @@ editar los rangos uno a uno. El heat máximo personalizable MUST ser 49.
 
 ### Requirement: Alcance por modo
 
-El Protocolo MUST aplicarse a las runs de **campaña**. El **modo infinito** y el **desafío
-diario** MUST jugarse siempre a heat 0 en esta versión: la dificultad del ∞ es su
-profundidad y el récord del diario tiene que seguir siendo comparable. El ∞ podrá sumar
-Protocolo en una fase posterior, con un diseño propio de profundidad inicial.
+El Protocolo MUST aplicarse a **campaña, modo infinito, desafío diario y supervivencia**.
+El récord de profundidad del ∞ es **por nivel de Heat** (`heat.endless`). El récord del
+diario es **global por fecha**, pero MUST guardar el Heat con el que se logró
+(`endless.daily.heat`).
 
 #### Scenario: Una etapa de campaña con Protocolo
 
 - **WHEN** el jugador arranca una etapa de campaña con heat 8
 - **THEN** la etapa usa los modificadores del Protocolo y el resumen muestra el heat
 
-#### Scenario: El diario ignora el Protocolo
+#### Scenario: El diario aplica el Protocolo
 
 - **WHEN** el jugador arranca el desafío diario con un Protocolo activo
-- **THEN** la run diaria se juega a heat 0 y su récord no se mezcla con el de heat
+- **THEN** la run diaria usa los modificadores del Protocolo y, si supera el récord
+  global del día, guarda también el Heat con el que se logró
 
-#### Scenario: El infinito ignora el Protocolo
+#### Scenario: El infinito aplica el Protocolo
 
 - **WHEN** el jugador continúa el modo infinito con un Protocolo activo
-- **THEN** la profundidad se juega a heat 0 (su récord es la profundidad, no el heat)
+- **THEN** la profundidad usa los modificadores del Protocolo y se guarda el récord
+  de profundidad a ese nivel de Heat
 
 ### Requirement: Efectos de dificultad
 
@@ -107,7 +110,8 @@ y `dobles` habilita el doble afijo.
 
 ### Requirement: Récords de heat
 
-El juego MUST persistir el **mejor heat** limpiado y el **mejor heat por etapa** de campaña.
+El juego MUST persistir el **mejor heat** limpiado, el **mejor heat por etapa** de
+campaña, la **profundidad del ∞ por heat** y el **Heat del récord diario**.
 La carga de datos viejos o corruptos MUST NOT romper el progreso.
 
 #### Scenario: Se limpia una etapa con heat nuevo
@@ -115,10 +119,17 @@ La carga de datos viejos o corruptos MUST NOT romper el progreso.
 - **WHEN** el jugador limpia el S40 a heat 8 por primera vez
 - **THEN** el récord de heat del S40 pasa a 8 y el mejor heat global sube si corresponde
 
-#### Scenario: El infinito no escribe récords de heat
+#### Scenario: El infinito guarda profundidad por heat
 
-- **WHEN** el jugador continúa el ∞ con un Protocolo activo (que el ∞ ignora)
-- **THEN** el récord de profundidad se guarda como siempre y no se crea un récord de heat
+- **WHEN** el jugador limpia la etapa 60 a Heat 8
+- **THEN** `heat.endless[8]` sube a 60 si corresponde y el récord global de
+  profundidad se conserva
+
+#### Scenario: El récord diario guarda su Heat
+
+- **WHEN** el jugador logra un nuevo récord diario a Heat 8
+- **THEN** el score y `endless.daily.heat = 8` se guardan; un run posterior con
+  peor score no cambia ninguno de los dos
 
 #### Scenario: Progreso viejo
 

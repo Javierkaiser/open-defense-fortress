@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import {
   HEAT_CONDS, HEAT_PRESETS, HEAT_MILESTONES, HEAT_MAX_TOTAL,
   normalizeHeatMods, heatTotal, heatMods, presetMods, presetFor,
-  heatRewardMul, heatMilestoneBonus,
+  heatRewardMul, heatMilestoneBonus, heatProtocolForRun,
 } from '../js/heat.js';
 
 test('heat: 11 condiciones, rangos válidos y 49 de heat máximo', () => {
@@ -41,6 +41,16 @@ test('heat: los presets I-V cuestan 5/10/16/24/35', () => {
       assert.ok(rank >= 1 && rank <= c.ranks, `${p.id}: ${id} fuera de rango`);
     }
   }
+});
+
+test('v1.7.2: heatProtocolForRun resuelve campaña, ∞ y daily', () => {
+  const last = { apagon: 1 };
+  assert.deepEqual(heatProtocolForRun({ last }), last, 'sin opts hereda el activo');
+  assert.deepEqual(heatProtocolForRun({ heatMods: { vigor: 2 }, last }), { vigor: 2 },
+    'un Protocolo explícito manda');
+  assert.deepEqual(heatProtocolForRun({ heatMods: null, last }), {},
+    'null es la vía explícita para heat 0');
+  assert.deepEqual(heatProtocolForRun({}), {}, 'sin nada queda neutro');
 });
 
 test('heat: heat 0 deja TODOS los diales neutros (fase 68 exacta)', () => {

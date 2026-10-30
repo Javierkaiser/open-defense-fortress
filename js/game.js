@@ -45,6 +45,7 @@ import {
 import {
   HEAT_CONDS, HEAT_PRESETS, HEAT_MILESTONES, heatMods, heatTotal,
   heatRewardMul, heatMilestoneBonus, normalizeHeatMods, presetMods, presetFor,
+  heatProtocolForRun,
 } from './heat.js';
 // fase 70 — LA SUPERVIVENCIA: reglas puras del modo (survival.js). La cola de
 // olas es INFINITA y se pide por bloques al WaveManager (extend), así que este
@@ -795,15 +796,21 @@ export class Game {
   startStage(stageId, opts = {}) {
     const def = stageDef(stageId);
     if (!def) throw new Error(`[main] stage desconocido: ${stageId}`);
-    if (!isUnlocked(this.progressData, def.id)) return; // candado §2.9
+    // El Daily puede caer en una etapa 51..60 más profunda que el récord
+    // actual: es una vara común y debe poder jugarse con el ∞ abierto.
+    // Los runs normales siguen pasando por el candado §2.9.
+    if (!opts.daily && !isUnlocked(this.progressData, def.id)) return;
     this.mode = 'campaign'; // fase 70: cualquier etapa devuelve el modo de campaña
     // fase 70: limpiar el sufijo "· Oleada N" de una run de Supervivencia
     // anterior; si no, el HUD de campaña lo arrastraría (showScreen no toca
     // el estado interno del nombre de etapa).
     this.hud.setSurvivalWave?.(0);
-    const heatProtocol = isEndless(def.id) || opts.heatMods === null
-      ? {} // fase 69 v1: el ∞ y el diario juegan SIN Protocolo (ver docs/BALANCE.md)
-      : (opts.heatMods ?? this.progressData.heat.last);
+    // v1.7.2: el Protocolo se aplica a campaña, ∞ y Daily. `heatMods: null`
+    // sigue siendo la vía explícita para una run neutral (tests/reintentos).
+    const heatProtocol = heatProtocolForRun({
+      heatMods: opts.heatMods,
+      last: this.progressData?.heat?.last,
+    });
     const runMods = heatMods(heatProtocol);
     this.runMods = runMods;
     // El reintento rejuega la MISMA dificultad: si el jugador edita el
@@ -905,9 +912,10 @@ export class Game {
   startDaily() {
     if (!endlessOpen(this.progressData)) return;
     const run = dailyRun();
-    // fase 69: el desafío diario es la vara COMÚN de la fecha — siempre a
-    // heat 0 (`heatMods: null`), sin importar el Protocolo activo.
-    this.startStage(run.stage, { seed: run.seed, daily: run.date, heatMods: null });
+    // v1.7.2: el Daily aplica el Protocolo activo. Su récord de score sigue
+    // siendo GLOBAL por fecha, pero guarda el Heat con el que se logró
+    // (`progress.endless.daily.heat`).
+    this.startStage(run.stage, { seed: run.seed, daily: run.date });
   }
 
   /**
@@ -1181,12 +1189,17 @@ export class Game {
     const score = this.score;
     const prev = this.progressData?.endless?.daily;
     const prevScore = prev?.date === daily ? prev.bestScore : 0;
-    this.progressData = saveProgress(recordDaily(this.progressData, daily, score));
+    // v1.7.2: el récord es global, pero guarda el Heat con el que se logró.
+    // Si esta run no supera el score, el Heat del récord no cambia.
+    const heat = this.runMods?.heat ?? 0;
+    this.progressData = saveProgress(recordDaily(this.progressData, daily, score, heat));
     return {
       date: daily,
       stage: stageId,
       score,
+      heat, // Heat jugado en ESTA run
       best: this.progressData.endless.daily.bestScore,
+      bestHeat: this.progressData.endless.daily.heat, // Heat del récord
       isRecord: score > prevScore,
       cleared,
     };
@@ -1257,10 +1270,16 @@ export class Game {
         open: endlessOpen(this.progressData),
         best: bestDepth(this.progressData),
         next: nextEndlessStage(this.progressData),
+        // v1.7.2: la tarjeta ∞ muestra el Heat activo y su récord de
+        // profundidad; el Daily muestra el Heat con el que se logró su
+        // récord global.
+        heat: activeHeat,
+        bestAtHeat: this.progressData.heat.endless?.[activeHeat] ?? 0,
         daily: {
           date: today.date,
           stage: today.stage,
           bestScore: daily?.date === today.date ? daily.bestScore : 0,
+          heat: daily?.date === today.date ? daily.heat : 0,
         },
       },
       heat: { active: activeHeat, best: this.progressData.heat.best },
@@ -1319,6 +1338,7 @@ export class Game {
       daily: {
         date: today.date,
         bestScore: p.endless.daily.date === today.date ? p.endless.daily.bestScore : 0,
+        heat: p.endless.daily.date === today.date ? p.endless.daily.heat : 0,
       },
     };
   }

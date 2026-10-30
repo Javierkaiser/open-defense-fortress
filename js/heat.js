@@ -161,6 +161,23 @@ export function heatMods(mods) {
   };
 }
 
+/**
+ * Protocolo EFECTIVO de una run. `heatMods` explícito manda; `undefined`
+ * hereda el último Protocolo guardado. Sólo `null` fuerza heat 0 (lo usan
+ * los tests y los reintentos que deben quedar neutrales).
+ *
+ * v1.7.2: el Infinito y el Daily YA NO fuerzan heat 0; el Protocolo activo
+ * se aplica a todos los modos. El Daily conserva un récord global, pero
+ * guarda el Heat con el que se logró (`progress.endless.daily.heat`).
+ *
+ * @param {{heatMods?:object|null, last?:object}} [opts]
+ * @returns {object} mapa de rangos
+ */
+export function heatProtocolForRun({ heatMods, last = {} } = {}) {
+  if (heatMods === null) return {};
+  return heatMods ?? last ?? {};
+}
+
 /** Mods de un preset por id ('I'..'V'); `{}` si no existe. */
 export function presetMods(id) {
   const p = HEAT_PRESETS.find((x) => x.id === id);

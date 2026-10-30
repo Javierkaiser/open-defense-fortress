@@ -305,9 +305,10 @@ Lectura:
 - **El conteo de enemigos no escala 1:1 con el presupuesto**: +25 % de
   presupuesto ≈ +13 % de enemigos y +47 % de HP en S60. La guarda del test es
   +8 % y la tendencia S60 > S50, S70 > S60 se cumple.
-- El ∞ **no juega con Heat** en v1: la profundidad 51 ya arranca en el techo de
-  poder y un modificador encima la vuelve injugable. Queda para una versión
-  posterior.
+- El ∞ **aplica el Protocolo activo** (v1.7.2). La profundidad se guarda por
+  nivel de Heat (`heat.endless`); el récord global de profundidad se conserva.
+  El Daily también aplica el Protocolo: su récord de score es global por fecha,
+  pero guarda el Heat con el que se logró (`endless.daily.heat`).
 
 ## Supervivencia
 
@@ -326,7 +327,8 @@ Lectura:
 - **Presets**: I=5, II=10, III=16, IV=24, V=35.
 - **Recompensa**: `heatRewardMul = 1 + 0,08·heat` (heat 10 ≈ ×1,8).
 - **Hitos únicos** 5/10/20/35: 60/120/240/420 fragmentos **al pool**.
-- v1 se aplica **solo a la campaña**. El ∞ y el daily juegan a heat 0.
+- Se aplica a **campaña, ∞, daily y supervivencia**. El daily guarda el Heat
+  con el que se logró su récord global de score.
 
 ## Metodología y guardas
 
@@ -341,7 +343,7 @@ Lectura:
 6. La suite tiene guardas de regresión de HP por etapa, apertura, jefes,
    variantes y supervivencia.
 
-## Estado actual (v1.7.1)
+## Estado actual (v1.7.2)
 
 - Campaña: S1–S10 100 %, S20 90 %, S30 80 %, S50 70 % con la trayectoria real
   de meta y cartas (`pool-focus`, 10 semillas).
@@ -350,6 +352,9 @@ Lectura:
 - Heat: la escalera 5→35 se re-mide con el pool nuevo; Protocolo II queda en
   80 % de win / 24 % HP / 71 % bajas en S50 (10 semillas).
 - ∞: la pared empieza alrededor de 60–70; el win cae con la profundidad.
+- Heat en ∞/Daily (1.7.2): el Protocolo activo se aplica a ambos. El récord
+  del ∞ es por Heat (`heat.endless`); el del Daily es global por fecha y
+  guarda el Heat con el que se logró (`endless.daily.heat`).
 - Supervivencia: ~84 oleadas planas en el simulador; el número absoluto no es
   confiable, la tendencia sí.
 - Identidad (1.5.0): el rework de perks/mecánicas no movió las métricas

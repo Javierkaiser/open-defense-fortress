@@ -23,7 +23,7 @@ export function defaultProgress() {
   return {
     unlocked: 1,
     bestScore: {},
-    endless: { best: 0, daily: { date: '', bestScore: 0 } },
+    endless: { best: 0, daily: { date: '', bestScore: 0, heat: 0 } },
     heat: { best: 0, byStage: {}, endless: {}, claimed: [], last: {} },
     survival: { bestWave: 0, bestScore: 0, runs: 0, byHeat: {} },
   };
@@ -66,7 +66,12 @@ function normalizeEndless(raw) {
   const date = typeof d.date === 'string' && DATE_RE.test(d.date) ? d.date : '';
   const scoreRaw = Number(d.bestScore);
   const bestScore = Number.isFinite(scoreRaw) && scoreRaw > 0 ? Math.trunc(scoreRaw) : 0;
-  return { best, daily: { date, bestScore } };
+  // v1.7.2: el récord diario guarda el Heat con el que se logró. Saves
+  // viejos sin el campo migran a heat 0 (récord "sin Protocolo").
+  const heatRaw = Number(d.heat);
+  const heat = Number.isFinite(heatRaw)
+    ? Math.max(0, Math.min(HEAT_MAX_TOTAL, Math.trunc(heatRaw))) : 0;
+  return { best, daily: { date, bestScore, heat } };
 }
 
 /**
@@ -281,14 +286,23 @@ export function recordVictory(progress, stageId, score) {
  * @param {object} progress
  * @param {string} dateKey 'YYYY-MM-DD'
  * @param {number} score
+ * @param {number} [heat=0] Heat con el que se jugó la run
  */
-export function recordDaily(progress, dateKey, score) {
+export function recordDaily(progress, dateKey, score, heat = 0) {
   const p = normalizeProgress(progress);
   const key = typeof dateKey === 'string' && DATE_RE.test(dateKey) ? dateKey : '';
   if (!key) return p;
-  if (p.endless.daily.date !== key) p.endless.daily = { date: key, bestScore: 0 };
+  if (p.endless.daily.date !== key) {
+    p.endless.daily = { date: key, bestScore: 0, heat: 0 };
+  }
   const val = Math.max(0, Math.floor(Number(score) || 0));
-  p.endless.daily.bestScore = Math.max(p.endless.daily.bestScore, val);
+  // Récord GLOBAL por fecha: sólo un score ESTRICTAMENTE mejor actualiza
+  // también el Heat registrado. Un empate conserva el Heat original.
+  if (val > p.endless.daily.bestScore) {
+    const h = Math.max(0, Math.min(HEAT_MAX_TOTAL, Math.trunc(Number(heat) || 0)));
+    p.endless.daily.bestScore = val;
+    p.endless.daily.heat = h;
+  }
   return p;
 }
 
