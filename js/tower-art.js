@@ -82,7 +82,8 @@ export const TOWER_PAD = {
   glowR: 24,
   glowAlpha: 0.20,
   tick: {
-    count: 5,
+    // 1.11.0: el nivel de la run llega a 6; el anillo muestra los 6 ticks.
+    count: 6,
     width: 2.6,        // tick encendido
     idleWidth: 1.5,    // tick apagado
     idleColor: 'rgba(120, 140, 160, 0.30)',

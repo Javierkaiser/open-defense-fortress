@@ -86,6 +86,8 @@
 //   node scripts/balance-sim.mjs --killrate=75   → el jugador mata como máximo el 75 %
 //   node scripts/balance-sim.mjs --seeds=5       → seeds por stage
 //   node scripts/balance-sim.mjs --logical-h=1195 → alto LÓGICO del canvas
+//   node scripts/balance-sim.mjs --legendaries → toma TODAS las elecciones
+//     legendarias pendientes (cota superior de la maestría 1.11.0)
 //   node scripts/balance-sim.mjs --towers=tesla,mortar,beam,missile → FUERZA el arsenal
 //   node scripts/balance-sim.mjs --drone=firewheel → FUERZA el dron (sin el flag: ninguno)
 //   node scripts/balance-sim.mjs --variants=acorazado → todas las élites usan ese afijo (fase 68)
@@ -247,7 +249,9 @@ import {
   SURVIVAL, survivalStage, survivalScale, survivalWaveChunk,
   survivalBossKind, survivalBossName,
 } from '../js/survival.js';
-import { rollOffer, applyCard, CATALOG } from '../js/cards.js';
+import {
+  rollOffer, applyCard, CATALOG, findUnit, legendaryCardsFor,
+} from '../js/cards.js';
 import {
   saveMeta, currentMeta, META_TOWERS, PERKS, metaDmgMul, fragCost,
   META_FRAG_PER_VICTORY, META_FIRST_CLEAR_MULT, META_MAX_LEVEL, PERK_EVERY, PERK_TIERS,
@@ -832,6 +836,32 @@ export function parseForcedArsenal(args) {
  * @returns {boolean} true si la unidad quedó en el arsenal (false = no
  *   había lugar: el tope de 5 slots / 1 dron la dejó fuera)
  */
+// 1.11.0 - `--legendaries` (upper bound): tras cada carta, toma todas las
+// elecciones legendarias pendientes de las unidades presentes. No es el
+// jugador óptimo (toma la primera de cada pool), pero mide el techo de la
+// pista de maestría sin esperar a que el sim modele drafts.
+let AUTO_LEGENDARIES = false;
+
+function autoApplyLegendaries(game) {
+  if (!AUTO_LEGENDARIES) return;
+  const units = [
+    ...(game.fortress?.slots ?? []),
+    ...(game.fortress?.drones ?? []),
+  ].filter(Boolean);
+  for (const unit of units) {
+    while ((unit.legendaryDrafts ?? 0) > 0) {
+      const picked = new Set(unit.legendaryPicks ?? []);
+      const next = legendaryCardsFor(unit.type).find((c) => !picked.has(c.id));
+      if (!next) {
+        unit.legendaryDrafts = 0;
+        break;
+      }
+      unit.legendaryDrafts -= 1;
+      applyCard(next, game);
+    }
+  }
+}
+
 export function applyForcedUnlock(spec, game) {
   const id = spec.kind === 'drone' ? `unlock_drone_${spec.type}` : `unlock_${spec.type}`;
   const card = CARD_BY_ID.get(id);
@@ -1267,6 +1297,7 @@ export async function runStage(stageId, mode = DEFAULT_MODE, seed = 1, opts = {}
           : pickCard(offer, lv, mode, game, rngCards);
         if (card) {
           applyCard(card, game);
+          autoApplyLegendaries(game);
           // POOL-FOCUS: la unidad que entra recibe la cuota del arsenal.
           if (card.tower) nivelar(card.tower);
           if (card.drone) nivelar(card.drone);
@@ -1612,6 +1643,7 @@ async function main(argv = process.argv.slice(2)) {
   const CEILING_CARDS = args.cards === 'ceiling'; // cartas al tope (cartas REALES)
   const SEEDS = Number(args.seeds ?? DEFAULT_SEEDS);
   const PERKS_MODE = args.perks ?? DEFAULT_PERKS; // none | optimal
+  AUTO_LEGENDARIES = args.legendaries === true || args.legendaries === 'true';
   // dev-7 fase 59 (54.1) + pool compartido (v2): `--meta` elige la política
   // del pool (trajectory = pool-focus, el reparto histórico de 5 torres;
   // pool-spread = las 11 unidades). `--metalv=N` sigue forzando un nivel

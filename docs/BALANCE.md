@@ -162,11 +162,13 @@ no sólo un multiplicador de daño:
   perks `extraCount`/`chainFork` suman mini rayos, no rayos principales. DPS
   nominal ≈40,6 a un blanco y ≈102 contra un principal + 3 vecinos. Se
   diferencia de la Tesla, que encadena saltos con falloff.
-- **84 cartas**: **cada mejora se elige una sola vez** (`CAPS = 1`); la única
-  excepción es `bullets_5`, el level-up del Guardian. Las mejoras ofrecidas se
-  relacionan con las unidades, tags y técnicas presentes. Incluyen daño global
-  (+10% una vez), daño por tipo (+20% una vez), mecánicas por torre y 11 combos
-  con prerrequisitos (frío, lifesteal, marcas, stun, rebote y perforación).
+- **107 cartas normales** (84 + 23 doctrinas) y **33 legendarias** fuera del
+  catálogo. Casi todas las mejoras se eligen una sola vez (`CAPS = 1`); las
+  doctrinas son la excepción (2 rangos) y `bullets_5` sigue siendo el level-up
+  del Guardian. Las mejoras ofrecidas se relacionan con las unidades, tags y
+  técnicas presentes. Incluyen daño global (+10% una vez), daño por tipo
+  (+20% una vez), mecánicas por torre y 11 combos con prerrequisitos (frío,
+  lifesteal, marcas, stun, rebote y perforación).
 - **Meta**: 100 niveles por unidad; **pool de fragmentos compartido** (150 por
   victoria, 300 la primera limpieza de cada etapa); `fragCost(nivel) =
   75 + 35·década` (22 860 para llevar una unidad a Nvl.100) y +9 % de daño por
@@ -408,6 +410,37 @@ Lectura:
   jugarlo. La dificultad de Heat 49 lo convierte en un objetivo de largo
   plazo, no en la primera run.
 
+## Maestría y legendarias (1.11.0)
+
+- **Nivel 1–6 para las 11 unidades**: cada carta dedicada sube un nivel. La
+  curva se suaviza a **+5 % daño / −2 % recarga por nivel** (antes +25 %/−8 %)
+  porque ahora la reciben todas las unidades y se apila con las cartas
+  exclusivas/técnicas. Los drones escalan +5 % de su efecto principal.
+- **El nivel ya no regala balas al Guardian**: la base es 1 bala y las
+  **balas 2.ª y 3.ª** siguen siendo la identidad de `bullets_5`, que ahora
+  entrega `burstBonus` por aplicación. Sin este recorte, cualquier carta del
+  Guardian lo llevaba a 3 balas y el S50 subía ~20 puntos de win rate.
+- **Maestría 0–15**: suma con cartas dedicadas, de tipo, globales, de cadencia,
+  caza y combos. Cada 5 abre una elección legendaria (3/2/1 cartas). Las
+  legendarias son solo de run y no tocan el meta, NG+ ni los récords.
+- **Doctrinas**: 23 cartas repetibles 2 veces. Son la vía para que todas las
+  unidades alcancen Lv.6 sin depender de cartas exclusivas.
+
+### Medición (10 semillas, `--mode=inteligente`)
+
+| Escenario | Nvl.75 | Nvl.87 |
+|---|---|---|
+| 1.10.0 (baseline) | 70 % win / 42 % HP / 66 % bajas | 90 % / 61 % / 82 % |
+| 1.11.0 normal | **70 % / 37 % / 67 %** | **90 % / 54 % / 82 %** |
+| 1.11.0 con `--legendaries` (techo, todas las elecciones) | **80 % / 40 % / 72 %** | **100 % / 56 % / 88 %** |
+
+Lectura: el win rate se mantiene; el HP baja unos puntos porque las doctrinas
+diluyen la oferta con cartas de progresión. `--legendaries` es una **cota
+superior** (toma todas las elecciones de todas las unidades, no una build
+enfocada): +10 puntos de win en Nvl.75 y +10 en Nvl.87, dentro de la guarda de
+±10-15 puntos. Si una build enfocada supera esa cota, se ajustan las
+legendarias, no la curva base.
+
 ## Metodología y guardas
 
 1. Medir antes de tocar: correr el sim y la sonda con las mismas semillas.
@@ -421,14 +454,15 @@ Lectura:
 6. La suite tiene guardas de regresión de HP por etapa, apertura, jefes,
    variantes y supervivencia.
 
-## Estado actual (v1.10.0)
+## Estado actual (v1.11.0)
 
 - **Campaña de una pasada**: S1 100 %, S2 80 %, S3 20 %, S4 70 %, S5 90 %,
   S6 60 %, S10 10 %, S20 20 %, S30 10 %, S50 0 % con `pool-focus` (10
   semillas). Es el **piso sin farmeo**: el jugador ya no llega al S50 con una
   limpieza por etapa.
-- **S50 farmeado**: `--metalv=75` da **70 % win / 42 % HP / 66 % bajas**;
-  `--metalv=87` da **90 % / 61 % / 82 %**. Para Nvl.87 hacen falta ~500
+- **S50 farmeado (1.11.0)**: `--metalv=75` da **70 % win / 37 % HP / 67 %
+  bajas**; `--metalv=87` da **90 % / 54 % / 82 %**. La cota superior con
+  `--legendaries` es 80/40/72 y 100/56/88. Para Nvl.87 hacen falta ~500
   repeticiones extra de 150 fragmentos; para Nvl.75, ~365.
 - S50 sin farmeo: **0 % win / 0 % HP / 0 % bajas** (Nvl.28). 1.8.0: 90/59/81
   con Nvl.44 y +18 %/nivel.
@@ -475,6 +509,11 @@ Lectura:
   bajo el umbral para el atacante con execute. La economía pasa a ser de
   **farmeo**: el S50 no se alcanza en una pasada. Detalle en §"El bucle de
   farmeo".
+- **Ronda 1.11.0**: nivel 1–6 para las 11 unidades (+5 % daño/−2 % recarga),
+  maestría 0–15, 23 doctrinas y 33 legendarias (3 por unidad). El Guardian
+  conserva sus 3 balas vía `bullets_5` (`burstBonus`), no vía nivel. El S50
+  farmeado queda en 70/37/67 (Nvl.75) y 90/54/82 (Nvl.87); la cota superior
+  con todas las legendarias es 80/40/72 y 100/56/88.
 - **Ronda 1.10.0**: Nueva Partida+ (+5 % global/ciclo, tope +100 %), Reset
   Global, modal de victoria scrolleable y daily sobre cualquier etapa
   desbloqueada con Heat 49 forzado. Sin cambios a la curva de la campaña.

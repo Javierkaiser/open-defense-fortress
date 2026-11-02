@@ -871,18 +871,19 @@ test('fase 29: el proyectil que sale de la torre va pintado con SU color', () =>
   }
 });
 
-test('fase 29: levelPips traduce el nivel de la run al número de pips (1-5)', () => {
+test('1.11.0: levelPips traduce el nivel de la run al número de pips (1-6)', () => {
   assert.equal(levelPips(1), 1);
   assert.equal(levelPips(3), 3);
   assert.equal(levelPips(5), 5);
+  assert.equal(levelPips(6), 6);
   assert.equal(levelPips(0), 0, 'nivel 0 → sin pips');
   assert.equal(levelPips(-3), 0, 'nivel negativo → sin pips');
-  assert.equal(levelPips(9), MAX_TOWER_LEVEL, 'nunca más de 5 (tope de la run)');
+  assert.equal(levelPips(9), MAX_TOWER_LEVEL, 'nunca más de MAX_TOWER_LEVEL');
   // En todo el rango: ni negativos ni por encima del tope.
   for (let lv = -5; lv <= 12; lv++) {
     const n = levelPips(lv);
     assert.ok(n >= 0, `nivel ${lv}: los pips no pueden ser negativos (${n})`);
-    assert.ok(n <= MAX_TOWER_LEVEL, `nivel ${lv}: los pips no pueden pasar de 5 (${n})`);
+    assert.ok(n <= MAX_TOWER_LEVEL, `nivel ${lv}: los pips no pueden pasar el tope (${n})`);
   }
 });
 
@@ -890,10 +891,10 @@ test('fase 60: el pad dibuja un tick por nivel, en el color de acento de la torr
   // fase 60: los pips que flotaban debajo de la torre (a 22 px, sobre la
   // plataforma, junto al glifo del tipo de daño: se leía como un código
   // de barras) se mudaron al ANILLO DEL PAD. Ahora el nivel se ve siempre
-  // — 1 tick encendido en Lv.1, 5 en Lv.5 — porque el pad es el
+  // — 1 tick encendido en Lv.1, 6 en Lv.6 — porque el pad es el
   // indicador de "qué tier es esta torre", comparable de un vistazo entre
   // dos torres de la misma fila.
-  const CASOS = [['guardian', 3, 3], ['mortar', 5, 5], ['beam', 1, 1], ['gauss', 0, 0]];
+  const CASOS = [['guardian', 3, 3], ['mortar', 5, 5], ['beam', 1, 1], ['gauss', 0, 0], ['guardian', 6, 6]];
   for (const [type, lv, esperado] of CASOS) {
     const t = new Tower(type, 100, lv, 0);
     t.game = { engine: { _t: 0 } };
@@ -1045,10 +1046,10 @@ test('fase 29: la escala visual NO cambió el daño ni la cadencia', () => {
   assert.equal(t.damage, TOWERS.guardian.damage * escalaGuardian);
   assert.equal(t.cooldown, TOWERS.guardian.cooldown);
   t.level = 5;
-  assert.equal(t.damage, TOWERS.guardian.damage * escalaGuardian * 2,
-    '+25 % por nivel, como siempre');
-  assert.ok(Math.abs(t.cooldown - TOWERS.guardian.cooldown * Math.pow(0.92, 4)) < 1e-12,
-    'la cadencia sigue bajando 8 % por nivel');
+  assert.equal(t.damage, TOWERS.guardian.damage * escalaGuardian * 1.2,
+    '+5 % por nivel (1.11.0)');
+  assert.ok(Math.abs(t.cooldown - TOWERS.guardian.cooldown * Math.pow(0.98, 4)) < 1e-12,
+    'la cadencia baja 2 % por nivel');
   // Todas las torres: el daño sale de la tabla, no del render.
   for (const type of Object.keys(TOWERS)) {
     const torre = new Tower(type, 100, 1);
@@ -1738,25 +1739,30 @@ function mkGameE48(enemies = []) {
   return game;
 }
 
-test('fase 48: el Guardian tiene TOPE DURO de 3 balas, con el perk de +2 incluido', () => {
+test('1.11.0: el nivel solo NO regala balas; las da `bullets_5` (tope 3)', () => {
   const g = mkGameE48();
   const t = new Tower('guardian', 270, 1);
   t.game = g;
-  // Sin perks: la escalera de niveles es 1, 2, 3, 3, 3.
-  const esperado = [1, 2, 3, 3, 3];
-  for (let lv = 1; lv <= 5; lv++) {
+  for (let lv = 1; lv <= MAX_TOWER_LEVEL; lv++) {
     t.level = lv;
-    assert.equal(t.bulletsPerBurst, esperado[lv - 1], `nivel ${lv}: rafaga de ${t.bulletsPerBurst}`);
+    assert.equal(t.bulletsPerBurst, 1, `nivel ${lv}: sin la carta sigue en 1 bala`);
   }
+  t.cardMods.burstBonus = 1;
+  assert.equal(t.bulletsPerBurst, 2, 'una aplicación de Cañón de Ráfaga');
+  t.cardMods.burstBonus = 2;
+  assert.equal(t.bulletsPerBurst, 3, 'dos aplicaciones');
+  t.cardMods.burstBonus = 9;
+  assert.equal(t.bulletsPerBurst, 3, 'tope duro de 3');
 });
 
-test('fase 48: el tope de 3 aguanta aunque el perk sume balas', () => {
-  // El perk del meta ya NO suma balas (fase 48) pero, aun asi, el tope
-  // es duro: ni el nivel ni un extraCount imposible lo pasan.
+test('1.11.0: el tope de 3 aguanta aunque el perk sume balas', () => {
   const g = mkGameE48();
   const t = new Tower('guardian', 270, 5);
   t.game = g;
-  assert.ok(t.bulletsPerBurst <= 3, `con Lv.5 el Guardian no puede pasar de 3 (va ${t.bulletsPerBurst})`);
+  t.cardMods.burstBonus = 2;
+  t.cardMods.extraCount = 4;
+  // base 2 + burstBonus 2 + extraCount 4 → tope 3
+  assert.ok(t.bulletsPerBurst <= 3, `el tope de 3 es duro (va ${t.bulletsPerBurst})`);
 });
 
 test('fase 48: del Lv.4 las balas van a BLANCOS DISTINTOS (multi-blanco)', () => {
@@ -1764,6 +1770,7 @@ test('fase 48: del Lv.4 las balas van a BLANCOS DISTINTOS (multi-blanco)', () =>
   const g = mkGameE48(enemigos);
   const t = new Tower('guardian', 270, 4);
   t.game = g;
+  t.cardMods.burstBonus = 2; // 1.11.0: las 3 balas las da Cañón de Ráfaga
   t.fire(enemigos, g, 0.016);
   const balas = g.engine.entities.filter((e) => e.constructor?.name === 'Bullet');
   assert.equal(balas.length, 3, 'la rafaga del Lv.4 son 3 balas');
@@ -1777,6 +1784,7 @@ test('fase 48: hasta el Lv.3 las balas van al MISMO blanco (paralelas)', () => {
   const g = mkGameE48(enemigos);
   const t = new Tower('guardian', 270, 3);
   t.game = g;
+  t.cardMods.burstBonus = 2; // 1.11.0: las 3 balas las da Cañón de Ráfaga
   t.fire(enemigos, g, 0.016);
   const balas = g.engine.entities.filter((e) => e.constructor?.name === 'Bullet');
   assert.equal(balas.length, 3, 'la rafaga del Lv.3 son 3 balas');

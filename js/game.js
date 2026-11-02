@@ -24,7 +24,9 @@ import {
   stageDef, isEndless, endlessOpen, bestDepth, nextEndlessStage, isMilestone,
   endlessRewardMul, dailyRun,
 } from './endless.js';
-import { rollOffer, applyCard, comboSummary } from './cards.js';
+import {
+  rollOffer, applyCard, comboSummary, legendaryCardsFor,
+} from './cards.js';
 import {
   MultiKillWatcher, spawnGoldenFireworks, dropEnergyOrb, starburst,
   spawnSpriteBossExplosion,
@@ -88,6 +90,12 @@ export class Game {
     // El estado CARD_CHOICE congela el mundo (timeScale 0, §1.2) y el
     // modal DOM vive en hud.js (§4.4).
     this.pendingOffer = null;
+    // 1.11.0 - tipo de oferta abierta ('normal' | 'legendary') y draft en
+    // curso. La oferta legendaria NO consume un nivel pendiente: es un
+    // premio de maestría que se encola después de la carta que lo disparó.
+    this._cardOfferKind = null;
+    this._legendaryDraft = null;
+    this._cardChoiceMeta = null;
 
     /** Resumen de fin de run para las pantallas HUD (§2.10). */
     this.summary = null;
@@ -154,7 +162,7 @@ export class Game {
       }
       // Modal de cartas (§4.4): entra/sale con la FSM CARD_CHOICE
       if (next === 'CARD_CHOICE') {
-        this.hud.showCardChoice(this.pendingOffer ?? []);
+        this.hud.showCardChoice(this.pendingOffer ?? [], this._cardChoiceMeta);
       } else {
         // NINGÚN modal sobrevive a un cambio de estado: el de cartas, el
         // de perk (TORRETAS) y el panel 🃏 reutilizan el MISMO nodo
@@ -677,6 +685,10 @@ export class Game {
 
   toMenu() {
     this._clearBattlefield();
+    this.pendingOffer = null;
+    this._cardOfferKind = null;
+    this._legendaryDraft = null;
+    this._cardChoiceMeta = null;
     this.engine.setState('MENU');
   }
 
@@ -879,6 +891,9 @@ export class Game {
     this._lastHealFloatAt = -Infinity;
     this.summary = null;
     this.pendingOffer = null;   // card system: sin ofertas entre stages
+    this._cardOfferKind = null;
+    this._legendaryDraft = null;
+    this._cardChoiceMeta = null;
     // dev-7 fase 64: la cola es un contador de NIVELES sin carta (no de
     // ofertas ya sorteadas): un stage nuevo arranca sin nada pendiente.
     this._pendingLevels = 0;
@@ -1016,6 +1031,9 @@ export class Game {
     this._lastHealFloatAt = -Infinity;
     this.summary = null;
     this.pendingOffer = null;
+    this._cardOfferKind = null;
+    this._legendaryDraft = null;
+    this._cardChoiceMeta = null;
     this._pendingLevels = 0;
     this.engine.entities.length = 0;
     this.engine.effects.length = 0;
@@ -1137,73 +1155,145 @@ export class Game {
   _maybeOpenCards() {
     if (this._ended || this.engine.state !== 'PLAYING') return;
     if (!this._pendingLevels) return;
-    const offer = rollOffer(this);
-    // 1.8.0: sin cartas elegibles no se abre un modal vacío (no se puede
-    // cerrar sin elegir → soft-lock). El nivel queda pendiente: la próxima
-    // subida vuelve a intentar cuando el pool tenga cartas otra vez.
-    if (!offer.length) return;
+    this._openNextCardOffer();
+  }
+
+  /**
+   * 1.11.0 - Devuelve el próximo draft legendario pendiente y lo consume.
+   * Recorre torres y drones; cada unidad guarda `legendaryDrafts` (cuántos
+   * hitos le quedan por elegir) y `legendaryPicks` (cartas ya tomadas).
+   * @returns {{unit:object,cards:Array,tier:number}|null}
+   */
+  _nextLegendaryOffer() {
+    const units = [
+      ...(this.fortress?.slots ?? []),
+      ...(this.fortress?.drones ?? []),
+    ].filter(Boolean);
+    for (const unit of units) {
+      if ((unit.legendaryDrafts ?? 0) <= 0) continue;
+      const picked = new Set(unit.legendaryPicks ?? []);
+      const cards = legendaryCardsFor(unit.type).filter((c) => !picked.has(c.id));
+      if (!cards.length) {
+        unit.legendaryDrafts = 0;
+        continue;
+      }
+      unit.legendaryDrafts -= 1;
+      return { unit, cards, tier: unit.legendaryTier ?? 1 };
+    }
+    return null;
+  }
+
+  /**
+   * Presenta una oferta (normal o legendaria) sin duplicar el guard de
+   * doble toque: si ya estamos en CARD_CHOICE, sólo re-renderiza el modal.
+   */
+  _presentCardOffer(offer, kind, meta = null, draft = null) {
     this.pendingOffer = offer;
-    this.engine.setState('CARD_CHOICE');
+    this._cardOfferKind = kind;
+    this._cardChoiceMeta = meta;
+    this._legendaryDraft = draft;
+    if (!offer.length) return false;
+    if (this.engine.state !== 'CARD_CHOICE') {
+      this.engine.setState('CARD_CHOICE');
+    } else {
+      this.hud.showCardChoice(offer, meta);
+    }
+    return true;
+  }
+
+  /**
+   * Abre la próxima elección: primero un draft legendario (si hay), después
+   * una oferta normal si quedan niveles pendientes. Devuelve true si abrió
+   * algo; false deja el nivel pendiente para la próxima subida.
+   */
+  _openNextCardOffer() {
+    const draft = this._nextLegendaryOffer();
+    if (draft) {
+      const meta = {
+        kind: 'legendary',
+        unitType: draft.unit.type,
+        unitName: draft.unit.data?.name ?? draft.unit.type,
+        tier: draft.tier,
+      };
+      this._presentCardOffer(draft.cards, 'legendary', meta, draft);
+      return true;
+    }
+    if (this._pendingLevels <= 0) return false;
+    const offer = rollOffer(this);
+    if (!offer.length) return false;
+    this._presentCardOffer(offer, 'normal', null, null);
+    return true;
   }
 
   /**
    * Tap en una carta del modal CARD_CHOICE: aplica el efecto REAL y
    * continúa (o abre la siguiente oferta si el mismo kill subió varios
    * niveles). La run terminada nunca re-abre cartas.
+   *
+   * 1.11.0: una carta legendaria NO consume un nivel pendiente. Después de
+   * aplicarla se puede encadenar otro draft (si cruzó el siguiente umbral)
+   * o volver a la oferta normal que estaba pendiente.
    */
   pickCard(cardId) {
     if (this.engine.state !== 'CARD_CHOICE' || !this.pendingOffer) return;
     const card = this.pendingOffer.find((c) => c.id === cardId);
     if (!card) return;
+    const wasLegendary = this._cardOfferKind === 'legendary';
+    const draft = wasLegendary ? this._legendaryDraft : null;
     // 1.8.0: una carta ya topada es un no-op. No se cuenta, no se festeja
     // y no consume el nivel: se reintenta UNA vez con una oferta nueva.
     // Si tampoco quedan cartas elegibles, se cierra la elección.
     if (!applyCard(card, this)) {
-      const next = rollOffer(this);
-      if (!next.length) {
-        this.pendingOffer = null;
-        this.engine.setState('PLAYING');
-        return;
+      if (wasLegendary && draft?.unit) {
+        draft.unit.legendaryDrafts = (draft.unit.legendaryDrafts ?? 0) + 1;
       }
-      this.pendingOffer = next;
-      this.hud.showCardChoice(next);
+      if (!this._openNextCardOffer()) {
+        this.pendingOffer = null;
+        this._cardOfferKind = null;
+        this._legendaryDraft = null;
+        this._cardChoiceMeta = null;
+        this.engine.setState('PLAYING');
+      }
       return;
     }
     this.audio.sfx('card');
     // dev-7 fase 28: contador de cartas aplicadas en la run (lo usa el
     // resumen de fin de partida para decir qué se perdió/perdió).
     this._cardsApplied = (this._cardsApplied ?? 0) + 1;
-    // Estética v3.1 (eye-of-the-void): feedback de BUFF en verde sobre la
-    // base al aplicar la mejora — texto canonico de stages altos.
     const buffY = SCENE.BASE_ARC_Y - 40;
-    // dev-7 fase 28: estaba en inglés ("Powered up") — el ÚNICO string en
-    // inglés que veía el jugador en un juego enteramente en español.
-    this.engine.floatText(CONFIG.BASE_X, buffY, `¡MEJORA! ${card.name}`, '#4BE89A');
+    if (wasLegendary && draft?.unit) {
+      const picks = draft.unit.legendaryPicks
+        ?? (draft.unit.legendaryPicks = []);
+      if (!picks.includes(card.id)) picks.push(card.id);
+      this.audio.sfx('levelup');
+      this.engine.floatText(CONFIG.BASE_X, buffY, `¡LEGENDARIA! ${card.name}`, '#FFD24A');
+      this.hud?.showAviso?.({
+        variant: 'fase',
+        title: 'LEGENDARIA',
+        name: card.name,
+        rule: `${draft.unit.data?.name ?? draft.unit.type} · MAESTRÍA ${draft.tier * 5}`,
+        ms: 2600,
+      });
+    } else {
+      // Estética v3.1 (eye-of-the-void): feedback de BUFF en verde sobre la
+      // base al aplicar la mejora — texto canonico de stages altos.
+      this.engine.floatText(CONFIG.BASE_X, buffY, `¡MEJORA! ${card.name}`, '#4BE89A');
+    }
     this.pendingOffer = null;
-    // La carta elegida consume UN nivel pendiente (fase 64).
-    this._pendingLevels = Math.max(0, this._pendingLevels - 1);
-    if (this._ended || !this._pendingLevels) {
+    this._cardOfferKind = null;
+    this._legendaryDraft = null;
+    this._cardChoiceMeta = null;
+    // Sólo la carta normal consume un nivel pendiente (fase 64).
+    if (!wasLegendary) this._pendingLevels = Math.max(0, this._pendingLevels - 1);
+    if (this._ended) {
       this._pendingLevels = 0;
-      if (this._ended) { this.engine.setState('SELECT_STAGE'); return; }
-      this.engine.setState('PLAYING');
+      this.engine.setState('SELECT_STAGE');
       return;
     }
-    // Multi-level-up: la oferta SIGUIENTE se sortea AHORA, con la carta
-    // recién aplicada (fase 64: la cola vieja traía ofertas ya sorteadas y
-    // repetía la torre que el jugador acababa de desbloquear).
-    //
-    // NO se llama hideCardChoice(): eso reiniciaría el guard
-    // anti-doble-toque (hud.js) y las dos ofertas encadenadas son la MISMA
-    // decisión (el 2.º toque del doble toque cae sobre la oferta nueva).
-    const next = rollOffer(this);
-    // 1.8.0: sin cartas elegibles no se muestra un modal vacío; el nivel
-    // pendiente queda para la próxima subida.
-    if (!next.length) {
-      this.engine.setState('PLAYING');
-      return;
-    }
-    this.pendingOffer = next;
-    this.hud.showCardChoice(next);
+    // Multi-level-up / draft: la oferta siguiente se arma AHORA, con la
+    // carta recién aplicada. `_openNextCardOffer` prioriza el draft
+    // legendario y sólo después la oferta normal.
+    if (!this._openNextCardOffer()) this.engine.setState('PLAYING');
   }
 
   /**

@@ -79,10 +79,11 @@ test('escala: el daño de cada torre es el previo al dial × su escala', () => {
     const previo = Math.round(base);
     assert.equal(t.damage, previo * dpsScaleFor(type),
       `${type}: ${previo} × ${dpsScaleFor(type)}`);
-    // La curva por nivel se conserva (se escala DESPUÉS del redondeo).
+    // 1.11.0: la curva por nivel se suaviza a +5 % (Lv.5 = ×1,20) y se
+    // escala DESPUÉS del redondeo.
     t.level = 5;
-    assert.equal(t.damage, Math.round(base * 2) * dpsScaleFor(type),
-      `${type}: el ×2 del Lv.5 se mantiene`);
+    assert.equal(t.damage, Math.round(base * 1.2) * dpsScaleFor(type),
+      `${type}: el ×1,20 del Lv.5 se mantiene`);
   }
 });
 
@@ -114,8 +115,8 @@ test('escala: la cadencia no se toca', () => {
     const t = new Tower(type, 100, 1);
     assert.equal(t.cooldown, d.cooldown, `${type}: cooldown Lv.1 intacto`);
     t.level = 5;
-    assert.ok(Math.abs(t.cooldown - d.cooldown * Math.pow(0.92, 4)) < 1e-12,
-      `${type}: la curva de cadencia por nivel sigue igual`);
+    assert.ok(Math.abs(t.cooldown - d.cooldown * Math.pow(0.98, 4)) < 1e-12,
+      `${type}: la curva de cadencia por nivel es -2 %`);
   }
 });
 

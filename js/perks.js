@@ -294,6 +294,13 @@ function hitOptBase(o) {
     famCrystalMul: o?.famCrystalMul ?? 1,
     famSporeMul: o?.famSporeMul ?? 1,
     famVirusMul: o?.famVirusMul ?? 1,
+    // 1.11.0 - Supresión legendaria (Foco Resonante / Guardia de Acero):
+    // viajan en el proyectil porque el hook de impacto lee `p` como mods.
+    supSplashFrac: o?.supSplashFrac ?? 0,
+    supSplashRadius: o?.supSplashRadius ?? 70,
+    supSplashTargets: o?.supSplashTargets ?? 0,
+    supMaxStacksAdd: o?.supMaxStacksAdd ?? 0,
+    supBurstFracAdd: o?.supBurstFracAdd ?? 0,
   };
 }
 

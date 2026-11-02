@@ -74,7 +74,7 @@ openspec/specs/         specs de comportamiento
 | `towers-fx.js` | Black Hole, Láser, Beam, Bolt y cráter del Mortar. |
 | `towers-drones.js` | Drones orbitales: ignición, veneno y burbuja. |
 | `player.js` | `Fortress`: base, slots, drones, HP/escudo, Black Hole y render de la plataforma. |
-| `cards.js` | 84 cartas, efectos, combos, ofertas y topes. |
+| `cards.js` | 107 cartas normales + 33 legendarias aparte, nivel/maestría, efectos, combos, ofertas y topes. |
 | `cards-data.js` | Topes, tags de unidad, técnicas y cazas de familia. |
 | `card-constants.js` | Multiplicadores compartidos por cartas y unidades futuras. |
 | `combo-mods.js` | Schema único de los flags de combos. |
@@ -263,11 +263,21 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 - **XP**: escala con el `hpMul` de la etapa; al subir de nivel se ofrece 1 de 3
   cartas. La campaña reparte ~20 cartas por etapa; el tope es 21 en campaña y
   31 en supervivencia.
-- **Cartas**: 84; pueden desbloquear torres/drones, mejorar una unidad,
-  agregar mecánicas, combos con prerrequisitos de tags o dar bonuses globales.
-  Desde 1.8.0 **cada mejora se elige una sola vez**; `bullets_5` es la
-  excepción (level-up del Guardian). El daño global da +10 % una vez y el daño
-  por tipo +20 % una vez; los combos exigen sus dos piezas.
+- **Cartas**: 107 normales (84 + 23 doctrinas) y 33 legendarias aparte.
+  Pueden desbloquear torres/drones, mejorar una unidad, agregar mecánicas,
+  combos con prerrequisitos de tags o dar bonuses globales. Desde 1.8.0 casi
+  todas las mejoras se eligen una sola vez; las **doctrinas** son la excepción
+  (2 rangos) y `bullets_5` sigue siendo el level-up del Guardian. El daño
+  global da +10 % una vez y el daño por tipo +20 % una vez; los combos exigen
+  sus dos piezas.
+- **Nivel y maestría (1.11.0)**: las 8 torres y los 3 drones van de **Lv.1 a
+  Lv.6**; cada carta dedicada sube un nivel (+5 % daño, −2 % recarga; drones
+  +5 % a su efecto). La **maestría** (0–15) suma con cualquier carta que
+  mejore a la unidad (dedicada, tipo, global, cadencia, caza o combo). Cada 5
+  puntos abre una **elección legendaria**: 3 cartas propias de la unidad a
+  los 5, las 2 restantes a los 10 y la última a los 15. La elección no consume
+  un nivel pendiente y Censura no la recorta. Contrato en
+  `openspec/specs/gameplay/tower-mastery/spec.md`.
 - **Meta**: 100 niveles por unidad con **un pool compartido de fragmentos**
   (`fragsPool`): 150 por victoria y 300 la primera limpieza de cada etapa;
   `fragCost(nivel) = 75 + 35·década` y +9 % de daño por nivel. No hay botón
@@ -301,6 +311,10 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 - El **STAGE CLEAR** es un modal con cabecera fija, cuerpo scrolleable y
   acciones fijas (`screen-clear`/`clear-panel`/`clear-body`/`clear-actions`).
   En pantallas bajas el cuerpo scrollea solo; los botones nunca se recortan.
+- El modal de cartas muestra **nivel y maestría** de torres y drones. La
+  elección legendaria usa el marco dorado `rarity-legendary`, título
+  “LEGENDARIA” y la unidad/umbral en el kicker. El pad de la torre dibuja
+  6 ticks de nivel.
 - `@container marco` adapta el HUD a marcos angostos; `@media (pointer: coarse)`
   agranda los botones a 52 px.
 - `viewport-fit=cover` + `env(safe-area-inset-*)` para notch y barras.
@@ -347,7 +361,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1066 tests (1066 pass, 0 skip) en 35 archivos.
+- 1083 tests (1083 pass, 0 skip) en 36 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

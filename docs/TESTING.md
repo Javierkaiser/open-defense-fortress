@@ -6,7 +6,7 @@
 node --test "tests/test-*.mjs"
 ```
 
-Estado actual: **1066 tests** (1066 pass, 0 skip, 0 fail) en **35 archivos**.
+Estado actual: **1083 tests** (1083 pass, 0 skip, 0 fail) en **36 archivos**.
 
 Requisitos: Node 22 o superior.
 
@@ -32,6 +32,7 @@ node --test tests/test-stages.mjs
 | Score, XP, nivel, multiplicadores | `test-score.mjs` |
 | Meta-juego y persistencia | `test-meta.mjs`, `test-progress.mjs` |
 | HUD (markup puro, sin DOM real) | `test-hud.mjs` |
+| Nivel/maestría, doctrinas y legendarias | `test-unit-progression.mjs` |
 | Créditos y licencias (datos + textos legales verbatim) | `test-licenses.mjs` |
 | Temas, skins de torres y calidad | `test-theme.mjs`, `test-tower-skins.mjs`, `test-quality.mjs` |
 | Audio (rutas, gains, throttles) | `test-audio.mjs` |
@@ -85,8 +86,10 @@ Para eso hay **smoke manual** y una checklist Android (APK debug).
 5. Probar tema, calidad Alta/Baja, “Reset Global” y “Nueva Partida+” (con la
    campaña completa). Verificar que el STAGE CLEAR scrollee y que sus botones
    queden visibles a 360×640 y 390×844.
-6. Probar `SELECCIONAR STAGE`, `TORRETAS`, `PROTOCOLO` y `RÉCORDS`.
-7. Verificar que no haya requests de red en DevTools.
+6. Subir una torre a maestría 5 y comprobar el draft legendario (3/2/1), el
+   badge `R2/2` de las doctrinas y la fila de drones con maestría.
+7. Probar `SELECCIONAR STAGE`, `TORRETAS`, `PROTOCOLO` y `RÉCORDS`.
+8. Verificar que no haya requests de red en DevTools.
 
 ## Smoke Android (APK debug)
 

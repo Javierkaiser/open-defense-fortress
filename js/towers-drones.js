@@ -3,7 +3,7 @@
 // =============================================================================
 
 import { CONFIG, clamp, dist, rand } from './engine.js';
-import { DRONES, WASPS, FIREWHEEL, dpsScaleFor } from './towers-data.js';
+import { DRONES, WASPS, FIREWHEEL, MAX_TOWER_LEVEL, dpsScaleFor } from './towers-data.js';
 import { metaDmgMul, metaSlowFrac, perkDmgFor, META_SLOW_CAP } from './meta.js';
 import { applyPoison, applySlow, applyMark } from './enemies.js';
 import { unitMods, hurtP } from './towers-core.js';
@@ -41,8 +41,10 @@ export function forcefieldBubbleR(unit) {
   if (!unit?.data) return 0;
   const base = unit.data.bubbleR ?? 0;
   const add = unitMods(unit).radiusAdd ?? 0;
+  // 1.11.0: el nivel del dron también ensancha la burbuja (+2 px/nivel).
+  const levelAdd = 2 * (Math.max(1, unit.level ?? 1) - 1);
   const max = unit.data.maxBubbleR ?? Infinity;
-  return Math.min(max, Math.max(0, base + add));
+  return Math.min(max, Math.max(0, base + add + levelAdd));
 }
 
 /** Stats canónicas §2.3 — números EXACTOS del doc. */
@@ -66,6 +68,12 @@ export class Drone {
     this.game = game;
     this.slotIdx = slotIdx;          // 0|1: separa las órbitas/fases
     this.skin = skin;                // iconos/test; runtime resuelve del engine
+    // 1.11.0 - nivel y maestría de la RUN para drones. El nivel escala su
+    // efecto principal (+5 %/nivel); la maestría alimenta las legendarias.
+    this.level = 1;
+    this.mastery = 0;
+    this.legendaryTier = 0;
+    this.legendaryPicks = [];
     this.angle = slotIdx === 0 ? 0 : Math.PI / 2; // desincroniza
     this.x = CONFIG.BASE_X; this.y = droneY();
     this.dead = false;
@@ -95,6 +103,22 @@ export class Drone {
     this._sweepT = 0;                // s restantes de sobrevuelo
     this._sweepA = 0;                // ángulo del barrido sobre el blanco
     this._wp = null;                 // waypoint de patrulla (sin blancos)
+  }
+
+  /**
+   * 1.11.0 - SUBE DE NIVEL la unidad (1..MAX_TOWER_LEVEL). Mismo contrato
+   * que `Tower.upgrade()`: devuelve false si ya está en el techo.
+   * @returns {boolean}
+   */
+  upgrade() {
+    if (this.level >= MAX_TOWER_LEVEL) return false;
+    this.level += 1;
+    return true;
+  }
+
+  /** Multiplicador de nivel de la run (+5 % al efecto principal). */
+  get levelMul() {
+    return 1 + 0.05 * (Math.max(1, this.level ?? 1) - 1);
   }
 
   /** Centro de la base: referencia de la Fortress y de los drones. */
@@ -142,9 +166,12 @@ export class Drone {
   rebuildSwarm() {
     if (this.type !== 'wasps') return;
     const base = this.data.count ?? 0;
-    const perkExtra = unitMods(this).extraCount ?? 0;
+    const mods = unitMods(this);
+    const perkExtra = mods.extraCount ?? 0;
     const cardExtra = this.extraWasps ?? 0;
-    const want = Math.min(WASPS.maxSwarm, base + perkExtra + cardExtra);
+    // 1.11.0 - Reina del Enjambre: +1 mosquito por mod de legendaria.
+    const legendaryExtra = mods.extraWasps ?? 0;
+    const want = Math.min(WASPS.maxSwarm, base + perkExtra + cardExtra + legendaryExtra);
     // Conserva los mosquitos que ya existían (con su blanco y su cooldown)
     // y añade las nuevas desde el panal.
     const prev = this.wasps ?? [];
@@ -209,7 +236,7 @@ export class Drone {
         // DPS realizado subía del 74-83 % del nominal (y el hueco
         // CRECÍA con el meta) al 88-99 %.
         const dps = (d.dps * (metaDmgMul('firewheel') ?? 1) * (this.dmgMul ?? 1)
-          + (unitMods(this).dpsAdd ?? 0)) * dpsScaleFor('firewheel');
+          + (unitMods(this).dpsAdd ?? 0)) * dpsScaleFor('firewheel') * this.levelMul;
         const alive = [];
         for (const e of enemies || []) {
           if (e && !e.dead && Number.isFinite(e.x) && Number.isFinite(e.y)) {
@@ -356,9 +383,11 @@ export class Drone {
         // addons de perk) con la MISMA proporción que el resto del arsenal.
         const waspScale = dpsScaleFor('wasps');
         const stingDmg = Math.round(d.stingDamage * metaMul
-          * (waspMods.dmgMul ?? 1) * (this.dmgMul ?? 1)) * waspScale;
-        const venomDps = Math.round((d.venomDps ?? 0) * metaMul
           * (waspMods.dmgMul ?? 1) * (this.dmgMul ?? 1)
+          * this.levelMul) * waspScale;
+        const venomDps = Math.round(((d.venomDps ?? 0) * metaMul
+          * (waspMods.dmgMul ?? 1) * (this.dmgMul ?? 1)
+          * this.levelMul)
           + (waspMods.venomDpsAdd ?? 0)) * waspScale;
         const venomTime = (d.venomTime ?? 0) + (waspMods.venomTimeAdd ?? 0);
         // El cooldown de picadura lo escalan el perk de cadencia del meta
@@ -550,7 +579,8 @@ export class Drone {
           // Enemy.update consume el flag (velocidad de caída).
           const slowFrac = Math.min(META_SLOW_CAP,
             (metaSlowFrac('forcefield') ?? d.slowFrac)
-            + (unitMods(this).slowOnHit ?? 0));
+            + (unitMods(this).slowOnHit ?? 0)
+            + 0.01 * (Math.max(1, this.level ?? 1) - 1));
           const ffm = unitMods(this);
           // Radio EFECTIVO (base + perks/cartas, con tope duro) desde el
           // helper único: el hitbox y el dibujo no pueden divergir.
@@ -565,7 +595,7 @@ export class Drone {
           // presentación escala las espinas ACÁ (no en meta.js): `perkDmgFor`
           // sigue devolviendo el DPS de perk × meta.
           const thornDps = perkDmgFor('forcefield') * (this.dmgMul ?? 1)
-            * dpsScaleFor('forcefield');
+            * dpsScaleFor('forcefield') * this.levelMul;
           let inside = 0;
           for (const e of enemies || []) {
             if (!e || e.dead) continue;

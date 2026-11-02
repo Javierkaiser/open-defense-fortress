@@ -2861,6 +2861,14 @@ html, body {
   color: var(--hud-teal);
 }
 .own-tower i { font-style: normal; color: var(--crit-gold); letter-spacing: var(--tracking-normal); }
+/* 1.11.0: maestría de la unidad en la fila del modal de cartas. */
+.own-mastery {
+  font-style: normal;
+  color: var(--hud-teal);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-normal);
+  opacity: .9;
+}
 
 /* Fila de 3 cartas con reveal flip escalonado 0/120/240 ms */
 .cards-row {
@@ -2989,6 +2997,29 @@ html, body {
   font-size: var(--text-xs);
   letter-spacing: var(--tracking-normal);
   box-shadow: 0 0 10px rgb(var(--rarity-rare-rgb) / .6);
+}
+/* 1.11.0: badge de la elección legendaria (estrella dorada, sin texto que
+   pise el nombre en las cards angostas de escritorio). */
+.card-lv-badge.is-legendary {
+  width: 26px;
+  padding: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #FFF0B0, var(--crit-gold));
+  color: #2A1A00;
+  font-size: var(--text-lg);
+  letter-spacing: 0;
+  box-shadow: 0 0 12px rgb(var(--crit-gold-rgb) / .75);
+}
+.legendary-kicker {
+  margin: -4px 0 0;
+  color: var(--crit-gold);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-wide);
+}
+#card-choice[data-kind="legendary"] .card-title {
+  color: #FFE58A;
+  text-shadow: 0 0 12px rgb(var(--crit-gold-rgb) / .95), 0 0 36px rgb(var(--crit-gold-rgb) / .55);
 }
 
 .card-inner { display: flex; flex-direction: column; gap: var(--space-3); text-align: center; flex: 0 0 auto; }

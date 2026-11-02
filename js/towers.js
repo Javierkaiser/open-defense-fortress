@@ -166,8 +166,10 @@ const HEAT_DECAY = 0.6;
 const BEAM_COOLDOWN_COLOR = '#4A5A52';
 
 /**
- * Nivel máximo de una torreta dentro de la RUN (1-5). El nivel de META
- * (1-100) es otra cosa y vive en meta.js.
+ * Nivel máximo de una torreta dentro de la RUN (1-6). El nivel de META
+ * (1-100) es otra cosa y vive en meta.js. 1.11.0: la quinta mejora
+ * dedicada lleva al nivel 6 y el pipeline central de cards.js sube el
+ * nivel de TODAS las unidades, no sólo del Guardian.
  */
 
 /**
@@ -220,7 +222,7 @@ export function projectileColor(type, skin = null) {
 /**
  * dev-7 fase 29 — Cuántos pips de nivel se dibujan bajo la torre (el
  * jugador nunca veía el nivel de sus torres en partida). La run va de 1
- * a 5: 0 (o menos) no dibuja ninguno y nunca se pasa de 5.
+ * a MAX_TOWER_LEVEL: 0 (o menos) no dibuja ninguno y nunca se pasa del tope.
  */
 export function levelPips(level) {
   const n = Math.floor(Number(level));
@@ -304,6 +306,13 @@ export class Tower {
     // (js/perks.js) y los lee unitMods() (fusión con los perks).
     this.cardMods = {};
     this.cardApps = {};
+    // 1.11.0 - MAESTRÍA de la unidad: cuenta las cartas de la run que la
+    // mejoran (dedicadas, tipo, global, cadencia, caza y combos). Cada 5
+    // puntos desbloquea una elección legendaria. `legendaryTier` es cuántas
+    // elecciones se otorgaron (0..3) y `legendaryPicks` las cartas elegidas.
+    this.mastery = 0;
+    this.legendaryTier = 0;
+    this.legendaryPicks = [];
     this.cooldownLeft = rand(0, 0.2); // desincroniza las torres al arrancar
     this.firing = false;              // luz de estado este frame
     this.active = false;              // Beam encendido este frame
@@ -354,7 +363,7 @@ export class Tower {
     return true;
   }
 
-  /** Daño escalado: +25% por nivel (§2.2) × multiplicadores de carta ×
+  /** Daño escalado: +5% por nivel (1.11.0; antes +25%) × cartas ×
    *  META-GAME v6 (mejora permanente de la torreta, META_DMG_PER_LEVEL en
    *  meta.js — hoy +9 %/nivel meta desde 1.9.0, con el comentario viejo de
    *  "v3.5, +10 %/nivel" ya corregido) × perks.
@@ -375,19 +384,19 @@ export class Tower {
     // acá una sola vez para las torretas con tabla — reemplaza las
     // fórmulas por-sitio viejas (perkCount('x') * algo).
     const perkDmgMul = unitMods(this).dmgMul ?? 1;
-    const escalado = Math.round(base * (1 + 0.25 * (this.level - 1)) * (this.dmgMul ?? 1)
+    const escalado = Math.round(base * (1 + 0.05 * (this.level - 1)) * (this.dmgMul ?? 1)
       * (metaDmgMul(this.type) ?? 1) * perkDmgMul);
     return escalado * dpsScaleFor(this.type);
   }
 
-  /** Cadencia escalada: −8% por nivel (§2.2) × cartas (Servomecanismos)
+  /** Cadencia escalada: -2% por nivel (1.11.0; antes -8%) × cartas
    *  × perks (meta.js PERKS, dev-7 fase 10 — reemplaza el −5%/perk fijo
    *  que antes solo tenía Gauss; ahora cada torre define el suyo, o
    *  ninguno, en su propia tabla). */
   get cooldown() {
     const perkCadMul = unitMods(this).cadMul ?? 1;
     return this.data.cooldown
-      * Math.pow(0.92, this.level - 1)
+      * Math.pow(0.98, this.level - 1)
       * (this.cadMul ?? 1)
       * perkCadMul;
   }
@@ -417,14 +426,16 @@ export class Tower {
   /** Guardian (v3 3b/7, corrección JK 26-08): balas por disparo = NIVEL de
    *  la torre — Lv.1 dispara 1 bala, cada carta (+1 nivel) suma 1 bala
    *  PARALELA ("4-8 líneas paralelas" del diseño base). Tope defensivo 7: el
-   *  cap de nivel es 5 (upgrade()) pero la fórmula sigue genérica. */
+   *  cap de nivel es MAX_TOWER_LEVEL (upgrade()) pero la fórmula sigue genérica. */
   get bulletsPerBurst() {
-    // dev-7 fase 48: TOPE DURO de 3 balas simultáneas. Antes era
-    // min(nivel, 7) + los perks (+1..+4) = hasta 9 balas de golpe, y del
-    // Lv.4 en adelante se ABRÍA en abanico (las balas se dispersaban y
-    // fallaban: la mitad del daño se perdía).
-    // v6 perk (guardian): +1 bala extra por disparo por cada 10 niveles meta
-    return Math.min(3, this.level + (unitMods(this).extraCount ?? 0));
+    // dev-7 fase 48: TOPE DURO de 3 balas simultáneas.
+    // 1.11.0: el NIVEL ya no regala balas por sí solo (todas las unidades
+    // suben de nivel y el Guardian pasaba de 1 a 3 balas con cualquier
+    // carta, un buff involuntario enorme). El +1 de bala sigue siendo la
+    // identidad de `bullets_5`, que ahora lo entrega como mod `burstBonus`.
+    const mods = unitMods(this);
+    // 1.11.0: base de 1 bala; `bullets_5` entrega las 2.ª y 3.ª.
+    return Math.min(3, 1 + (mods.burstBonus ?? 0) + (mods.extraCount ?? 0));
   }
 
   /**
@@ -591,7 +602,11 @@ export class Tower {
                 trailColor: fx?.trail ?? TOWERS.missile.trailColor,
                 explosionColor: fx?.explosion ?? '#FFB36A',
                 critChance: mpm.critChanceAdd ?? 0,
-                critMul: mpm.critDmgMul ?? 2 },
+                critMul: mpm.critDmgMul ?? 2,
+                // 1.11.0 - radios/fracción de splash (Salva Saturada usa
+                // el `areaMul` histórico; Antimateria, `splashRMul`).
+                splashRMul: (mpm.splashRMul ?? 1) * (mpm.areaMul ?? 1),
+                splashFracAdd: mpm.splashFracAdd ?? 0 },
             ));
           }
           // dev-7 fase 28: UN 'missile:fire' por ANDANADA (no uno por
@@ -644,6 +659,20 @@ export class Tower {
           // Identidad del Beam: Fusión. El foco sostenido acumula `melt`
           // (máx. 3 stacks; +4 % de daño por stack sobre el blanco).
           onMechanicTick('beam', tgt, game, { dt, unit: this, mods: bm });
+          // 1.11.0 - Fusión en Cadena: con melt activo, el haz salta a un
+          // segundo enemigo cercano al 60 %. No acumula melt (el ramp sigue
+          // siendo del foco principal) para no duplicar el tick.
+          if (bm.beamChain && hasMark(tgt, 'melt')) {
+            const segundo = (enemies || []).find((e) => e && !e.dead && e !== tgt
+              && dist(e.x, e.y, tgt.x, tgt.y) <= 130 + (e.r ?? 10));
+            if (segundo) {
+              hurtP(segundo, beamHit(this.damage * ramp * dt * 0.6), 'beam', bm, game, enemies);
+              slowBeam(segundo);
+              game.engine.addEffect(new BeamFx(
+                game, this.x, top, segundo.x, segundo.y, bm.rangeAdd ?? 0, ramp * 0.6, fx,
+              ));
+            }
+          }
           // El MANTO del haz es SOLO VISUAL (fase 66): el grosor del perk
           // (`rangeAdd`, +8 px cada 10 niveles) engorda el DIBUJO, no el
           // daño — el haz daña únicamente a su blanco (decisión del usuario:
@@ -1146,10 +1175,21 @@ export class Tower {
    *  los perks sistemáticos del Guardian (fase 17: bounce/pierce/slow/…). */
   _spawnBullet(x, y, ang, game) {
     const pm = unitMods(this);
+    // 1.11.0 - Bastión Ejecutor: cada N proyectiles sale una bala reforzada
+    // (daño y perforación extra). El contador es POR PROYECTIL, no por
+    // andanada: con 3 balas por ráfaga el jugador ve el disparo potenciado
+    // con una cadencia legible.
+    const execEvery = Math.max(0, Math.trunc(pm.execEvery ?? 0));
+    let execEmpowered = false;
+    if (execEvery > 0) {
+      this._execCount = (this._execCount ?? 0) + 1;
+      execEmpowered = this._execCount % execEvery === 0;
+    }
+    const execMul = execEmpowered ? (pm.execDmgMul ?? 2) : 1;
     game.engine.addEntity(new Bullet(x, y, ang, {
-      damage: this.damage,                                  // nivel × cartas
+      damage: Math.round(this.damage * execMul),          // nivel × cartas
       speed: this.bulletSpeedNow,                  // v5 5c/5: 920 × Balas Hipersónicas
-      color: projectileColor(this.type, this._skin()), // fase 29: azul del Guardian
+      color: execEmpowered ? '#FFE58A' : projectileColor(this.type, this._skin()), // fase 29: azul del Guardian
       // OJO (fase 29): `radius` explícito para que el COLOR no mueva la
       // hitbox. `projectileRadius()` (js/enemies.js) elige el radio de
       // impacto por la PRESENCIA de `color` (con color → 4 px, sin color
@@ -1165,10 +1205,11 @@ export class Tower {
       dmgType: this.data?.dmgType ?? 'ballistic',
       // fase 74.2: fuente para combos de marca (Marca de Riel / Enlace).
       source: 'guardian',
-      // dev-7 fase 48: el Lv.5 del Guardian perfora +1 (la escalera de
-      // niveles: 1..3 balas, Lv.4 multi-blanco, Lv.5 +1 perforación).
+      // dev-7 fase 48: desde Lv.5 el Guardian perfora +1 (la escalera de
+      // niveles: 1..3 balas, Lv.4 multi-blanco, Lv.5+ +1 perforación).
       pierce: (game?.fortress?.pierce ?? 0) + (pm.pierceCount ?? 0)
-        + (this.level >= 5 ? 1 : 0),
+        + (this.level >= 5 ? 1 : 0)
+        + (execEmpowered ? (pm.execPierce ?? 0) : 0),
       bounce: pm.bounceCount ?? 0,                  // fase 17: rebote
       slowOnHit: pm.slowOnHit ?? 0,
       stunChance: pm.stunChance ?? 0,

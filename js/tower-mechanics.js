@@ -150,19 +150,51 @@ export function onMechanicHit(type, enemy, game, ctx = {}) {
       // Foco: impactos consecutivos del Guardian sobre el MISMO enemigo.
       const now = nowOf(game);
       const window = mech.window ?? 1.5;
+      const maxStacks = (mech.maxStacks ?? 3) + (ctx.mods?.supMaxStacksAdd ?? 0);
+      const burstFrac = (mech.burstFrac ?? 0.45) + (ctx.mods?.supBurstFracAdd ?? 0);
       if (now - (enemy._supAt ?? -Infinity) > window) enemy._sup = 0;
-      enemy._sup = Math.min(mech.maxStacks ?? 3, (enemy._sup ?? 0) + 1);
+      enemy._sup = Math.min(maxStacks, (enemy._sup ?? 0) + 1);
       enemy._supAt = now;
-      if (enemy._sup >= (mech.maxStacks ?? 3)) {
+      if (enemy._sup >= maxStacks) {
         enemy._sup = 0;
         enemy._supAt = now;
-        const burst = Math.round((ctx.dmg ?? 0) * (mech.burstFrac ?? 0.45));
+        const burst = Math.round((ctx.dmg ?? 0) * burstFrac);
         if (burst > 0) {
           if (typeof enemy.takeDamage === 'function') enemy.takeDamage(burst, 'ballistic');
           game?.engine?.spawnParticles?.(enemy.x, enemy.y, '#35C8FF', 6, {
             speedMin: 30, speedMax: 120, gravity: 0,
             lifeMin: 0.12, lifeMax: 0.28, sizeMin: 1, sizeMax: 2.4,
           });
+          // 1.11.0 - Foco Resonante: el estallido salpica a los vecinos y
+          // les deja un stack de supresión (sin detonar en cadena).
+          const splashFrac = ctx.mods?.supSplashFrac ?? 0;
+          if (splashFrac > 0) {
+            const radius = ctx.mods?.supSplashRadius ?? 70;
+            const maxTargets = Math.max(0, ctx.mods?.supSplashTargets ?? 3);
+            const list = game?.fortress?.enemies;
+            if (Array.isArray(list) && maxTargets > 0) {
+              const vecinos = list
+                .filter((e) => e && !e.dead && e !== enemy
+                  && Math.hypot(e.x - enemy.x, e.y - enemy.y) <= radius + (e.r ?? 10))
+                .sort((a, b) => Math.hypot(a.x - enemy.x, a.y - enemy.y)
+                  - Math.hypot(b.x - enemy.x, b.y - enemy.y))
+                .slice(0, maxTargets);
+              const splash = Math.round(burst * splashFrac);
+              for (const e of vecinos) {
+                if (splash > 0 && typeof e.takeDamage === 'function') {
+                  e.takeDamage(splash, 'ballistic');
+                }
+                e._sup = Math.min(maxStacks, (e._sup ?? 0) + 1);
+                e._supAt = now;
+              }
+              if (vecinos.length) {
+                game?.engine?.spawnParticles?.(enemy.x, enemy.y, '#7FE7FF', 8, {
+                  speedMin: 40, speedMax: 150, gravity: 0,
+                  lifeMin: 0.18, lifeMax: 0.36, sizeMin: 1, sizeMax: 2.8,
+                });
+              }
+            }
+          }
         }
       }
       break;

@@ -14,13 +14,26 @@ Las cartas de daño global MUST dar +10% **una sola vez** y afectar a
 todas las torres y drones, incluidas las unidades desbloqueadas después.
 Las cartas de daño por tipo MUST dar +20% **una sola vez**, afectar solo
 a las unidades de ese tipo y exigir que el jugador posea al menos una.
-Ninguna carta de mejora puede volver a ofrecerse después de elegida
-(`CAPS = 1`); `bullets_5` es la excepción: es el level-up del Guardian.
+Ninguna carta de mejora puede volver a ofrecerse después de agotar su tope
+(`CAPS`). Desde 1.11.0 las excepciones son `bullets_5` (level-up del
+Guardian, fuera de CAPS) y las **doctrinas** (`CAPS = 2`, rango 1 y 2).
+La progresión de nivel/maestría y las legendarias se rigen por
+`gameplay/tower-mastery`.
 
 #### Scenario: Carta de mejora ya elegida
 
 - **WHEN** el jugador elige Munición Reforzada y vuelve a subir de nivel
 - **THEN** Munición Reforzada no aparece en la oferta ni en el relleno
+
+#### Scenario: Doctrina en su segundo rango
+
+- **WHEN** el jugador elige una doctrina por segunda vez
+- **THEN** aplica el rango 2 y deja de aparecer en ofertas
+
+#### Scenario: Legendaria elegida
+
+- **WHEN** el jugador elige una legendaria de una unidad
+- **THEN** esa carta sale del pool de la unidad para el resto de la run
 
 #### Scenario: Torre desbloqueada después del buff global
 

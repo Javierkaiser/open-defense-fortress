@@ -64,7 +64,7 @@ import { bossNameForStage, BOSS_NAMES } from '../js/waves.js';
 // exponga, el import con nombre rompería ESTE archivo de tests entero.
 import * as wavesModule from '../js/waves.js';
 // dev-7 fase 39: el catálogo de cartas (la rareza la declara cada carta).
-import { CATALOG } from '../js/cards.js';
+import { CATALOG, LEGENDARY_CARDS } from '../js/cards.js';
 // dev-7 fase 49: los tipos de daño (el glifo de la card + la matriz con
 // la que se calculan los números de la sinonergia).
 import {
@@ -2665,6 +2665,44 @@ const ownTowersIn = (fila) => (fila.match(/class="own-tower"/g) ?? []).length;
 test('fase 61: el tope del arsenal son 5 slots (una fila) y 1 dron', () => {
   assert.equal(CONFIG.SLOTS.length, 5, 'los slots de torre son 5 (fase 61)');
   assert.equal(MAX_DRONES, 1, 'el cupo de drones es 1 (fase 61)');
+});
+
+test('1.11.0: la fila del modal muestra nivel y maestría de torres Y drones', () => {
+  withFakeDocument(() => {
+    const hud = fakeHudLive();
+    const game = arsenalGame(
+      [['missile', 0], ['guardian', 2], ['beam', 4]],
+      [{ type: 'wasps', data: DRONES.wasps, level: 2, mastery: 7 }],
+    );
+    game.fortress.slots[2].level = 6;
+    game.fortress.slots[2].mastery = 5;
+    game.fortress.slots[0].mastery = 3;
+    withFakeGame(game, () => hud.showCardChoice(OFFER));
+
+    const fila = ownRowOf(hud.cardModal.innerHTML);
+    assert.equal(ownTowersIn(fila), 4, '3 torres + 1 dron');
+    assert.ok(fila.includes('★5'), 'la maestría del Guardian se ve');
+    assert.ok(fila.includes('★3'), 'la maestría del Missile se ve');
+    assert.ok(fila.includes('★7'), 'la maestría del dron se ve');
+    assert.ok(fila.includes('◆◆◆◆◆◆'), 'el nivel 6 dibuja 6 pips');
+  });
+});
+
+test('1.11.0: el draft legendario pinta título, kicker y badge propios', () => {
+  withFakeDocument(() => {
+    const hud = fakeHudLive();
+    const game = arsenalGame([['missile', 0]]);
+    const legend = LEGENDARY_CARDS.find((c) => c.unit === 'missile');
+    withFakeGame(game, () => hud.showCardChoice([legend], {
+      kind: 'legendary', unitType: 'missile', unitName: 'Missile', tier: 1,
+    }));
+    const html = hud.cardModal.innerHTML;
+    assert.ok(html.includes('>LEGENDARIA</h2>'), 'el título cambia');
+    assert.ok(html.includes('Missile · MAESTRÍA 5'), 'kicker con unidad y umbral');
+    assert.ok(html.includes('is-legendary'), 'badge legendaria');
+    assert.ok(html.includes('no consume un nivel pendiente'), 'el pie lo aclara');
+    assert.equal(hud.cardModal.dataset.kind, 'legendary');
+  });
 });
 
 test('fase 61: la fila de torres poseídas muestra las 5 del arsenal lleno y ni una más', () => {

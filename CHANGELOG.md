@@ -4,6 +4,44 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.11.0] — 2026-11-02
+
+### Nuevo
+
+- **Nivel 1–6 para las 11 unidades** (8 torres + 3 drones): las cartas
+  dedicadas (exclusivas, técnicas, doctrinas, `bullets_5`, `swarm_grow`,
+  `detect_up`, `pierce_up`, `rapid_bullets`) suben un nivel. La curva se
+  suaviza a **+5 % daño / −2 % recarga** por nivel; los drones escalan +5 %
+  de su efecto principal. El Guardian ya no recibe balas por nivel: las
+  **balas 2.ª y 3.ª** siguen siendo de `bullets_5` vía `burstBonus`.
+- **Maestría 0–15**: cualquier carta que mejore a la unidad (dedicada, tipo,
+  global, cadencia, caza o combo) suma +1. Cada **5 puntos** abre una
+  **elección legendaria**: 3 cartas propias a los 5, las 2 restantes a los
+  10 y la última a los 15. La elección aparece después de la carta que
+  disparó el hito, **no consume un nivel pendiente** y **Censura no la
+  recorta**.
+- **23 cartas Doctrina** (CAPS=2): dos rangos por unidad, con efectos de
+  nivel/maestría para que todas las torres y drones puedan alcanzar Lv.6.
+- **33 cartas legendarias** (3 por unidad), fuera del catálogo normal. Se
+  eligen en el draft y quedan fuera del pool de esa unidad para el resto de
+  la run.
+- **HUD**: la fila del modal de cartas muestra nivel y maestría de torres y
+  drones; el draft legendario tiene título propio, kicker de unidad/umbral y
+  badge dorado. El pad de las torres dibuja 6 ticks.
+
+### Balance
+
+- Medición S50 (10 semillas, `--mode=inteligente`): Nvl.75 **70 % win / 37 %
+  HP / 67 % bajas**; Nvl.87 **90 % / 54 % / 82 %**. La cota superior con
+  `--legendaries` (todas las elecciones) es 80/40/72 y 100/56/88.
+- `balance-sim --legendaries` simula el techo de la pista de maestría; no es
+  una build enfocada.
+
+### Tests / versión
+
+- **1083 tests, 0 skip** (36 archivos).
+- Versión **1.11.0** / Android `versionCode 19`.
+
 ## [1.10.0] — 2026-11-02
 
 ### Nuevo

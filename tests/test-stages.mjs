@@ -604,8 +604,11 @@ const XP_BASE = {
  * lleguen los enemigos ya tiene más daño. Con Lv3 (≈44 DPS) el crystal
  * de S50 sí es matable — que es lo que el jugador real puede hacer.
  */
-const GUARDIAN_DPS = ((TOWERS.guardian.damage * (1 + 0.25 * 2))
-  / TOWERS.guardian.cooldown) * dpsScaleFor('guardian');   // Guardian Lv3
+// 1.11.0: base de 1 bala + +5 %/nivel, y el modelo asume que el jugador ya
+// tomó `bullets_5` una vez al llegar a Lv3 (2 balas): la apertura real
+// entrega XP suficiente para elegir esa carta.
+const GUARDIAN_DPS = ((TOWERS.guardian.damage * (1 + 0.05 * 2) * 3)
+  / TOWERS.guardian.cooldown) * dpsScaleFor('guardian');   // Guardian Lv3 + 3 balas
 /** Distancia de caída (px). */
 const FALL_PX = 900;
 
@@ -631,9 +634,14 @@ const FALL_PX = 900;
 // ------------------------------------------------------------
 
 /** DPS del Guardian en un nivel dado (js/towers.js Tower.damage). */
-const dpsGuardian = (nivel) => (TOWERS.guardian.damage
-  * (1 + 0.25 * Math.max(0, nivel - 1))) / TOWERS.guardian.cooldown
-  * dpsScaleFor('guardian');
+const dpsGuardian = (nivel) => {
+  // Balas de la apertura: el jugador toma `bullets_5` en las primeras
+  // subidas; el modelo conservador usa la escalera 1/2/3 por nivel.
+  const balas = Math.max(1, Math.min(3, nivel));
+  return (TOWERS.guardian.damage
+    * (1 + 0.05 * Math.max(0, nivel - 1)) * balas)
+    / TOWERS.guardian.cooldown * dpsScaleFor('guardian');
+};
 
 /**
  * Nivel del jugador a partir de la XP ACUMULADA. Usa la función real de

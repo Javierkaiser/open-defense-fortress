@@ -11,7 +11,7 @@
 // ============================================================
 
 import { clamp } from './engine.js';
-import { MAX_DRONES, TOWERS, DRONES } from './towers.js';
+import { MAX_DRONES, MAX_TOWER_LEVEL, TOWERS, DRONES } from './towers.js';
 // dev-7 fase 31: `perkMods` para saber si el jugador tiene el perk de
 // espinas del Campo de Fuerza (sin él la carta "Burbuja Reforzada" sería
 // inerte: multiplica por 1.6 un daño que es 0).
@@ -30,8 +30,25 @@ import {
 import {
   CARD_OFFER_COUNT, CAPS, UNIT_TAGS, TECH_CARDS, HUNT_CARDS, MAX_SWARM,
 } from './cards-data.js';
+// 1.11.0 - DOCTRINAS (cartas normales repetibles, CAPS=2) y LEGENDARIAS
+// (catálogo aparte: sólo se ofrecen en la elección de maestría).
+import { DOCTRINE_CARDS, DOCTRINE_BY_ID } from './cards-doctrine.js';
+import {
+  LEGENDARY_CARDS, LEGENDARY_BY_ID, LEGENDARY_BY_UNIT,
+} from './cards-legendary.js';
+// Las doctrinas son cartas normales: entran al catálogo y al anti-stack.
+for (const c of DOCTRINE_CARDS) CAPS[c.id] = 2;
 // Fachada: los tests/scripts siguen importando los datos desde cards.js.
-export { CARD_OFFER_COUNT, CAPS, UNIT_TAGS, TECH_CARDS, HUNT_CARDS, MAX_SWARM };
+export {
+  CARD_OFFER_COUNT, CAPS, UNIT_TAGS, TECH_CARDS, HUNT_CARDS, MAX_SWARM,
+  DOCTRINE_CARDS, DOCTRINE_BY_ID, LEGENDARY_CARDS, LEGENDARY_BY_ID,
+  LEGENDARY_BY_UNIT,
+};
+
+/** Cartas legendarias disponibles para una unidad (para el draft). */
+export function legendaryCardsFor(type) {
+  return LEGENDARY_BY_UNIT[type] ?? [];
+}
 
 /**
  * Cartas por oferta de ESTA run. fase 69 — condición Censura: el Protocolo
@@ -339,7 +356,9 @@ function appsOf(cardId, game) {
     // `exclusiveDmgApps`): sin esto la carta se seguiría ofreciendo con
     // el tope alcanzado y al elegirla no haría NADA.
     default: {
-      const type = TECH_UNIT[cardId];
+      // Técnicas + doctrinas + cualquier carta con `unit`: el contador vive
+      // en la unidad destino (`unit.cardApps`).
+      const type = TECH_UNIT[cardId] ?? CARD_BY_ID.get(cardId)?.unit;
       if (type) return cardApps(findUnit(game, type), cardId);
       return 0;
     }
@@ -447,8 +466,11 @@ export function isRelevant(card, game) {
   // Mejora de Guardian inútil si no existe o ya está a máximo nivel (§2.2)
   if (card.id === 'bullets_5') {
     const gw = findTower(game, 'guardian');
-    if (!gw || gw.level >= 5) return false;
+    if (!gw || gw.level >= MAX_TOWER_LEVEL) return false;
   }
+  // 1.11.0: doctrinas y legendarias exigen poseer la unidad. Es el mismo
+  // criterio que las técnicas, pero genérico para no tocar otra tabla.
+  if (card.unit && !findUnit(game, card.unit)) return false;
   // dev-7 (docs/BALANCE.md): Sensores Ampliados (detect_up) NO
   // hace nada en Guardian/Missile/Mortar/Gauss/Láser - todas quedaron con
   // detectHalfWidth: Infinity en rebalances posteriores (v4 4a en
@@ -532,7 +554,7 @@ export function isCardEligible(card, game) {
  * torre/dron, cartas de técnica, `swarm_grow`, `bullets_5`, `detect_up`).
  */
 function needsUnit(card) {
-  return !!(card.tower || card.drone || card.id === 'black_hole'
+  return !!(card.tower || card.drone || card.unit || card.id === 'black_hole'
     || EXCLUSIVE_DMG_TOWER[card.id] || EXCLUSIVE_DMG_DRONE[card.id]
     || TECH_UNIT[card.id] || card.id === 'swarm_grow'
     || card.id === 'bullets_5' || card.id === 'detect_up'
@@ -572,6 +594,103 @@ function needsUnit(card) {
 
 /** Carta de técnica → tipo de unidad que la lleva (tope y elegibilidad). */
 const TECH_UNIT = Object.fromEntries(TECH_CARDS.map((c) => [c.id, c.unit]));
+
+// ------------------------------------------------------------
+// 1.11.0 — PROGRESIÓN POR UNIDAD: nivel (cartas dedicadas) y maestría
+// (cualquier carta que mejore a la unidad). El nivel lo aplica el pipeline
+// central de applyCard, no cada carta: así `bullets_5` no puede subir dos
+// veces y una carta futura no necesita recordar llamar upgrade().
+// ------------------------------------------------------------
+
+/** Unidades que la carta sube de NIVEL (cartas dedicadas de la unidad). */
+export function cardUnitTargets(card) {
+  if (!card || isUnlockCard(card)) return [];
+  if (card.unit) return [card.unit];
+  if (TECH_UNIT[card.id]) return [TECH_UNIT[card.id]];
+  if (EXCLUSIVE_DMG_TOWER[card.id]) return [EXCLUSIVE_DMG_TOWER[card.id]];
+  if (EXCLUSIVE_DMG_DRONE[card.id]) return [EXCLUSIVE_DMG_DRONE[card.id]];
+  if (card.id === 'bullets_5' || card.id === 'dmg_guard'
+    || card.id === 'pierce_up' || card.id === 'rapid_bullets') {
+    return ['guardian'];
+  }
+  if (card.id === 'swarm_grow') return ['wasps'];
+  // Sensores Ampliados es la única carta compartida por DOS unidades.
+  if (card.id === 'detect_up') return ['beam', 'tesla'];
+  return [];
+}
+
+/** Todas las unidades que el jugador tiene puestas. */
+function ownedUnitTypes(game) {
+  const f = game?.fortress;
+  const out = [];
+  for (const t of f?.slots ?? []) if (t?.type) out.push(t.type);
+  for (const d of f?.drones ?? []) if (d?.type) out.push(d.type);
+  return [...new Set(out)];
+}
+
+/** Unidades que la carta mejora para MAESTRÍA (sin subir nivel). */
+function cardMasteryTargets(card, game) {
+  const dedicated = cardUnitTargets(card);
+  if (dedicated.length) return dedicated;
+  if (!card) return [];
+  const all = ownedUnitTypes(game);
+  if (card.id === 'dmg_all') return all;
+  if (card.id === 'cadence_up') {
+    // La cadencia de la carta afecta a las torres y al dron Mosquitos.
+    return all.filter((type) => type !== 'firewheel' && type !== 'forcefield');
+  }
+  if (String(card.id).startsWith('hunt_')) return all;
+  if (card.type) {
+    return all.filter((type) => (TOWERS[type] ?? DRONES[type])?.dmgType === card.type);
+  }
+  // Combos: unidades explícitas + unidades que cumplen sus tags + unidades
+  // de las cartas que exige el combo (p. ej. Fractura Criogénica).
+  const out = new Set(card.requiresUnits ?? []);
+  const tags = [...(card.requiresTags ?? []), ...(card.requiresAllTags ?? [])];
+  for (const tag of tags) {
+    for (const type of all) {
+      if (UNIT_TAGS[type]?.includes(tag)) out.add(type);
+    }
+  }
+  for (const id of card.requiresCards ?? []) {
+    const req = CARD_BY_ID.get(id);
+    if (req) for (const type of cardUnitTargets(req)) out.add(type);
+  }
+  return [...out].filter((type) => findUnit(game, type));
+}
+
+/**
+ * Marca una elección legendaria cuando la unidad cruza 5/10/15 de maestría.
+ * El draft lo consume Game; acá sólo se cuenta el hito.
+ */
+function queueLegendaryDraft(unit) {
+  if (!unit) return;
+  const available = legendaryCardsFor(unit.type).length;
+  const picked = unit.legendaryPicks?.length ?? 0;
+  const tier = unit.legendaryTier ?? 0;
+  if (tier >= 3 || picked >= available) return;
+  if ((unit.mastery ?? 0) < (tier + 1) * 5) return;
+  unit.legendaryTier = tier + 1;
+  unit.legendaryDrafts = (unit.legendaryDrafts ?? 0) + 1;
+}
+
+/**
+ * Aplica la progresión de una carta ya aplicada. Las cartas dedicadas suben
+ * nivel (hasta MAX_TOWER_LEVEL) y maestría; las de sinergia sólo maestría.
+ * @param {object} game
+ * @param {object} card
+ */
+export function grantUnitProgress(game, card) {
+  const dedicated = new Set(cardUnitTargets(card));
+  const targets = new Set([...dedicated, ...cardMasteryTargets(card, game)]);
+  for (const type of targets) {
+    const unit = findUnit(game, type);
+    if (!unit) continue;
+    if (dedicated.has(type) && typeof unit.upgrade === 'function') unit.upgrade();
+    unit.mastery = (unit.mastery ?? 0) + 1;
+    queueLegendaryDraft(unit);
+  }
+}
 
 // ------------------------------------------------------------
 // ------------------------------------------------------------
@@ -874,9 +993,9 @@ function applyBlackHoleCard(game, key, value) {
 // `rarity` = cuánto vale.
 // Las cartas de mejora tienen tope 1 en CAPS (una sola vez por partida);
 // las demas son de un solo uso (desbloqueos + Black Hole) o están
-// limitadas por su propio estado (Cañón de Ráfaga → Lv.5).
+// limitadas por su propio estado (Cañón de Ráfaga → MAX_TOWER_LEVEL).
 // las 12 restantes son de un solo uso (desbloqueos + Black Hole) o
-// están limitadas por su propio estado (Cañón de Ráfaga → Lv.5).
+// están limitadas por su propio estado (Cañón de Ráfaga → MAX_TOWER_LEVEL).
 // ============================================================
 export const CATALOG = [
 
@@ -888,9 +1007,14 @@ export const CATALOG = [
     // dev-7 fase 49: la carta sube el daño del Guardian → declara su
     // TIPO de daño (el de la torre, no el de la carta).
     dmgType: TOWERS.guardian.dmgType,
-    desc: 'Guardian +1 nivel: +1 bala en la ráfaga (tope de 3), +25% daño, -8% recarga. Desde Lv.4 las 3 balas van a 3 enemigos distintos; en Lv.5 atraviesan +1.',
+    desc: 'Guardian +1 nivel y +1 bala en la ráfaga (tope de 3), +5% daño, -2% recarga. Desde Lv.4 las 3 balas van a 3 enemigos distintos; desde Lv.5 atraviesan +1.',
     weight: 10,
-    apply: (g) => { findTower(g, 'guardian')?.upgrade(); },
+    // 1.11.0: el nivel lo aplica el pipeline central; la bala extra es un
+    // mod propio de esta carta (el nivel de otras cartas ya no la regala).
+    apply: (g) => {
+      const gw = findTower(g, 'guardian');
+      if (gw) addCardMods(gw, { burstBonus: 1 }, 'bullets_5');
+    },
   },
   {
     id: 'dmg_all',
@@ -1699,6 +1823,9 @@ export const CATALOG = [
     requiresUnits: ['gauss'],
     apply: (g) => applyComboSharedPierce(g),
   },
+  // 1.11.0 - doctrinas de unidad (23 cartas, CAPS=2). Entran al catálogo
+  // normal; las legendarias viven aparte y sólo se ofrecen por maestría.
+  ...DOCTRINE_CARDS,
 ];
 
 const CARD_BY_ID = new Map(CATALOG.map((c) => [c.id, c]));
@@ -1901,6 +2028,8 @@ export function applyCard(card, game) {
   // coloca ni se mejora: no-op, como una carta desconocida.
   if ((c.tower && !isUnitUnlocked(game?.meta, c.tower))
     || (c.drone && !isUnitUnlocked(game?.meta, c.drone))) return null;
+  // 1.11.0: doctrinas y legendarias exigen que la unidad esté en el campo.
+  if (c.unit && !findUnit(game, c.unit)) return null;
   // 1.8.0: TODA carta con CAPS se aplica UNA sola vez. Antes la guarda
   // sólo cubría combos y cartas de Black Hole: una repetible topada que
   // llegaba por el relleno de la oferta se aplicaba igual (o fingía una
@@ -1908,7 +2037,21 @@ export function applyCard(card, game) {
   // tope, `applyCard` es no-op y devuelve null.
   const cap = CAPS[c.id];
   if (cap !== undefined && appsOf(c.id, game) >= cap) return null;
+  // Una legendaria es única por run/unidad: si ya está elegida, no se
+  // vuelve a aplicar (aunque llegue por un draft duplicado o un test).
+  const legendTarget = c.legendary && c.unit ? findUnit(game, c.unit) : null;
+  if (legendTarget?.legendaryPicks?.includes(c.id)) return null;
   c.apply(game);
+  if (legendTarget) {
+    legendTarget.legendaryPicks = [
+      ...(legendTarget.legendaryPicks ?? []),
+      c.id,
+    ];
+  }
+  // 1.11.0: la progresión de nivel/maestría es CENTRAL. Se aplica después
+  // del efecto de la carta, una sola vez, y vale tanto para el catálogo
+  // normal como para doctrinas y legendarias.
+  grantUnitProgress(game, c);
   return c;
 }
 

@@ -42,6 +42,7 @@ import { resetMeta } from './meta.js';
 // techo de cartas de score.js). Sin ciclo: score.js sólo importa stages.js
 // (la regla §1.1 sigue viva — hud.js nunca importa main.js/cards.js).
 import { MAX_LEVEL_PER_STAGE } from './score.js';
+import { MAX_TOWER_LEVEL } from './towers-data.js';
 // dev-7 fase 32: tipos de daño (glifo por unidad + leyenda de la matriz).
 // oleadas-dinámicas: ENEMY_FAMILIES da el nombre legible de cada familia
 // para el sesgo de etapa del selector ("roca / virus").
@@ -1760,9 +1761,11 @@ export class HUD {
    * fila de torres poseídas + pips arriba, 3 cartas con reveal flip
    * escalonado 0/120/240 ms, glow en hover, SFX de reveal.
    */
-  showCardChoice(offer = []) {
+  showCardChoice(offer = [], meta = null) {
     this._ensureCardModal();
     if (!this.cardModal) return;
+    meta = meta && typeof meta === 'object' ? meta : null;
+    const isLegendaryDraft = meta?.kind === 'legendary';
     // Si el panel combo quedó abierto (p.ej. durante PLAYING), se cierra:
     // su overlay cubre la pantalla y taparía la oferta de cartas.
     this.hideComboPanel();
@@ -1784,21 +1787,29 @@ export class HUD {
     // del centro) y nunca una 6.ª. Sin torres (caso defensivo: la run
     // real arranca con el Guardian puesto) queda el guion.
     const towers = (game?.fortress?.slots ?? []).filter(Boolean);
+    // 1.11.0: los drones también tienen nivel y maestría; se muestran en la
+    // misma fila (wrap) para que el jugador vea el progreso de las 11
+    // unidades, no sólo de las torres de la plataforma.
+    const drones = (game?.fortress?.drones ?? []).filter(Boolean);
     // Estética v3.1 (reference-levelup): diamantes de rareza — llenos en
-    // dorado según el nivel de la unidad, vacíos hasta 5.
-    const gems = (lv) => '◆'.repeat(lv) + '◇'.repeat(Math.max(0, 5 - lv));
+    // dorado según el nivel de la unidad, vacíos hasta MAX_TOWER_LEVEL.
+    const gems = (lv) => '◆'.repeat(Math.min(lv, MAX_TOWER_LEVEL))
+      + '◇'.repeat(Math.max(0, MAX_TOWER_LEVEL - lv));
     // dev-7 fase 39: la RAREZA la declara la carta (cards.js) y mide su
     // POTENCIA. Antes se derivaba del `weight` (la probabilidad de
     // sorteo): "Abanico Ampliado" salía LEGENDARIO y "Reparación de
     // Campo" también, porque ambos pesaban 10. El jugador leía la
     // etiqueta como si fuera la potencia de la carta y no lo era.
     const rarityGems = (tier) => '◆'.repeat(tier) + '◇'.repeat(4 - tier);
-    const towerRow = towers.length
-      ? towers.map((t) => `
-          <span class="own-tower" title="Lv.${t.level}">
-            <b>${esc(t.data?.name ?? t.type)}</b>
-            <i>${gems(t.level ?? 1)}</i>
-          </span>`).join('')
+    const unitChip = (u) => `
+      <span class="own-tower" title="Lv.${u.level ?? 1} · Maestría ${u.mastery ?? 0}">
+        <b>${esc(u.data?.name ?? u.type)}</b>
+        <i>${gems(u.level ?? 1)}</i>
+        <em class="own-mastery" title="Maestría ${u.mastery ?? 0}">★${u.mastery ?? 0}</em>
+      </span>`;
+    const units = [...towers, ...drones];
+    const towerRow = units.length
+      ? units.map(unitChip).join('')
       : '<span class="own-tower"><b>—</b></span>';
     // Encabezado "Fase Normal N · Nvl.X" (fiel a la referencia).
     const stageNo = game?.stageId ?? 1;
@@ -1821,6 +1832,16 @@ export class HUD {
     const cards = offer.map((c, i) => {
       const r = cardRarity(c);
       const isUnlock = Boolean(c.tower || c.drone);
+      const isLegendary = c.legendary === true || r.cls === 'legendary';
+      const unit = c.unit
+        ? units.find((u) => u.type === c.unit)
+        : null;
+      const rank = c.doctrine ? (unit?.cardApps?.[c.id] ?? 0) : 0;
+      const badge = isUnlock ? 'NUEVO'
+        : isLegendary ? '★'
+          : c.doctrine ? `R${Math.min(rank + 1, c.ranks?.length ?? 2)}/${c.ranks?.length ?? 2}`
+            : '+1';
+      const badgeCls = isUnlock ? ' is-new' : isLegendary ? ' is-legendary' : '';
       // dev-7 fase 49: el GLIFO del TIPO DE DAÑO de la carta, con su
       // color. Los datos son los de DAMAGE_TYPES (js/damagetypes.js) y
       // el tipo lo declara la propia carta (`card.dmgType`, en cards.js):
@@ -1840,7 +1861,7 @@ export class HUD {
       return `
         <button class="card-choice-card rarity-${r.cls}" data-card-id="${c.id}" style="--deal-delay:${i * 120}ms">
           <span class="card-inner">
-            <span class="card-lv-badge${isUnlock ? ' is-new' : ''}">${isUnlock ? 'NUEVO' : '+1'}</span>
+            <span class="card-lv-badge${badgeCls}">${badge}</span>
             <span class="card-title-row">
               <span class="card-name">${esc(c.name)}</span>
               ${typeBadge}
@@ -1852,12 +1873,21 @@ export class HUD {
           </span>
         </button>`;
     }).join('');
+    const title = isLegendaryDraft ? 'LEGENDARIA' : 'Mejora de Nivel';
+    const kicker = isLegendaryDraft
+      ? `<p class="card-kicker legendary-kicker">${esc(meta.unitName ?? meta.unitType ?? 'Unidad')} · MAESTRÍA ${Number(meta.tier ?? 1) * 5}</p>`
+      : '';
+    const footHint = isLegendaryDraft
+      ? `Elegí 1 de ${offer.length} legendaria${offer.length === 1 ? '' : 's'} · no consume un nivel pendiente`
+      : hint;
+    this.cardModal.dataset.kind = isLegendaryDraft ? 'legendary' : 'normal';
     this.cardModal.innerHTML = `
-      <h2 class="card-title">Mejora de Nivel</h2>
+      <h2 class="card-title">${title}</h2>
+      ${kicker}
       ${headRow}
       <div class="own-row">${towerRow}${comboBtn}</div>
       <div class="cards-row">${cards}</div>
-      <p class="hint">${hint}</p>`;
+      <p class="hint">${footHint}</p>`;
     this.cardModal.querySelector('[data-action-combo]')
       ?.addEventListener('click', () => this.engine.emit('ui:combo_list'));
     this.cardModal.classList.remove('hidden');
@@ -1866,7 +1896,9 @@ export class HUD {
     // oferta (puede ser 1, no siempre 3) y el modal TOMA el foco (si no,
     // el focus trap y el Esc no engages y el HUD queda tabulable detrás).
     const n = offer.length;
-    this._setModalLabel(`Mejora de nivel — elegí 1 de ${n} ${n === 1 ? 'mejora' : 'mejoras'}`);
+    this._setModalLabel(isLegendaryDraft
+      ? `Legendaria para ${meta?.unitName ?? meta?.unitType ?? 'la unidad'} — elegí 1 de ${n}`
+      : `Mejora de nivel — elegí 1 de ${n} ${n === 1 ? 'mejora' : 'mejoras'}`);
     const firstCard = this.cardModal.querySelector('[data-card-id]');
     if (firstCard && typeof firstCard.focus === 'function') {
       try { firstCard.focus(); } catch (_err) { /* sin foco */ }

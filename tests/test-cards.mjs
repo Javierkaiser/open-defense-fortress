@@ -9,8 +9,9 @@ import assert from 'node:assert/strict';
 import {
   CATALOG, CAPS, CARD_OFFER_COUNT, isCardEligible, isRelevant, rollOffer,
   applyCard, findTower, findDrone, findUnit, dmgSynergyText, unlockWeightMul,
+  DOCTRINE_CARDS, LEGENDARY_CARDS,
 } from '../js/cards.js';
-import { unitMods, DRONES } from '../js/towers.js';
+import { unitMods, DRONES, MAX_TOWER_LEVEL } from '../js/towers.js';
 
 // dev-7 fase 49: la matriz de tipos (la sinonergia se calcula con ella).
 import {
@@ -76,7 +77,7 @@ function makeUiGame(fortress) {
  * Las cartas REPETIBLES del catálogo (las que se pueden volver a ofrecer):
  * todas tienen que tener tope en CAPS (la tabla anti-stack infinito).
  * Las de un solo uso (desbloqueos + Black Hole) o limitadas por estado
- * (Cañón de Ráfaga → Lv.5) quedan afuera.
+ * (Cañón de Ráfaga → MAX_TOWER_LEVEL) quedan afuera.
  */
 const REPEATABLE_CARDS = [
   'dmg_all', 'dmg_guard',
@@ -108,6 +109,8 @@ const REPEATABLE_CARDS = [
   'bh_horizon', 'bh_collapse',
   // dev-7 fase 50: las 4 cartas de CAZA DE FAMILIA.
   'hunt_rock', 'hunt_crystal', 'hunt_spore', 'hunt_virus',
+  // 1.11.0: las 23 DOCTRINAS (repetibles 2 veces).
+  ...DOCTRINE_CARDS.map((c) => c.id),
 ];
 
 /** Cartas de daño exclusivo: una por unidad (torre o dron del arsenal). */
@@ -149,12 +152,14 @@ test('CATALOG: toda carta tiene apply() y weight > 0', () => {
   }
 });
 
-test('CATALOG: 86 cartas (74 repetibles + 12 de un solo uso)', () => {
-  // fase 74: +22 cartas (5 de tipo + 12 técnicas + 3 combos + 2 Black Hole).
-  // fase 74.2: +11 combos de frío/lifesteal/tipo-mecánica.
-  // fase 76: -6 combos débiles +11 combos de identidad = +5.
-  assert.equal(CATALOG.length, 84);
-  assert.equal(REPEATABLE_CARDS.length, 72);
+test('CATALOG: 84 cartas + 23 doctrinas de la 1.11.0', () => {
+  assert.equal(CATALOG.length, 84 + DOCTRINE_CARDS.length);
+  assert.equal(CATALOG.length, 107);
+  assert.equal(REPEATABLE_CARDS.length, 72 + DOCTRINE_CARDS.length);
+  // Las legendarias NO viven en el catálogo normal: sólo en el draft.
+  for (const c of LEGENDARY_CARDS) {
+    assert.equal(CATALOG.some((x) => x.id === c.id), false, `${c.id} no debe estar en CATALOG`);
+  }
 });
 
 test('limpieza 1.5.4: fuera XP/score; el escudo queda como Escudo de Base', () => {
@@ -186,12 +191,14 @@ test('CAPS: TODA carta repetible del catálogo tiene tope (anti-stack infinito)'
   }
 });
 
-test('1.8.0: ninguna carta de mejora se elige más de una vez', () => {
+test('1.11.0: las mejoras son one-shot salvo las doctrinas (cap 2)', () => {
   for (const [id, cap] of Object.entries(CAPS)) {
-    assert.equal(cap, 1, `${id} debería aplicarse una sola vez (cap ${cap})`);
+    const card = CATALOG.find((c) => c.id === id);
+    const expected = card?.doctrine ? 2 : 1;
+    assert.equal(cap, expected, `${id} debería tener cap ${expected} (tiene ${cap})`);
   }
-  // bullets_5 es el LEVEL-UP del Guardian (Lv.1 → Lv.5): no lleva CAPS.
-  assert.equal(CAPS.bullets_5, undefined, 'bullets_5 sube a Lv.5: fuera de CAPS');
+  // bullets_5 es el LEVEL-UP del Guardian (Lv.1 → Lv.MAX): no lleva CAPS.
+  assert.equal(CAPS.bullets_5, undefined, 'bullets_5 sube de nivel: fuera de CAPS');
 });
 
 test('fase 75: Apagón saca del pool las cartas de ultimate/Black Hole', () => {
@@ -253,7 +260,7 @@ test('bullets_5: NO elegible sin Guardian o con Guardian a tope', () => {
   const sinGuardian = makeGame({ towers: ['missile'] });
   assert.equal(isCardEligible(card, sinGuardian), false);
   const guardianTope = makeGame({ towers: ['guardian'] });
-  guardianTope.fortress.slots[0].level = 5;
+  guardianTope.fortress.slots[0].level = MAX_TOWER_LEVEL;
   assert.equal(isCardEligible(card, guardianTope), false);
 });
 
@@ -1118,7 +1125,7 @@ function toparTodo(f) {
     t.exclusiveDmgApps = CAPS.dmg_missile;
     t.cadApps = CAPS.cadence_up;
     t.rapidApps = CAPS.rapid_bullets;
-    t.level = 5;                                  // bullets_5 fuera por estado
+    t.level = MAX_TOWER_LEVEL;                    // bullets_5 fuera por estado
     t.cardApps = t.cardApps ?? {};
     for (const c of CATALOG) {
       if (CAPS[c.id] !== undefined) t.cardApps[c.id] = CAPS[c.id];

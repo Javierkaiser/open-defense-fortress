@@ -253,6 +253,9 @@ export class HomingMissile {
     this.explosionColor = opts.explosionColor ?? '#FFB36A';
     Object.assign(this, pickOnHit(opts)); // fase 23
     this.critMul = opts.critMul ?? 2;
+    // 1.11.0 - modificadores de splash de las legendarias del Misil.
+    this.splashRMul = opts.splashRMul ?? 1;
+    this.splashFracAdd = opts.splashFracAdd ?? 0;
     this.dead = false;
     // fase 75: igual que el obús, el misil detona en `_explode()`; no debe
     // ser consumido por la colisión directa de proyectiles.
@@ -309,7 +312,9 @@ export class HomingMissile {
     g.spawnParticles(this.x, this.y, this.explosionColor, 12, {
       speedMin: 40, speedMax: 160, lifeMin: 0.25, lifeMax: 0.55, sizeMin: 1.5, sizeMax: 3.5,
     });
-    const r = TOWERS.missile.splashR / 2;
+    const splashR = TOWERS.missile.splashR * (this.splashRMul ?? 1);
+    const splashFrac = 0.5 + (this.splashFracAdd ?? 0);
+    const r = splashR / 2;
     const mx = this.x, my = this.y;
     g.addEffect({ life: 0.18, draw: (ctx, t) => {
       ctx.save();
@@ -326,16 +331,16 @@ export class HomingMissile {
     const list = this.game.fortress?.enemies;
     if (Array.isArray(list) && list.length) {
       applyProjectileHit(
-        { x: mx, y: my, damage: Math.round(this.damage * 0.5),
-          splashR: TOWERS.missile.splashR, dead: false,
+        { x: mx, y: my, damage: Math.round(this.damage * splashFrac),
+          splashR, dead: false,
           slowOnHit: this.slowOnHit, stunChance: this.stunChance, // fase 17
           critChance: this.critChance, critMul: this.critMul,
           ...pickOnHit(this) },
         list,
-        TOWERS.missile.splashR,
+        splashR,
       );
-      // fase 74.2 — Singularidad + Onda Glacial.
-      applyExplosionCombo(this.game, mx, my, TOWERS.missile.splashR);
+      // fase 74.2 - Singularidad + Onda Glacial.
+      applyExplosionCombo(this.game, mx, my, splashR);
       this.game.fortress?.spawnMiniBlackHole?.(mx, my, this.game);
     }
   }

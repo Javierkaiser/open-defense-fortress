@@ -15,10 +15,11 @@ export const MAX_SWARM = WASPS.maxSwarm;
 export const CARD_OFFER_COUNT = 3;
 
 // Aplicaciones por carta y partida: 1 = una sola vez.
-// Desde 1.8.0 ninguna carta de mejora se acumula. `appsOf()` cuenta las
-// aplicaciones y `isCardEligible()` saca la carta del pool al alcanzar su
-// tope. Las cartas de DESBLOQUEO (unlock_* y black_hole) y `bullets_5` —el
-// level-up del Guardian, que puede subir hasta Lv.5— NO están en esta tabla.
+// Desde 1.8.0 casi ninguna carta de mejora se acumula; 1.11.0 abre la
+// excepción de las DOCTRINAS (CAPS=2). `appsOf()` cuenta las aplicaciones y
+// `isCardEligible()` saca la carta del pool al alcanzar su tope. Las cartas
+// de DESBLOQUEO (unlock_* y black_hole) y `bullets_5` —el level-up del
+// Guardian, que puede subir hasta MAX_TOWER_LEVEL— NO están en esta tabla.
 export const CAPS = {
   // Daño global y por tipo.
   dmg_all: 1,

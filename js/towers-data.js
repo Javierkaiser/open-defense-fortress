@@ -204,7 +204,13 @@ export const TOWERS = {
   },
 }
 
-export const MAX_TOWER_LEVEL = 5;
+// 1.11.0 - la quinta mejora dedicada sube a Lv.6: el nivel de la run deja de
+// ser exclusivo del Guardian y pasa a ser una pista de progresión de TODAS
+// las unidades (torres y drones). La curva por nivel se suaviza a +5 % daño
+// y -2 % recarga (antes +25 %/-8 %): ahora la reciben todas las unidades y
+// los niveles se suman a las cartas exclusivas/técnicas. El nivel 6 es el
+// techo de la pista "alta".
+export const MAX_TOWER_LEVEL = 6;
 
 export const DRONES = {
   firewheel: {
