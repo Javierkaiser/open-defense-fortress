@@ -54,6 +54,11 @@
 // "techo" se aplicaba DOS veces (double-dip: la carta seguía elegible y
 // el jugador simulado la tomaba otra vez encima del techo).
 //
+// v1.8.0: las cartas de upgrade se eligen UNA sola vez (CAPS=1), así que
+// el techo pasa a ser "cada carta multiplicativa una vez". El bucle de
+// applyCardToCap se conserva para no atar el simulador a un CAPS futuro:
+// si mañana una carta vuelve a apilar, el techo la sigue midiendo bien.
+//
 // Aviso (cards.js): las cartas EXCLUSIVAS por torre (dmg_missile, ...)
 // no llevan la cuenta en appsOf(), así que isCardEligible() las sigue
 // ofreciendo después de topadas. El sim las marca como topeadas por su
@@ -530,9 +535,10 @@ function modsSnapshot(game) {
 
 /**
  * Aplica una carta REAL hasta que deja de hacer efecto (su tope en
- * cards.js). Así los valores y los contadores de aplicaciones salen del
- * catálogo: si una carta está topada, su contador impide que la oferta
- * la vuelva a ofrecer (isCardEligible → appsOf).
+ * cards.js). v1.8.0: con CAPS=1 eso significa exactamente UNA aplicación;
+ * el bucle queda para topes futuros >1. Así los valores y los contadores
+ * de aplicaciones salen del catálogo: si una carta está topada, su
+ * contador impide que la oferta la vuelva a ofrecer (isCardEligible).
  */
 function applyCardToCap(card, game, maxTries = 8) {
   for (let i = 0; i < maxTries; i++) {

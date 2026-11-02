@@ -164,7 +164,7 @@ MENU ⇄ CREDITS
 | Beam | Foco térmico de un blanco | Ramp de foco + `melt` (hasta 3 stacks); robo de vida y slow |
 | Thunderstroke | Tormenta de control | Stun que marca `judgment` (+15 % eléctrico) y estallido de área |
 | Tesla | Conducción local | Cadena con `ion` (+10 % eléctrico) y bifurcación |
-| Mortar | Artillería de zona | Cráter persistente que quema y frena, con anillo ámbar visible |
+| Mortar | Artillería de zona | Cráter persistente que quema y frena, con anillo ámbar visible; el cráter cubre el 80 % del radio del splash |
 | Gauss | Riel anti-blindaje | Marca `rail`: las OTRAS torres hacen +10 % balístico |
 | Láser | Corte estático | Marca `cut`: +8 % de daño de cualquier fuente; penetra la línea |
 
@@ -174,9 +174,9 @@ de impacto marca dónde cayó.
 
 Drones: Rueda de Fuego (ignición por contacto; sin blancos patrulla el campo,
 no vuelve a la base), Mosquitos (veneno que se propaga al morir) y Campo de
-Fuerza (burbuja: slow, sostén y marca; base 120 px y tope duro 190). La
-plataforma tiene **5 slots**; por run entran **5 torres + 1 dron**. Las torres
-entran por cartas.
+Fuerza (burbuja: slow, sostén y marca; base **102 px** y tope duro
+**161,5** desde 1.8.0). La plataforma tiene **5 slots**; por run entran
+**5 torres + 1 dron**. Las torres entran por cartas.
 
 La identidad vive en `TOWERS[type].mech` y se ejecuta en `tower-mechanics.js`.
 El contrato está en `openspec/specs/gameplay/tower-identity/spec.md` y lo
@@ -198,6 +198,9 @@ propia:
 Tipos base históricos: meteorito, fragmento, cristal, espora y blob.
 Jefes por etapa: meteorito gigante, blob virus, blob necrótico, blindado,
 híbrido y primordial.
+
+**HP (1.8.0)**: +25 % al HP base de los 17 tipos. El presupuesto de las olas
+no se compensó: la dificultad neta sube y se mide con `balance-sim`.
 
 **7 variantes de élite** (afijos): escudado, veloz, divisor, sanador,
 regenerador, acorazado y tenaz. Toda élite paga `scoreMul` (score y XP). Las
@@ -260,8 +263,9 @@ inmune: todo se puede matar, solo cambia el costo.
   31 en supervivencia.
 - **Cartas**: 84; pueden desbloquear torres/drones, mejorar una unidad,
   agregar mecánicas, combos con prerrequisitos de tags o dar bonuses globales.
-  Tienen topes por carta y por run. El daño global da +10 % por stack (×2) y
-  el daño por tipo +20 % (×2); los combos exigen sus dos piezas.
+  Desde 1.8.0 **cada mejora se elige una sola vez**; `bullets_5` es la
+  excepción (level-up del Guardian). El daño global da +10 % una vez y el daño
+  por tipo +20 % una vez; los combos exigen sus dos piezas.
 - **Meta**: 100 niveles por unidad con **un pool compartido de fragmentos**
   (`fragsPool`): 300 por victoria y 600 la primera limpieza de cada etapa;
   `fragCost(nivel) = 75 + 35·década` y +18 % de daño por nivel. No hay botón
@@ -332,7 +336,7 @@ inmune: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1026 tests (1026 pass, 0 skip) en 35 archivos.
+- 1041 tests (1041 pass, 0 skip) en 35 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

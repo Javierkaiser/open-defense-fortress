@@ -4,6 +4,57 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.8.0] — 2026-11-02
+
+### Balance
+
+- **HP enemigo ×1,25**: los 17 tipos de `ENEMY_TYPES` suben su HP base
+  (Meteorito 30→38, Roca maciza 190→238, Blob tanque 220→275, Geoda 240→300,
+  jefes 2600→3250 … 5600→7000). El presupuesto de las olas **no** se compensó.
+  Como el director presupuesta en HP base, el mismo presupuesto compra ~20 %
+  menos enemigos y el HP total de la descarga queda casi igual (ver
+  `docs/BALANCE.md`).
+- **Campo de Fuerza −15 % de burbuja**: radio base 120→**102**, tope duro
+  190→**161,5**. Los `radiusAdd` de perks/cartas se conservan.
+- **Cráter del Mortar −20 %**: el splash sigue en 150 px y el cráter
+  persistente pasa a **120 px** (`craterMul: 0.8`); el daño del cráter no cambia.
+- **Cartas de mejora one-shot**: las 45 cartas con `CAPS > 1` pasan a **1**.
+  `bullets_5` queda fuera: sigue siendo el level-up del Guardian (Lv.1→Lv.5).
+  `fillOffer` ya no reofrece cartas topadas, `applyCard` devuelve `null` en una
+  carta topada y `Game.pickCard` no cuenta ni festeja ese no-op (reintenta una
+  oferta y, si no hay elegibles, cierra la elección sin consumir el nivel).
+  Los contadores de `combo_blood_pact` y `bh_horizon` quedan separados.
+
+### Bestiario
+
+- `desc` y `counter` para los 10 tipos que no tenían (meteorito, fragmento,
+  cristal, espora, los 5 jefes y el blob mediano).
+- Correcciones: `rockSwarm` (balístico/cadencia, no área), `boulder` (el área
+  solo barre las crías), `sporePod` (el tope de 6 es de crías vivas) y
+  `crystalSwarm` (el balístico pega ×0,5, no “rebota”).
+- Los jefes muestran su nombre de campaña (`Meteorito Colosal`, `Blob Rey`,
+  `Blob Necrótico`, `Coloso Blindado`, `Abominación Híbrida`) y el aviso de
+  fase declara el multiplicador **neto** (familia × fase), no el ×1,5/×0,5
+  aislado que mentía.
+
+### Medición (10 semillas, `--mode=inteligente`)
+
+- S50 `pool-focus`: **90 % win / 59 % HP / 81 % bajas** (1.7.1: 70/45/66).
+- S50 `pool-spread`: **10 % / 7 % / 18 %** (1.7.1: 50/24/49).
+- S50 Protocolo II: **40 % / 17 % / 42 %** (1.7.1: 80/24/71).
+- Campaña `pool-focus`: S1–S10 90–100 %, S20 60 %, S30 50 %, S50 90 %.
+  La campaña queda no monótona; el hallazgo y la explicación están en
+  `docs/BALANCE.md`. No se compensó en esta ronda.
+
+### Tests / versión
+
+- Guardas de campaña: la apertura manual sube su `SLACK` de 3 a 4 y la
+  proporción de convoys con tanque baja de 60 % a 50 %; ambas miden el efecto
+  del HP ×1,25 y quedan documentadas para la próxima recalibración del
+  director. El smoke de integración de S1 usa dos torres extra (antes una).
+- **1041 tests, 0 skip** (35 archivos).
+- Versión **1.8.0** / Android `versionCode 16`.
+
 ## [1.7.2] — 2026-10-30
 
 ### Corregido

@@ -316,6 +316,70 @@ const attr = (s) => String(s ?? '')
 /** Número para mostrar: si no es un número finito, sale un guion. */
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? String(v) : '—');
 
+/** Multiplicador con hasta 2 decimales y coma decimal: 2,25 · 0,75 · 1,5. */
+const mulText = (v) => Number(v).toFixed(2).replace(/0$/, '').replace('.', ',');
+
+/**
+ * La regla de daño de una fase de jefe con su multiplicador NETO: la
+ * matriz (tipo × familia) POR la regla de la fase (×1,5 si es `weakTo`,
+ * ×0,5 si es `resist`). Es lo que pega de verdad.
+ *
+ * El ×1,5 / ×0,5 de la fase a secas MIENTE cuando la familia ya resiste
+ * o ya sufre ese tipo: la luz ×1,5 de fase sobre la roca (×0,5) pega
+ * ×0,75, no ×1,5. Cualquier aviso que muestre la regla tiene que usar
+ * este neto.
+ *
+ * @param {object} phase entrada de `phases[]` (js/enemies-data.js)
+ * @param {string|null} family familia del jefe
+ * @returns {{dmgType:string,name:string,rule:number,net:number,weak:boolean,resist:boolean}|null}
+ */
+export function bossPhaseRule(phase, family) {
+  if (!phase || typeof phase !== 'object') return null;
+  const dmgType = typeof phase.weakTo === 'string' ? phase.weakTo
+    : typeof phase.resist === 'string' ? phase.resist : null;
+  if (!dmgType) return null;
+  const rule = dmgType === phase.weakTo ? 1.5 : 0.5;
+  const net = dmgMultiplier(dmgType, family) * rule;
+  return {
+    dmgType,
+    name: DAMAGE_TYPES[dmgType]?.name ?? dmgType,
+    rule,
+    net,
+    weak: net > 1,
+    resist: net < 1,
+  };
+}
+
+/**
+ * Las FASES de un jefe en una línea, con el neto real de cada regla
+ * (matriz × fase) y, en el jefe del Stage 1 (campos planos), su umbral y
+ * aceleración. '' si el tipo no es un jefe con fases.
+ */
+function bestiaryPhasesHtml(d) {
+  const phases = Array.isArray(d.phases) && d.phases.length
+    ? d.phases
+    // El jefe del Stage 1 declara la fase con campos planos (sin `name`).
+    : (typeof d.phaseHpFrac === 'number'
+      ? [{ atFrac: d.phaseHpFrac, phaseVelMul: d.phaseVelMul, phaseShedCount: d.phaseShedCount }]
+      : []);
+  if (!phases.length) return '';
+  const parts = [];
+  for (const p of phases) {
+    const at = typeof p.atFrac === 'number' ? p.atFrac : p.phaseHpFrac;
+    const head = [p.name ?? 'FASE', typeof at === 'number' ? `al ${Math.round(at * 100)} %` : null]
+      .filter(Boolean).join(' ');
+    const rule = bossPhaseRule(p, d.family ?? null);
+    if (rule) {
+      parts.push(`${head}: ${rule.name} ×${mulText(rule.net)}`);
+    } else if (typeof p.phaseVelMul === 'number') {
+      const shed = p.phaseShedCount ? ` y suelta ${p.phaseShedCount} fragmentos` : '';
+      parts.push(`${head}: ×${mulText(p.phaseVelMul)} de velocidad${shed}`);
+    }
+  }
+  if (!parts.length) return '';
+  return `<p class="bestiary-desc bestiary-phases">Fases — ${esc(parts.join(' · '))}.</p>`;
+}
+
 /** Tipos de enemigo del bestiario: la lista curada + los que falten. */
 function bestiaryTypeIds() {
   const extra = Object.keys(ENEMY_TYPES).filter((t) => !BESTIARY_TYPE_IDS.includes(t));
@@ -353,7 +417,7 @@ function bestiaryCardHtml(type) {
   const famName = fam?.name ?? '—';
   const famGlyph = fam?.glyph ?? '?';
   const famColor = fam?.color ?? '#FFFFFF';
-  const name = d.name ?? type;
+  const name = d.bestiaryName ?? d.name ?? type;
   return `<li class="bestiary-card${d.boss ? ' is-boss' : ''}" data-bestiary-entry="${attr(type)}">`
     + `<div class="bestiary-head">`
     + `<canvas class="bestiary-icon" width="${num(ENEMY_ICON_SIZE)}" height="${num(ENEMY_ICON_SIZE)}" data-bestiary-icon="${attr(type)}"`
@@ -377,6 +441,7 @@ function bestiaryCardHtml(type) {
     + `<table class="dmg-legend bestiary-resist" aria-label="${attr(`Resistencias de ${name}`)}">`
     + `<tbody><tr>${bestiaryResistCells(famId, famName)}</tr></tbody>`
     + `</table>`
+    + bestiaryPhasesHtml(d)
     + `</li>`;
 }
 

@@ -17,6 +17,7 @@ import {
   DAMAGE_TYPES, DAMAGE_TYPE_IDS, ENEMY_FAMILY_IDS, dmgMultiplier,
 } from '../js/damagetypes.js';
 import { Fortress } from '../js/player.js';
+import { Game } from '../js/game.js';
 import { saveMeta, defaultMeta } from '../js/meta.js';
 import { makeLcgRng as rngFactory } from './helpers/rng.mjs';
 
@@ -47,6 +48,25 @@ function makeGame({ stageId = 1, towers = [] } = {}) {
 function makeRealGame({ stageId = 1 } = {}) {
   const game = { stageId, engine: { emit() {}, addEntity() {} }, audio: { sfx() {} } };
   game.fortress = new Fortress(game);
+  return game;
+}
+
+/** FSM real (`Game`) sobre una Fortress de test — sin DOM. */
+function makeUiGame(fortress) {
+  const game = Object.create(Game.prototype);
+  game.engine = {
+    state: 'PLAYING',
+    setState(s) { this.state = s; },
+    floatText() {},
+  };
+  game.audio = { sfx() {} };
+  game.hud = { showCardChoice() {}, hideCardChoice() {} };
+  game.fortress = fortress;
+  game.stageId = 5;
+  game.pendingOffer = null;
+  game._pendingLevels = 0;
+  game._cardsApplied = 0;
+  game._ended = false;
   return game;
 }
 
@@ -145,7 +165,7 @@ test('limpieza 1.5.4: fuera XP/score; el escudo queda como Escudo de Base', () =
   const shield = CATALOG.find((c) => c.id === 'base_shield');
   assert.ok(shield, 'base_shield debe existir');
   assert.equal(shield.name, 'Escudo de Base');
-  assert.equal(CAPS.base_shield, 2);
+  assert.equal(CAPS.base_shield, 1);
   const game = makeRealGame();
   assert.equal(game.fortress.xpMul, undefined, 'xpMul ya no existe');
   assert.equal(game.fortress.scoreMul, undefined, 'scoreMul ya no existe');
@@ -164,6 +184,14 @@ test('CAPS: TODA carta repetible del catálogo tiene tope (anti-stack infinito)'
   for (const id of Object.keys(CAPS)) {
     assert.ok(CATALOG.some((c) => c.id === id), `CAPS tiene ${id}, que no existe`);
   }
+});
+
+test('1.8.0: ninguna carta de mejora se elige más de una vez', () => {
+  for (const [id, cap] of Object.entries(CAPS)) {
+    assert.equal(cap, 1, `${id} debería aplicarse una sola vez (cap ${cap})`);
+  }
+  // bullets_5 es el LEVEL-UP del Guardian (Lv.1 → Lv.5): no lleva CAPS.
+  assert.equal(CAPS.bullets_5, undefined, 'bullets_5 sube a Lv.5: fuera de CAPS');
 });
 
 test('fase 75: Apagón saca del pool las cartas de ultimate/Black Hole', () => {
@@ -339,26 +367,32 @@ test('fase 69 (Censura): runMods.offerCount recorta la oferta (3 → 2 → 1)', 
   assert.equal(rollOffer(game, rngFactory(11)).length, 1, 'Censura 2 deja 1 carta');
 });
 
-test('fase 69 (Censura): el RELLENO (fillOffer) también respeta offerCount', () => {
-  // Pool agotado: rollOffer cae en fillOffer. La oferta recortada no puede
-  // "rellenarse" hasta 3 — el modal sigue pidiendo `offerCount` cartas.
+test('1.8.0: el relleno respeta offerCount y no reofrece cartas topadas', () => {
+  // Pool casi agotado: sólo `repair_500` queda elegible. El relleno no
+  // puede completar hasta `offerCount` con cartas ya topadas (no-ops).
   const game = agotarPool(makeRealGame({ stageId: 5 }));
   game.fortress.ultCharge = 1;
   game.fortress.ultReady = true;
-  assert.equal(CATALOG.filter((c) => isCardEligible(c, game)).length, 0,
-    'el estado de prueba debe agotar el pool');
+  game.fortress.repairApps = 0;
+  game.fortress.hp = game.fortress.maxHp - 500;
+  assert.deepEqual(
+    CATALOG.filter((c) => isCardEligible(c, game)).map((c) => c.id),
+    ['repair_500'],
+    'el estado de prueba deja una sola elegible',
+  );
   game.runMods = { offerCount: 2 };
   const offer = rollOffer(game, rngFactory(3));
-  assert.equal(offer.length, 2, 'el relleno respeta el recorte del Protocolo');
+  assert.deepEqual(offer.map((c) => c.id), ['repair_500'],
+    'el relleno no supera el pool elegible ni el recorte del Protocolo');
 });
 
-test('applyCard: pierce_up suma 1 a fortress.pierce', () => {
+test('applyCard: pierce_up suma 1 a fortress.pierce (una sola vez)', () => {
   const game = makeGame({ towers: ['guardian'] });
   const card = CATALOG.find((c) => c.id === 'pierce_up');
-  applyCard(card, game);
+  assert.equal(applyCard(card, game), card);
   assert.equal(game.fortress.pierce, 1);
-  applyCard(card, game);
-  assert.equal(game.fortress.pierce, 2);
+  assert.equal(applyCard(card, game), null, 'la 2ª aplicación es no-op');
+  assert.equal(game.fortress.pierce, 1);
 });
 
 test('applyCard: unlock_missile coloca la torre (findTower la encuentra)', () => {
@@ -394,14 +428,14 @@ test('cartas de daño exclusivas: elegibles y aplican solo a SU torre', () => {
   assert.equal(beam.dmgMul, beamDmgBefore, 'no debería tocar el dmgMul de otra torre');
 });
 
-test('cartas de daño exclusivas: tope ×2 aplicaciones (CAPS)', () => {
+test('cartas de daño exclusivas: una sola aplicación (CAPS)', () => {
   const game = makeGame({ towers: ['guardian', 'gauss'] });
   const card = CATALOG.find((c) => c.id === 'dmg_gauss');
-  applyCard(card, game);
-  applyCard(card, game);
-  applyCard(card, game); // 3ra: no debería sumar más
   const t = findTower(game, 'gauss');
-  assert.ok(Math.abs(t.dmgMul - 1.6 * 1.6) < 1e-9);
+  assert.equal(applyCard(card, game), card);
+  assert.ok(Math.abs(t.dmgMul - 1.6) < 1e-9);
+  assert.equal(applyCard(card, game), null, 'la 2ª aplicación se rechaza');
+  assert.ok(Math.abs(t.dmgMul - 1.6) < 1e-9, 'el daño no se vuelve a multiplicar');
 });
 
 test('fase 26: las cartas de daño exclusivas salen del pool al alcanzar su tope', () => {
@@ -414,10 +448,8 @@ test('fase 26: las cartas de daño exclusivas salen del pool al alcanzar su tope
   const card = CATALOG.find((c) => c.id === 'dmg_gauss');
   assert.equal(isCardEligible(card, game), true, 'al principio debe ser elegible');
   applyCard(card, game);
-  assert.equal(isCardEligible(card, game), true, 'con 1 de 2 sigue siendo elegible');
-  applyCard(card, game);
   assert.equal(isCardEligible(card, game), false,
-    'con el tope (2) alcanzado debe SALIR del pool de oferta');
+    'con el tope (1) alcanzado debe SALIR del pool de oferta');
 });
 
 test('fase 26: armor_plate tiene tope (la base no puede ser inmatable por leaks)', () => {
@@ -436,13 +468,13 @@ test('fase 26: armor_plate tiene tope (la base no puede ser inmatable por leaks)
   assert.equal(isCardEligible(card, game), false, 'alcanzado el tope sale del pool');
 });
 
-test('fase 26: repair_500 tiene tope (3 reparaciones)', () => {
+test('fase 26: repair_500 tiene tope (una reparación)', () => {
   const game = makeGame({ towers: ['guardian'] });
   const card = CATALOG.find((c) => c.id === 'repair_500');
   game.fortress.hp = 100;
   game.fortress.maxHp = 100000;
   for (let i = 0; i < 5; i++) applyCard(card, game);
-  assert.equal(game.fortress.hp, 100 + 500 * 3, 'la reparación se topa en 3');
+  assert.equal(game.fortress.hp, 100 + 500, 'la reparación se topa en 1');
   assert.equal(isCardEligible(card, game), false, 'alcanzado el tope sale del pool');
 });
 
@@ -469,20 +501,18 @@ test('Black Hole: applyCard desbloquea Y deja el medidor listo de regalo', () =>
 // exclusivas, pesos recalibrados y oferta nunca corta.
 // =====================================================================
 
-test('pierce_up: tiene tope (3) y sale del pool al alcanzarlo', () => {
+test('pierce_up: tiene tope (1) y sale del pool al alcanzarlo', () => {
   // Antes no estaba en CAPS → se ofrecía en cada level-up y el Guardian
   // atravesaba enemigos sin límite.
   const game = makeGame({ towers: ['guardian'] });
   const card = CATALOG.find((c) => c.id === 'pierce_up');
-  assert.equal(CAPS.pierce_up, 3);
-  for (let i = 0; i < 3; i++) {
-    assert.equal(isCardEligible(card, game), true, `debería ser elegible en la repetición ${i + 1}`);
-    applyCard(card, game);
-  }
-  assert.equal(game.fortress.pierce, 3, '3 apilamientos = 3 atravesamientos');
-  applyCard(card, game); // 4ta: ya no hace nada
-  assert.equal(game.fortress.pierce, 3);
+  assert.equal(CAPS.pierce_up, 1);
+  assert.equal(isCardEligible(card, game), true);
+  assert.equal(applyCard(card, game), card);
+  assert.equal(game.fortress.pierce, 1, '1 aplicación = 1 atravesamiento');
   assert.equal(isCardEligible(card, game), false, 'alcanzado el tope sale del pool');
+  assert.equal(applyCard(card, game), null);
+  assert.equal(game.fortress.pierce, 1);
 });
 
 test('ult_charge: se ofrece con el medidor a medias y NO con el medidor lleno', () => {
@@ -583,28 +613,26 @@ test('arsenal: las 4 cartas nuevas multiplican SOLO el dmgMul de SU unidad (×1.
   assert.equal(laserW.dmgMul, 1, 'la torre NO se toca');
 });
 
-test('arsenal: las 4 cartas nuevas tienen tope ×2 y salen del pool al alcanzarlo', () => {
+test('arsenal: las 4 cartas nuevas tienen tope 1 y salen del pool al alcanzarlo', () => {
   const game = makeRealGame({ stageId: 2 });
   game.fortress.addTower('laser');
   game.fortress.addDrone('firewheel');
   const card = CATALOG.find((c) => c.id === 'dmg_laser');
-  assert.equal(CAPS.dmg_laser, 2);
-  assert.equal(CAPS.dmg_firewheel, 2);
-  assert.equal(CAPS.dmg_wasps, 2);
-  assert.equal(CAPS.dmg_forcefield, 2);
+  assert.equal(CAPS.dmg_laser, 1);
+  assert.equal(CAPS.dmg_firewheel, 1);
+  assert.equal(CAPS.dmg_wasps, 1);
+  assert.equal(CAPS.dmg_forcefield, 1);
   assert.equal(isCardEligible(card, game), true);
-  applyCard(card, game);
-  assert.equal(isCardEligible(card, game), true, 'con 1 de 2 sigue siendo elegible');
-  applyCard(card, game);
+  assert.equal(applyCard(card, game), card);
   assert.equal(isCardEligible(card, game), false, 'con el tope alcanzado sale del pool');
   const laser = findTower(game, 'laser');
-  assert.ok(Math.abs(laser.dmgMul - 1.6 * 1.6) < 1e-9, '×1.6 ×2 = ×2.56');
+  assert.ok(Math.abs(laser.dmgMul - 1.6) < 1e-9, '×1.6 una sola vez');
+  assert.equal(applyCard(card, game), null);
+  assert.ok(Math.abs(laser.dmgMul - 1.6) < 1e-9, 'no se vuelve a multiplicar');
   // El dron lleva su propio contador.
   const fw = CATALOG.find((c) => c.id === 'dmg_firewheel');
   assert.equal(isCardEligible(fw, game), true);
-  applyCard(fw, game);
-  assert.equal(isCardEligible(fw, game), true);
-  applyCard(fw, game);
+  assert.equal(applyCard(fw, game), fw);
   assert.equal(isCardEligible(fw, game), false);
 });
 
@@ -633,38 +661,37 @@ test('armor_plate: una sola vez y +600 de HP máximo (la base sigue siendo morta
   assert.equal(game.fortress.maxHp, maxHp0 + 600, 'no se puede volver a elegir');
 });
 
-test('rollOffer: SIEMPRE 3 cartas (run fresca, run tardía con muchas cartas tomadas)', () => {
+test('1.8.0: rollOffer — oferta completa con pool, vacía cuando todo está topado', () => {
   // El modal de cartas no se puede cerrar sin elegir → una oferta corta
-  // deja la run TRABADA en CARD_CHOICE (soft-lock). Con los topes de CAPS
-  // el pool elegible se puede agotar → la oferta se rellena.
+  // se tolera (1-2 cartas), pero una VACÍA la cierra `Game.pickCard`.
+  // Con el pool agotado ya no se rellena con cartas topadas (no-ops).
   const frescos = makeRealGame({ stageId: 1 });
   assert.equal(rollOffer(frescos, rngFactory(1)).length, CARD_OFFER_COUNT);
 
   const tardio = agotarPool(makeRealGame({ stageId: 5 }));
-  const offer = rollOffer(tardio, rngFactory(2));
-  assert.equal(offer.length, CARD_OFFER_COUNT, 'la oferta nunca puede quedar corta');
-  const ids = offer.map((c) => c.id);
-  assert.equal(new Set(ids).size, ids.length, 'sin ids repetidos en la oferta');
+  assert.equal(rollOffer(tardio, rngFactory(2)).length, 0,
+    'sin elegibles la oferta queda vacía, sin cartas no-op');
 });
 
-test('rollOffer: con el pool elegible vacío la oferta se rellena con 3 cartas', () => {
+test('1.8.0: una carta topada no vuelve a salir (ni en el relleno)', () => {
   const game = agotarPool(makeRealGame({ stageId: 5 }));
-  game.fortress.ultCharge = 1;
-  game.fortress.ultReady = true;
-  // Pool elegible vacío.
-  const elegibles = CATALOG.filter((c) => isCardEligible(c, game));
-  assert.equal(elegibles.length, 0, 'el estado de prueba debe agotar el pool');
-  const offer = rollOffer(game, rngFactory(3));
-  assert.equal(offer.length, CARD_OFFER_COUNT, 'aun sin pool, la oferta trae 3 cartas');
-  const ids = offer.map((c) => c.id);
-  assert.equal(new Set(ids).size, ids.length);
+  // Se libera UNA sola carta: el resto sigue topado.
+  game.fortress.dmgAllStacks = 0;
+  const rng = rngFactory(17);
+  for (let i = 0; i < 40; i++) {
+    assert.deepEqual(rollOffer(game, rng).map((c) => c.id), ['dmg_all'],
+      'el relleno no puede colar una carta topada');
+  }
+  const card = CATALOG.find((c) => c.id === 'dmg_all');
+  assert.equal(applyCard(card, game), card);
+  assert.deepEqual(rollOffer(game, rng), [], 'al tope, la carta sale del pool');
 });
 
-test('exclusivas: las 10 cartas de daño siguen el mismo patrón (peso 9, tope 2)', () => {
+test('exclusivas: las 10 cartas de daño siguen el mismo patrón (peso 9, tope 1)', () => {
   for (const { id } of EXCLUSIVE_DMG) {
     const card = CATALOG.find((c) => c.id === id);
     assert.equal(card.weight, 9, `${id} debería pesar 9`);
-    assert.equal(CAPS[id], 2, `${id} debería tener tope 2`);
+    assert.equal(CAPS[id], 1, `${id} debería aplicarse una sola vez`);
   }
 });
 
@@ -689,18 +716,18 @@ test('fase 30: "Munición Reforzada" (dmg_all) alcanza también a los drones', (
   assert.ok(Math.abs((torre.dmgMul ?? 1) - 1.1) < 1e-9, 'la torre también');
 });
 
-test('fase 74: dmg_all alcanza a una torre desbloqueada DESPUÉS', () => {
+test('fase 74: dmg_all (+10%) llega a una torre desbloqueada DESPUÉS y no se apila', () => {
   const game = makeRealGame();
   game.fortress.addTower('guardian');
   const card = CATALOG.find((c) => c.id === 'dmg_all');
-  applyCard(card, game);
+  assert.equal(applyCard(card, game), card);
   game.fortress.addTower('missile');
   const ms = findTower(game, 'missile');
   assert.ok(Math.abs((ms.dmgMul ?? 1) - 1.1) < 1e-9,
-    `la torre tardía debe heredar el stack (dmgMul=${ms.dmgMul})`);
-  applyCard(card, game); // 2º stack: 1.1 × 1.1 = 1.21
-  assert.ok(Math.abs((ms.dmgMul ?? 1) - 1.21) < 1e-9,
-    `el 2º stack debe componer ×1.21 (dmgMul=${ms.dmgMul})`);
+    `la torre tardía debe heredar el mod (dmgMul=${ms.dmgMul})`);
+  assert.equal(applyCard(card, game), null, 'la 2ª aplicación se rechaza');
+  assert.ok(Math.abs((ms.dmgMul ?? 1) - 1.1) < 1e-9,
+    `no se apila (sin ×1.21): ${ms.dmgMul}`);
 });
 
 test('fase 30: "Servos Acelerados" (cadence_up) reduce el cooldown de picadura de los Mosquitos', () => {
@@ -709,13 +736,11 @@ test('fase 30: "Servos Acelerados" (cadence_up) reduce el cooldown de picadura d
   const dron = game.fortress.drones[0];
   const card = CATALOG.find((c) => c.id === 'cadence_up');
   assert.equal(isCardEligible(card, game), true);
-  applyCard(card, game);
+  assert.equal(applyCard(card, game), card);
   assert.ok(Math.abs((dron.cadMul ?? 1) - 0.9) < 1e-9,
     `el dron debe recibir el ×0.9 de cadencia (${dron.cadMul})`);
-  // El tope se cuenta sobre torres Y drones: con 3 usos no se ofrece más.
-  applyCard(card, game);
-  applyCard(card, game);
-  assert.equal(isCardEligible(card, game), false, 'alcanzado el tope sale del pool');
+  assert.equal(isCardEligible(card, game), false, 'se elige una sola vez');
+  assert.equal(applyCard(card, game), null);
 });
 
 test('fase 30: "Nido Ampliado" (swarm_grow) añade mosquitos al enjambre y sale del pool al tope', () => {
@@ -726,13 +751,12 @@ test('fase 30: "Nido Ampliado" (swarm_grow) añade mosquitos al enjambre y sale 
   const dron = game.fortress.drones[0];
   const antes = dron.waspCount();
   assert.equal(isCardEligible(card, game), true);
-  applyCard(card, game);
+  assert.equal(applyCard(card, game), card);
   assert.equal(dron.waspCount(), antes + 1, 'debe añadir un mosquito');
-  applyCard(card, game);
-  assert.equal(dron.waspCount(), antes + 2, 'la 2ª vez añade otra');
   assert.equal(isCardEligible(card, game), false, 'alcanzado el tope sale del pool');
+  assert.equal(applyCard(card, game), null);
+  assert.equal(dron.waspCount(), antes + 1, 'no añade un segundo mosquito');
   // Y nunca pasa del tope de enjambre del dron.
-  applyCard(card, game);
   assert.ok(dron.waspCount() <= 6, `el enjambre no puede pasar de 6 (${dron.waspCount()})`);
 });
 
@@ -766,11 +790,11 @@ const TECH = [
   { id: 'tech_forcefield_regen', unit: 'forcefield', key: 'bubbleRegen', valor: 1.5 },
 ];
 
-test('fase 51/74: las cartas de técnica existen, con tope ×2 y peso > 0', () => {
+test('fase 51/74: las cartas de técnica existen, con tope 1 y peso > 0', () => {
   for (const t of TECH) {
     const card = CATALOG.find((c) => c.id === t.id);
     assert.ok(card, `falta la carta ${t.id}`);
-    assert.equal(CAPS[t.id], 2, `${t.id} debería tener tope 2`);
+    assert.equal(CAPS[t.id], 1, `${t.id} debería aplicarse una sola vez`);
     assert.ok(card.weight > 0, `${t.id} con weight <= 0`);
     assert.ok(card.name && card.desc, `${t.id} sin nombre o descripción`);
   }
@@ -789,20 +813,17 @@ test('fase 51: la carta de rebote deja bounceCount en el GUARDIAN (y sólo en é
   assert.equal(ms.cardMods?.bounceCount, undefined, 'el Misil NO se toca');
 });
 
-test('fase 51: los mods de carta se ACUMULAN y el tope ×2 saca la carta del pool', () => {
+test('fase 51: los mods de carta se aplican UNA vez y el tope saca la carta del pool', () => {
   const game = makeRealGame();
   game.fortress.addTower('guardian');
   const card = CATALOG.find((c) => c.id === 'tech_bounce');
   const gw = findTower(game, 'guardian');
   assert.equal(isCardEligible(card, game), true);
-  applyCard(card, game);
+  assert.equal(applyCard(card, game), card);
   assert.equal(gw.cardMods.bounceCount, 1, '1ª aplicación');
-  assert.equal(isCardEligible(card, game), true, 'con 1 de 2 sigue siendo elegible');
-  applyCard(card, game);
-  assert.equal(gw.cardMods.bounceCount, 2, 'la 2ª aplicación ACUMULA (2 rebotes)');
   assert.equal(isCardEligible(card, game), false, 'alcanzado el tope sale del pool');
-  applyCard(card, game); // 3ra: no debe sumar más
-  assert.equal(gw.cardMods.bounceCount, 2, 'no se puede aplicar 3 veces la misma carta');
+  assert.equal(applyCard(card, game), null, 'la 2ª aplicación se rechaza');
+  assert.equal(gw.cardMods.bounceCount, 1, 'no se puede aplicar dos veces la misma carta');
 });
 
 test('fase 51: la carta de técnica NO se ofrece si el jugador NO tiene esa torre', () => {
@@ -1063,10 +1084,23 @@ test('fase 61: el cupo de drones es 1, y los 3 siguen siendo alcanzables', () =>
 function toparTodo(f) {
   f.dmgAllStacks = CAPS.dmg_all;
   f.cadAllStacks = CAPS.cadence_up;
-  f.typeStacks = { ballistic: 2, light: 2, blast: 2, electric: 2, drone: 2 };
-  f.huntStacks = { rock: 1, crystal: 1, spore: 1, virus: 1 };
+  f.typeStacks = {
+    ballistic: CAPS.dmg_type_ballistic,
+    light: CAPS.dmg_type_light,
+    blast: CAPS.dmg_type_blast,
+    electric: CAPS.dmg_type_electric,
+    drone: CAPS.dmg_type_drone,
+  };
+  f.huntStacks = {
+    rock: CAPS.hunt_rock,
+    crystal: CAPS.hunt_crystal,
+    spore: CAPS.hunt_spore,
+    virus: CAPS.hunt_virus,
+  };
   f.blackHoleMods = {
     durationAdd: 1.5, radiusMul: 1.2, endBurst: 150, singularity: 1, drain: 0.1,
+    // 1.8.0: cada carta tiene su flag (no se deducen de los efectos).
+    bloodPact: 1, horizon: 1,
   };
   f.comboMods = {
     slowLightVuln: 1.2, slowBlastVuln: 1.2,
@@ -1081,7 +1115,7 @@ function toparTodo(f) {
   for (const t of f.slots.filter(Boolean)) {
     t.dmgAllApps = CAPS.dmg_all;
     t.guardDmgApps = CAPS.dmg_guard;
-    t.exclusiveDmgApps = 2;
+    t.exclusiveDmgApps = CAPS.dmg_missile;
     t.cadApps = CAPS.cadence_up;
     t.rapidApps = CAPS.rapid_bullets;
     t.level = 5;                                  // bullets_5 fuera por estado
@@ -1091,7 +1125,7 @@ function toparTodo(f) {
     }
   }
   for (const d of f.drones ?? []) {
-    d.exclusiveDmgApps = 2;
+    d.exclusiveDmgApps = CAPS.dmg_missile;
     d.swarmApps = CAPS.swarm_grow;
     d.cadApps = CAPS.cadence_up;
     d.cardApps = d.cardApps ?? {};
@@ -1118,9 +1152,9 @@ const UNIT_DE_CARTA = new Map([
 
 test('fase 64: fillOffer NUNCA rellena con una unidad ausente', () => {
   // 5 torres puestas (SIN Tesla), el cupo de drones lleno, el Black Hole
-  // ya desbloqueado y todas las repetibles topadas → pool elegible vacío
-  // (el relleno entra sí o sí). Antes podía colar la carta de una torre
-  // que el jugador no tiene.
+  // ya desbloqueado y todas las repetibles topadas → pool elegible vacío.
+  // Antes el relleno podía colar la carta de una torre que el jugador no
+  // tiene; hoy la oferta queda vacía y la elección se cierra sin no-ops.
   for (const quinto of ['mortar', 'gauss', 'laser']) {
     const game = makeRealGame({ stageId: 5 });
     for (const t of ['guardian', 'missile', 'beam', 'thunderstroke', quinto]) {
@@ -1134,16 +1168,16 @@ test('fase 64: fillOffer NUNCA rellena con una unidad ausente', () => {
     presentes.add('firewheel');
     assert.equal(CATALOG.filter((c) => isCardEligible(c, game)).length, 0,
       `el estado de prueba (con ${quinto}) agota el pool elegible`);
+    assert.deepEqual(rollOffer(game, rngFactory(13)), [],
+      'sin elegibles no puede aparecer una carta de una unidad ausente');
 
+    // Con UNA carta genérica liberada, el relleno tampoco puede colar las
+    // mejoras de las unidades que no están en el campo.
+    game.fortress.dmgAllStacks = 0;
     const rng = rngFactory(13);
     for (let i = 0; i < 30; i++) {
       const offer = rollOffer(game, rng);
-      assert.equal(offer.length, CARD_OFFER_COUNT, 'la oferta nunca queda corta');
-      const ids = offer.map((c) => c.id);
-      // Sin Tesla en el campo: ni su mejora ni su desbloqueo.
-      assert.ok(!ids.includes('dmg_tesla'), `el relleno trajo dmg_tesla: ${ids}`);
-      assert.ok(!ids.includes('unlock_tesla'), `el relleno trajo unlock_tesla: ${ids}`);
-      assert.ok(!ids.includes('dmg_wasps'), `el relleno trajo la carta de un dron ausente: ${ids}`);
+      assert.equal(offer.length, 1, 'la oferta sólo trae la genérica liberada');
       for (const c of offer) {
         assert.ok(!c.tower && !c.drone && c.id !== 'black_hole',
           `el relleno trajo un desbloqueo (${c.id})`);
@@ -1169,7 +1203,7 @@ test('fase 64: fillOffer no re-ofrece un desbloqueo ya gastado (torre puesta + s
 
   const offer = rollOffer(game, rngFactory(21));
   const ids = offer.map((c) => c.id);
-  assert.equal(offer.length, CARD_OFFER_COUNT, 'la oferta se rellena, pero completa');
+  assert.equal(offer.length, 1, 'la oferta no se rellena con cartas topadas');
   assert.ok(ids.includes('unlock_tesla'), `debería ofrecer el desbloqueo pendiente: ${ids}`);
   for (const gastada of ['unlock_missile', 'unlock_beam', 'unlock_thunderstroke']) {
     assert.ok(!ids.includes(gastada), `el relleno re-ofreció ${gastada}: ${ids}`);
@@ -1270,4 +1304,105 @@ test('fase 64: regresión del reporte — elegir unlock_missile no lo vuelve a o
   // por tipo (busca el primer slot libre), así que la defensa es que la
   // carta no vuelva a entrar al pool (lo que mira el bucle de arriba).
   assert.equal(game.fortress.slots.filter((t) => t?.type === 'missile').length, 1);
+});
+
+// =====================================================================
+// 1.8.0 — CARTAS DE UNA SOLA VEZ Y OFERTAS NO-OP
+// =====================================================================
+
+test('1.8.0: applyCard de una carta topada devuelve null y no toca stats', () => {
+  const game = makeGame({ towers: ['guardian', 'gauss'] });
+  const exclusive = CATALOG.find((c) => c.id === 'dmg_gauss');
+  assert.equal(applyCard(exclusive, game), exclusive);
+  const t = findTower(game, 'gauss');
+  const dmg = t.dmgMul;
+  const apps = t.exclusiveDmgApps;
+  assert.equal(applyCard(exclusive, game), null);
+  assert.equal(t.dmgMul, dmg, 'el daño no cambia');
+  assert.equal(t.exclusiveDmgApps, apps, 'el contador no cambia');
+
+  // También sobre un contador de la fortaleza (no sólo de la unidad).
+  const repair = CATALOG.find((c) => c.id === 'repair_500');
+  game.fortress.hp = 100;
+  assert.equal(applyCard(repair, game), repair);
+  const hp = game.fortress.hp;
+  assert.equal(applyCard(repair, game), null);
+  assert.equal(game.fortress.hp, hp, 'no vuelve a curar');
+});
+
+test('1.8.0: pickCard con una oferta no-op no cuenta la carta ni deja la FSM colgada', () => {
+  // Run agotada: dar la vuelta a la oferta tras elegir una carta topada
+  // no encuentra ninguna elegible → se cierra la elección sin gastarla.
+  const base = agotarPool(makeRealGame({ stageId: 5 }));
+  base.fortress.ultCharge = 1;
+  base.fortress.ultReady = true;
+  const game = makeUiGame(base.fortress);
+  game._pendingLevels = 1;
+  game.pendingOffer = [CATALOG.find((c) => c.id === 'dmg_all')];
+  game.engine.state = 'CARD_CHOICE';
+
+  game.pickCard('dmg_all');
+
+  assert.equal(game._cardsApplied, 0, 'una carta no-op no cuenta como aplicada');
+  assert.equal(game._pendingLevels, 1, 'no consume la elección');
+  assert.equal(game.pendingOffer, null);
+  assert.equal(game.engine.state, 'PLAYING', 'la FSM no puede quedar en CARD_CHOICE');
+});
+
+test('1.8.0: pickCard normal aplica, cuenta y vuelve a PLAYING', () => {
+  const game = makeUiGame(makeRealGame({ stageId: 5 }).fortress);
+  game._pendingLevels = 1;
+  game.pendingOffer = [CATALOG.find((c) => c.id === 'pierce_up')];
+  game.engine.state = 'CARD_CHOICE';
+
+  game.pickCard('pierce_up');
+
+  assert.equal(game.fortress.pierce, 1);
+  assert.equal(game._cardsApplied, 1);
+  assert.equal(game._pendingLevels, 0);
+  assert.equal(game.pendingOffer, null);
+  assert.equal(game.engine.state, 'PLAYING');
+});
+
+test('1.8.0: _maybeOpenCards no abre un modal vacío', () => {
+  const base = agotarPool(makeRealGame({ stageId: 5 }));
+  base.fortress.ultCharge = 1;
+  base.fortress.ultReady = true;
+  const game = makeUiGame(base.fortress);
+  game._pendingLevels = 1;
+
+  game._maybeOpenCards();
+
+  assert.equal(game.engine.state, 'PLAYING', 'sin cartas no se entra a CARD_CHOICE');
+  assert.equal(game.pendingOffer, null);
+  assert.equal(game._pendingLevels, 1, 'el nivel queda pendiente para la próxima subida');
+});
+
+test('1.8.0: combo_blood_pact y bh_horizon son independientes', () => {
+  const mkBh = () => {
+    const game = makeRealGame({ stageId: 5 });
+    game.fortress.blackHoleUnlocked = true;
+    return game;
+  };
+  const horizon = CATALOG.find((c) => c.id === 'bh_horizon');
+  const pact = CATALOG.find((c) => c.id === 'combo_blood_pact');
+
+  // Horizonte primero: Blood Pact sigue disponible y suma SU duración.
+  const a = mkBh();
+  assert.equal(applyCard(horizon, a), horizon);
+  assert.equal(a.fortress.blackHoleMods.durationAdd, 1.5);
+  assert.equal(applyCard(pact, a), pact);
+  assert.equal(a.fortress.blackHoleMods.drain, 0.1);
+  assert.equal(a.fortress.blackHoleMods.durationAdd, 2.5);
+  assert.equal(applyCard(pact, a), null, 'cada carta se aplica una sola vez');
+  assert.equal(applyCard(horizon, a), null);
+
+  // Blood Pact primero: no bloquea a Horizonte.
+  const b = mkBh();
+  assert.equal(applyCard(pact, b), pact);
+  assert.equal(b.fortress.blackHoleMods.bloodPact, 1);
+  assert.equal(b.fortress.blackHoleMods.horizon, undefined);
+  assert.equal(applyCard(horizon, b), horizon);
+  assert.equal(b.fortress.blackHoleMods.durationAdd, 2.5);
+  assert.equal(b.fortress.blackHoleMods.radiusMul, 1.2);
 });

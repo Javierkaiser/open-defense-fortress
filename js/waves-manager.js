@@ -418,8 +418,8 @@ export class WaveManager {
     this.bossSpawned = true;
     const list = game?.fortress?.enemies;
     if (!list) return;
-    // v6: en la campaña de 50 stages los jefes ESCALAN +12% HP por stage
-    // (stage 10 ≈ ×2.08, stage 50 ≈ ×6.88) para seguir siendo el hito
+    // v6: en la campaña de 50 stages los jefes ESCALAN +15% HP por stage
+    // (stage 10 ≈ ×2.35, stage 50 ≈ ×8.35) para seguir siendo el hito
     // de cada década con el meta de 100 niveles.
     // 3e/7: entra por una X aleatoria variada (zona ≠ la del jefe anterior)
     // con barrido lateral alternado (vive en enemies.js vía sweepDir).

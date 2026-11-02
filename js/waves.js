@@ -87,7 +87,7 @@ export function bossForStage(id) {
   if (id === 1) return 'boss';
   const cycle = ['boss', 'blobBoss', 'graveBlob', 'armoredBlob', 'hybridBoss'];
   // 10→blobBoss, 20→graveBlob, 30→armoredBlob, 40→hybridBoss, 50→hybridBoss
-  // (el más fuerte, con su escala ×6.88 del stage — la dificultad crece).
+  // (el más fuerte, con su escala ×8.35 del stage — la dificultad crece).
   return cycle[Math.min(Math.floor(id / 10), cycle.length - 1)];
 }
 
@@ -303,7 +303,7 @@ export const SWARM_BY_FAMILY = {
 // Fase 27 — ACOTE DE LA APERTURA POR MATABILIDAD.
 //
 // El doc (docs/BALANCE.md v7) promete "apertura 100 % farmable" en 6..50: con
-// el Guardian Lv1 (8 dmg / 0.23 s × 0,75 ≈ 26.1 DPS) todo lo que entra en la
+// el Guardian Lv1 (5 dmg / 0.25 s × 0,75 = 15 DPS) todo lo que entra en la
 // apertura tiene que PODER MORIR antes de llegar a la base.
 //
 // Measured con los valores reales (scaleFor + ENEMY_TYPES):
@@ -321,7 +321,7 @@ export const SWARM_BY_FAMILY = {
  *
  * Sale de la MISMA fuente que el combate: `TOWERS.guardian` (damage/cooldown)
  * × `dpsScaleFor('guardian')`, el dial de presentación de towers-data.js. Es
- * el del Guardian **Lv1** (8 dmg / 0.23 s × 0,75 ≈ 26.1 DPS), que es con el
+ * el del Guardian **Lv1** (5 dmg / 0.25 s × 0,75 = 15 DPS), que es con el
  * que el jugador arranca: el Lv1 es lo que dispara durante los primeros
  * segundos de la apertura, y lo que tiene que poder matar lo que entra.
  * (Medido: con el criterio de Lv3 el tope de S30 era 7 esporas — pero el
@@ -329,7 +329,7 @@ export const SWARM_BY_FAMILY = {
  * por ola y el XP se perdía. Con Lv1 el tope es el correcto.)
  */
 const OPENING_DPS = (TOWERS.guardian.damage / TOWERS.guardian.cooldown)
-  * dpsScaleFor('guardian');   // Guardian Lv1 ≈ 26.1 DPS
+  * dpsScaleFor('guardian');   // Guardian Lv1 = 15 DPS
 
 /** Distancia de caída (px): de SPAWN_Y hasta la base. */
 const FALL_PX = 900;
@@ -361,9 +361,9 @@ function levelForXp(xp) {
 /**
  * DPS del Guardian para el nivel de jugador dado (fase 28).
  *
- * El Guardian Lv1 hace 8 dmg / 0.23 s × 0,75 ≈ 26.1 DPS (el dial de
+ * El Guardian Lv1 hace 5 dmg / 0.25 s × 0,75 = 15 DPS (el dial de
  * towers-data.js ya aplicado). Cada nivel de torreta suma +25 % de daño
- * (js/towers.js Tower.damage): Lv3 = 8×1.5×0,75 = 9 dmg → 39.1 DPS.
+ * (js/towers.js Tower.damage): Lv3 = 5×1.5/0.25×0,75 = 22.5 DPS.
  *
  * `powerMul` es el MULTIPLICADOR DE META (js/meta.js metaDmgMul): el
  * daño que la torreta hace en la partida. Sin él, el modelo de la
@@ -533,7 +533,8 @@ export function openingHpBudget(id, lvl = 1, powerMul = 1) {
   // Es un TOPE, no un objetivo: la apertura se cierra en cuanto entrega
   // el XP mínimo (openingXpFloor) o se agota este presupuesto. Antes el
   // piso de XP se llevaba por delante el presupuesto (la apertura de S30
-  // entregaba 2 215 HP con un presupuesto de 1 809) y esa diferencia se
+  // entregaba 2 215 HP con un presupuesto de entonces de 1 809; con el
+  // Guardian de 1.7.1 el presupuesto base es 780) y esa diferencia se
   // escapaba entera: el jugador no subía de nivel y el stage era
   // injugable. Medido con el simulador (16 semillas): 0.8 de margen
   // dejaba a S30 en 0 % de win; 1.3 con la apertura cerrada en el piso
@@ -545,11 +546,8 @@ export function openingHpBudget(id, lvl = 1, powerMul = 1) {
   // enemigos más duros no hacen que la torreta dispare más, sólo que
   // mate menos (de eso se encarga el tope por enemigo).
   //
-  // Con powerMul=1 (jugador sin meta) el valor es EXACTAMENTE el de la
-  // fase 27 (34.78 DPS × 40 s × 1.3 = 1 809 HP), así que el arranque de
-  // la campaña no cambia respecto de lo medido entonces. Con la potencia
-  // real (un jugador de Nvl.41 de meta lleva ×2.5) el presupuesto llega
-  // a 4 500 HP y la apertura de S45 vuelve a entregar su XP completo.
+  // Con powerMul=1 (jugador sin meta) el presupuesto es 15 DPS × 40 s × 1.3
+  // = 780 HP. La apertura se re-midió tras el ajuste del Guardian (1.7.1).
   return guardianDpsForLevel(lvl, powerMul) * OPEN_T * 1.3;
 }
 
@@ -1359,9 +1357,11 @@ function clampToMold(groups, archetype) {
     const tpl = arch.groups[Math.min(slot, arch.groups.length - 1)] ?? {};
     ti += 1;
     if (tpl.cap) g.count = Math.min(g.count, tpl.cap);
-    // El piso del molde sólo se aplica a los tipos BARATOS (≤30 HP): con
+    // El piso del molde sólo se aplica a los tipos BARATOS (≤40 HP): con
     // un tipo caro el piso multiplicaría el HP del grupo (ver composeWave).
-    if (tpl.minCount && (ENEMY_TYPES[g.type]?.hp ?? 999) <= 30) {
+    // 1.8.0: el HP base subió ×1,25 (el meteorito pasó de 30 a 38), así que
+    // el corte sube con él para no cambiar qué tipos cuentan como baratos.
+    if (tpl.minCount && (ENEMY_TYPES[g.type]?.hp ?? 999) <= 40) {
       g.count = Math.max(g.count, Math.min(tpl.minCount, tpl.cap ?? tpl.minCount));
     }
     g.count = Math.max(1, g.count);

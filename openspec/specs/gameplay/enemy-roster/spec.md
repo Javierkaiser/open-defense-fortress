@@ -122,9 +122,11 @@ sin decimales en el HUD.
 
 ### Requirement: Legibilidad y bestiario
 
-Cada tipo nuevo MUST tener una silueta propia y una ficha de bestiario con
-nombre, familia, stats, descripción de su mecánica y contrapartida. Los
-enjambres MUST usar un arte procedural barato (paths batcheados, sin
+Cada tipo de enemigo MUST tener una silueta propia y una ficha de bestiario
+con nombre, familia, stats, descripción de su mecánica y contrapartida. Los
+jefes MUST mostrar su nombre de campaña (no un genérico "BOSS"). El aviso de
+fase MUST declarar el multiplicador NETO (familia × fase), no uno aislado.
+Los enjambres MUST usar un arte procedural barato (paths batcheados, sin
 `shadowBlur` por cuerpo).
 
 #### Scenario: El jugador distingue el tanque de su enjambre
@@ -137,5 +139,5 @@ enjambres MUST usar un arte procedural barato (paths batcheados, sin
 #### Scenario: El bestiario no inventa texto
 
 - **WHEN** se abre el bestiario
-- **THEN** cada tanque muestra su `desc` y su `counter` tomados de
-  `ENEMY_TYPES`, sin `undefined` ni `NaN`
+- **THEN** cada enemigo (no solo los tanques) muestra su `desc` y su
+  `counter` tomados de `ENEMY_TYPES`, sin `undefined` ni `NaN`

@@ -398,8 +398,11 @@ test('tablas manuales 1..5: el tope de matabilidad por enemigo se respeta en la 
   // presentación (towers-data.js `DPS_SCALE`). Con el Guardian en 15 DPS
   // (1.7.1) el modelo Lv1 es más conservador que la partida real: el jugador
   // ya subió de nivel, tiene meta y puede haber comprado una torre. El slack
-  // queda acotado a 3 para seguir mordiendo si la tabla se engorda más.
-  const SLACK = 3;
+  // queda acotado para seguir mordiendo si la tabla se engorda más.
+  // 1.8.0: el HP base subió ×1,25 y el tope del modelo Lv1 bajó con él; el
+  // slack pasa a 4 para que la guarda siga midiendo el RELATIVE (una tabla
+  // que engorde una ola de la apertura sigue fallando).
+  const SLACK = 4;
   for (const id of MANUAL_IDS) {
     for (const w of STAGE_WAVES[id].filter((x) => x.t < OPEN_T)) {
       // El Guardian ya subió de nivel con las olas anteriores de la
@@ -584,9 +587,9 @@ const VEL = {
 };
 /** HP base de un tipo (ENEMY_TYPES, js/enemies.js). */
 const HP_BASE = {
-  meteor: 30, fragment: 12, rockSwarm: 12, boulder: 190,
-  crystal: 60, crystalSwarm: 12, spore: 8, sporePod: 190,
-  miniBlob: 160, blob: 220, virusSwarm: 10, geode: 240, boss: 2600,
+  meteor: 38, fragment: 15, rockSwarm: 15, boulder: 238,
+  crystal: 75, crystalSwarm: 15, spore: 10, sporePod: 238,
+  miniBlob: 200, blob: 275, virusSwarm: 13, geode: 300, boss: 3250,
 };
 /** XP (= score) base de un tipo (ENEMY_TYPES, js/enemies.js). */
 const XP_BASE = {
@@ -1711,7 +1714,11 @@ test('fase 65: composeWave reparte el presupuesto en grupos sin repetir tipo', (
       }
     }
   }
-  assert.ok(conTanque / convoys >= 0.6,
+  // 1.8.0: con el HP base ×1,25 el tanque ocupa más de la parte del
+  // presupuesto y en los valles entra sin él más seguido (medido: 53 %).
+  // El piso queda en la mitad: sigue cazando un convoy que NUNCA lleve
+  // tanque, sin exigirle al molde lo que el presupuesto ya no le da.
+  assert.ok(conTanque / convoys >= 0.5,
     `sólo ${conTanque}/${convoys} convoys traen tanque (${(100 * conTanque / convoys).toFixed(0)} %)`);
   // Un presupuesto mayor trae más HP (el reparto escala con el presupuesto).
   const hp = (gs) => gs.reduce((s, g) => s + (ENEMY_TYPES[g.type]?.hp ?? 0) * g.count, 0);

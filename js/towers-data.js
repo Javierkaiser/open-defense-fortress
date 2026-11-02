@@ -157,6 +157,10 @@ export const TOWERS = {
     // enemigo): dos enemigos separados 150 px (lo normal en una oleada)
     // veían cómo el obús mataba a UNO solo.
     cooldown: 2.2, damage: 45, blastR: 150,
+    // ronda 1.8.0: el CRÁTER (zona que queda ardiendo) es más chico que el
+    // splash del impacto. El splash sigue en `blastR`; el cráter, en
+    // `blastR * craterMul`. El daño del cráter no cambia, solo su radio.
+    craterMul: 0.8,
     speed: 300, bodyColor: '#16181D', accent: '#FFD24A',
     detectHalfWidth: Infinity, // artillería anti-área: apunta a TODO el campo
     // Identidad: negación de zona. El impacto deja un cráter que quema y
@@ -241,7 +245,9 @@ export const DRONES = {
     // Fase 76.1 — NERF de cobertura: base 140 → 120 y tope duro 190.
     // Antes el máximo real era 140 + 131 de perks + 40 de técnicas = 311 px
     // (115 % del ancho del canvas): la burbuja cubría toda la pantalla.
-    bubbleR: 120, maxBubbleR: 190, slowFrac: 0.30,
+    // ronda 1.8.0: −15 % de radio (base 102, tope 161,5). Los `radiusAdd`
+    // de perks/cartas NO se tocan: el tope los sigue recortando igual.
+    bubbleR: 102, maxBubbleR: 161.5, slowFrac: 0.30,
     accent: '#7FDFFF', bodyColor: '#10181C',
     // Identidad: control y sostén. La burbuja marca `bubble` a lo atrapado
     // (combos de Tesla/Mortar) y es la única fuente intrínseca de slow.

@@ -110,7 +110,7 @@ export function isBossStage(id) {
  * Con 0.14 la distancia se cierra: la tasa de bajas del jugador de la
  * trayectoria queda en 86-100 % (mínimo 86 %) y gana el 100 % de las
  * etapas. La campaña sigue hardening por otras vías (la velocidad: +0,02
- * por stage = ×2,2 en el S50; el jefe: ×6,88 de HP; la composición de la
+ * por stage = ×2,2 en el S50; el jefe: ×8,35 de HP; la composición de la
  * ola; y el presupuesto de fugas, que es la regla del 25 %).
  */
 export function scaleFor(stage) {

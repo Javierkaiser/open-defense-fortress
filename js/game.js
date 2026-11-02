@@ -1087,7 +1087,12 @@ export class Game {
   _maybeOpenCards() {
     if (this._ended || this.engine.state !== 'PLAYING') return;
     if (!this._pendingLevels) return;
-    this.pendingOffer = rollOffer(this);
+    const offer = rollOffer(this);
+    // 1.8.0: sin cartas elegibles no se abre un modal vacío (no se puede
+    // cerrar sin elegir → soft-lock). El nivel queda pendiente: la próxima
+    // subida vuelve a intentar cuando el pool tenga cartas otra vez.
+    if (!offer.length) return;
+    this.pendingOffer = offer;
     this.engine.setState('CARD_CHOICE');
   }
 
@@ -1100,7 +1105,20 @@ export class Game {
     if (this.engine.state !== 'CARD_CHOICE' || !this.pendingOffer) return;
     const card = this.pendingOffer.find((c) => c.id === cardId);
     if (!card) return;
-    applyCard(card, this);
+    // 1.8.0: una carta ya topada es un no-op. No se cuenta, no se festeja
+    // y no consume el nivel: se reintenta UNA vez con una oferta nueva.
+    // Si tampoco quedan cartas elegibles, se cierra la elección.
+    if (!applyCard(card, this)) {
+      const next = rollOffer(this);
+      if (!next.length) {
+        this.pendingOffer = null;
+        this.engine.setState('PLAYING');
+        return;
+      }
+      this.pendingOffer = next;
+      this.hud.showCardChoice(next);
+      return;
+    }
     this.audio.sfx('card');
     // dev-7 fase 28: contador de cartas aplicadas en la run (lo usa el
     // resumen de fin de partida para decir qué se perdió/perdió).
@@ -1127,8 +1145,15 @@ export class Game {
     // NO se llama hideCardChoice(): eso reiniciaría el guard
     // anti-doble-toque (hud.js) y las dos ofertas encadenadas son la MISMA
     // decisión (el 2.º toque del doble toque cae sobre la oferta nueva).
-    this.pendingOffer = rollOffer(this);
-    this.hud.showCardChoice(this.pendingOffer);
+    const next = rollOffer(this);
+    // 1.8.0: sin cartas elegibles no se muestra un modal vacío; el nivel
+    // pendiente queda para la próxima subida.
+    if (!next.length) {
+      this.engine.setState('PLAYING');
+      return;
+    }
+    this.pendingOffer = next;
+    this.hud.showCardChoice(next);
   }
 
   /**

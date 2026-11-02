@@ -45,7 +45,7 @@ import { MAX_LEVEL_PER_STAGE } from './score.js';
 // dev-7 fase 32: tipos de daño (glifo por unidad + leyenda de la matriz).
 // oleadas-dinámicas: ENEMY_FAMILIES da el nombre legible de cada familia
 // para el sesgo de etapa del selector ("roca / virus").
-import { DAMAGE_TYPES, ENEMY_FAMILIES, buildDamageLegendHtml, buildBestiaryHtml } from './damagetypes.js';
+import { DAMAGE_TYPES, ENEMY_FAMILIES, bossPhaseRule, buildDamageLegendHtml, buildBestiaryHtml } from './damagetypes.js';
 // dev-7 fase 40: el bestiario dibuja al ENEMIGO de verdad (el mismo
 // render que la partida) en un canvasito.
 import { renderEnemyIcon } from './enemies-bestiary.js';
@@ -256,7 +256,7 @@ export class HUD {
     // dev-7 fase 47: el jefe avisa de su cambio de fase (y con ella, de
     // la regla nueva: a qué tipo le pega más). El evento ya lo emitía el
     // enemigo desde la fase 28, pero nadie lo escuchaba.
-    this.engine?.on?.('boss:phase2', (enemy) => this.showBossPhase(enemy?._phase));
+    this.engine?.on?.('boss:phase2', (enemy) => this.showBossPhase(enemy?._phase, enemy));
     // oleadas-dinámicas: el director anuncia el ARQUETIPO que ESTÁ
     // entrando ("¡CONVOY!"). Sin preview de la próxima ola (decisión del
     // usuario): lo único que se avisa es lo que ya está en el campo.
@@ -2092,17 +2092,18 @@ export class HUD {
    * la fase y, con ella, la regla.
    *
    * @param {object|null} phase la fase nueva (enemigos.js: phases[])
+   * @param {object|null} [enemy] el jefe que cambió de fase (para el neto)
    */
-  showBossPhase(phase) {
+  showBossPhase(phase, enemy = null) {
     if (!phase || !phase.name) return;
-    // La regla de la fase, en palabras del juego.
+    // v1.8.0: el aviso declara el multiplicador NETO (familia × fase). Antes
+    // decía "VULNERABLE ×1,5" aunque la familia del jefe resistiera ese tipo
+    // y el neto real fuera ×0,75: el texto contradecía al combate.
+    const rule = bossPhaseRule(phase, enemy?.data?.family ?? null);
+    const fmt = (n) => String(Math.round(n * 100) / 100).replace('.', ',');
     let regla = '';
-    if (phase.weakTo) {
-      const t = DAMAGE_TYPES[phase.weakTo];
-      regla = `AHORA ES VULNERABLE A ${esc((t?.name ?? phase.weakTo).toUpperCase())} \u00d71,5`;
-    } else if (phase.resist) {
-      const t = DAMAGE_TYPES[phase.resist];
-      regla = `AHORA RESISTE EL DA\u00d1O ${esc((t?.name ?? phase.resist).toUpperCase())} \u00d70,5`;
+    if (rule) {
+      regla = `AHORA RECIBE \u00d7${fmt(rule.net)} DE ${esc(rule.name.toUpperCase())}`;
     }
     if (phase.regen) {
       regla += regla ? ' \u00b7 SE REGENERA CON SU ESCOLTA' : 'SE REGENERA CON SU ESCOLTA';

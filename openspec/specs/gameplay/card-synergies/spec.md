@@ -10,10 +10,17 @@ ofrecer cartas muertas cuyo efecto depende de una unidad o estado ausente.
 
 ### Requirement: Daño global vs daño por tipo
 
-Las cartas de daño global MUST dar +10% por stack (tope 2) y afectar a
+Las cartas de daño global MUST dar +10% **una sola vez** y afectar a
 todas las torres y drones, incluidas las unidades desbloqueadas después.
-Las cartas de daño por tipo MUST dar +20% por stack (tope 2), afectar solo
+Las cartas de daño por tipo MUST dar +20% **una sola vez**, afectar solo
 a las unidades de ese tipo y exigir que el jugador posea al menos una.
+Ninguna carta de mejora puede volver a ofrecerse después de elegida
+(`CAPS = 1`); `bullets_5` es la excepción: es el level-up del Guardian.
+
+#### Scenario: Carta de mejora ya elegida
+
+- **WHEN** el jugador elige Munición Reforzada y vuelve a subir de nivel
+- **THEN** Munición Reforzada no aparece en la oferta ni en el relleno
 
 #### Scenario: Torre desbloqueada después del buff global
 

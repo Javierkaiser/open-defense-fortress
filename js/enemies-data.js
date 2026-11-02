@@ -9,23 +9,27 @@ export const ENEMY_TYPES = {
   meteor: {
     family: 'rock', // fase 32: familia de daño (ver js/damagetypes.js)
     role: 'special', debut: 1,
-    name: 'Meteorito', hp: 30, vel: 60, score: 10, r: 16,
+    name: 'Meteorito', hp: 38, vel: 60, score: 10, r: 16,
+    desc: 'Cae recto con una deriva lateral suave: la primera amenaza de la campaña.',
+    counter: 'El balístico lo parte (×1,5); el área y la luz solo le hacen la mitad.',
     drift: { amp: 30, freq: 0.8 }, // caída recta con deriva senoidal ±30 px
     body: '#0A0A0A', crater: '#FFFFFF', trail1: '#FF9A3D', trail2: '#FFD24A',
   },
   fragment: {
     family: 'rock', // fase 32: familia de daño
     role: 'cheap', debut: 1,
-    name: 'Fragmento', hp: 12, vel: 110, score: 15, r: 11,
+    name: 'Fragmento', hp: 15, vel: 110, score: 15, r: 11,
+    desc: 'Esquirla liviana que entra en ráfagas en abanico (±25°).',
+    counter: 'Balístico o cadencia: cae de pocos golpes, pero llega antes que el resto.',
     angleDeg: 25, // ráfagas en ángulo ±25°
     body: '#0E0E12', crack: '#FFFFFF', trail1: '#FF9A3D',
   },
   rockSwarm: {
     family: 'rock',
     role: 'swarm', debut: 1, swarm: true,
-    name: 'Enjambre pétreo', hp: 12, vel: 100, score: 5, r: 10,
+    name: 'Enjambre pétreo', hp: 15, vel: 100, score: 5, r: 10,
     desc: 'Cúmulo de esquirlas rápido y frágil. El balístico lo deshace.',
-    counter: 'Fuego sostenido o área; no necesita una torre especial.',
+    counter: 'Balístico o cadencia rápida: contra la roca el área pega la mitad.',
     drift: { amp: 16, freq: 1.4 },
     body: '#5B6470', dark: '#22262C', accent: '#C9CDD3',
     trail1: '#8A8F98', trail2: '#C9CDD3', drawTrail: false,
@@ -37,9 +41,9 @@ export const ENEMY_TYPES = {
   boulder: {
     family: 'rock',
     role: 'tank', debut: 2,
-    name: 'Roca maciza', hp: 190, vel: 34, score: 60, r: 24,
-    desc: 'Al morir se desmorona en 3 enjambres pétreos.',
-    counter: 'El balístico la parte; matala lejos de la base o con área.',
+    name: 'Roca maciza', hp: 238, vel: 34, score: 60, r: 24,
+    desc: 'Roca maciza: al morir se desmorona en 3 enjambres pétreos.',
+    counter: 'Balístico ×1,5; el área solo barre las crías (contra la roca pega ×0,5).',
     drift: { amp: 26, freq: 0.6 },
     body: '#4A4F57', dark: '#22262C', plate: '#8B95A3', dust: '#C9CDD3',
     trail1: '#8A8F98', trail2: '#C9CDD3', drawTrail: false,
@@ -48,7 +52,9 @@ export const ENEMY_TYPES = {
   crystal: {
     family: 'crystal', // fase 32: familia de daño
     role: 'special', debut: 1,
-    name: 'Cristal rojo', hp: 60, vel: 45, score: 40, r: 13,
+    name: 'Cristal rojo', hp: 75, vel: 45, score: 40, r: 13,
+    desc: 'Cristal rojo que al morir suelta un orbe de energía: +15 % de XP.',
+    counter: 'Eléctrico ×1,5; el balístico le hace la mitad.',
     dropXpBonusFrac: 0.15, // al morir suelta carta bonus (+15% energía, D12)
     body: '#E01818', shine: '#FFD0D0',
     incand: '#FFD24A', // núcleo incandescente: color de la estela (T1)
@@ -56,9 +62,9 @@ export const ENEMY_TYPES = {
   crystalSwarm: {
     family: 'crystal',
     role: 'swarm', debut: 5, swarm: true,
-    name: 'Enjambre de astillas', hp: 12, vel: 70, score: 6, r: 10,
+    name: 'Enjambre de astillas', hp: 15, vel: 70, score: 6, r: 10,
     desc: 'Astillas de cristal que giran y brillan; la electricidad las conduce.',
-    counter: 'Eléctrico; el balístico rebota en el cristal.',
+    counter: 'Eléctrico ×1,5; el balístico pega la mitad contra el cristal.',
     drift: { amp: 14, freq: 2.0 },
     body: '#E01818', dark: '#8A1020', accent: '#FFD0D0',
     trail1: '#FF6A6A', trail2: '#FFD0D0', drawTrail: false,
@@ -70,16 +76,18 @@ export const ENEMY_TYPES = {
   spore: {
     family: 'spore', // fase 32: familia de daño
     role: 'swarm', debut: 3, swarm: true,
-    name: 'Espora', hp: 8, vel: 90, score: 5, r: 7,
+    name: 'Espora', hp: 10, vel: 90, score: 5, r: 7,
+    desc: 'Esporas en formación V que zigzaguean: muchas y muy frágiles.',
+    counter: 'Explosión o dron ×1,5: una sola onda barre el grupo.',
     zigzag: { amp: 26, freq: 3.2 }, // grupos con formación V y zigzag
     body: '#141014', spike: '#FFFFFF', dots: '#FF9EC4',
   },
   sporePod: {
     family: 'spore',
     role: 'tank', debut: 20,
-    name: 'Esporocarpo', hp: 190, vel: 30, score: 55, r: 23,
-    desc: 'Esporula 2 esporas cada 6 s (máx. 6) y 2 más al morir.',
-    counter: 'Explosión y foco: no lo dejes madurar; sus crías dan 10 % de XP.',
+    name: 'Esporocarpo', hp: 238, vel: 30, score: 55, r: 23,
+    desc: 'Esporula 2 esporas cada 6 s (tope de 6 vivas) y 2 más al morir.',
+    counter: 'Explosión ×1,5 y foco: no lo dejes madurar; sus crías dan 10 % de XP.',
     drift: { amp: 20, freq: 0.7 },
     body: '#3B1F3A', dark: '#20101F', sac: '#9C4A7A', glow: '#FF9EC4',
     trail1: '#FF9EC4', trail2: '#FFD0E4', drawTrail: false,
@@ -91,7 +99,7 @@ export const ENEMY_TYPES = {
   blob: {
     family: 'virus', // fase 32: familia de daño
     role: 'tank', debut: 3,
-    name: 'Blob tanque', hp: 220, vel: 35, score: 60, r: 24,
+    name: 'Blob tanque', hp: 275, vel: 35, score: 60, r: 24,
     desc: 'Cepa: acelera un 20 % a los enjambres virales en 120 px.',
     counter: 'Priorizalo: la luz lo vaporiza y, sin él, el enjambre pierde el buff.',
     pushR: 70, pushSpeed: 40, // empuja a los enjambres cercanos
@@ -104,7 +112,7 @@ export const ENEMY_TYPES = {
   virusSwarm: {
     family: 'virus',
     role: 'swarm', debut: 3, swarm: true,
-    name: 'Enjambre viral', hp: 10, vel: 80, score: 5, r: 10,
+    name: 'Enjambre viral', hp: 13, vel: 80, score: 5, r: 10,
     desc: 'Viriones erráticos que zigzaguean; la luz los vaporiza.',
     counter: 'Luz o área; si hay un blob cerca, matalo primero para cortar la Cepa.',
     zigzag: { amp: 30, freq: 3.6 },
@@ -118,7 +126,7 @@ export const ENEMY_TYPES = {
   geode: {
     family: 'crystal',
     role: 'tank', debut: 30,
-    name: 'Geoda', hp: 240, vel: 28, score: 65, r: 24,
+    name: 'Geoda', hp: 300, vel: 28, score: 65, r: 24,
     desc: '3 placas de cristal; cada rotura la acelera un 10 %.',
     counter: 'Eléctrico y burst: rompe las placas antes de que llegue a la línea.',
     drift: { amp: 22, freq: 0.8 },
@@ -130,7 +138,10 @@ export const ENEMY_TYPES = {
   boss: {
     family: 'rock', // fase 32: el BOSS es un meteorito gigante
     role: 'boss', debut: 1,
-    name: 'BOSS', hp: 2600, vel: 22, score: 500, r: 85,
+    name: 'BOSS', bestiaryName: 'Meteorito Colosal',
+    hp: 3250, vel: 22, score: 500, r: 85,
+    desc: 'Meteorito gigante con deriva lenta: al 50 % de vida acelera ×1,4 y suelta 6 fragmentos.',
+    counter: 'Balístico ×1,5 y foco sostenido: la luz le hace la mitad.',
     boss: true, phaseHpFrac: 0.5, phaseVelMul: 1.4, phaseShedCount: 6,
     drift: { amp: 90, freq: 0.25 }, // deriva lenta lateral tras entrar
     body: '#0A0A0A', crack: '#FFDD55', glow: '#FF9A3D',
@@ -146,9 +157,12 @@ export const ENEMY_TYPES = {
 
 /** Blob virus gigante — Stage 2: suelta esporas al 66% y 33% (§2.9). */
 ENEMY_TYPES.blobBoss = {
-  name: 'BLOB VIRUS', hp: 2800, vel: 20, score: 700, r: 78,
+  name: 'BLOB VIRUS', bestiaryName: 'Blob Rey',
+  hp: 3500, vel: 20, score: 700, r: 78,
   family: 'virus', role: 'boss', debut: 10, // fase 32: familia de daño (ver js/damagetypes.js)
   boss: true, visual: 'blob',
+  desc: 'Blob virus de dos fases: al 66 % entra en FURIA (escupe 6 esporas) y al 33 % en ENJAMBRE (8 más).',
+  counter: 'Cambiá de tipo según la fase (FURIA premia la luz, ENJAMBRE castiga la explosión) y matá la escolta: la regeneración sale de ella.',
   drift: { amp: 80, freq: 0.28 },
   body: '#C81E1E', dark: '#3A0C0C', glow: '#FF5577',
   // dev-7 fase 47: cada fase tiene NOMBRE (el aviso del HUD), una REGLA
@@ -165,17 +179,22 @@ ENEMY_TYPES.blobBoss = {
 
 /** Blob mediano — acompañante del jefe del Stage 3 (no es jefe). */
 ENEMY_TYPES.miniBlob = {
-  name: 'Blob mediano', hp: 160, vel: 42, score: 35, r: 17,
+  name: 'Blob mediano', hp: 200, vel: 42, score: 35, r: 17,
   family: 'virus', role: 'tank', debut: 3, // fase 32: familia de daño
+  desc: 'Blob mediano sin mecánica propia: el Blob Necrótico lo convoca al 50 % de su vida.',
+  counter: 'La luz lo vaporiza ×1,5: cae rápido con cualquier torreta.',
   drift: { amp: 40, freq: 1.1 },
   body: '#E05A5A', dark: '#5A1414',
 };
 
 /** Cementerio: blob jefe + 2 miniBlobs al 50% + fragmentos blindados (§2.9). */
 ENEMY_TYPES.graveBlob = {
-  name: 'BLOB NECRO', hp: 3700, vel: 19, score: 800, r: 82,
+  name: 'BLOB NECRO', bestiaryName: 'Blob Necrótico',
+  hp: 4625, vel: 19, score: 800, r: 82,
   family: 'virus', role: 'boss', debut: 20, // fase 32: familia de daño
   boss: true, visual: 'blob',
+  desc: 'Blob necrótico de 3 fases: escombros al 75 %, 2 blobs al 50 % y una última lluvia al 25 %.',
+  counter: 'Cada fase premia un tipo distinto y LEGION castiga el dron; matá la escolta para cortar la regeneración.',
   drift: { amp: 70, freq: 0.26 },
   body: '#8A2BE2', dark: '#2A0A3A', glow: '#C77DFF',
   phases: [
@@ -190,9 +209,12 @@ ENEMY_TYPES.graveBlob = {
 
 /** Ciudad nocturna: blob gigante blindado + esporas veloces al 60%/30%. */
 ENEMY_TYPES.armoredBlob = {
-  name: 'BLINDADO', hp: 4600, vel: 18, score: 900, r: 88,
+  name: 'BLINDADO', bestiaryName: 'Coloso Blindado',
+  hp: 5750, vel: 18, score: 900, r: 88,
   family: 'rock', role: 'boss', debut: 30, // fase 32: blindado de roca
   boss: true, visual: 'armored',
+  desc: 'Coloso de roca blindada: suelta 10 esporas al 60 % y un blob cuando abre la coraza (30 %).',
+  counter: 'El balístico ×1,5 siempre; contra la roca el área pega la mitad. Al abrir la coraza, el eléctrico paga.',
   drift: { amp: 64, freq: 0.24 },
   body: '#37474F', dark: '#10181C', glow: '#90CAF9',
   phases: [
@@ -205,9 +227,12 @@ ENEMY_TYPES.armoredBlob = {
 
 /** Núcleo volcánico: METEORITO-BLOB híbrido con 3 fases (§2.9). */
 ENEMY_TYPES.hybridBoss = {
-  name: 'HÍBRIDO', hp: 5600, vel: 20, score: 1000, r: 92,
+  name: 'HÍBRIDO', bestiaryName: 'Abominación Híbrida',
+  hp: 7000, vel: 20, score: 1000, r: 92,
   family: 'rock', role: 'boss', debut: 40, // fase 32: cuerpo de meteoro
   boss: true, visual: 'meteor',
+  desc: 'Meteorito-blob de 3 fases: 5 meteoritos al 66 %, 2 blobs al 33 % y 8 fragmentos al 15 %.',
+  counter: 'Cuerpo de roca: el balístico ×1,5 (salvo en HÍBRIDO) y la luz/explosión pierden la mitad. Cortá la escolta.',
   drift: { amp: 76, freq: 0.27 },
   body: '#0A0A0A', crack: '#FFDD55', glow: '#FF4444',
   trail1: '#FF9A3D', trail2: '#FFD24A', // estela masiva como el meteorito

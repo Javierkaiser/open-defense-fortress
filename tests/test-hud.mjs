@@ -1275,6 +1275,25 @@ test('fase 52: la pila de avisos es el unico camino de los avisos', () => {
   });
 });
 
+test('v1.8.0: el aviso de fase declara el multiplicador NETO (familia × fase)', () => {
+  withFakeDocument(() => {
+    const hud = fakeHudLive();
+    const host = fakeHost();
+    hud.root = { parentElement: host };
+    hud.audio = { sfx: () => {} };
+    // light contra roca = ×0,5; la fase weakTo suma ×1,5 → neto ×0,75.
+    // El aviso NO puede decir "vulnerable ×1,5" como antes.
+    hud.showBossPhase({ name: 'FURIA', weakTo: 'light' }, { data: { family: 'rock' } });
+    const aviso = host.children[0].childNodes.at(-1);
+    assert.ok(aviso.innerHTML.includes('×0,75'), aviso.innerHTML);
+    assert.ok(!aviso.innerHTML.includes('×1,5'), 'no declara la fase aislada');
+    // Sin familia (llamada directa vieja) queda el multiplicador de fase.
+    hud.showBossPhase({ name: 'FURIA', resist: 'ballistic' });
+    const aviso2 = host.children[0].childNodes.at(-1);
+    assert.ok(aviso2.innerHTML.includes('×0,5'), aviso2.innerHTML);
+  });
+});
+
 test('fase 52: el aviso del ultimate dice como se lanza (teclado o boton)', () => {
   withFakeDocument(() => {
     const hud = fakeHudLive();

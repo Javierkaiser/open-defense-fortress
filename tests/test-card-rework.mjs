@@ -63,24 +63,24 @@ test('fase 74: las cartas de tipo aplican +20% y llegan a torres futuras', () =>
   const gw = findTower(game, 'guardian');
   const c = card('dmg_type_ballistic');
   assert.equal(isCardEligible(c, game), true, 'con Guardian debe ser elegible');
-  applyCard(c, game);
+  assert.equal(applyCard(c, game), c);
   assert.equal(gw.dmgMul, 1.2);
   game.fortress.addTower('gauss');
   const gauss = findTower(game, 'gauss');
-  assert.equal(gauss.dmgMul, 1.2, 'la torre futura hereda el stack');
-  applyCard(c, game);
-  assert.equal(gw.dmgMul, 1.44, 'el 2º stack compone ×1.44');
+  assert.equal(gauss.dmgMul, 1.2, 'la torre futura hereda el mod');
+  assert.equal(applyCard(c, game), null, 'la 2ª aplicación se rechaza');
+  assert.equal(gw.dmgMul, 1.2, 'no se apila: sigue ×1,2');
   assert.equal(isCardEligible(c, game), false, 'al tope sale del pool');
 });
 
-test('fase 74: dmg_all +10% x2 llega a una torre desbloqueada después', () => {
+test('fase 74: dmg_all +10% llega a una torre desbloqueada después (sin stacks)', () => {
   const game = mkGame(['guardian']);
-  applyCard(card('dmg_all'), game);
+  assert.equal(applyCard(card('dmg_all'), game), card('dmg_all'));
   game.fortress.addTower('missile');
   const ms = findTower(game, 'missile');
-  assert.equal(ms.dmgMul, 1.1, 'la torre tardía hereda el primer stack');
-  applyCard(card('dmg_all'), game);
-  assert.ok(Math.abs(ms.dmgMul - 1.21) < 1e-9, `2º stack: ${ms.dmgMul}`);
+  assert.equal(ms.dmgMul, 1.1, 'la torre tardía hereda el mod');
+  assert.equal(applyCard(card('dmg_all'), game), null, 'la 2ª aplicación se rechaza');
+  assert.ok(Math.abs(ms.dmgMul - 1.1) < 1e-9, `sin 2º stack: ${ms.dmgMul}`);
 });
 
 test('fase 74: las cartas de tipo NO se ofrecen sin una unidad de ese tipo', () => {

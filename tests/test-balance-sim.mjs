@@ -94,18 +94,18 @@ test('TECHO: usa los multiplicadores VIGENTES de cards.js (no los obsoletos)', (
   applyCeilingCards(game);
   const gw = game.fortress.slots.find((t) => t?.type === 'guardian');
   assert.ok(gw, 'el Guardian de arranque no está');
-  // dmg_all ×2 (×1.1 por stack) + dmg_type_ballistic ×2 (×1.2) +
-  // dmg_guard ×2 (×1.6).
-  assert.ok(Math.abs(gw.dmgMul - 1.1 ** 2 * 1.2 ** 2 * 1.6 ** 2) < 1e-9, `dmgMul=${gw.dmgMul}`);
-  // cadence_up ×3 (cards.js: ×0.9 por stack) — NO el ×0.85 obsoleto.
-  assert.ok(Math.abs(gw.cadMul - 0.9 ** 3) < 1e-9, `cadMul=${gw.cadMul}`);
-  // rapid_bullets ×2 (×1.25 por stack).
-  assert.ok(Math.abs(gw.bulletSpeedMul - 1.25 ** 2) < 1e-9, `bulletSpeedMul=${gw.bulletSpeedMul}`);
-  // Contadores de applications al tope (por eso las cartas salen del pool).
-  assert.equal(gw.dmgAllApps, 2);
-  assert.equal(gw.cadApps, 3);
-  assert.equal(gw.guardDmgApps, 2);
-  assert.equal(gw.rapidApps, 2);
+  // v1.8.0: una sola aplicación por carta. dmg_all (×1.1) +
+  // dmg_type_ballistic (×1.2) + dmg_guard (×1.6).
+  assert.ok(Math.abs(gw.dmgMul - 1.1 * 1.2 * 1.6) < 1e-9, `dmgMul=${gw.dmgMul}`);
+  // cadence_up (cards.js: ×0.9) — NO el ×0.85 obsoleto.
+  assert.ok(Math.abs(gw.cadMul - 0.9) < 1e-9, `cadMul=${gw.cadMul}`);
+  // rapid_bullets (×1.25).
+  assert.ok(Math.abs(gw.bulletSpeedMul - 1.25) < 1e-9, `bulletSpeedMul=${gw.bulletSpeedMul}`);
+  // Un contador por carta (one-shot): por eso salen del pool.
+  assert.equal(gw.dmgAllApps, 1);
+  assert.equal(gw.cadApps, 1);
+  assert.equal(gw.guardDmgApps, 1);
+  assert.equal(gw.rapidApps, 1);
 });
 
 test('TECHO: una run con techo es más fuerte que la misma run sin techo', async () => {

@@ -507,7 +507,7 @@ test('renderEnemyIcon acepta la variante: el icono del bestiario muestra el rasg
 // MECÁNICAS INTRÍNSECAS DE TANQUE
 // ============================================================
 
-test('tanques: el HP efectivo de sus mecánicas queda en 220–254', () => {
+test('tanques: el HP efectivo de sus mecánicas queda en 275–318', () => {
   const expected = {
     boulder: ENEMY_TYPES.boulder.hp + 3 * ENEMY_TYPES.rockSwarm.hp,
     sporePod: ENEMY_TYPES.sporePod.hp
@@ -518,10 +518,34 @@ test('tanques: el HP efectivo de sus mecánicas queda en 220–254', () => {
   };
   for (const [type, hp] of Object.entries(expected)) {
     assert.equal(effectiveHpOf(type), hp, `${type}: HP efectivo inesperado`);
-    assert.ok(hp >= 220 && hp <= 254, `${type}: HP efectivo ${hp} fuera de 220–254`);
+    assert.ok(hp >= 275 && hp <= 318, `${type}: HP efectivo ${hp} fuera de 275–318`);
   }
   assert.equal(effectiveHpOf('meteor'), ENEMY_TYPES.meteor.hp,
     'un tipo sin mecánicas conserva su HP base');
+});
+
+test('1.8.0: los 17 tipos declaran mecánica y contra para el bestiario', () => {
+  assert.equal(Object.keys(ENEMY_TYPES).length, 17, 'el catálogo tiene 17 tipos');
+  for (const [type, d] of Object.entries(ENEMY_TYPES)) {
+    assert.equal(typeof d.desc, 'string', `${type}: falta desc`);
+    assert.equal(typeof d.counter, 'string', `${type}: falta counter`);
+    assert.ok(d.desc.trim().length >= 20, `${type}: desc demasiado corta`);
+    assert.ok(d.counter.trim().length >= 20, `${type}: counter demasiado corta`);
+    assert.ok(!/undefined|NaN/.test(d.desc + d.counter), `${type}: texto con basura`);
+  }
+});
+
+test('1.8.0: los 5 jefes tienen bestiaryName propio', () => {
+  const nombres = {
+    boss: 'Meteorito Colosal',
+    blobBoss: 'Blob Rey',
+    graveBlob: 'Blob Necrótico',
+    armoredBlob: 'Coloso Blindado',
+    hybridBoss: 'Abominación Híbrida',
+  };
+  for (const [type, nombre] of Object.entries(nombres)) {
+    assert.equal(ENEMY_TYPES[type].bestiaryName, nombre, `${type}: bestiaryName inesperado`);
+  }
 });
 
 test('boulder: Desmoronamiento — 3 enjambres al morir, 10 % de XP y sin recursión', () => {

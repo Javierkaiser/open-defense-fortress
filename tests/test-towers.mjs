@@ -256,15 +256,18 @@ test('fase 75: el Campo de Fuerza usa un dwell finito y no persigue waypoint con
   assert.equal(dr._wp, null, 'con blanco no debe conservar un waypoint viejo');
 });
 
-test('fase 76.1: la burbuja del Campo de Fuerza tiene base 120 y tope duro 190', () => {
+test('ronda 1.8.0: la burbuja del Campo de Fuerza tiene base 102 y tope duro 161,5', () => {
   setPerks({});
   const juego = mkGame();
   const dr = new Drone('forcefield', juego, 0);
-  assert.equal(forcefieldBubbleR(dr), 120, 'la base bajó de 140 a 120');
+  assert.equal(forcefieldBubbleR(dr), 102, 'la base bajó de 120 a 102 (−15 %)');
+  // Los radiusAdd de perks/cartas siguen sumando igual.
+  dr.cardMods = { radiusAdd: 10 };
+  assert.equal(forcefieldBubbleR(dr), 112, 'base + radioAdd, sin llegar al tope');
   // Aunque el canal de cartas/perks sume muchísimo, el radio no pasa el tope.
   dr.cardMods = { radiusAdd: 500 };
-  assert.equal(forcefieldBubbleR(dr), 190);
-  assert.equal(dr.data.maxBubbleR, 190);
+  assert.equal(forcefieldBubbleR(dr), 161.5, 'el tope bajó de 190 a 161,5 (−15 %)');
+  assert.equal(dr.data.maxBubbleR, 161.5);
   delete dr.cardMods;
 });
 
@@ -1554,6 +1557,7 @@ test('fase 34: el obús CAE donde iba si su blanco muere en vuelo', () => {
 });
 
 test('fase 76.2: el Mortar conserva la config del cráter al disparar', () => {
+  setPerks({});
   const target = mkAlvo(270, 500);
   const game = mkGameEnemies([target]);
   const entities = [];
@@ -1567,7 +1571,9 @@ test('fase 76.2: el Mortar conserva la config del cráter al disparar', () => {
   assert.ok(shell.crater, 'el cráter viaja en el obús (no lo filtra pickOnHit)');
   assert.equal(shell.crater.dps, TOWERS.mortar.mech.dps);
   assert.equal(shell.crater.time, TOWERS.mortar.mech.duration);
-  assert.equal(shell.crater.radius, shell.blastR);
+  // Ronda 1.8.0: el cráter es más chico que el splash (×0,8).
+  assert.equal(shell.crater.radius, shell.blastR * TOWERS.mortar.craterMul);
+  assert.equal(shell.crater.radius, 120);
 });
 
 test('fase 76.2: al detonar, el Mortar agrega un CraterFx visible', () => {
@@ -1575,21 +1581,23 @@ test('fase 76.2: al detonar, el Mortar agrega un CraterFx visible', () => {
   const game = mkGameEnemies([]);
   game.engine.entities = entities;
   game.engine.addEntity = (e) => entities.push(e);
+  // Sin `radius` explícito: el CraterFx hereda blastR × craterMul.
   const shell = new MortarShell(100, 500, null, game, 45, 150, {
-    crater: { dps: 12, time: 3, radius: 150, slow: 0.1 },
+    crater: { dps: 12, time: 3, slow: 0.1 },
   });
   shell._explode();
   const crater = entities.find((e) => e.constructor?.name === 'CraterFx');
   assert.ok(crater, 'el impacto debe dejar un CraterFx en el campo');
   assert.equal(crater.dps, 12 * dpsScaleFor('mortar'));
   assert.equal(crater.life, 3);
-  assert.equal(crater.radius, 150);
+  assert.equal(crater.radius, 120, 'ronda 1.8.0: el cráter es 0,8 × el splash');
   assert.equal(crater.slow, 0.1);
 });
 
 test('fase 76.2: el cráter dibuja un anillo visible sin romper el frame', () => {
   const game = { engine: { _t: 0 }, fortress: { enemies: [] } };
-  const crater = new CraterFx(game, 0, 0, { radius: 150, dps: 8, life: 3, slow: 0.1 });
+  const crater = new CraterFx(game, 0, 0, { dps: 8, life: 3, slow: 0.1 });
+  assert.equal(crater.radius, 120, 'el default sale de blastR × craterMul');
   const calls = [];
   const ctx = {
     save() {}, restore() {}, beginPath() {},
@@ -1599,6 +1607,54 @@ test('fase 76.2: el cráter dibuja un anillo visible sin romper el frame', () =>
   assert.doesNotThrow(() => crater.draw(ctx));
   assert.ok(calls.includes('stroke'), 'el anillo exterior se dibuja');
   assert.ok(calls.includes('arc'), 'el dibujo usa el radio del área');
+});
+
+test('ronda 1.8.0: borde del cráter — a 119 px pega y a 121 px no', () => {
+  const mkDummy = (x) => ({
+    x, y: 0, r: 0, hp: 100, hpMax: 100, dead: false, slowFactor: 1, stun: 0,
+    takeDamage(n) { this.hp -= n; return false; },
+  });
+  const dentro = mkDummy(119);
+  const fuera = mkDummy(121);
+  const game = { engine: { _t: 0 }, fortress: { enemies: [dentro, fuera] } };
+  // Sin `radius`: el cráter del Mortero mide 0,8 × 150 = 120 px.
+  const crater = new CraterFx(game, 0, 0, { dps: 20, life: 3, slow: 0.1 });
+  crater.update(0.3);
+  assert.ok(dentro.hp < 100, 'a 119 px el cráter hace daño');
+  assert.equal(fuera.hp, 100, 'a 121 px el cráter no toca');
+});
+
+test('ronda 1.8.0: el splash del Mortero sigue llegando a 149 px', () => {
+  // El obús cae sobre el blanco (270, 500): 149/151 px desde ESE punto.
+  const blanco = mkAlvo(270, 500);
+  const dentro = mkAlvo(270, 649); // 149 px del impacto
+  const fuera = mkAlvo(270, 651);  // 151 px: fuera del splash
+  dentro.r = 0;
+  fuera.r = 0;
+  assert.equal(Math.abs(dentro.y - blanco.y), 149);
+  assert.equal(Math.abs(fuera.y - blanco.y), 151);
+  const juego = mkGameEnemies([blanco, dentro, fuera]);
+  const obus = new MortarShell(270, 814, blanco, juego, 45, null, null);
+  let t = 0;
+  while (!obus.dead && t < 5) { obus.update(1 / 60); t += 1 / 60; }
+  assert.ok(dentro.hp < dentro.hpMax, 'a 149 px el splash pega');
+  assert.equal(fuera.hp, fuera.hpMax, 'a 151 px el splash no llega');
+});
+
+test('ronda 1.8.0: areaMul escala splash y cráter juntos (cráter = 0,8 × splash)', () => {
+  setPerks({});
+  const target = mkAlvo(270, 500);
+  const game = mkGameEnemies([target]);
+  const entities = [];
+  game.engine.entities = entities;
+  game.engine.addEntity = (e) => entities.push(e);
+  const t = new Tower('mortar', 270, 1, 0);
+  t.game = game;
+  t.cardMods = { areaMul: 1.4 }; // Ojiva Expandida / Bombardeo masivo
+  t.fire([target], game, 1 / 60);
+  const shell = entities.find((e) => e.constructor?.name === 'MortarShell');
+  assert.equal(shell.blastR, TOWERS.mortar.blastR * 1.4);
+  assert.equal(shell.crater.radius, shell.blastR * TOWERS.mortar.craterMul);
 });
 
 test('fase 34: el haz adquiere un blanco FUERA de la antigua ventana de ±80 px', () => {

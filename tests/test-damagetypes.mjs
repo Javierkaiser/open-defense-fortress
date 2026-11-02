@@ -8,7 +8,7 @@ import {
   DAMAGE_TYPES, DAMAGE_TYPE_IDS, ENEMY_FAMILIES, ENEMY_FAMILY_IDS,
   TYPE_MATRIX, ENEMY_FAMILY_BY_TYPE, dmgTypeFor, familyFor,
   dmgMultiplier, isWeakness, isResisted, typeMatchInfo, buildDamageLegendHtml,
-  buildBestiaryHtml, BESTIARY_TYPE_IDS,
+  buildBestiaryHtml, BESTIARY_TYPE_IDS, bossPhaseRule,
   // fase 68: las SIETE variantes de élite y su ficha (textos del catálogo).
   BESTIARY_VARIANT_IDS, BESTIARY_VARIANT_SAMPLE, variantInfo, bestiaryVariantsHtml,
 } from '../js/damagetypes.js';
@@ -288,6 +288,45 @@ test('el bestiario documenta la mecánica y la contra de los tanques', () => {
   }
   assert.ok(html.includes('bestiary-desc'), 'falta el bloque visual de mecánica');
   assert.ok(html.includes('bestiary-counter'), 'falta el bloque visual de contra');
+});
+
+test('1.8.0: el bestiario muestra desc y counter de los 17 enemigos', () => {
+  const html = buildBestiaryHtml();
+  for (const [type, d] of Object.entries(ENEMY_TYPES)) {
+    assert.ok(html.includes(d.desc), `${type}: el bestiario no muestra su mecánica`);
+    assert.ok(html.includes(d.counter), `${type}: el bestiario no muestra su contra`);
+  }
+});
+
+test('1.8.0: los jefes muestran su bestiaryName, no el rótulo interno', () => {
+  const nombreMostrado = (html) =>
+    (html.match(/<span class="bestiary-name">([^<]*)<\/span>/) ?? [])[1];
+  const cards = bestiaryCards();
+  for (const type of ['boss', 'blobBoss', 'graveBlob', 'armoredBlob', 'hybridBoss']) {
+    const card = cards.find((c) => c.type === type);
+    assert.ok(card, `${type}: sin tarjeta en el bestiario`);
+    assert.equal(nombreMostrado(card.html), ENEMY_TYPES[type].bestiaryName,
+      `${type}: no muestra su bestiaryName`);
+  }
+  assert.notEqual(nombreMostrado(cards.find((c) => c.type === 'boss').html), 'BOSS',
+    'el jefe del stage 1 no puede seguir llamándose BOSS');
+});
+
+test('1.8.0: el aviso de fase declara el neto real (familia × fase)', () => {
+  // El ×1,5 / ×0,5 de la fase NO es el neto: se combina con la matriz.
+  assert.equal(bossPhaseRule({ weakTo: 'light' }, 'virus').net, 2.25,
+    'FURIA del blobBoss: luz ×1,5 (virus) × ×1,5 (fase)');
+  assert.equal(bossPhaseRule({ resist: 'blast' }, 'rock').net, 0.25,
+    'PLACAS del blindado: explosión ×0,5 (roca) × ×0,5 (fase)');
+  assert.equal(bossPhaseRule({ resist: 'ballistic' }, 'rock').net, 0.75,
+    'HÍBRIDO: balístico ×1,5 (roca) × ×0,5 (fase)');
+  assert.equal(bossPhaseRule({ name: 'FASE' }, 'rock'), null, 'sin regla de tipo no hay neto');
+  // El texto del bestiario usa el neto, no la regla pelada de la fase.
+  const blindado = bestiaryCards().find((c) => c.type === 'armoredBlob').html;
+  assert.ok(blindado.includes('×0,25'), 'PLACAS debe mostrar el neto ×0,25');
+  assert.ok(!/Explosión ×0,5/.test(blindado), 'no puede quedar el ×0,5 falso');
+  const hibrido = bestiaryCards().find((c) => c.type === 'hybridBoss').html;
+  assert.ok(hibrido.includes('×0,75'), 'HÍBRIDO debe mostrar el neto ×0,75');
 });
 
 test('el bestiario no tiene undefined ni NaN', () => {

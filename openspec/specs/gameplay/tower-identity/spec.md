@@ -99,8 +99,9 @@ torre dentro de `Enemy.takeDamage`:
 
 ### Requirement: El cráter del Mortar es visible
 
-El impacto del Mortar MUST crear un `CraterFx` con el radio real de la
-explosión, un anillo ámbar visible y una duración igual a la configurada.
+El impacto del Mortar MUST crear un `CraterFx` con un radio igual al **80 %
+del radio efectivo de la explosión** (el splash sigue usando el 100 %), un
+anillo ámbar visible y una duración igual a la configurada.
 MUST seguir haciendo daño y aplicando slow a todo enemigo que entre en el
 radio mientras viva.
 

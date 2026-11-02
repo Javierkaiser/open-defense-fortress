@@ -123,20 +123,22 @@ no sólo un multiplicador de daño:
 
 | Familia | Enjambre | Tanque | Mecánica del tanque |
 |---|---|---|---|
-| Roca | `rockSwarm` (12 HP) | `boulder` (190 HP) | Desmoronamiento: 3 `rockSwarm` al morir |
-| Virus | `virusSwarm` (10 HP) | `blob` (220 HP) / `miniBlob` (160 HP) | Cepa: +20 % velocidad a enjambres virus en 120 px |
-| Espora | `spore` (8 HP) | `sporePod` (190 HP) | Esporulación: 2 esporas/6 s, tope 6; 2 al morir |
-| Cristal | `crystalSwarm` (12 HP) | `geode` (240 HP) | Placas: 3 × 15 % del HP; cada rotura acelera +10 % |
+| Roca | `rockSwarm` (15 HP) | `boulder` (238 HP) | Desmoronamiento: 3 `rockSwarm` al morir |
+| Virus | `virusSwarm` (13 HP) | `blob` (275 HP) / `miniBlob` (200 HP) | Cepa: +20 % velocidad a enjambres virus en 120 px |
+| Espora | `spore` (10 HP) | `sporePod` (238 HP) | Esporulación: 2 esporas/6 s, tope 6; 2 al morir |
+| Cristal | `crystalSwarm` (15 HP) | `geode` (300 HP) | Placas: 3 × 15 % del HP; cada rotura acelera +10 % |
 
 - **Crías de mecánicas**: 10 % de XP/score. La variante `divisor` conserva su
   35 % y no se toca. El XP queda en 0,5 para una cría de 5 puntos; el score
   usa carry entero (0,5 + 0,5 = 1) para no mostrar decimales ni pagar 20 %.
 - **Anti-recursión**: una cría de `divisor` o de una mecánica no activa
   `spawner`/`deathSpawn`.
-- **HP efectivo**: `boulder` 190 + 36 = 226; `sporePod` 190 + hasta 48 + 16
-  = 254 si se lo deja madurar; `geode` 240 (las placas son parte del HP).
-  `effectiveHpOf()` y `tests/test-enemies.mjs` fijan el rango 220–254 para
+- **HP efectivo**: `boulder` 238 + 45 = 283; `sporePod` 238 + hasta 60 + 20
+  = 318 si se lo deja madurar; `geode` 300 (las placas son parte del HP).
+  `effectiveHpOf()` y `tests/test-enemies.mjs` fijan el rango 275–318 para
   que un cambio de `maxAlive`/`count` no quede invisible.
+- **HP (1.8.0)**: +25 % al HP base de los 17 tipos (tabla de arriba). El
+  presupuesto de las olas **no** se compensó.
 - **Campaña**: S1–2 roca + cristal; S3 virus; S4 espora; S5 las cuatro.
   `sporePod` debuta en S20 y `geode` en S30.
 - **Medición** (`probe-waves --seeds=20`): S1 90 % roca; S6 45 %; S10 46 %
@@ -160,10 +162,11 @@ no sólo un multiplicador de daño:
   perks `extraCount`/`chainFork` suman mini rayos, no rayos principales. DPS
   nominal ≈40,6 a un blanco y ≈102 contra un principal + 3 vecinos. Se
   diferencia de la Tesla, que encadena saltos con falloff.
-- **84 cartas** con topes por carta y por run; las mejoras ofrecidas se
+- **84 cartas**: **cada mejora se elige una sola vez** (`CAPS = 1`); la única
+  excepción es `bullets_5`, el level-up del Guardian. Las mejoras ofrecidas se
   relacionan con las unidades, tags y técnicas presentes. Incluyen daño global
-  (+10% ×2), daño por tipo (+20% ×2), mecánicas por torre y 11 combos con
-  prerrequisitos (frío, lifesteal, marcas, stun, rebote y perforación).
+  (+10% una vez), daño por tipo (+20% una vez), mecánicas por torre y 11 combos
+  con prerrequisitos (frío, lifesteal, marcas, stun, rebote y perforación).
 - **Meta**: 100 niveles por unidad; **pool de fragmentos compartido** (300 por
   victoria, 600 la primera limpieza de cada etapa); `fragCost(nivel) =
   75 + 35·década` (22 860 para llevar una unidad a Nvl.100) y +18 % de daño por
@@ -239,7 +242,9 @@ S50, `--mode=inteligente`:
 |---|---:|---:|---:|---:|---:|---:|
 | Antes (1.6.0, 20 semillas) | 44 | 100 % | 93 % | 99 % | — | — |
 | `--meta=pool-focus` (1.7.1) | 44 | 70 % | 45 % | 66 % | 87,0 | 13 941 |
+| `--meta=pool-focus` (1.8.0) | 44 | **90 %** | **59 %** | **81 %** | 67,1 | 10 457 |
 | `--meta=pool-spread` (1.7.1) | 26 | 50 % | 24 % | 49 % | 116,1 | 19 365 |
+| `--meta=pool-spread` (1.8.0) | 26 | **10 %** | **7 %** | **18 %** | 135,1 | 23 690 |
 | `--stage=50` (piso, meta 1) | 1 | 0 % | 0 % | 0 % | 130,6 | 25 500 |
 
 S50 + Protocolo II (`--protocol=II --meta=pool-focus`):
@@ -248,24 +253,25 @@ S50 + Protocolo II (`--protocol=II --meta=pool-focus`):
 |---|---:|---:|---:|---:|---:|---:|
 | Antes (1.6.0) | 44 | 70 % | 48 % | 61 % | — | — |
 | `--protocol=II --meta=pool-focus` (1.7.1) | 44 | 80 % | 24 % | 71 % | 85,5 | 19 645 |
+| `--protocol=II --meta=pool-focus` (1.8.0) | 44 | **40 %** | **17 %** | **42 %** | 88,8 | 21 166 |
 | `--protocol=II` (piso, meta 1) | 1 | 0 % | 0 % | 0 % | 93,8 | 25 500 |
 
-Campaña con `--meta=pool-focus` (`--mode=inteligente`):
+Campaña con `--meta=pool-focus` (`--mode=inteligente`, 1.8.0):
 
 | Stage | meta | win | HP fin | % bajas | leaks | daño de fugas |
 |---:|---:|---:|---:|---:|---:|---:|
-| 1 | 1 | 100 % | 100 % | 102 % | 0,8 | 9 |
-| 2 | 2 | 100 % | 94 % | 97 % | 7,4 | 141 |
-| 3 | 4 | 100 % | 91 % | 96 % | 5,3 | 248 |
-| 4 | 5 | 100 % | 89 % | 96 % | 8,1 | 364 |
-| 5 | 7 | 100 % | 99 % | 100 % | 0,8 | 22 |
-| 6 | 9 | 100 % | 86 % | 96 % | 20,0 | 625 |
-| 10 | 14 | 100 % | 85 % | 99 % | 20,7 | 930 |
-| 20 | 23 | 90 % | 65 % | 86 % | 62,7 | 3 917 |
-| 30 | 32 | 80 % | 61 % | 77 % | 61,4 | 6 150 |
-| 50 | 44 | 70 % | 45 % | 66 % | 87,0 | 13 941 |
+| 1 | 1 | 100 % | 95 % | 101 % | 4,7 | 104 |
+| 2 | 2 | 90 % | 83 % | 92 % | 12,1 | 418 |
+| 3 | 4 | 100 % | 88 % | 91 % | 12,4 | 361 |
+| 4 | 5 | 100 % | 77 % | 94 % | 12,1 | 794 |
+| 5 | 7 | 100 % | 98 % | 99 % | 1,7 | 76 |
+| 6 | 9 | 100 % | 67 % | 92 % | 32,8 | 1 472 |
+| 10 | 14 | 100 % | 71 % | 96 % | 29,5 | 1 827 |
+| 20 | 23 | 60 % | 28 % | 56 % | 95,2 | 8 036 |
+| 30 | 32 | 50 % | 28 % | 48 % | 84,9 | 11 463 |
+| 50 | 44 | 90 % | 59 % | 81 % | 67,1 | 10 457 |
 
-Campaña con `--meta=pool-spread` (`--mode=inteligente`):
+Campaña con `--meta=pool-spread` (`--mode=inteligente`, 1.7.1):
 
 | Stage | meta | win | HP fin | % bajas | leaks | daño de fugas |
 |---:|---:|---:|---:|---:|---:|---:|
@@ -293,6 +299,16 @@ Lectura:
   chica. `pool-spread` gana 20 % en S30 (Nvl.18) y 50 % en S50 (Nvl.26);
   `pool-focus` gana 80 % y 70 %. Comparar niveles distintos exige mirar HP fin
   y bajas, no sólo el win.
+- **1.8.0 — el HP base no sube el HP de la ola**: el presupuesto del director
+  está en HP base (`BUDGET_HP_PER_SLOT`), así que ×1,25 por enemigo con el mismo
+  presupuesto compra ~20 % menos enemigos y deja el HP total de la descarga casi
+  igual. El efecto medido no es “más difícil”: con `pool-focus` el S50 sube a
+  90 % de win porque las cartas one-shot premian la **variedad** (más
+  multiplicadores distintos) en lugar del stack; con `pool-spread` (meta 26) y
+  Protocolo II el mismo cambio deja 10 % y 40 %, porque el jugador de bajo meta
+  dependía de los stacks. La campaña queda no monótona: S30 (cristal, resiste
+  balístico) 50 %, S50 (roca, sufre balístico) 90 %. Es el hallazgo para la
+  próxima ronda; no se compensó en 1.8.0.
 - **El % de bajas puede pasar de 100**: el denominador es la cola del director;
   los escoltas del jefe no están en esa cola pero sí cuentan como bajas de ola.
 
@@ -343,14 +359,18 @@ Lectura:
 6. La suite tiene guardas de regresión de HP por etapa, apertura, jefes,
    variantes y supervivencia.
 
-## Estado actual (v1.7.2)
+## Estado actual (v1.8.0)
 
-- Campaña: S1–S10 100 %, S20 90 %, S30 80 %, S50 70 % con la trayectoria real
-  de meta y cartas (`pool-focus`, 10 semillas).
-- S50 sin heat: 70 % / 45 % de HP / 66 % de bajas (10 semillas, `pool-focus`;
-  antes de 1.7.1: 100 % / 72 % / 91 %).
-- Heat: la escalera 5→35 se re-mide con el pool nuevo; Protocolo II queda en
-  80 % de win / 24 % HP / 71 % bajas en S50 (10 semillas).
+- Campaña: S1–S10 90–100 %, S20 60 %, S30 50 %, S50 90 % con la trayectoria
+  real de meta y cartas (`pool-focus`, 10 semillas). La curva no es monótona:
+  el S30 es cristal (resiste balístico) y el S50 es roca (sufre balístico).
+- S50 sin heat: **90 % win / 59 % HP / 81 % bajas** (10 semillas, `pool-focus`;
+  1.7.1: 70 / 45 / 66). Las cartas one-shot premian la variedad; el HP base
+  ×1,25 no sube el HP total de la ola porque el presupuesto está en HP base.
+- Heat: Protocolo II queda en **40 % win / 17 % HP / 42 % bajas** en S50
+  (10 semillas, `pool-focus`; 1.7.1: 80 / 24 / 71).
+- `pool-spread` (meta 26) cae a **10 % win / 7 % HP / 18 % bajas**: el jugador
+  de bajo meta dependía de los stacks que 1.8.0 eliminó.
 - ∞: la pared empieza alrededor de 60–70; el win cae con la profundidad.
 - Heat en ∞/Daily (1.7.2): el Protocolo activo se aplica a ambos. El récord
   del ∞ es por Heat (`heat.endless`); el del Daily es global por fecha y
@@ -365,9 +385,14 @@ Lectura:
   190 (antes llegaba a 311); la Rueda de Fuego patrulla el campo en vez de
   volver a la base. El S50 queda en 91 % HP / 99 % bajas: el nerf de cobertura
   y el buff de uptime se compensan.
+- Drones (1.8.0): el Campo de Fuerza baja otro 15 % de radio → base **102** y
+  tope **161,5** (el máximo real pasa de 184 a 161,5 px). Los `radiusAdd` de
+  perks/cartas no cambian.
 - Cráter del Mortar (1.5.2): el fix de parámetros recupera el DoT/slow de zona
   que antes no se instanciaba. El S50 sube a 92 % HP / 99 % bajas, dentro del
   margen; no hizo falta tocar `craterDps`.
+- Cráter del Mortar (1.8.0): el splash sigue en 150 px y el cráter persistente
+  baja al **80 % (120 px)**. El daño del cráter no cambia, solo su cobertura.
 - Renombre (1.5.3): Avispas → Mosquitos es sólo texto/flavor; no cambia
   stats, cartas ni balance.
 - Limpieza de cartas (1.5.4): se quitaron `xp_boost` y `score_gain`; el
@@ -381,7 +406,13 @@ Lectura:
 - Ajuste de arsenal (1.7.1): Guardian **15,0 DPS** (5/0.25), Missile **20,0
   efectivo** (170/3.2, splash 64) y Tesla **10,0** (7/0.7). Medido con
   `--meta=pool-focus` (Nvl.44 en S50, 10 semillas): S50 sin heat **70 % win /
-  45 % HP / 66 % bajas**; Protocolo II **80 % / 24 % / 71 %**. El piso (meta 1)
-  sigue en 0 % / 0 % / 0 %. No se compensó el HP de las oleadas.
+  45 % HP / 66 % bajas**; Protocolo II **80 % / 24 % / 71 %**.
+- Ronda 1.8.0: HP base ×1,25 (17 tipos), burbuja del Campo de Fuerza −15 %,
+  cráter del Mortar −20 % y cartas de mejora **one-shot** (CAPS=1; `bullets_5`
+  queda como level-up). El piso (meta 1) sigue en 0 % / 0 % / 0 %.
+  **Hallazgo**: el presupuesto de olas está en HP base, así que subir el HP por
+  enemigo sin tocar el presupuesto reduce la cantidad y deja el HP total casi
+  igual. El neto medido es más fácil con `pool-focus` y mucho más difícil con
+  `pool-spread`/Protocolo II. No se compensó en esta ronda.
 - El balance sigue siendo un trabajo abierto: el simulador es una herramienta
   de comparación, no un oráculo.

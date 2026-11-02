@@ -313,7 +313,7 @@ export class CraterFx {
     this.game = game;
     this.x = x;
     this.y = y;
-    this.radius = opts.radius ?? TOWERS.mortar.blastR;
+    this.radius = opts.radius ?? TOWERS.mortar.blastR * (TOWERS.mortar.craterMul ?? 1);
     // El cráter es el DoT propio del Mortar: escala con el mismo dial que la
     // torre (incluye `craterDpsAdd` de los perks, que ya viene sumado en
     // `opts.dps`). La vida y el slow NO se tocan.

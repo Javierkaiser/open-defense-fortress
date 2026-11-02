@@ -115,13 +115,12 @@ export function dmgSynergyText(dmgType, mul = 1) {
  * @param {string} unitName nombre de la unidad (Guardian, Missile, …)
  * @param {string} dmgType id del tipo de daño
  * @param {number} mul multiplicador de la carta
- * @param {number} times cuántas veces se puede apilar
  * @param {string} per detalle de en qué se aplica (" por ráfaga")
  * @returns {string}
  */
-function exclusiveDmgDesc(unitName, dmgType, mul, times, per = '') {
+function exclusiveDmgDesc(unitName, dmgType, mul, per = '') {
   const tipo = DAMAGE_TYPES[dmgType]?.name?.toUpperCase() ?? '—';
-  return `${unitName}: ×${fmtDmgMul(mul)} de daño ${tipo}${per} (hasta ${times} veces).`
+  return `${unitName}: ×${fmtDmgMul(mul)} de daño ${tipo}${per}.`
     + `\n${dmgSynergyText(dmgType, mul)}`;
 }
 
@@ -248,7 +247,7 @@ function appsOf(cardId, game) {
   if (!f) return 0;
   switch (cardId) {
     case 'dmg_all': return f.dmgAllStacks ?? Math.max(0, ...f.slots.filter(Boolean).map((t) => t.dmgAllApps ?? 0));
-    // fase 74: daño por tipo — un stack global por tipo (no por unidad).
+    // fase 74: daño por tipo — un contador global por tipo (no por unidad).
     case 'dmg_type_ballistic':
     case 'dmg_type_light':
     case 'dmg_type_blast':
@@ -326,11 +325,14 @@ function appsOf(cardId, game) {
     case 'combo_absolute_zero': return (f.comboMods?.slowLightVuln ?? 1) > 1 ? 1 : 0;
     case 'combo_fracture': return (f.comboMods?.slowCritChanceAdd ?? 0) > 0 ? 1 : 0;
     case 'combo_glacial_wave': return (f.comboMods?.explosionSlowFrac ?? 0) > 0 ? 1 : 0;
-    case 'combo_blood_pact': return (f.blackHoleMods?.drain ?? 0) > 0 ? 1 : 0;
+    // 1.8.0: cada carta lleva SU flag. Antes ambas se deducían de
+    // `blackHoleMods.durationAdd` (que las dos incrementan) y elegir una
+    // bloqueaba la otra.
+    case 'combo_blood_pact': return f.blackHoleMods?.bloodPact ? 1 : 0;
     case 'combo_transfusion': return (f.comboMods?.poisonRegen ?? 0) > 0 ? 1 : 0;
     case 'combo_rail_mark': return f.comboMods?.railMark ? 1 : 0;
     case 'combo_shared_pierce': return f.comboMods?.pierceBleed ? 1 : 0;
-    case 'bh_horizon': return (f.blackHoleMods?.durationAdd ?? 0) > 0 ? 1 : 0;
+    case 'bh_horizon': return f.blackHoleMods?.horizon ? 1 : 0;
     case 'bh_collapse': return (f.blackHoleMods?.endBurst ?? 0) > 0 ? 1 : 0;
     // dev-7 fase 51: las CARTAS DE TÉCNICA cuentan sus aplicaciones en la
     // propia unidad (el contador vive en `unit.cardApps`, igual que
@@ -345,9 +347,9 @@ function appsOf(cardId, game) {
 }
 
 /**
- * dev-7 fase 51 — Aplica una carta de TÉCNICA: acumula sus MECÁNICAS en
+ * dev-7 fase 51 — Aplica una carta de TÉCNICA: suma sus MECÁNICAS en
  * la unidad destino por el CANAL (js/perks.js: addCardMods), respetando
- * el TOPE de CAPS.
+ * el TOPE de CAPS (1.8.0: una sola aplicación por carta).
  *
  * @param {object} game
  * @param {object} tech ficha de la carta (id, unit, mods)
@@ -506,8 +508,9 @@ export function isRelevant(card, game) {
  * ¿La carta puede entrar al pool de la oferta? (§5 dev-4)
  *
  * fase 64: es RELEVANTE y además no alcanzó su tope de aplicaciones
- * (`CAPS`, anti-stack infinito). Las cartas de un solo uso (desbloqueos,
- * Black Hole) no están en CAPS → su único tope es la relevancia.
+ * (`CAPS`; 1.8.0: todas las cartas de mejora se aplican una sola vez).
+ * Las cartas de un solo uso (desbloqueos, Black Hole) no están en CAPS →
+ * su único tope es la relevancia.
  */
 export function isCardEligible(card, game) {
   if (!isRelevant(card, game)) return false;
@@ -558,13 +561,13 @@ function needsUnit(card) {
 //
 // Cada carta va a UNA unidad (`unit`): sin esa torre no entra al pool
 // (isCardEligible), igual que las cartas de daño exclusivo. Los mods
-// se ACUMULAN en la unidad (canal de js/perks.js) y el tope es el de
-// CAPS (×2): la 2ª aplicación dobla el efecto, la 3ª no se ofrece.
+// viven en la unidad por el canal de js/perks.js y CAPS = 1: la carta
+// se elige una sola vez.
 //
 // OJO — `executeThreshold` es un UMBRAL y la política de perks lo
 // compone por "el mejor" (meta.js MOD_POLICY): si el jugador ya tiene
-// el perk de remate del Misil (0.12–0.15), la 1ª Cabeza Nuclear puede
-// no mover el umbral (la 2ª sí: 24 %).
+// el perk de remate del Misil (0.12–0.15), Cabeza Nuclear puede no mover
+// el umbral.
 ;
 
 /** Carta de técnica → tipo de unidad que la lleva (tope y elegibilidad). */
@@ -621,7 +624,7 @@ function applyTypeDamage(game, card) {
   return true;
 }
 
-/** fase 74 — Munición Reforzada global, con stacks persistentes. */
+/** fase 74 — Munición Reforzada global (una sola vez). */
 function applyGlobalDamage(game) {
   const f = game?.fortress;
   if (!f) return false;
@@ -635,7 +638,7 @@ function applyGlobalDamage(game) {
   return true;
 }
 
-/** fase 74 — Servos Acelerados global, con stacks persistentes. */
+/** fase 74 — Servos Acelerados global (una sola vez). */
 function applyGlobalCadence(game) {
   const f = game?.fortress;
   if (!f) return false;
@@ -811,6 +814,7 @@ function applyComboBloodPact(game) {
   const f = game?.fortress;
   if (!f || !f.blackHoleUnlocked) return false;
   f.blackHoleMods ??= {};
+  f.blackHoleMods.bloodPact = 1;
   f.blackHoleMods.drain = (f.blackHoleMods.drain ?? 0) + 0.10;
   f.blackHoleMods.durationAdd = (f.blackHoleMods.durationAdd ?? 0) + 1;
   return true;
@@ -847,6 +851,9 @@ function applyBlackHoleCard(game, key, value) {
   if (key === 'endBurst') f.blackHoleMods.endBurst = (f.blackHoleMods.endBurst ?? 0) + value;
   if (key === 'drain') f.blackHoleMods.drain = (f.blackHoleMods.drain ?? 0) + value;
   if (key === 'singularity') f.blackHoleMods.singularity = 1;
+  // 1.8.0: flag propio de Horizonte de Sucesos (no se puede deducir de
+  // `durationAdd`: Blood Pact también lo incrementa).
+  if (key === 'horizon') f.blackHoleMods.horizon = 1;
   return true;
 }
 // CATÁLOGO (81 cartas, schema §5 dev-4)
@@ -865,7 +872,7 @@ function applyBlackHoleCard(game, key, value) {
 // que el jugador leía "LEGENDARIO" en cartas que no eran tan fuertes (y al
 // revés): la etiqueta no decía nada. `weight` = qué tan seguido sale;
 // `rarity` = cuánto vale.
-// Las cartas repetibles tienen tope en CAPS (anti-stack infinito);
+// Las cartas de mejora tienen tope 1 en CAPS (una sola vez por partida);
 // las demas son de un solo uso (desbloqueos + Black Hole) o están
 // limitadas por su propio estado (Cañón de Ráfaga → Lv.5).
 // las 12 restantes son de un solo uso (desbloqueos + Black Hole) o
@@ -889,21 +896,21 @@ export const CATALOG = [
     id: 'dmg_all',
     rarity: 'rare',
     name: 'Munición Reforzada',
-    // fase 74: carta GLOBAL. +10% por stack (×1,1² = ×1,21 al tope).
-    // El stack vive en la fortaleza y se reaplica a las unidades que se
+    // fase 74: carta GLOBAL. +10% una sola vez (1.8.0: sin stacks).
+    // El mod vive en la fortaleza y se reaplica a las unidades que se
     // desbloqueen DESPUÉS (Fortress.applyGlobalCardMods).
-    desc: '+10% de daño en TODAS las torres y drones, del tipo que sea (acumulable hasta 2 veces).',
+    desc: '+10% de daño en TODAS las torres y drones, del tipo que sea.',
     weight: 12,
     apply: (g) => { applyGlobalDamage(g); },
   },
-  // fase 74 — DAÑO POR TIPO: más angostas que dmg_all (+20% vs +10% por
-  // stack) y afectan a todas las unidades de ese tipo, presentes y futuras.
+  // fase 74 — DAÑO POR TIPO: más angostas que dmg_all (+20% vs +10%) y
+  // afectan a todas las unidades de ese tipo, presentes y futuras.
   {
     id: 'dmg_type_ballistic',
     rarity: 'uncommon',
     name: 'Munición Balística',
     dmgType: 'ballistic',
-    desc: `+20% de daño BALÍSTICO a todas las unidades de ese tipo (hasta 2 veces).\n${dmgSynergyText('ballistic', 1.2)}`,
+    desc: `+20% de daño BALÍSTICO a todas las unidades de ese tipo.\n${dmgSynergyText('ballistic', 1.2)}`,
     weight: 9,
     type: 'ballistic',
     requiresTags: ['ballistic'],
@@ -914,7 +921,7 @@ export const CATALOG = [
     rarity: 'uncommon',
     name: 'Prisma de Luz',
     dmgType: 'light',
-    desc: `+20% de daño de LUZ a todas las unidades de ese tipo (hasta 2 veces).\n${dmgSynergyText('light', 1.2)}`,
+    desc: `+20% de daño de LUZ a todas las unidades de ese tipo.\n${dmgSynergyText('light', 1.2)}`,
     weight: 9,
     type: 'light',
     requiresTags: ['light'],
@@ -925,7 +932,7 @@ export const CATALOG = [
     rarity: 'uncommon',
     name: 'Cargas de Demolición',
     dmgType: 'blast',
-    desc: `+20% de daño de EXPLOSIÓN a todas las unidades de ese tipo (hasta 2 veces).\n${dmgSynergyText('blast', 1.2)}`,
+    desc: `+20% de daño de EXPLOSIÓN a todas las unidades de ese tipo.\n${dmgSynergyText('blast', 1.2)}`,
     weight: 9,
     type: 'blast',
     requiresTags: ['blast'],
@@ -936,7 +943,7 @@ export const CATALOG = [
     rarity: 'uncommon',
     name: 'Sobrecarga de Red',
     dmgType: 'electric',
-    desc: `+20% de daño ELÉCTRICO a todas las unidades de ese tipo (hasta 2 veces).\n${dmgSynergyText('electric', 1.2)}`,
+    desc: `+20% de daño ELÉCTRICO a todas las unidades de ese tipo.\n${dmgSynergyText('electric', 1.2)}`,
     weight: 9,
     type: 'electric',
     requiresTags: ['electric'],
@@ -947,7 +954,7 @@ export const CATALOG = [
     rarity: 'uncommon',
     name: 'Núcleo de Dron',
     dmgType: 'drone',
-    desc: `+20% de daño de DRON a todas las unidades de ese tipo (hasta 2 veces).\n${dmgSynergyText('drone', 1.2)}`,
+    desc: `+20% de daño de DRON a todas las unidades de ese tipo.\n${dmgSynergyText('drone', 1.2)}`,
     weight: 9,
     type: 'drone',
     requiresTags: ['drone'],
@@ -961,7 +968,7 @@ export const CATALOG = [
     // (TOWERS.guardian.dmgType) y la descripción dice cómo queda contra
     // cada familia, con los números calculados.
     dmgType: TOWERS.guardian.dmgType,
-    desc: exclusiveDmgDesc(TOWERS.guardian.name, TOWERS.guardian.dmgType, 1.6, 2, ' por ráfaga'),
+    desc: exclusiveDmgDesc(TOWERS.guardian.name, TOWERS.guardian.dmgType, 1.6, ' por ráfaga'),
     weight: 9,
     apply: (g) => {
       const gw = findTower(g, 'guardian');
@@ -981,7 +988,7 @@ export const CATALOG = [
     rarity: 'uncommon',
     name: 'Ojivas Perforantes',
     dmgType: TOWERS.missile.dmgType,
-    desc: exclusiveDmgDesc(TOWERS.missile.name, TOWERS.missile.dmgType, 1.6, 2, ' por impacto'),
+    desc: exclusiveDmgDesc(TOWERS.missile.name, TOWERS.missile.dmgType, 1.6, ' por impacto'),
     weight: 9,
     apply: (g) => {
       const t = findTower(g, 'missile');
@@ -996,7 +1003,7 @@ export const CATALOG = [
     rarity: 'uncommon',
     name: 'Foco Intensificado',
     dmgType: TOWERS.beam.dmgType,
-    desc: exclusiveDmgDesc(TOWERS.beam.name, TOWERS.beam.dmgType, 1.6, 2, ' por segundo'),
+    desc: exclusiveDmgDesc(TOWERS.beam.name, TOWERS.beam.dmgType, 1.6, ' por segundo'),
     weight: 9,
     apply: (g) => {
       const t = findTower(g, 'beam');
@@ -1011,7 +1018,7 @@ export const CATALOG = [
     rarity: 'uncommon',
     name: 'Descarga Sobrecargada',
     dmgType: TOWERS.thunderstroke.dmgType,
-    desc: exclusiveDmgDesc(TOWERS.thunderstroke.name, TOWERS.thunderstroke.dmgType, 1.6, 2, ' por golpe'),
+    desc: exclusiveDmgDesc(TOWERS.thunderstroke.name, TOWERS.thunderstroke.dmgType, 1.6, ' por golpe'),
     weight: 9,
     apply: (g) => {
       const t = findTower(g, 'thunderstroke');
@@ -1026,7 +1033,7 @@ export const CATALOG = [
     rarity: 'uncommon',
     name: 'Bobina Amplificada',
     dmgType: TOWERS.tesla.dmgType,
-    desc: exclusiveDmgDesc(TOWERS.tesla.name, TOWERS.tesla.dmgType, 1.6, 2, ' por salto de cadena'),
+    desc: exclusiveDmgDesc(TOWERS.tesla.name, TOWERS.tesla.dmgType, 1.6, ' por salto de cadena'),
     weight: 9,
     apply: (g) => {
       const t = findTower(g, 'tesla');
@@ -1041,7 +1048,7 @@ export const CATALOG = [
     rarity: 'uncommon',
     name: 'Ojiva Pesada',
     dmgType: TOWERS.mortar.dmgType,
-    desc: exclusiveDmgDesc(TOWERS.mortar.name, TOWERS.mortar.dmgType, 1.6, 2, ' por impacto'),
+    desc: exclusiveDmgDesc(TOWERS.mortar.name, TOWERS.mortar.dmgType, 1.6, ' por impacto'),
     weight: 9,
     apply: (g) => {
       const t = findTower(g, 'mortar');
@@ -1056,7 +1063,7 @@ export const CATALOG = [
     rarity: 'uncommon',
     name: 'Riel Sobrecargado',
     dmgType: TOWERS.gauss.dmgType,
-    desc: exclusiveDmgDesc(TOWERS.gauss.name, TOWERS.gauss.dmgType, 1.6, 2, ' por disparo'),
+    desc: exclusiveDmgDesc(TOWERS.gauss.name, TOWERS.gauss.dmgType, 1.6, ' por disparo'),
     weight: 9,
     apply: (g) => {
       const t = findTower(g, 'gauss');
@@ -1068,7 +1075,7 @@ export const CATALOG = [
   },
   // dev-7: el arsenal extendido (Láser + los 3 drones) NO tenía carta de
   // daño exclusiva — invertir en el Láser rendía 25% menos que en el
-  // Gauss. Estas 4 cartas igualan el catálogo: mismo ×1.6, mismo tope ×2,
+  // Gauss. Estas 4 cartas igualan el catálogo: mismo ×1.6, una sola vez,
   // mismo contador (`exclusiveDmgApps`) y la MISMA exigencia de POSEER la
   // unidad (isCardEligible) que las 6 exclusivas de torre.
   // TODO (dev-7): el multiplicador se guarda en `dmgMul` de la unidad. La
@@ -1082,7 +1089,7 @@ export const CATALOG = [
     rarity: 'uncommon',
     name: 'Haz Concentrado',
     dmgType: TOWERS.laser.dmgType,
-    desc: exclusiveDmgDesc(TOWERS.laser.name, TOWERS.laser.dmgType, 1.6, 2, ' por segundo'),
+    desc: exclusiveDmgDesc(TOWERS.laser.name, TOWERS.laser.dmgType, 1.6, ' por segundo'),
     weight: 9,
     apply: (g) => {
       const t = findTower(g, 'laser');
@@ -1097,7 +1104,7 @@ export const CATALOG = [
     rarity: 'uncommon',
     name: 'Rueda Incandescente',
     dmgType: DRONES.firewheel.dmgType,
-    desc: exclusiveDmgDesc(DRONES.firewheel.name, DRONES.firewheel.dmgType, 1.6, 2, ' por segundo'),
+    desc: exclusiveDmgDesc(DRONES.firewheel.name, DRONES.firewheel.dmgType, 1.6, ' por segundo'),
     weight: 9,
     apply: (g) => {
       const d = findDrone(g, 'firewheel');
@@ -1112,7 +1119,7 @@ export const CATALOG = [
     rarity: 'uncommon',
     name: 'Aguijón Afilado',
     dmgType: DRONES.wasps.dmgType,
-    desc: exclusiveDmgDesc(DRONES.wasps.name, DRONES.wasps.dmgType, 1.6, 2, ' por picadura'),
+    desc: exclusiveDmgDesc(DRONES.wasps.name, DRONES.wasps.dmgType, 1.6, ' por picadura'),
     weight: 9,
     apply: (g) => {
       const d = findDrone(g, 'wasps');
@@ -1130,7 +1137,7 @@ export const CATALOG = [
     id: 'swarm_grow',
     rarity: 'common',
     name: 'Nido Ampliado',
-    desc: 'Dron Mosquitos: +1 mosquito en el enjambre (hasta 2 veces).',
+    desc: 'Dron Mosquitos: +1 mosquito en el enjambre.',
     weight: 8,
     apply: (g) => {
       const d = findDrone(g, 'wasps');
@@ -1152,7 +1159,7 @@ export const CATALOG = [
     // Ahora se gatea (ver isCardEligible) y el texto lo dice.
     // dev-7 fase 49: tipo de daño DRON (el de las espinas) + sinonergia.
     dmgType: DRONES.forcefield.dmgType,
-    desc: exclusiveDmgDesc(DRONES.forcefield.name, DRONES.forcefield.dmgType, 1.6, 2, ' de las espinas')
+    desc: exclusiveDmgDesc(DRONES.forcefield.name, DRONES.forcefield.dmgType, 1.6, ' de las espinas')
       + '\nRequiere el perk "Campo de espinas".',
     weight: 9,
     apply: (g) => {
@@ -1169,9 +1176,8 @@ export const CATALOG = [
     // dev-7 fase 49: el nombre viejo ("Servomecanismos") no decía qué
     // hacía: son los servos que ACELERAN la recarga.
     name: 'Servos Acelerados',
-    // dev-7 fase 12: antes −15%/stack (×0.85³≈0.614, −38.6% al tope).
-    // Ahora −10%/stack (×0.9³≈0.729, −27.1% al tope) — más suave.
-    desc: '-10% de tiempo de recarga en todas las torres y en el Dron Mosquitos (hasta 3 veces).',
+    // 1.8.0: −10% una sola vez (antes se apilaba hasta 3 veces).
+    desc: '-10% de tiempo de recarga en todas las torres y en el Dron Mosquitos.',
     weight: 10,
     apply: (g) => { applyGlobalCadence(g); },
   },
@@ -1180,8 +1186,8 @@ export const CATALOG = [
     rarity: 'uncommon',
     name: 'Núcleos Perforantes',
     // dev-7: sin tope esta carta se ofrecía en cada level-up y el
-    // Guardian atravesaba enemigos sin límite. Tope 3 (CAPS.pierce_up).
-    desc: 'Las balas del Guardian atraviesan +1 enemigo antes de disiparse (hasta 3 veces).',
+    // Guardian atravesaba enemigos sin límite. 1.8.0: una sola vez.
+    desc: 'Las balas del Guardian atraviesan +1 enemigo antes de disiparse.',
     weight: 7,
     apply: (g) => {
       const f = g.fortress;
@@ -1197,7 +1203,7 @@ export const CATALOG = [
     id: 'rapid_bullets',
     rarity: 'common',
     name: 'Balas Hipersónicas',
-    desc: 'Las balas del Guardian vuelan +25% más rápido (mejora la puntería: menos tiempo para esquivarlas). Hasta 2 veces.',
+    desc: 'Las balas del Guardian vuelan +25% más rápido (mejora la puntería: menos tiempo para esquivarlas).',
     weight: 8,
     apply: (g) => {
       const gw = findTower(g, 'guardian');
@@ -1211,7 +1217,7 @@ export const CATALOG = [
     id: 'detect_up',
     rarity: 'uncommon',
     name: 'Sensores Ampliados',
-    desc: 'Alcance de detección del Beam y la banda de la Tesla ×1.4 (hasta 2 veces).',
+    desc: 'Alcance de detección del Beam y la banda de la Tesla ×1.4.',
     weight: 4,
     apply: (g) => {
       const f = g.fortress;
@@ -1391,7 +1397,7 @@ export const CATALOG = [
     id: 'repair_500',
     rarity: 'common',
     name: 'Reparación de Campo',
-    desc: 'Restaura +500 de HP del escudo de la base al instante (hasta 3 veces).',
+    desc: 'Restaura +500 de HP del escudo de la base al instante.',
     weight: 5,
     apply: (g) => {
       const f = g.fortress;
@@ -1427,7 +1433,7 @@ export const CATALOG = [
     id: 'base_shield',
     rarity: 'uncommon',
     name: 'Escudo de Base',
-    desc: 'Bloquea el próximo golpe que recibiría la base (máx 2 cargas).',
+    desc: 'Bloquea el próximo golpe que recibiría la base.',
     weight: 4,
     apply: (g) => {
       const f = g.fortress;
@@ -1460,7 +1466,7 @@ export const CATALOG = [
     // proyectil va con splashR → el combate lo resuelve como 'blast'),
     // así que la carta declara ese tipo de daño.
     dmgType: 'blast',
-    desc: 'Los impactos del ORBITAL STRIKE hacen +50% de daño de EXPLOSIÓN (hasta 2 veces).',
+    desc: 'Los impactos del ORBITAL STRIKE hacen +50% de daño de EXPLOSIÓN.',
     weight: 8,
     apply: (g) => {
       const f = g.fortress;
@@ -1523,8 +1529,10 @@ export const CATALOG = [
     weight: 5,
     requiresBlackHole: true,
     apply: (g) => {
+      if (!applyBlackHoleCard(g, 'horizon', 1)) return false;
       applyBlackHoleCard(g, 'durationAdd', 1.5);
       applyBlackHoleCard(g, 'radiusMul', 1.2);
+      return true;
     },
   },
   {
@@ -1792,17 +1800,19 @@ function isSpentOneShot(card, game) {
  * Rellena la oferta cuando el pool elegible no alcanza para 3 cartas.
  *
  * POR QUÉ hace falta: el modal de cartas no se puede cerrar sin elegir
- * (hud.js) → una oferta de 0 o 1 cartas deja la run TRABADA en
- * CARD_CHOICE (soft-lock). Con los topes de CAPS el pool elegible se
- * puede quedar corto (run larga: todas las repetibles agotadas + todas
- * las unidades ya compradas), así que la oferta se completa con:
- *   1) las repetibles YA AGOTADAS pero RELEVANTES — elegirlas es inocuo
- *      (su `apply` respeta el tope y no hace nada),
- *   2) los desbloqueos que el jugador todavía no usó (dan una unidad o
+ * (hud.js) → una oferta de 0 cartas deja la run TRABADA en CARD_CHOICE
+ * (soft-lock). Con los topes de CAPS el pool elegible se puede quedar
+ * corto, así que la oferta se completa con:
+ *   1) los desbloqueos que el jugador todavía no usó (dan una unidad o
  *      el Black Hole: siempre otorgan algo),
- *   3) cualquier carta RELEVANTE del catálogo (su tope ya no importa),
- *   4) último recurso para no dejar el modal vacío: cualquier carta
+ *   2) cualquier carta RELEVANTE del catálogo,
+ *   3) último recurso para no dejar el modal vacío: cualquier carta
  *      GENÉRICA (sin unidad).
+ *
+ * 1.8.0: una carta TOPADA no entra al relleno (antes se reofrecía como
+ * "inocua", pero elegirla no hacía nada). Si todas las candidatas están
+ * topadas la oferta queda corta: `Game._maybeOpenCards`/`pickCard` saben
+ * cerrar la elección sin dejar la FSM en CARD_CHOICE.
  *
  * ⚠ REGLA DE LA FASE 64: una carta de una UNIDAD AUSENTE no entra a la
  * oferta NI como último recurso. Antes el relleno miraba sólo `minStage`,
@@ -1818,27 +1828,21 @@ function fillOffer(game, picks) {
   const push = (c) => {
     if (out.length >= count) return;
     if (out.includes(c)) return;
+    if (appsOf(c.id, game) >= (CAPS[c.id] ?? Infinity)) return;
     out.push(c);
   };
-  // 1) repetibles agotadas (y relevantes: de una unidad que el jugador
-  //    tiene — su carta sigue sirviendo "en teoría", sólo la topó).
-  for (const c of CATALOG) {
-    if (CAPS[c.id] === undefined) continue;
-    if (isRelevant(c, game)) push(c);
-  }
-  // 2) desbloqueos pendientes (torre/dron/Black Hole que aún no se usó).
+  // 1) desbloqueos pendientes (torre/dron/Black Hole que aún no se usó).
   for (const c of CATALOG) {
     if (!isUnlockCard(c)) continue;
     if (!isRelevant(c, game)) continue;
     if (!isSpentOneShot(c, game)) push(c);
   }
-  // 3) cualquier carta relevante del catálogo.
+  // 2) cualquier carta relevante del catálogo.
   for (const c of CATALOG) {
     if (isRelevant(c, game)) push(c);
   }
-  // 4) último recurso: una carta GENÉRICA (sin unidad) del catálogo,
-  //    aunque su tope esté gastado. Nunca una de una unidad que el
-  //    jugador NO tiene (ver el aviso de arriba).
+  // 3) último recurso: una carta GENÉRICA (sin unidad) del catálogo.
+  //    Nunca una de una unidad que el jugador NO tiene (ver el aviso).
   for (const c of CATALOG) {
     if ((c.minStage ?? 1) > stage) continue;
     if (needsUnit(c)) continue;
@@ -1897,16 +1901,13 @@ export function applyCard(card, game) {
   // coloca ni se mejora: no-op, como una carta desconocida.
   if ((c.tower && !isUnitUnlocked(game?.meta, c.tower))
     || (c.drone && !isUnitUnlocked(game?.meta, c.drone))) return null;
-  // fase 75: los combos y las cartas de Black Hole se aplican UNA vez.
-  // `fillOffer` puede reofrecer una carta topada como relleno; antes su
-  // `apply` no miraba `appsOf` y apilar combo_swarm_link/bh_horizon dos
-  // veces seguía sumando pese al CAPS. Las cartas globales conservan su
-  // comportamiento histórico (su apply ya respeta el tope).
+  // 1.8.0: TODA carta con CAPS se aplica UNA sola vez. Antes la guarda
+  // sólo cubría combos y cartas de Black Hole: una repetible topada que
+  // llegaba por el relleno de la oferta se aplicaba igual (o fingía una
+  // mejora sin efecto). Ahora el contrato es uniforme: si ya alcanzó su
+  // tope, `applyCard` es no-op y devuelve null.
   const cap = CAPS[c.id];
-  if (cap !== undefined && (c.id.startsWith('combo_') || c.id.startsWith('bh_'))
-    && appsOf(c.id, game) >= cap) {
-    return null;
-  }
+  if (cap !== undefined && appsOf(c.id, game) >= cap) return null;
   c.apply(game);
   return c;
 }

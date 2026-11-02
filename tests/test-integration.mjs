@@ -119,11 +119,12 @@ test('stage 1 (Guardian solo, sin cartas): se puede jugar de punta a punta sin t
   assert.doesNotThrow(() => playStage(1, 400));
 });
 
-test('stage 1: con una torre extra (como una carta) se gana en un tiempo razonable', () => {
+test('stage 1: con dos torres extra (como las primeras cartas) se gana en un tiempo razonable', () => {
   // El Guardian SOLO ya no alcanza en la economía de la fase 72 (la fuga
   // duele el HP máximo): el jugador real recibe cartas por nivel. El smoke
-  // usa una torre extra como stand-in de la primera carta.
-  const r = playStage(1, 400, undefined, ['missile']);
+  // usa dos torres extra como stand-in de las primeras cartas. Con el HP
+  // base ×1,25 de 1.8.0 una sola torre extra ya no llega para el smoke.
+  const r = playStage(1, 400, undefined, ['missile', 'beam']);
   assert.equal(r.win, true, `stage 1 no se ganó (hp=${r.hp}, t=${r.duration})`);
   assert.ok(r.duration < 300, `stage 1 tardó demasiado: ${r.duration}s`);
 });

@@ -118,6 +118,11 @@ export class MortarShell {
     this.duration = TOWERS.mortar.cooldown * 0.72; // ~1.6 s de vuelo
     this.damage = damage ?? TOWERS.mortar.damage;
     this.blastR = blastR ?? TOWERS.mortar.blastR; // v6 perk: radio +15%
+    // Ronda 1.8.0: si el cráter no trae radio propio (forma vieja con
+    // `craterDps` suelto), usa `craterMul` × el splash EFECTIVO.
+    if (this.crater && this.crater.radius == null) {
+      this.crater.radius = this.blastR * (TOWERS.mortar.craterMul ?? 1);
+    }
     // dev-7 fase 29: el obús se pinta con el ACENTO de la torre (ámbar),
     // igual que el resto de los proyectiles (antes, color fijo). La clave
     // se llama `tint` y NO `color` a propósito: enemies.js:projectileRadius

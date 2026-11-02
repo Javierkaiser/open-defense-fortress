@@ -878,7 +878,9 @@ export class Tower {
               dps: (d.mech?.dps ?? 8) + (mm.craterDpsAdd ?? 0),
               time: (d.mech?.duration ?? 3) + (mm.craterTimeAdd ?? 0),
               slow: d.mech?.slow ?? 0.10,
-              radius: blastR,
+              // Ronda 1.8.0: el cráter es `craterMul` × el splash EFECTIVO,
+              // así un `areaMul` (perk/carta) escala los dos de forma coherente.
+              radius: blastR * (d.craterMul ?? 1),
             },
           });
           shell.tint = fx?.mortar ?? shell.tint;
