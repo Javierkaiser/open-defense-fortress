@@ -56,16 +56,12 @@ export function targetInRange(e, game, tower) {
   if (d.rangeBand) {
     // fase 66 — BANDA de la Tesla: SIN tope de X (cualquier columna,
     // incluida la esquina opuesta a la torre) y con el techo vertical
-    // atado al layout. `reachY` (330) es el alto nominal de la banda sobre
-    // la fila y `detectMul` (Sensores Ampliados) la sube — la carta sigue
-    // sirviendo, como el ancho del Beam. El techo NUNCA baja del borde del
-    // "bajo fuego" (LAYOUT.bandY) más los 70 px que la Tesla se permite
-    // subir, escalados por `fallScale`: en la referencia 570 − 70 = 500
-    // (la banda de 330 px que declara la tabla) y en el marco alto el
-    // borde se corre para que el TIEMPO bajo fuego no dependa del marco.
-    const mul = game?.fortress?.detectMul ?? 1;
+    // atado al layout. `reachY` (462 px desde 1.12.2) es el alto nominal
+    // de la banda sobre la fila. El clamp de `TESLA_ABOVE_BAND` solo actúa
+    // si `reachY` baja de 260: con 462 el techo efectivo es 368 en la
+    // referencia (830 − 462).
     const top = Math.min(
-      tower.y - (d.reachY ?? 0) * mul,
+      tower.y - (d.reachY ?? 0),
       LAYOUT.bandY - TESLA_ABOVE_BAND * LAYOUT.fallScale,
     );
     if (e.y < top) return false;
@@ -73,11 +69,9 @@ export function targetInRange(e, game, tower) {
     // Mecanismo genérico de alcance circular. Hoy NINGUNA torre lo usa:
     // el Thunderstroke pasó a alcance global (fase 73) y la Tesla usa la
     // banda de `rangeBand`. Queda disponible para futuras torres.
-    const range = d.range * (game?.fortress?.detectMul ?? 1);
-    if (dist(e.x, e.y, tower.x, tower.y) > range) return false;
+    if (dist(e.x, e.y, tower.x, tower.y) > d.range) return false;
   }
-  // El ancho de detección (el MISMO que usa el disparo: incluye el
-  // detectMul de la fortaleza y los sensores ampliados).
+  // El ancho de detección (el MISMO que usa el disparo).
   const w = tower?.detectWidthNow?.(game);
   if (typeof w === 'number' && Number.isFinite(w)
     && Math.abs(e.x - tower.x) > w) return false;

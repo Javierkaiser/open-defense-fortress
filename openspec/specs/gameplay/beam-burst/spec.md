@@ -49,7 +49,7 @@ El haz MUST dañar **solo al blanco elegido**. El ancho del haz (`columnHalfWidt
 
 #### Scenario: El ancho no cambia el daño
 
-- **WHEN** se ensancha el haz (nivel, perks o `Sensores Ampliados`)
+- **WHEN** se ensancha el haz (nivel o perks)
 - **THEN** el daño que recibe el blanco es el mismo: el ancho solo cambia a quién puede apuntar
 
 ### Requirement: El ciclo del haz se ve

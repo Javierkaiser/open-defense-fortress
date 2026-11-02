@@ -129,14 +129,15 @@ export const TOWERS = {
     // círculo de 260 px medido desde la torre (un enjambre que caía por
     // la esquina OPUESTA quedaba fuera — justo el caso que esta torre
     // tiene que resolver) y pasa a ser una BANDA horizontal: sin tope de
-    // X y 330 px de alto sobre la fila (`reachY`; ver targetInRange,
-    // rangeBand). El ALCANCE no se toca: es la identidad de la torre
-    // (anti-enjambre de banda).
+    // X y 462 px de alto sobre la fila (`reachY`; ver targetInRange,
+    // rangeBand). 1.12.2: al retirar Sensores Ampliados, la banda sube
+    // de 330 a 462 px (330 × 1,4) para conservar el alcance máximo que
+    // daba la carta. La identidad (anti-enjambre de banda) no cambia.
     // 1.7.1: damage 5 → 7 mantiene la banda y sube el DPS a un blanco de
     // 7.1 a 10.0 (7 / 0.7). La cadencia y los 5 saltos con falloff 0.75
     // quedan intactos.
     cooldown: 0.7, damage: 7, falloff: 0.75, jumps: 5,
-    rangeBand: true, reachY: 330,
+    rangeBand: true, reachY: 462,
     // `detectHalfWidth: Infinity`: la banda no tiene tope de X. Sin esto
     // `detectWidth()` caería al respaldo de 60 px (ya no hay `range`) y la
     // banda quedaría tan angosta como la vieja ventana del Beam.

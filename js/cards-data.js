@@ -44,16 +44,13 @@ export const CAPS = {
   swarm_grow: 1,     // Nido Ampliado: +1 mosquito
   cadence_up: 1,     // Servos Acelerados
   rapid_bullets: 1,  // Balas Hipersónicas
-  detect_up: 1,      // Sensores Ampliados
   pierce_up: 1,      // Núcleos Perforantes
   // Economía y defensa.
   base_shield: 1,    // una carga del Escudo de Base
-  ult_charge: 1,     // una recarga extra del ORBITAL STRIKE
   ult_power: 1,      // Impacto Orbital+
   repair_500: 1,     // una reparación (+500 de cura)
   armor_plate: 1,    // un blindaje (+600 de HP máximo)
   // Cartas de TÉCNICA: una mecánica por unidad.
-  tech_pierce: 1,
   tech_bounce: 1,
   tech_explode: 1,
   tech_slow: 1,
@@ -117,15 +114,6 @@ export const UNIT_TAGS = {
 };
 
 export const TECH_CARDS = [
-  {
-    id: 'tech_pierce',
-    rarity: 'uncommon',
-    name: 'Núcleos Perforantes II',
-    desc: 'Las balas del Guardian atraviesan +1 enemigo.',
-    weight: 6,
-    unit: 'guardian',
-    mods: { pierceCount: 1 },
-  },
   {
     id: 'tech_bounce',
     rarity: 'rare',

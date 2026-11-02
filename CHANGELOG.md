@@ -4,6 +4,31 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.12.2] — 2026-11-02
+
+### Cartas retiradas
+
+- **Núcleos Perforantes II** (`tech_pierce`): el Guardian conserva
+  **Núcleos Perforantes** (`pierce_up`), que sigue dando +1 atravesamiento.
+- **Sensores Ampliados** (`detect_up`): se retira la carta y el multiplicador
+  `detectMul`, que solo usaba ella.
+- **Carga Orbital** (`ult_charge`): se retira la recarga instantánea del
+  ORBITAL STRIKE. El ultimate sigue cargando por kills.
+
+### Compensación
+
+- **Tesla**: la banda de cobertura sube de **330 a 462 px** (`reachY`,
+  330 × 1,4) para conservar el alcance máximo que daba Sensores Ampliados.
+  Sigue sin tope horizontal. No cambian daño, cadencia, saltos ni falloff.
+- **Perforación Compartida** ahora requiere **Núcleos Perforantes** (la carta
+  base) en vez de Núcleos Perforantes II, así el combo sigue disponible.
+
+### Catálogo / tests / versión
+
+- Catálogo normal: **109 cartas (81 + 28 doctrinas)**; 33 legendarias aparte.
+- **1091 tests, 0 skip** (36 archivos).
+- Versión **1.12.2** / Android `versionCode 22`.
+
 ## [1.12.1] — 2026-11-02
 
 ### Cazas y maestría

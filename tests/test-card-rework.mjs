@@ -498,7 +498,7 @@ test('fase 76: Fusión del Riel propaga `rail` desde un blanco fundido', () => {
 
 test('fase 74.2: Perforación Compartida aplica sangrado al atravesar', () => {
   const game = mkGame(['guardian', 'gauss']);
-  applyCard(card('tech_pierce'), game);
+  applyCard(card('pierce_up'), game);
   applyCard(card('combo_shared_pierce'), game);
   const e = mkEnemy(100, 500, 1000);
   const p = {

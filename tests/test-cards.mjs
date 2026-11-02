@@ -1,8 +1,6 @@
 // tests/test-cards.mjs — dev-7 fase 9 + fixes dev-7 (CAPS, arsenal, pesos)
 // Cubre cards.js: catálogo sin duplicados, elegibilidad dinámica y
-// rollOffer/applyCard con rng inyectable. Incluye un test de REGRESIÓN
-// explícito para el bug de la sesión de balance: "Sensores Ampliados"
-// (detect_up) podía ofrecerse con cero efecto.
+// rollOffer/applyCard con rng inyectable.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -38,7 +36,7 @@ function setMeta({ levels = {}, perks = {} } = {}) {
 function makeGame({ stageId = 1, towers = [] } = {}) {
   const slots = Array(5).fill(null);   // fase 61: 5 slots en una fila
   const fortress = {
-    slots, pierce: 0, detectMul: 1, detectApps: 0,
+    slots, pierce: 0,
     hp: 1000, maxHp: 1000, drones: [],
   };
   towers.forEach((type, i) => { slots[i] = { type, level: 1, dmgMul: 1, cadMul: 1 }; });
@@ -85,13 +83,13 @@ const REPEATABLE_CARDS = [
   'dmg_type_electric', 'dmg_type_drone',
   'dmg_missile', 'dmg_beam', 'dmg_thunder', 'dmg_tesla', 'dmg_mortar', 'dmg_gauss',
   'dmg_laser', 'dmg_firewheel', 'dmg_wasps', 'dmg_forcefield',
-  'cadence_up', 'rapid_bullets', 'detect_up', 'pierce_up',
-  'base_shield', 'ult_charge', 'ult_power',
+  'cadence_up', 'rapid_bullets', 'pierce_up',
+  'base_shield', 'ult_power',
   'repair_500', 'armor_plate',
   // dev-7 fase 30: "Nido Ampliado" (+1 mosquito del Dron Mosquitos).
   'swarm_grow',
   // dev-7 fase 51: las CARTAS DE TÉCNICA.
-  'tech_pierce', 'tech_bounce', 'tech_explode', 'tech_slow',
+  'tech_bounce', 'tech_explode', 'tech_slow',
   'tech_crit', 'tech_lifesteal', 'tech_missile_homing', 'tech_exec_missile',
   // fase 74: técnicas para el resto del arsenal.
   'tech_missile_salvo', 'tech_tesla_jump', 'tech_thunder_area',
@@ -152,13 +150,20 @@ test('CATALOG: toda carta tiene apply() y weight > 0', () => {
   }
 });
 
-test('CATALOG: 84 cartas + 28 doctrinas de la 1.12.1', () => {
-  assert.equal(CATALOG.length, 84 + DOCTRINE_CARDS.length);
-  assert.equal(CATALOG.length, 112);
-  assert.equal(REPEATABLE_CARDS.length, 72 + DOCTRINE_CARDS.length);
+test('CATALOG: 81 cartas + 28 doctrinas de la 1.12.2', () => {
+  assert.equal(CATALOG.length, 81 + DOCTRINE_CARDS.length);
+  assert.equal(CATALOG.length, 109);
+  assert.equal(REPEATABLE_CARDS.length, 69 + DOCTRINE_CARDS.length);
   // Las legendarias NO viven en el catálogo normal: sólo en el draft.
   for (const c of LEGENDARY_CARDS) {
     assert.equal(CATALOG.some((x) => x.id === c.id), false, `${c.id} no debe estar en CATALOG`);
+  }
+});
+
+test('1.12.2: las cartas retiradas no vuelven al catálogo ni a CAPS', () => {
+  for (const id of ['tech_pierce', 'detect_up', 'ult_charge']) {
+    assert.equal(CATALOG.some((c) => c.id === id), false, `${id} no debe existir`);
+    assert.equal(CAPS[id], undefined, `${id} no debe tener tope`);
   }
 });
 
@@ -178,8 +183,8 @@ test('limpieza 1.5.4: fuera XP/score; el escudo queda como Escudo de Base', () =
 });
 
 test('CAPS: TODA carta repetible del catálogo tiene tope (anti-stack infinito)', () => {
-  // Regresión: `ult_charge` y `pierce_up` no estaban en la tabla → se
-  // ofrecían en cada level-up de cada run, para siempre.
+  // Regresión: `pierce_up` no estaba en la tabla → se ofrecía en cada
+  // level-up de cada run, para siempre.
   for (const id of REPEATABLE_CARDS) {
     assert.notEqual(CAPS[id], undefined, `${id} sin tope en CAPS`);
     assert.ok(CAPS[id] >= 1, `${id} con tope inválido`);
@@ -204,7 +209,7 @@ test('1.11.0: las mejoras son one-shot salvo las doctrinas (cap 2)', () => {
 test('fase 75: Apagón saca del pool las cartas de ultimate/Black Hole', () => {
   const game = makeGame();
   game.runMods = { noUlt: true };
-  const ids = ['ult_charge', 'ult_power', 'black_hole', 'bh_horizon', 'bh_collapse',
+  const ids = ['ult_power', 'black_hole', 'bh_horizon', 'bh_collapse',
     'combo_singularity', 'combo_blood_pact'];
   for (const id of ids) {
     const card = CATALOG.find((c) => c.id === id);
@@ -230,29 +235,6 @@ test('fase 75: los combos y BH no se apilan más allá de CAPS', () => {
   const duration = game.fortress.blackHoleMods.durationAdd;
   assert.equal(applyCard(horizon, game), null);
   assert.equal(game.fortress.blackHoleMods.durationAdd, duration);
-});
-
-test('detect_up: NO elegible sin Beam/Tesla (regresión)', () => {
-  // Bug real: esta carta escala detectMul, pero Guardian/Missile/Mortar/
-  // Gauss/Láser tienen rango infinito desde v4 4a y el Thunderstroke desde
-  // la fase 73 — la carta no hacía nada si el jugador solo tenía esas.
-  // Viola la regla propia del catálogo ("una carta inútil nunca entra al
-  // pool").
-  const card = CATALOG.find((c) => c.id === 'detect_up');
-  const gameSinFinitas = makeGame({ towers: ['guardian', 'missile', 'mortar'] });
-  assert.equal(isCardEligible(card, gameSinFinitas), false);
-});
-
-test('detect_up: SÍ elegible con Beam o Tesla (el Thunderstroke ya es global)', () => {
-  const card = CATALOG.find((c) => c.id === 'detect_up');
-  for (const type of ['beam', 'tesla']) {
-    const game = makeGame({ towers: ['guardian', type] });
-    assert.equal(isCardEligible(card, game), true, `debería ser elegible con ${type}`);
-  }
-  // fase 73: el Thunderstroke pasó a alcance global; la carta no le hace nada.
-  const soloThunder = makeGame({ towers: ['guardian', 'thunderstroke'] });
-  assert.equal(isCardEligible(card, soloThunder), false,
-    'con solo Thunderstroke la carta sería inútil');
 });
 
 test('bullets_5: NO elegible sin Guardian o con Guardian a tope', () => {
@@ -522,34 +504,6 @@ test('pierce_up: tiene tope (1) y sale del pool al alcanzarlo', () => {
   assert.equal(game.fortress.pierce, 1);
 });
 
-test('ult_charge: se ofrece con el medidor a medias y NO con el medidor lleno', () => {
-  // Regresión: la condición era `f.ultReady` (medidor LLENO) — pero
-  // `chargeUltimate()` no hace nada si `ultCharge >= 1` (justo cuando
-  // `ultReady` es true): la carta se ofrecía exactamente cuando no podía
-  // hacer nada, y en el 0.9 desperdiciaba 0.25 de carga.
-  const game = makeRealGame();
-  const card = CATALOG.find((c) => c.id === 'ult_charge');
-  game.fortress.ultCharge = 0.9;
-  game.fortress.ultReady = false;
-  assert.equal(isCardEligible(card, game), true, 'con el medidor a medias DEBE ofrecerse');
-  game.fortress.ultCharge = 1;
-  game.fortress.ultReady = true;
-  assert.equal(isCardEligible(card, game), false, 'con el medidor lleno NO debe ofrecerse');
-});
-
-test('ult_charge: tope 1 — una sola recarga extra por partida', () => {
-  const game = makeRealGame();
-  const card = CATALOG.find((c) => c.id === 'ult_charge');
-  assert.equal(CAPS.ult_charge, 1);
-  assert.equal(isCardEligible(card, game), true);
-  applyCard(card, game);
-  assert.ok(game.fortress.ultCharge > 0, 'debe sumar carga al medidor');
-  assert.equal(isCardEligible(card, game), false, 'alcanzado el tope sale del pool');
-  const carga = game.fortress.ultCharge;
-  applyCard(card, game); // 2da: ya no hace nada
-  assert.equal(game.fortress.ultCharge, carga);
-});
-
 test('arsenal: las 4 cartas nuevas de daño exclusivo son elegibles SOLO con su unidad', () => {
   // Láser (torre) + los 3 drones: cada una exige POSEER la unidad.
   const vacio = makeRealGame({ stageId: 2 });
@@ -774,7 +728,6 @@ test('fase 30: "Nido Ampliado" (swarm_grow) añade mosquitos al enjambre y sale 
 
 /** Las cartas de técnica: la unidad que necesitan y el mod que dan. */
 const TECH = [
-  { id: 'tech_pierce', unit: 'guardian', key: 'pierceCount', valor: 1 },
   { id: 'tech_bounce', unit: 'guardian', key: 'bounceCount', valor: 1 },
   { id: 'tech_explode', unit: 'guardian', key: 'impactExplodeChance', valor: 1 },
   { id: 'tech_slow', unit: 'beam', key: 'slowOnHit', valor: 0.2 },
@@ -981,7 +934,7 @@ test('fase 59.3: las cartas de desbloqueo pesan más que antes (el arsenal es pr
 });
 
 test('fase 59.3: la utilidad no compite con el daño en la oferta de 3', () => {
-  const utility = ['repair_500', 'armor_plate', 'base_shield', 'detect_up'];
+  const utility = ['repair_500', 'armor_plate', 'base_shield'];
   for (const id of utility) {
     const c = CATALOG.find((x) => x.id === id);
     assert.ok(c.weight <= 5, `${id} (utilidad) pesa ${c.weight}: debería pesar 5 o menos`);
@@ -1140,14 +1093,12 @@ function toparTodo(f) {
       if (CAPS[c.id] !== undefined) d.cardApps[c.id] = CAPS[c.id];
     }
   }
-  f.detectApps = CAPS.detect_up;
   f.baseShieldApps = CAPS.base_shield;
   f.orbitalPowerApps = CAPS.ult_power;
   f.repairApps = CAPS.repair_500;
   f.armorApps = CAPS.armor_plate;
   f.pierce = CAPS.pierce_up;
   f.pierceApps = CAPS.pierce_up;
-  f.ultChargeApps = CAPS.ult_charge;
 }
 
 /** fase 64: id de carta → unidad que EXIGE (para cazar cartas de unidades ausentes). */

@@ -201,6 +201,10 @@ function allOwnedUnits(game) {
 
 /** ¿El jugador ya eligió esta técnica/carta en alguna unidad? */
 function ownsCard(game, cardId) {
+  // `pierce_up` es una carta GLOBAL del Guardian: su contador vive en la
+  // fortaleza (`pierceApps`), no en `unit.cardApps`. La necesita el combo
+  // Perforación Compartida, que ahora se apoya en la carta base.
+  if (cardId === 'pierce_up') return (game?.fortress?.pierceApps ?? 0) > 0;
   return allOwnedUnits(game).some((u) => cardApps(u, cardId) > 0);
 }
 
@@ -316,11 +320,9 @@ function appsOf(cardId, game) {
     case 'cadence_up': return f.cadAllStacks ?? Math.max(0,
       ...f.slots.filter(Boolean).map((t) => t.cadApps ?? 0),
       ...(f.drones ?? []).filter(Boolean).map((d) => d.cadApps ?? 0));
-    case 'detect_up': return f.detectApps ?? 0;
-    // dev-7: `pierce_up` y `ult_charge` no tenían tope (contadores nuevos).
+    // dev-7: `pierce_up` no tenía tope (contador nuevo).
     case 'pierce_up': return f.pierceApps ?? 0;
     case 'base_shield': return f.baseShieldApps ?? 0;
-    case 'ult_charge': return f.ultChargeApps ?? 0;
     case 'ult_power': return f.orbitalPowerApps ?? 0;
     // dev-7 fase 26: contadores de las dos cartas de defensa (ver CAPS).
     case 'repair_500': return f.repairApps ?? 0;
@@ -415,7 +417,7 @@ const EXCLUSIVE_DMG_DRONE = {
 
 /** fase 75: cartas que dependen de ultimate/Black Hole (Apagón las apaga). */
 const NO_ULT_CARD_IDS = new Set([
-  'ult_charge', 'ult_power', 'black_hole',
+  'ult_power', 'black_hole',
   'bh_horizon', 'bh_collapse',
   'combo_singularity', 'combo_blood_pact',
 ]);
@@ -456,13 +458,6 @@ export function isRelevant(card, game) {
   if (card.drone && f && (f.drones?.length ?? 0) >= MAX_DRONES) return false;
   if (card.id === 'black_hole' && f && f.blackHoleCharge >= 1) return false;
   if (card.id === 'repair_500' && f && f.hp >= f.maxHp) return false;
-  // dev-7: la condición de `ult_charge` estaba INVERTIDA. Antes se
-  // ofrecía solo con `f.ultReady` (medidor LLENO) — pero `chargeUltimate()`
-  // no hace nada si `ultCharge >= 1` (que es justo cuando `ultReady` es
-  // true), así que la carta se ofrecía exactamente cuando no podía hacer
-  // NADA. Ahora se ofrece con el medidor a medias, donde +35% de carga sí
-  // sirve (y con tope 1: una sola recarga extra por partida).
-  if (card.id === 'ult_charge' && f && (f.ultCharge ?? 0) >= 1) return false;
   // Mejora de Guardian inútil si no existe o ya está a máximo nivel (§2.2)
   if (card.id === 'bullets_5') {
     const gw = findTower(game, 'guardian');
@@ -471,20 +466,6 @@ export function isRelevant(card, game) {
   // 1.11.0: doctrinas y legendarias exigen poseer la unidad. Es el mismo
   // criterio que las técnicas, pero genérico para no tocar otra tabla.
   if (card.unit && !findUnit(game, card.unit)) return false;
-  // dev-7 (docs/BALANCE.md): Sensores Ampliados (detect_up) NO
-  // hace nada en Guardian/Missile/Mortar/Gauss/Láser - todas quedaron con
-  // detectHalfWidth: Infinity en rebalances posteriores (v4 4a en
-  // adelante) y detectWidthNow() ignora el multiplicador cuando el ancho
-  // no es finito. fase 73: el Thunderstroke también pasó a alcance global;
-  // solo Beam (columnHalfWidth) y Tesla (banda reachY) siguen usando
-  // detectMul. Sin este chequeo, la carta podía ofrecerse con CERO efecto
-  // si el jugador no tiene ninguna de esas 2 — viola la regla propia del
-  // catálogo (línea ~75: "una carta inútil NUNCA entra al pool").
-  if (card.id === 'detect_up') {
-    const hasFiniteRangeTower = ['beam', 'tesla']
-      .some((type) => ownedTypes(game).has(type));
-    if (!hasFiniteRangeTower) return false;
-  }
   // dev-7 fase 12: cartas de daño exclusivas por torre — no entran al
   // pool si el jugador no tiene esa torre puesta (mismo criterio que
   // bullets_5 con Guardian arriba).
@@ -515,8 +496,7 @@ export function isRelevant(card, game) {
   // ALGO de daño. El dron no tiene daño base: su único daño son las
   // espinas del perk de meta ("Campo de espinas", tier 1 A). Sin ese
   // perk la carta multiplicaba 0 × 1.6 = 0: era INERTE (y el jugador
-  // pagaba una carta por nada). Mismo criterio que `detect_up` (que se
-  // gatea si no tienes ninguna unidad de rango finito).
+  // pagaba una carta por nada).
   if (card.id === 'dmg_forcefield') {
     if (!findDrone(game, 'forcefield')) return false;
     if ((perkMods('forcefield').thornDps ?? 0) <= 0) return false;
@@ -551,13 +531,13 @@ export function isCardEligible(card, game) {
  *
  * Son las cartas que este archivo ya gatea por unidad: las que OTORGAN
  * una unidad (`unlock_*` y el Black Hole) o la EXIGEN (exclusivas de
- * torre/dron, cartas de técnica, `swarm_grow`, `bullets_5`, `detect_up`).
+ * torre/dron, cartas de técnica, `swarm_grow`, `bullets_5`).
  */
 function needsUnit(card) {
   return !!(card.tower || card.drone || card.unit || card.id === 'black_hole'
     || EXCLUSIVE_DMG_TOWER[card.id] || EXCLUSIVE_DMG_DRONE[card.id]
     || TECH_UNIT[card.id] || card.id === 'swarm_grow'
-    || card.id === 'bullets_5' || card.id === 'detect_up'
+    || card.id === 'bullets_5'
     // fase 74: combos y cartas condicionadas por tags/unidades/BH.
     || card.requiresTags?.length || card.requiresAllTags?.length
     || card.requiresUnits?.length || card.requiresTagCount
@@ -614,8 +594,6 @@ export function cardUnitTargets(card) {
     return ['guardian'];
   }
   if (card.id === 'swarm_grow') return ['wasps'];
-  // Sensores Ampliados es la única carta compartida por DOS unidades.
-  if (card.id === 'detect_up') return ['beam', 'tesla'];
   return [];
 }
 
@@ -1339,20 +1317,6 @@ export const CATALOG = [
       }
     },
   },
-  {
-    id: 'detect_up',
-    rarity: 'uncommon',
-    name: 'Sensores Ampliados',
-    desc: 'Alcance de detección del Beam y la banda de la Tesla ×1.4.',
-    weight: 4,
-    apply: (g) => {
-      const f = g.fortress;
-      if ((f.detectApps ?? 0) < CAPS.detect_up) {
-        f.detectApps = (f.detectApps ?? 0) + 1;
-        f.detectMul *= 1.4;
-      }
-    },
-  },
 
   // ---------- Desbloqueo de TORRES (§2.2/§6 decisión 3: 1 copia) ----------
   {
@@ -1567,21 +1531,6 @@ export const CATALOG = [
         f.baseShieldApps = (f.baseShieldApps ?? 0) + 1;
         f.baseShields = Math.min(CAPS.base_shield, f.baseShields + 1);
       }
-    },
-  },
-  {
-    id: 'ult_charge',
-    rarity: 'uncommon',
-    name: 'Carga Orbital',
-    // dev-7: sin tope esta carta se ofrecía en CADA level-up de la run.
-    // Tope 1 (CAPS.ult_charge): una sola recarga extra del ultimate.
-    desc: 'Suma 35% de carga del ORBITAL STRIKE al instante (una sola vez).',
-    weight: 5,
-    apply: (g) => {
-      const f = g.fortress;
-      if ((f.ultChargeApps ?? 0) >= CAPS.ult_charge) return;
-      f.ultChargeApps = (f.ultChargeApps ?? 0) + 1;
-      f.chargeUltimate?.(14); // 14/40 ≈ 35%
     },
   },
   {
@@ -1821,11 +1770,11 @@ export const CATALOG = [
     name: 'Perforación Compartida',
     desc: 'Los enemigos atravesados por Guardian o Gauss sangran 0,5% de su HP máximo por segundo durante 2 s. Requiere Núcleos Perforantes y Gauss.',
     weight: 5,
-    requiresCards: ['tech_pierce'],
+    requiresCards: ['pierce_up'],
     requiresUnits: ['gauss'],
     apply: (g) => applyComboSharedPierce(g),
   },
-  // 1.11.0 - doctrinas de unidad (23 cartas, CAPS=2). Entran al catálogo
+  // 1.11.0 - doctrinas de unidad (28 cartas, CAPS=2). Entran al catálogo
   // normal; las legendarias viven aparte y sólo se ofrecen por maestría.
   ...DOCTRINE_CARDS,
 ];

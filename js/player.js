@@ -196,7 +196,6 @@ export class Fortress {
 
     // Mejoras por CARTAS (cards.js v3-1/7): estado de modificadores.
     this.pierce = 0;          // Núcleos Perforantes: atravesamientos extra
-    this.detectMul = 1;       // Sensores Ampliados: ancho/rango ×mul
     this.baseShields = 0;     // Escudo de Base: golpes bloqueados restantes
     this.orbitalDmgMul = 1;   // Impacto Orbital+: daño del ultimate ×mul
     // Arsenal extendido (v3-3/7, §2.3):
@@ -226,7 +225,6 @@ export class Fortress {
     // y en cards.js; un combo nuevo exigía tocar los dos sitios).
     this.comboMods = createComboMods();
     // Contadores de aplicaciones para caps de cartas repetibles:
-    this.detectApps = 0;
     this.baseShieldApps = 0;
     this.orbitalPowerApps = 0;
 

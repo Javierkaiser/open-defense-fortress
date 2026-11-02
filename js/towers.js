@@ -179,9 +179,9 @@ const BEAM_COOLDOWN_COLOR = '#4A5A52';
  * "bajo fuego" del layout (`LAYOUT.bandY`), en px del layout de
  * referencia. Se multiplica por `fallScale` para que el TIEMPO bajo fuego
  * sea el mismo con el marco alto (fase 58): en la referencia
- * (fila en 830, bandY 570) el techo queda en 570 − 70 = 500, o sea una
- * banda de 330 px sobre la fila (= `TOWERS.tesla.reachY`), el 38 %
- * inferior de los 880 del campo.
+ * (fila en 830, bandY 570) el clamp queda en 570 − 70 = 500. Con
+ * `reachY = 462` (1.12.2) el techo efectivo es 368; este clamp solo
+ * actúa si `reachY` baja de 260.
  */
 const TESLA_ABOVE_BAND = 70;
 
@@ -415,14 +415,12 @@ export class Tower {
   }
 
   /**
-   * Ancho de detección efectivo: el canónico del tipo (§2.2) escalado
-   * por la carta Sensores Ampliados (fortress.detectMul).
+   * Ancho de detección efectivo: el canónico del tipo (§2.2).
+   * @param {object} [_game] conservado por compatibilidad de llamadas
+   * @returns {number}
    */
-  detectWidthNow(game) {
-    let w = detectWidth(this.data);
-    const mul = game?.fortress?.detectMul;
-    if (typeof w === 'number' && Number.isFinite(w)) w *= mul ?? 1;
-    return w;
+  detectWidthNow(_game) {
+    return detectWidth(this.data);
   }
 
   /** Guardian (v3 3b/7, corrección JK 26-08): balas por disparo = NIVEL de
@@ -1148,7 +1146,7 @@ export class Tower {
         this.active = false;
         return;
       }
-      const halfW = (this.data.columnHalfWidth ?? 260) * (game?.fortress?.detectMul ?? 1);
+      const halfW = this.data.columnHalfWidth ?? 260;
 
       const old = this._beamTarget;
       // Blanco vigente: vivo y DENTRO del ancho (si escapa → release)

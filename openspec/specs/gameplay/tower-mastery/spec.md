@@ -16,7 +16,7 @@ meta-juego, los perks permanentes ni NG+.
 
 Cada torre y cada dron MUST empezar en nivel 1. Las cartas dedicadas a una
 unidad (exclusivas de daño, técnicas, doctrinas, `bullets_5`, `swarm_grow`,
-`detect_up`, `pierce_up`, `rapid_bullets`) MUST subir su nivel en 1, hasta un
+`pierce_up`, `rapid_bullets`) MUST subir su nivel en 1, hasta un
 tope de **6**. El nivel MUST dar **+5 % de daño y −2 % de recarga** por nivel
 en torres; en drones MUST escalar su efecto principal +5 % por nivel. En el
 tope, la carta sigue aplicando su efecto y su maestría, pero el nivel no sube.

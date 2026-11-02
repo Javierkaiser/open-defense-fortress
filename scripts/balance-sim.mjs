@@ -704,7 +704,7 @@ const DAMAGE_CARDS = new Set([
   'dmg_type_electric', 'dmg_type_drone',
   'cadence_up', 'rapid_bullets', 'bullets_5',
   'hunt_rock', 'hunt_crystal', 'hunt_spore', 'hunt_virus',
-  'tech_crit', 'tech_exec_missile', 'tech_explode', 'tech_pierce', 'tech_bounce',
+  'tech_crit', 'tech_exec_missile', 'tech_explode', 'tech_bounce',
   'tech_stun_missile', 'tech_lifesteal',
   'combo_chain_reactor', 'combo_light_prism', 'combo_singularity',
   'bh_horizon', 'bh_collapse',

@@ -1987,15 +1987,16 @@ test('fase 51: la carta de rebote hace que la BALA del Guardian rebote', () => {
   assert.equal(bala2.bounce, 1, 'con la carta la bala rebota (bounce=1)');
 });
 
-test('fase 51: la carta de perforación hace que la bala ATRAVIESE un enemigo más', () => {
+test('1.12.2: Núcleos Perforantes hace que la bala ATRAVIESE un enemigo más', () => {
   const g = mkGameE48([mkE48(270, 700)]);
   const t = new Tower('guardian', 270, 1);
   t.game = g;
   t.fire(g.fortress.enemies, g, 0.016);
   const bala = g.engine.entities.find((e) => e.constructor?.name === 'Bullet');
-  assert.equal(bala.pierce, 0, 'sin carta la bala no perfora');
-  aplicarCartaATorre(t, 'tech_pierce');
+  assert.equal(bala.pierce, 0, 'sin la carta la bala no perfora');
+  // Efecto de `pierce_up` (la carta base que queda en el catálogo).
   const g2 = mkGameE48([mkE48(270, 700)]);
+  g2.fortress.pierce = 1;
   t.game = g2;
   t.fire(g2.fortress.enemies, g2, 0.016);
   const bala2 = g2.engine.entities.find((e) => e.constructor?.name === 'Bullet');
@@ -2130,7 +2131,7 @@ test('fase 66: la tabla de la Tesla es la del rework (banda, cadencia, saltos)',
   assert.equal(d.jumps, 5, '5 blancos por descarga (antes 3)');
   assert.equal(d.falloff, 0.75, 'el falloff por salto no se toca');
   assert.equal(d.rangeBand, true);
-  assert.equal(d.reachY, 330);
+  assert.equal(d.reachY, 462);
   assert.equal(d.range, undefined, 'la Tesla YA NO usa el círculo de MAX_TOWER_REACH');
   setMeta({});
   assert.equal(mkTowerF66('tesla', []).t.cooldown, 0.7, 'la cadencia efectiva Lv.1 es la de la tabla');
@@ -2138,7 +2139,7 @@ test('fase 66: la tabla de la Tesla es la del rework (banda, cadencia, saltos)',
 
 test('fase 66: la banda adquiere al enjambre de la ESQUINA opuesta', () => {
   // Layout de referencia (el de Node): fila en 830 → bandY 570 → techo de
-  // la banda en 500 (una banda de 330 px sobre la fila = reachY).
+  // la banda en 368 (reachY 462 desde 1.12.2).
   assert.equal(LAYOUT.fallScale, 1, 'el layout de los tests es el de referencia');
   assert.equal(LAYOUT.bandY - 70, 500);
   // El enemigo cae por el extremo IZQUIERDO, a ~400 px de la torre: fuera
@@ -2151,25 +2152,26 @@ test('fase 66: la banda adquiere al enjambre de la ESQUINA opuesta', () => {
   assert.equal(t._primaryTarget([esquina], juego, 1), esquina, 'la Tesla lo adquiere');
 });
 
-test('fase 66: por ENCIMA del techo de la banda la Tesla no adquiere', () => {
-  // Mismo X lejano, 30 px sobre el techo (500): el alcance vertical manda.
-  const arriba = mkAlvo(20, 470);
+test('1.12.2: por ENCIMA del techo de la banda la Tesla no adquiere', () => {
+  // Mismo X lejano, 28 px sobre el techo (368): el alcance vertical manda.
+  const arriba = mkAlvo(20, 340);
   const { t, juego } = mkTowerF66('tesla', [arriba]);
   assert.equal(targetInRange(arriba, juego, t), false, 'por encima de la banda no hay alcance');
   assert.equal(t._primaryTarget([arriba], juego, 1), null, 'no lo adquiere');
-  // El borde es INCLUSIVO: a y = 500 (el techo exacto) sí entra.
-  const borde = mkAlvo(20, 500);
+  // El borde es INCLUSIVO: a y = 368 (el techo exacto) sí entra.
+  const borde = mkAlvo(20, 368);
   assert.equal(targetInRange(borde, juego, t), true, 'el techo de la banda es inclusivo');
 });
 
-test('fase 66: Sensores Ampliados (detectMul) SUBE la banda', () => {
-  const e = mkAlvo(20, 470);
+test('1.12.2: la banda base de la Tesla conserva el alcance de Sensores Ampliados', () => {
+  // La carta subía el techo a 830 − 330×1,4 = 368. Al retirarla, reachY
+  // pasa a 462 y el techo queda en el mismo lugar sin depender de cartas.
+  const e = mkAlvo(20, 340);
   const { t, juego } = mkTowerF66('tesla', [e]);
-  assert.equal(targetInRange(e, juego, t), false, 'sin la carta, 470 queda fuera');
-  juego.fortress.detectMul = 1.4; // la carta real de cards.js (×1,4 por stack)
-  assert.equal(targetInRange(e, juego, t), true,
-    'con detectMul 1,4 el techo sube a 830 − 330×1,4 = 368');
-  // Y la banda NO tiene tope de X (la carta no cambia eso).
+  assert.equal(targetInRange(e, juego, t), false, '340 sigue fuera de la banda');
+  const borde = mkAlvo(20, 368);
+  assert.equal(targetInRange(borde, juego, t), true, '368 es el techo inclusivo');
+  // Y la banda NO tiene tope de X.
   assert.equal(t.detectWidthNow(juego), Infinity, 'el ancho de detección sigue infinito');
 });
 
@@ -2387,8 +2389,8 @@ test('fase 66: al cerrarse la ventana el haz queda APAGADO y no adquiere', () =>
 
 test('fase 66: dos enemigos dentro del ANCHO: solo el blanco pierde vida', () => {
   setMeta({});
-  // El ancho (columnHalfWidth 260 × detectMul) es la ventana de
-  // ADQUISICIÓN, no un área de daño: el haz lastima a UNO solo.
+  // El ancho (columnHalfWidth 260) es la ventana de ADQUISICIÓN, no un
+  // área de daño: el haz lastima a UNO solo.
   const blanco = mkTank(270, 600, 5000);
   const otro = mkTank(470, 600, 4000);
   assert.ok(Math.abs(otro.x - 270) <= TOWERS.beam.columnHalfWidth, 'los dos están dentro del ancho');

@@ -162,7 +162,7 @@ no sólo un multiplicador de daño:
   perks `extraCount`/`chainFork` suman mini rayos, no rayos principales. DPS
   nominal ≈40,6 a un blanco y ≈102 contra un principal + 3 vecinos. Se
   diferencia de la Tesla, que encadena saltos con falloff.
-- **112 cartas normales** (84 + 28 doctrinas) y **33 legendarias** fuera del
+- **109 cartas normales** (81 + 28 doctrinas) y **33 legendarias** fuera del
   catálogo. Casi todas las mejoras se eligen una sola vez (`CAPS = 1`); las
   doctrinas son la excepción (2 rangos) y `bullets_5` sigue siendo el level-up
   del Guardian. Las mejoras ofrecidas se relacionan con las unidades, tags y
@@ -524,6 +524,12 @@ legendarias, no la curva base.
   bajo el umbral para el atacante con execute. La economía pasa a ser de
   **farmeo**: el S50 no se alcanza en una pasada. Detalle en §"El bucle de
   farmeo".
+- **Ronda 1.12.2**: se retiran **Núcleos Perforantes II**, **Sensores
+  Ampliados** y **Carga Orbital**; el catálogo queda en 109 cartas (81 + 28
+  doctrinas). La Tesla sube su banda de 330 a **462 px** (330 × 1,4) para
+  conservar el alcance máximo que daba Sensores Ampliados. Perforación
+  Compartida pasa a requerir Núcleos Perforantes (la carta base). No se
+  re-midieron las tablas: el cambio de Tesla es de cobertura, no de DPS.
 - **Ronda 1.12.1**: las cazas dejan de dar nivel/maestría; 5 doctrinas nuevas
   compensan el tercer hito de las unidades afectadas y la Rueda de Fuego
   cambia Órbita Solar por **Combustión Espontánea**. No se re-midieron las
