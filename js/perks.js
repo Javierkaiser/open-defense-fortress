@@ -152,6 +152,54 @@ export function familyHuntMul(mods, enemy) {
   const v = mods[key];
   return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 1;
 }
+/**
+ * Tope base del umbral de remate. Cabeza Nuclear multiplica el umbral y el
+ * tope a la vez: 15 % sin carta, 30 % con `executeThresholdMul: 2`.
+ */
+export const EXECUTE_THRESHOLD_CAP = 0.15;
+
+/** Daño extra contra un enemigo inmune al remate que está bajo el umbral. */
+export const EXECUTE_IMMUNE_DMG_MUL = 1.30;
+
+/**
+ * Umbral de remate EFECTIVO.
+ *
+ * `base` es el umbral intrínseco de la unidad (6 % en el Misil); `mods`
+ * trae la suma ADITIVA de perks (`executeThreshold`) y el multiplicador de
+ * la carta (`executeThresholdMul`). El tope escala con el multiplicador:
+ * 15 % sin carta, 30 % con Cabeza Nuclear.
+ *
+ * @param {object|null} mods mods de la unidad/proyectil
+ * @param {number} [base=0] umbral intrínseco
+ * @returns {number} 0..0.30
+ */
+export function effectiveExecuteThreshold(mods, base = 0) {
+  const mulRaw = Number(mods?.executeThresholdMul);
+  const mul = Number.isFinite(mulRaw) && mulRaw > 0 ? mulRaw : 1;
+  const addRaw = Number(mods?.executeThreshold);
+  const add = Number.isFinite(addRaw) && addRaw > 0 ? addRaw : 0;
+  const baseRaw = Number(base);
+  const baseAdd = Number.isFinite(baseRaw) && baseRaw > 0 ? baseRaw : 0;
+  return Math.min(EXECUTE_THRESHOLD_CAP * mul, (baseAdd + add) * mul);
+}
+
+/**
+ * ¿El enemigo es inmune al remate? Hoy los jefes (data.boss) lo son; los
+ * enemigos futuros se suman con `executeImmune: true` en ENEMY_TYPES, sin
+ * tocar el combate.
+ *
+ * @param {object|null} enemy
+ * @returns {boolean}
+ */
+export function isExecuteImmune(enemy) {
+  if (!enemy) return false;
+  return enemy.isExecuteImmune === true
+    || enemy.executeImmune === true
+    || enemy.data?.executeImmune === true
+    || enemy.isBoss === true
+    || enemy.data?.boss === true;
+}
+
 export function applyPerkDamage(enemy, n, kind, mods, game, enemies, opts = {}) {
   if (!enemy || enemy.dead) return false;
   const depth = opts.depth ?? 0;
@@ -172,10 +220,17 @@ export function applyPerkDamage(enemy, n, kind, mods, game, enemies, opts = {}) 
   // La geoda esconde el cuerpo detrás de las placas: el umbral de remate
   // mira el HP VISIBLE (cuerpo + placas), no sólo el cuerpo.
   const hpForThreshold = enemy.hpDisplay ?? enemy.hp;
-  if (mods?.executeThreshold && enemy.hpMax
-    && hpForThreshold <= enemy.hpMax * mods.executeThreshold) {
-    executed = dmg < hpForThreshold; // solo cuenta si el remate hizo falta
-    dmg = Math.max(dmg, hpForThreshold); // remate garantizado, sin REDUCIR el daño
+  const threshold = effectiveExecuteThreshold(mods, 0);
+  if (threshold > 0 && enemy.hpMax
+    && hpForThreshold <= enemy.hpMax * threshold) {
+    if (isExecuteImmune(enemy)) {
+      // 1.9.0: los jefes (y futuros inmunes) no se rematan; el atacante que
+      // tiene remate les hace +30 % de daño mientras están bajo el umbral.
+      dmg *= EXECUTE_IMMUNE_DMG_MUL;
+    } else {
+      executed = dmg < hpForThreshold; // solo cuenta si el remate hizo falta
+      dmg = Math.max(dmg, hpForThreshold); // remate garantizado, sin REDUCIR el daño
+    }
   }
   const hpBefore = enemy.hpDisplay ?? enemy.hp;
   const killed = hurt(enemy, dmg, kind);
@@ -225,6 +280,7 @@ export function applyPerkDamage(enemy, n, kind, mods, game, enemies, opts = {}) 
 function hitOptBase(o) {
   return {
     executeThreshold: o?.executeThreshold ?? 0,
+    executeThresholdMul: o?.executeThresholdMul ?? 1,
     lifesteal: o?.lifesteal ?? 0,
     explodeOnKillChance: o?.explodeOnKillChance ?? 0,
     explodeOnKillDmg: o?.explodeOnKillDmg ?? 20,

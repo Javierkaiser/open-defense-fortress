@@ -486,7 +486,7 @@ export class Game {
         // fase 67: "campaña completa" es SOLO el S50 (el +150 y el cartel);
         // el ∞ no vuelve a "terminar" la campaña. Explícito para el HUD.
         isFinal,
-        metaFrags: this.meta.lastGain,     // total al pool (300 | 600 | ∞)
+        metaFrags: this.meta.lastGain,     // total al pool (150 | 300 | ∞)
         metaFirst: this.meta.lastFirst,    // bonus primera vez del stage
         metaGold: goldGain,                // fase 16: oro ganado en total
         metaGoldBonus: isFinal,            // incluye +150 de campaña completa
@@ -1702,7 +1702,7 @@ export class Game {
         // dev-7 fase 28: el "×10" era INVENTADO (§2.4/D11 lo copiaba
         // del juego, pero aquí no existe tal multiplicador).
         // La recompensa real de un stage es la misma que en cualquier
-        // stage: 300 fragmentos al pool, ×2 la PRIMERA vez que se
+        // stage: 150 fragmentos al pool, ×2 la PRIMERA vez que se
         // clears ese stage. Se muestra ese factor real.
         rewardMul: this.meta?.firstClear?.includes(this.stageId ?? 1) ? 1 : 2,
       } : null,

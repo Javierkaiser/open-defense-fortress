@@ -329,6 +329,15 @@ test('1.8.0: el aviso de fase declara el neto real (familia × fase)', () => {
   assert.ok(hibrido.includes('×0,75'), 'HÍBRIDO debe mostrar el neto ×0,75');
 });
 
+test('1.9.0: el bestiario marca a los jefes como inmunes al remate', () => {
+  const html = buildBestiaryHtml();
+  assert.ok(html.includes('bestiary-immune'), 'falta la nota de inmunidad');
+  for (const type of ['boss', 'blobBoss', 'graveBlob', 'armoredBlob', 'hybridBoss']) {
+    const card = bestiaryCards().find((c) => c.type === type);
+    assert.ok(card?.html.includes('bestiary-immune'), `${type}: no avisa que es inmune al remate`);
+  }
+});
+
 test('el bestiario no tiene undefined ni NaN', () => {
   const html = buildBestiaryHtml();
   assert.ok(!html.includes('undefined'), 'el HTML no debe contener "undefined"');

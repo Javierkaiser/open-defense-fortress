@@ -4,6 +4,44 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.9.0] — 2026-11-02
+
+### Balance
+
+- **Fragmentos a la mitad**: 150 por victoria y 300 la primera limpieza de cada
+  etapa (antes 300/600). Repetir una etapa ya limpiada sigue pagando 150: la
+  economía pasa a ser de **farmeo**. La supervivencia y los hitos de Protocolo
+  no cambian.
+- **Daño meta a la mitad**: +9 % por nivel (antes +18 %). La trayectoria de una
+  limpieza por etapa cae de Nvl.44 a Nvl.28 en el S50; el jugador debe repetir
+  etapas para progresar.
+- **Remate del Misil**: tres perks de **+3 %** (tiers 1, 3 y 5) que se suman al
+  6 % intrínseco; tope **15 %**. Cabeza Nuclear multiplica el umbral por 2:
+  **30 %** con el tope. Los tiers 7 B y 9 A se reconvirtieron en Ojiva pesada
+  III (+20 % daño) y Recarga rápida III (−10 % enfriamiento).
+- **Jefes inmunes al remate**: `executeImmune: true` en los 5 jefes (y flag
+  disponible para futuros enemigos). Bajo el umbral, el atacante que tiene
+  remate les hace **×1,30 de daño** en vez de ejecutarlos. Golpe de Gracia
+  respeta el tope 15/30.
+- **Migración**: `PERK_SCHEMA_VERSION` sube a 3. Los saves conservan niveles,
+  fragmentos, oro y desbloqueos; se resetean las elecciones de perks.
+
+### Medición (10 semillas, `--mode=inteligente`)
+
+- S50 con la campaña de una pasada (`pool-focus`, Nvl.28): **0 % win / 0 % HP /
+  0 % bajas**. Es el piso sin farmeo.
+- S50 farmeado Nvl.75: **70 % / 42 % / 66 %**; Nvl.87: **90 % / 61 % / 82 %**.
+  Llegar a Nvl.87 con las 5 unidades del foco requiere ~500 repeticiones extra
+  de 150 fragmentos; Nvl.75, ~365.
+- Campaña de una pasada: S1 100 %, S2 80 %, S3 20 %, S4 70 %, S5 90 %, S6 60 %,
+  S10 10 %, S20 20 %, S30 10 %, S50 0 %. El diseño 1.9.0 asume farmeo; no se
+  compensó el director.
+
+### Tests / versión
+
+- **1050 tests, 0 skip** (35 archivos).
+- Versión **1.9.0** / Android `versionCode 17`.
+
 ## [1.8.0] — 2026-11-02
 
 ### Balance

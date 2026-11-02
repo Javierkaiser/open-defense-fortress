@@ -19,6 +19,7 @@ import { dpsScaleFor } from '../js/towers-data.js';
 import {
   applyProjectileHit, collideProjectiles, projectileRadius, Enemy,
 } from '../js/enemies.js';
+import { effectiveExecuteThreshold } from '../js/perks.js';
 import { CATALOG, applyCard } from '../js/cards.js';
 import { PERKS } from '../js/meta.js';
 import { saveMeta, META_SLOW_CAP, perkDmgFor, metaDmgMul } from '../js/meta.js';
@@ -1852,6 +1853,32 @@ test('fase 51: la carta de perforación hace que la bala ATRAVIESE un enemigo m�
   t.fire(g2.fortress.enemies, g2, 0.016);
   const bala2 = g2.engine.entities.find((e) => e.constructor?.name === 'Bullet');
   assert.equal(bala2.pierce, 1, 'con la carta la bala perfora +1');
+});
+
+test('1.9.0: el Misil suma los tres Remate (15%) y Cabeza Nuclear lo duplica (30%)', () => {
+  setMeta({ perks: { missile: [0, null, 0, null, 0] } });
+  try {
+    const g = mkGameE48([mkE48(270, 700)]);
+    const t = new Tower('missile', 270, 1);
+    t.game = g;
+    t.fire(g.fortress.enemies, g, 0.016);
+    const m = g.engine.entities.find((e) => e.constructor?.name === 'HomingMissile');
+    assert.ok(m, 'el misil se lanzó');
+    assert.equal(m.executeThreshold, 0.15, '6% intrínseco + 3×3% de Remate');
+    assert.equal(m.executeThresholdMul, 1);
+    assert.equal(effectiveExecuteThreshold(m, 0), 0.15);
+
+    aplicarCartaATorre(t, 'tech_exec_missile');
+    const g2 = mkGameE48([mkE48(270, 700)]);
+    t.game = g2;
+    t.fire(g2.fortress.enemies, g2, 0.016);
+    const m2 = g2.engine.entities.find((e) => e.constructor?.name === 'HomingMissile');
+    assert.equal(m2.executeThreshold, 0.15, 'la carta no cambia el umbral crudo');
+    assert.equal(m2.executeThresholdMul, 2, 'la carta duplica el umbral');
+    assert.equal(effectiveExecuteThreshold(m2, 0), 0.30, '15% × 2 = 30%');
+  } finally {
+    setMeta({});
+  }
 });
 
 test('fase 76: la carta de guiado hace que el MISIL persiga mejor (sin stun)', () => {

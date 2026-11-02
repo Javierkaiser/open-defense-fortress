@@ -774,7 +774,7 @@ const TECH = [
   { id: 'tech_crit', unit: 'guardian', key: 'critChanceAdd', valor: 0.2 },
   { id: 'tech_lifesteal', unit: 'beam', key: 'lifesteal', valor: 0.015 },
   { id: 'tech_missile_homing', unit: 'missile', key: 'homingStrength', valor: 1 },
-  { id: 'tech_exec_missile', unit: 'missile', key: 'executeThreshold', valor: 0.12 },
+  { id: 'tech_exec_missile', unit: 'missile', key: 'executeThresholdMul', valor: 2 },
   // fase 74: técnicas del resto del arsenal.
   { id: 'tech_missile_salvo', unit: 'missile', key: 'extraCount', valor: 1 },
   { id: 'tech_tesla_jump', unit: 'tesla', key: 'extraCount', valor: 1 },

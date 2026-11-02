@@ -15,10 +15,10 @@ and the upgrade cards offered on level-up. Every run is a roguelike.
 - 50-stage campaign, endless mode (51+), survival (infinite waves), daily
   challenge and the Heat/Protocol modifiers.
 - 8 towers + 3 drones, each with a signature mechanic (suppression, melt, judgment, ion, crater, rail, cut, ignition, venom and bubble), 84 cards, 7 elite affixes, 5 visual themes with per-theme tower skins (palette, motifs, pad and FX).
-- Decision-driven progression: a new account starts with **Guardian only**; the other 10 units are unlocked with gold. Fragments are a **shared pool**, so leveling one tower leaves less for the rest.
+- Decision-driven progression: a new account starts with **Guardian only**; the other 10 units are unlocked with gold. Fragments are a **shared pool**, so leveling one tower leaves less for the rest. **Replaying cleared stages still pays fragments**: the 1.9.0 economy is farm-based.
 - No ads, no purchases, no accounts, no telemetry.
 - Canvas 2D + DOM/CSS + ES modules; no build step, no server, no network calls.
-- 1041 Node tests.
+- 1050 Node tests.
 
 ## Run it
 
@@ -31,7 +31,7 @@ install needed, and it keeps working offline after the first load.
 node scripts/serve.mjs 8080
 # open http://localhost:8080
 
-# tests (1041) + static checks
+# tests (1050) + static checks
 node --test "tests/test-*.mjs"
 node .github/scripts/ci-checks.mjs
 ```

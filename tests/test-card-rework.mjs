@@ -13,6 +13,7 @@ import {
 } from '../js/cards.js';
 import { Fortress } from '../js/player.js';
 import { Tower, TOWERS, unitMods } from '../js/towers.js';
+import { effectiveExecuteThreshold } from '../js/perks.js';
 import {
   applyProjectileHit, Enemy, applyPoison, applySlow, applyMark, hasMark,
 } from '../js/enemies.js';
@@ -428,7 +429,7 @@ test('fase 76: Ignición Compartida detona el burn sobre los vecinos', () => {
   assert.equal(near.poisonKind, 'burn', 'y queda prendido');
 });
 
-test('fase 76: Golpe de Gracia sube el remate del Misil a 30% contra Juicio', () => {
+test('fase 76 + 1.9.0: Golpe de Gracia pide 30%, pero el tope global lo deja en 15% sin carta', () => {
   const game = mkGame(['missile', 'thunderstroke']);
   applyCard(card('combo_coup'), game);
   const e = mkEnemy(270, 500, 1000);
@@ -437,7 +438,9 @@ test('fase 76: Golpe de Gracia sube el remate del Misil a 30% contra Juicio', ()
   t.fire([e], game, 1 / 60);
   const misil = game.engine.entities.find((x) => x.constructor?.name === 'HomingMissile');
   assert.ok(misil, 'el misil se lanzó');
-  assert.equal(misil.executeThreshold, 0.30);
+  assert.equal(misil.executeThreshold, 0.30, 'el combo pide el piso de 30%');
+  assert.equal(effectiveExecuteThreshold(misil, 0), 0.15,
+    'sin Cabeza Nuclear el tope global es 15%');
 });
 
 test('fase 76: Arco del Guardian consume `charged` y descarga a 2 vecinos', () => {

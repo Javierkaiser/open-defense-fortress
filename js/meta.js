@@ -45,11 +45,14 @@ const KEY = 'gdf_meta';
 export const META_VERSION = 2;
 /**
  * Fragmentos por victoria al POOL COMPARTIDO del arsenal (ya no por torreta).
- * El ×2 de la primera limpieza paga 600. Con 11 unidades y niveles de
+ * El ×2 de la primera limpieza paga 300. Con 11 unidades y niveles de
  * 75-390 fragmentos, el pool sostiene la progresión de todo el arsenal sin
  * obligar a repartir entre torretas.
+ *
+ * 1.9.0: 300 → 150 por victoria (la primera limpieza pasa de 600 a 300).
+ * La supervivencia y los hitos de Protocolo NO cambian.
  */
-export const META_FRAG_PER_VICTORY = 300;
+export const META_FRAG_PER_VICTORY = 150;
 /** Bonus ×2 por la PRIMERA vez que se completa cada stage. */
 export const META_FIRST_CLEAR_MULT = 2;
 /** Coste base por nivel (v6): 75 en la primera década; sube +35 por década
@@ -76,25 +79,20 @@ export const META_UNLOCK_COSTS = {
 /** Tope de nivel meta por torreta (v6, JK 28-08: hasta Lvl.100). */
 export const META_MAX_LEVEL = 100;
 /**
- * +18% de daño base por nivel meta (fase 59.3; antes 5%).
+ * +9% de daño base por nivel meta (1.9.0; antes 18%).
  *
- * POR QUÉ SUBIRLO: la economía de la campaña exige que el PODER
- * PERMANENTE del jugador crezca al ritmo de la ola. Medido (fase
- * 59.1-59.2): el HP total de la ola crece ×17,6 del S1 al S50 (9 494 →
- * 167 321 HP) mientras que la curva del meta sólo crecía ×3,2 (5 %/nivel
- * → Nvl.44 = ×3,15). La distancia DPS-vs-HP se abría ×5,5 y el jugador
- * se quedaba sin arsenal (7 ofertas de cartas en el S50) para una ola
- * ×17,6 más dura: la espiral de la muerte (sin XP no hay cartas, sin
- * cartas no hay bajas).
+ * HISTORIA: la economía de la campaña exigía que el PODER PERMANENTE del
+ * jugador creciera al ritmo de la ola. Medido (fase 59.1-59.2): el HP total
+ * de la ola crece ×17,6 del S1 al S50 y la curva vieja de +5%/nivel solo
+ * daba ×3,15 en Nvl.44; la distancia DPS-vs-HP se abría ×5,5 (espiral de la
+ * muerte). Se subió a +18%/nivel para cerrar ese hueco.
  *
- * Las cartas NO pueden tapar ese hueco: su techo es el catálogo (los topes
- * de CAPS), y con el techo de cartas el S50 se resuelve al 94-100 % — o
- * sea, el catálogo sobra y lo que faltaba era el poder PERMANENTE.
- *
- * Con 18 %/nivel la trayectoria real (Nvl.44 en el S50) da ×7,9 de daño
- * base: ×3,15 → ×7,9 con los mismos fragmentos de siempre.
+ * 1.9.0: el daño por nivel baja a +9% y los fragmentos por victoria a la
+ * mitad. La trayectoria real cae a Nvl.28 en el S50 y el multiplicador meta
+ * queda en ×3,43. Es un nerf deliberado de la economía de poder; se mide con
+ * balance-sim y no se compensa automáticamente.
  */
-export const META_DMG_PER_LEVEL = 0.18;
+export const META_DMG_PER_LEVEL = 0.09;
 /** Dron de Interferencia: +1 p.p. de slow por nivel meta (parte de 30%). */
 export const META_SLOW_PER_LEVEL = 0.01;
 /** Slow base del Campo de Fuerza (Nvl.1): 30%. */
@@ -135,7 +133,7 @@ export const PERK_TIERS = META_MAX_LEVEL / PERK_EVERY;
  * conservan y el jugador vuelve a elegir). Subir esta constante cada vez que
  * se cambie el significado de un tier.
  */
-export const PERK_SCHEMA_VERSION = 2;
+export const PERK_SCHEMA_VERSION = 3;
 /** Oro inicial del jugador (fase 16: oro almacenado y gastable). */
 export const META_GOLD_START = 100;
 /** Coste en oro de redistribuir (resetear) los perks de una torreta entera. */
@@ -152,7 +150,9 @@ export const PERK_RESET_COST = 500;
  * varios pares clave-valor; CÓMO se combinan entre sí lo decide la
  * POLÍTICA POR CLAVE (`MOD_POLICY` en este archivo, ver más abajo):
  *  - multiplicadores ('dmgMul', 'cadMul', 'areaMul'): por PRODUCTO,
- *  - umbrales ('critDmgMul', 'executeThreshold'): se queda con el MEJOR,
+ *  - umbrales multiplicativos ('critDmgMul'): se queda con el MEJOR,
+ *  - remate ('executeThreshold'): por SUMA con tope (base 15 %, 30 % con
+ *    Cabeza Nuclear; ver perks.js),
  *  - probabilidades y contadores: por SUMA (con tope donde hace falta).
  * towers.js los lee todos juntos vía `perkMods(type)` en vez de leer
  * `perkCount(type)` y aplicar una fórmula propia por sitio — así un
@@ -225,23 +225,23 @@ export const PERKS = {
       B: { desc: 'DEFINITIVO Supresión: +2 rebotes, +1 perforación y -10% de enfriamiento', mods: { bounceCount: 2, pierceCount: 1, cadMul: 0.9 } } },
   ],
   missile: [
-    { A: { desc: 'Remate: remata bajo 10% de vida', mods: { executeThreshold: 0.1 } },
+    { A: { desc: 'Remate I: +3% al umbral (base 6% → 9%)', mods: { executeThreshold: 0.03 } },
       B: { desc: 'Guiado mejorado: los misiles giran más rápido', mods: { homingStrength: 1 } } },
     { A: { desc: '+1 misil por salva', mods: { extraCount: 1 } },
       B: { desc: 'Guiado II: seguimiento casi perfecto', mods: { homingStrength: 1 } } },
-    { A: { desc: 'Remate II: remata bajo 12% de vida', mods: { executeThreshold: 0.12 } },
-      B: { desc: 'Ojiva pesada: +15% de daño del misil', mods: { dmgMul: 1.15 } } },
+    { A: { desc: 'Remate II: +3% al umbral (9% → 12%)', mods: { executeThreshold: 0.03 } },
+      B: { desc: 'Ojiva pesada I: +15% de daño del misil', mods: { dmgMul: 1.15 } } },
     { A: { desc: 'Guiado III: seguimiento casi perfecto', mods: { homingStrength: 1 } },
       B: { desc: '+1 misil por salva (II)', mods: { extraCount: 1 } } },
-    { A: { desc: 'Remate III: remata bajo 15% de vida', mods: { executeThreshold: 0.15 } },
-      B: { desc: 'Recarga rápida: -10% de enfriamiento', mods: { cadMul: 0.9 } } },
+    { A: { desc: 'Remate III: +3% al umbral (12% → 15%)', mods: { executeThreshold: 0.03 } },
+      B: { desc: 'Recarga rápida I: -10% de enfriamiento', mods: { cadMul: 0.9 } } },
     { A: { desc: 'Ojiva pesada II: +20% de daño', mods: { dmgMul: 1.2 } },
       B: { desc: '+1 misil por salva (III)', mods: { extraCount: 1 } } },
     { A: { desc: 'Guiado IV: seguimiento casi perfecto', mods: { homingStrength: 1 } },
-      B: { desc: 'Remate IV: remata bajo 18% de vida', mods: { executeThreshold: 0.18 } } },
-    { A: { desc: 'Recarga rápida II: -10% de enfriamiento', mods: { cadMul: 0.9 } },
       B: { desc: 'Ojiva pesada III: +20% de daño', mods: { dmgMul: 1.2 } } },
-    { A: { desc: 'Remate V: remata bajo 20% de vida', mods: { executeThreshold: 0.2 } },
+    { A: { desc: 'Recarga rápida II: -10% de enfriamiento', mods: { cadMul: 0.9 } },
+      B: { desc: 'Ojiva pesada IV: +20% de daño', mods: { dmgMul: 1.2 } } },
+    { A: { desc: 'Recarga rápida III: -10% de enfriamiento', mods: { cadMul: 0.9 } },
       B: { desc: '+1 misil por salva (IV)', mods: { extraCount: 1 } } },
     { A: { desc: 'DEFINITIVO Ojiva cazadora: guiado máximo y +20% de daño', mods: { homingStrength: 2, dmgMul: 1.2 } },
       B: { desc: 'DEFINITIVO Lluvia de misiles: +2 misiles y +20% de daño', mods: { extraCount: 2, dmgMul: 1.2 } } },
@@ -715,7 +715,7 @@ export function unlockTower(meta, towerKey, storage = safeLocalStorage()) {
  * (91–100). Los primeros niveles conservan el coste histórico 75; el
  * total REAL para llevar una torreta de Nvl.1 a Nvl.100 es de 22 860
  * fragmentos (suma de fragCost(1..99)), lo que sostiene una progresión
- * larga sin volverse inalcanzable con +300 por victoria (600 la primera
+ * larga sin volverse inalcanzable con +150 por victoria (300 la primera
  * limpieza de cada stage) al pool compartido.
  */
 export function fragCost(level) {
@@ -763,12 +763,11 @@ export function perkCount(type, meta = currentMeta()) {
  *    hacen x3"). Si dos perks dicen x3, el jugador quiere x3, NO x9.
  *    Multiplicarlo convertía un perk de crítico en un multiplicador de
  *    daño bestial.
- *  - executeThreshold → 'max': es un UMBRAL ("remata bajo 15% de vida"),
- *    no un incremento. El jugador se queda con el mejor umbral, y los
- *    valores de cada tier están calibrados para que el último sea
- *    estrictamente mejor (ver PERKS). Sumarlos disparaba umbrales
- *    incontrolados (50% = remate instantáneo) y hacía que un perk de
- *    nivel bajo "machacara" al de nivel alto.
+ *  - executeThreshold → 'sum' con clamp 0.15: desde 1.9.0 es un
+ *    INCREMENTO ("+3% al umbral"), no un umbral absoluto. Los perks de
+ *    Remate se suman y el Misil parte de su 6% intrínseco; el tope real
+ *    (15% sin carta, 30% con Cabeza Nuclear) lo aplica el combate en
+ *    perks.js. Sumarlos sin tope permitiría remates instantáneos.
  *  - critChanceAdd / explodeOnKillChance / stunChance / lifesteal → 'sum'
  *    con clamp 1: son PROBABILIDADES (o fracciones); 40% + 40% = 80% está
  *    bien, 40% + 40% + 50% = 130% no existe → tope a 100%.
@@ -795,7 +794,7 @@ const MOD_POLICY = {
   areaMul: { op: 'mul' },
   // --- umbrales / topes: se queda con el MEJOR ---
   critDmgMul: { op: 'max' },
-  executeThreshold: { op: 'max' },
+  executeThreshold: { op: 'sum', clamp: 0.15 },
   // --- probabilidades: suma con tope a 100% ---
   critChanceAdd: { op: 'sum', clamp: 1 },
   explodeOnKillChance: { op: 'sum', clamp: 1 },
@@ -1033,8 +1032,8 @@ export function towerMilestones(type, meta = currentMeta()) {
 }
 
 /**
- * Multiplicador de daño meta de un tipo (v6, 100 niveles): 1 + 5%×(nivel−1)
- *  — Nvl.100 = ×5.95 — MÁS el bonus de HITOS de esa torreta (+2% por hito
+ * Multiplicador de daño meta de un tipo (v6, 100 niveles): 1 + 9%×(nivel-1)
+ *  — Nvl.100 = ×9.91 — MÁS el bonus de HITOS de esa torreta (+2% por hito
  *  alcanzado: ×1.08 en Nvl.100 con los 4 hitos).
  * (Comentario viejo corregido: NO es "10%×tope Nvl.5", esa era la v3.5
  *  base; ver META_DMG_PER_LEVEL/META_MAX_LEVEL arriba y docs/BALANCE.md
@@ -1122,19 +1121,14 @@ export function rewardGold(n, meta = currentMeta(), storage = safeLocalStorage()
  * El rango NO se persiste: es una FUNCIÓN de `victories` (misma idea que
  * el nivel meta, que también se deriva del progreso).
  *
- * UMBRALES y por qué son esos (cifras reales del meta-juego, con el pool
- * compartido de 300 fragmentos por victoria y 600 la primera limpieza):
+ * UMBRALES (son de VICTORIAS, no de fragmentos; no cambian con la economía
+ * de 1.9.0):
  *  - 0 victorias → Aprendiz: cuenta nueva.
- *  - 10 victorias → Centinela: ~3 000 fragmentos al pool (Nvl.20-25 de
- *    una torreta, o el arsenal temprano repartido).
- *  - 50 victorias → Guardia: ~15 000 fragmentos (Nvl.57-60 de una torreta:
- *    ya hay 5-6 perks elegidos).
- *  - 150 victorias → Comandante: ~45 000 fragmentos (dos torretas al
- *    máximo y una tercera a mitad de camino).
- *  - 331 victorias → Almirante: ~99 300 fragmentos al pool = 4 torretas a
- *    Nvl.100 (22 860 cada una) y el resto del arsenal desbloqueado.
- *  - 1000 victorias → Arquitecto: ~300 000 fragmentos = todo el arsenal
- *    al máximo varias veces.
+ *  - 10 victorias → Centinela: ~1 500 fragmentos al pool.
+ *  - 50 victorias → Guardia: ~7 500 fragmentos.
+ *  - 150 victorias → Comandante: ~22 500 fragmentos.
+ *  - 331 victorias → Almirante: ~49 650 fragmentos al pool.
+ *  - 1000 victorias → Arquitecto: ~150 000 fragmentos.
  */
 export const META_RANKS = [
   { id: 'aprendiz',   name: 'Aprendiz',   min: 0,    color: 'var(--rank-1)' },
@@ -1182,7 +1176,7 @@ export function totalMetaLevels(meta = currentMeta()) {
 // ---------- Recompensas ----------
 
 /**
- * Victoria de stage: +300 fragmentos AL POOL COMPARTIDO (×2 = 600 la primera
+ * Victoria de stage: +150 fragmentos AL POOL COMPARTIDO (×2 = 300 la primera
  * vez que se completa ese stage). Los fragmentos se ACUMULAN puros en la
  * barra y el nivel sube SOLO con el botón MEJORAR (upgradeTower) — corrección
  * v6 (JK 28-08): el rollover automático consumía la barra antes de llegar
@@ -1221,7 +1215,7 @@ export function rewardVictory(meta, stageId, storage = safeLocalStorage(), { hea
   m.victories += 1;
   if (first) m.firstClear.push(id);
   const saved = saveMeta(m, storage);
-  saved.lastGain = gain;   // al pool (300 | 600 | ∞) — no persisten
+  saved.lastGain = gain;   // al pool (150 | 300 | ∞) — no persisten
   saved.lastFirst = first; // solo para el resumen STAGE_CLEAR
   return saved;
 }

@@ -79,18 +79,19 @@ torretas automáticamente.
 ### Requirement: Ganancia de fragmentos al pool
 
 Cada victoria MUST sumar una cantidad fija de fragmentos al pool compartido:
-300 en una limpieza normal y 600 la primera vez que se completa una etapa.
-Los hitos de Protocolo, la supervivencia y el infinito suman al mismo pool.
+150 en una limpieza normal y 300 la primera vez que se completa una etapa.
+Repetir una etapa ya limpiada MUST seguir pagando 150. Los hitos de Protocolo,
+la supervivencia y el infinito suman al mismo pool.
 
 #### Scenario: Victoria normal
 
 - **WHEN** el jugador completa una etapa ya limpiada
-- **THEN** el pool recibe 300 fragmentos una sola vez, no 300 por torreta
+- **THEN** el pool recibe 150 fragmentos una sola vez, no 150 por torreta
 
 #### Scenario: Primera limpieza
 
 - **WHEN** el jugador completa una etapa por primera vez
-- **THEN** el pool recibe 600 fragmentos
+- **THEN** el pool recibe 300 fragmentos
 
 ### Requirement: Migración de fragmentos por torreta
 

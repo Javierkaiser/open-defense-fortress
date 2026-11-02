@@ -97,20 +97,17 @@ test('fragCost: primera década es la más barata (75)', () => {
   assert.equal(fragCost(10), 75);
 });
 
-test('metaDmgMul: 1× en nivel 1, curva ×18,82 + hitos en el techo real (nivel 100)', () => {
+test('metaDmgMul: 1× en nivel 1, curva ×9,91 + hitos en el techo real (nivel 100)', () => {
   const key = META_TOWERS[0].key;
   const type = META_TOWERS[0].type;
   const metaLv1 = normalizeMeta({ levels: { [key]: 1 } });
   const metaLv100 = normalizeMeta({ levels: { [key]: META_MAX_LEVEL } });
   assert.equal(metaDmgMul(type, metaLv1), 1);
-  // dev-7 fase 59.3: la curva de nivel SUBE de +5 %/nivel a +18 %/nivel.
-  // POR QUÉ: el HP total de la ola crece ×17,6 del S1 al S50 y el meta
-  // sólo crecía ×3,2 — la distancia DPS-vs-HP se abría ×5,5 y el jugador
-  // se quedaba en el Nvl 1,3 en el S50 (espiral de la muerte). Las cartas
-  // no pueden tapar ese hueco: su techo es el catálogo (los CAPS).
-  // Con +18 %/nivel la trayectoria real (Nvl.44 en el S50) da ×7,9.
+  // 1.9.0: la curva baja de +18 %/nivel a +9 %/nivel. Con la economía de
+  // fragmentos a la mitad, la trayectoria real cae a Nvl.28 en el S50 y el
+  // multiplicador meta queda en ×3,43 (antes ×8,74).
   const curva = 1 + META_DMG_PER_LEVEL * (META_MAX_LEVEL - 1);
-  assert.ok(curva > 18.8 && curva < 18.9,
+  assert.ok(curva > 9.9 && curva < 9.92,
     'si esto cambia, docs/BALANCE.md "Plan integral §3" queda desactualizado');
   // El valor real le SUMA los 4 hitos de la torre (+2% cada uno).
   assert.ok(Math.abs(metaDmgMul(type, metaLv100) - curva * milestoneDmgMul(type, metaLv100)) < 1e-9,
@@ -448,10 +445,10 @@ function memStorage() {
 
 test('fase 67: la recompensa del ∞ escala con la profundidad (S55 < S75)', () => {
   const storage = memStorage();
-  // 55: escalón 1, hito (múltiplo de 5) → 300 × 1 × 1,5 = 450
+  // 55: escalón 1, hito (múltiplo de 5) → 150 × 1 × 1,5 = 225
   const s55 = rewardVictory(defaultMeta(), 55, storage);
   assert.equal(s55.lastGain, META_FRAG_PER_VICTORY * 1.5);
-  // 75: escalón 3 (1 + floor(24/10)), hito → 300 × 3 × 1,5 = 1350
+  // 75: escalón 3 (1 + floor(24/10)), hito → 150 × 3 × 1,5 = 675
   const s75 = rewardVictory(s55, 75, storage);
   assert.equal(s75.lastGain, META_FRAG_PER_VICTORY * 3 * 1.5);
   assert.ok(s75.lastGain > s55.lastGain, 'el ∞ tiene que pagar más cuanto más profundo');
@@ -459,8 +456,8 @@ test('fase 67: la recompensa del ∞ escala con la profundidad (S55 < S75)', () 
 
 test('fase 67: el HITO del ∞ paga ×1,5 (S59 vs S60, mismo escalón)', () => {
   const storage = memStorage();
-  const normal = rewardVictory(defaultMeta(), 59, storage); // 300 × 1
-  const hito = rewardVictory(normal, 60, storage);          // 300 × 1 × 1,5
+  const normal = rewardVictory(defaultMeta(), 59, storage); // 150 × 1
+  const hito = rewardVictory(normal, 60, storage);          // 150 × 1 × 1,5
   assert.equal(normal.lastGain, META_FRAG_PER_VICTORY);
   assert.equal(hito.lastGain, META_FRAG_PER_VICTORY * 1.5);
 });
@@ -511,14 +508,14 @@ test('fase 67: limpiar ∞ NO escribe firstClear (ni paga ×2 permanente)', () =
   assert.equal(s75.victories, base.victories + 3); // las victorias sí cuentan
 });
 
-test('fase 67: la CAMPAÑA sigue pagando como siempre (S10: 600 → 300)', () => {
+test('fase 67: la CAMPAÑA sigue pagando como siempre (S10: 300 → 150)', () => {
   const storage = memStorage();
   const first = rewardVictory(defaultMeta(), 10, storage);
-  assert.equal(first.lastGain, META_FRAG_PER_VICTORY * META_FIRST_CLEAR_MULT); // 600
+  assert.equal(first.lastGain, META_FRAG_PER_VICTORY * META_FIRST_CLEAR_MULT); // 300
   assert.equal(first.lastFirst, true);
   assert.deepEqual(first.firstClear, [10]);
   const again = rewardVictory(first, 10, storage);
-  assert.equal(again.lastGain, META_FRAG_PER_VICTORY);                        // 300
+  assert.equal(again.lastGain, META_FRAG_PER_VICTORY);                        // 150
   assert.equal(again.lastFirst, false);
   assert.deepEqual(again.firstClear, [10]); // sin duplicar
 });
@@ -602,16 +599,14 @@ test('PERKS: las descripciones están bien acentuadas (fase 25, sin palabras sin
 // ============================================================================
 
 /**
- * Escalera de umbrales de ejecución: el valor ABSOLUTO que queda si el
- * jugador elige ese perk. El índice es la posición del perk de ejecución
- * dentro de la torre (0 = el primero). Como `executeThreshold` se compone
- * por MÁXIMO (no por suma), el perk más caro de cada torre tiene que
- * estar en la posición más alta de su escalera.
+ * 1.9.0: los perks de Remate son ADITIVOS (+3% cada uno). No hay escalera
+ * absoluta; el tope (15% sin carta, 30% con Cabeza Nuclear) lo aplica el
+ * combate en perks.js.
  */
-const ESCALERA_UMBRAL = [0.10, 0.12, 0.15, 0.18, 0.20, 0.22, 0.25, 0.28, 0.30, 0.32];
+const REMATE_STEP = 0.03;
 
-/** Porcentajes de un desc que describen un UMBRAL ("remata bajo 12%"). */
-const RE_UMBRAL = /(?:bajo|menos del)\s+(\d+(?:[.,]\d+)?)\s*%/g;
+/** "+3% al umbral" en las descripciones de Remate. */
+const RE_REMATE = /\+(\d+(?:[.,]\d+)?)\s*%\s+al umbral/;
 
 /** Todas las claves de mod usadas por PERKS (las que el combate debe leer). */
 const CLAVES_DE_PERKS = [...new Set(
@@ -631,11 +626,12 @@ test('mergeMods: critDmgMul se queda con el MEJOR (máx), no multiplica', () => 
   assert.equal(mergeMods([{ mods: { critDmgMul: 3 } }, { mods: { critDmgMul: 2 } }]).critDmgMul, 3);
 });
 
-test('mergeMods: executeThreshold se queda con el MEJOR (máx), no suma', () => {
-  // Es un UMBRAL ("remata bajo X%"), no un incremento: 10% y 15% → 15%.
-  assert.equal(mergeMods([{ mods: { executeThreshold: 0.1 } }, { mods: { executeThreshold: 0.15 } }]).executeThreshold, 0.15);
-  assert.equal(mergeMods([{ mods: { executeThreshold: 0.15 } }, { mods: { executeThreshold: 0.1 } }]).executeThreshold, 0.15);
-  assert.equal(mergeMods([{ mods: { executeThreshold: 0.1 } }, { mods: { executeThreshold: 0.1 } }]).executeThreshold, 0.1);
+test('mergeMods: executeThreshold SUMA y se topa en 15% (remate aditivo 1.9.0)', () => {
+  // 1.9.0: es un INCREMENTO ("+3% al umbral"), no un umbral absoluto.
+  assert.equal(mergeMods([{ mods: { executeThreshold: 0.03 } }, { mods: { executeThreshold: 0.03 } }]).executeThreshold, 0.06);
+  assert.equal(mergeMods([{ mods: { executeThreshold: 0.06 } }, { mods: { executeThreshold: 0.06 } }]).executeThreshold, 0.12);
+  assert.equal(mergeMods([{ mods: { executeThreshold: 0.1 } }, { mods: { executeThreshold: 0.1 } }]).executeThreshold, 0.15,
+    'la suma se topa en el 15% del remate base');
 });
 
 test('mergeMods: las probabilidades se topan en 100%', () => {
@@ -671,59 +667,40 @@ test('mergeMods: las claves desconocidas siguen la regla por defecto (…Mul pro
 
 // ---------- T2: escalera de umbrales + descripciones honestas ----------
 
-test('PERKS: los umbrales de ejecución del Misil siguen la escalera calibrada', () => {
-  // Fase 1 — el remate es la identidad del Misil; ninguna otra torre lo tiene.
-  for (const t of META_TOWERS.filter((x) => x.type === 'missile')) {
-    let pos = 0;
-    PERKS[t.type].forEach((tier, i) => {
-      for (const rama of ['A', 'B']) {
-        const v = tier[rama].mods.executeThreshold;
-        if (v === undefined) continue;
-        const esperado = ESCALERA_UMBRAL[pos];
-        assert.ok(esperado !== undefined,
-          `${t.type} tier ${i + 1} ${rama}: hay demasiados perks de ejecución (la escalera llega a ${pos})`);
-        assert.equal(v, esperado,
-          `${t.type} tier ${i + 1} ${rama}: executeThreshold=${v}, la escalera dice ${esperado}`);
-        pos += 1;
-      }
-    });
-    assert.ok(pos > 0, `${t.type} no tiene ningún perk de ejecución`);
+test('PERKS: el Misil tiene tres Remate aditivos de +3%', () => {
+  const remates = [];
+  PERKS.missile.forEach((tier, i) => {
+    for (const rama of ['A', 'B']) {
+      const v = tier[rama].mods.executeThreshold;
+      if (v === undefined) continue;
+      remates.push({ i, rama, v, desc: tier[rama].desc });
+    }
+  });
+  assert.equal(remates.length, 3, 'el Misil conserva tres perks de Remate');
+  assert.deepEqual(remates.map((r) => r.i), [0, 2, 4], 'tiers 1, 3 y 5');
+  for (const r of remates) {
+    assert.equal(r.v, REMATE_STEP,
+      `${r.rama} tier ${r.i + 1}: executeThreshold=${r.v}, se esperaba +${REMATE_STEP}`);
   }
 });
 
-test('PERKS: dentro del Misil, el perk de ejecución más caro tiene el umbral más alto', () => {
-  for (const t of META_TOWERS.filter((x) => x.type === 'missile')) {
-    let anterior = -1;
-    PERKS[t.type].forEach((tier, i) => {
-      for (const rama of ['A', 'B']) {
-        const v = tier[rama].mods.executeThreshold;
-        if (v === undefined) continue;
-        assert.ok(v > anterior,
-          `${t.type} tier ${i + 1} ${rama}: executeThreshold=${v} no es mayor que el anterior (${anterior})`);
-        anterior = v;
-      }
-    });
+test('PERKS: cada Remate dice +3% y los tiers 7/9 ya no son Remate', () => {
+  for (const tier of PERKS.missile) {
+    for (const rama of ['A', 'B']) {
+      const perk = tier[rama];
+      const v = perk.mods.executeThreshold;
+      if (v === undefined) continue;
+      const m = perk.desc.match(RE_REMATE);
+      assert.ok(m, `la descripción "${perk.desc}" no dice "+X% al umbral"`);
+      assert.equal(Number(m[1].replace(',', '.')), 3,
+        `la descripción "${perk.desc}" no dice +3%`);
+    }
   }
-});
-
-test('PERKS: toda opción con executeThreshold DICE ese umbral (las descripciones no mienten)', () => {
-  for (const t of META_TOWERS) {
-    PERKS[t.type].forEach((tier, i) => {
-      for (const rama of ['A', 'B']) {
-        const perk = tier[rama];
-        const v = perk.mods.executeThreshold;
-        if (v === undefined) continue;
-        const esperado = Math.round(v * 100);
-        const encontrados = [...perk.desc.matchAll(RE_UMBRAL)].map((m) => Math.round(Number(m[1].replace(',', '.'))));
-        assert.ok(encontrados.length > 0,
-          `${t.type} tier ${i + 1} ${rama}: la descripción "${perk.desc}" no dice ningún umbral`);
-        for (const pct of encontrados) {
-          assert.equal(pct, esperado,
-            `${t.type} tier ${i + 1} ${rama}: la descripción "${perk.desc}" dice ${pct}% pero el mod vale ${v} (${esperado}%)`);
-        }
-      }
-    });
-  }
+  // Los dos tiers que antes eran Remate IV/V se reconvirtieron.
+  assert.equal(PERKS.missile[6].B.mods.executeThreshold, undefined, 'tier 7 B ya no es Remate');
+  assert.equal(PERKS.missile[8].A.mods.executeThreshold, undefined, 'tier 9 A ya no es Remate');
+  assert.equal(PERKS.missile[6].B.mods.dmgMul, 1.2, 'tier 7 B es Ojiva pesada III');
+  assert.equal(PERKS.missile[8].A.mods.cadMul, 0.9, 'tier 9 A es Recarga rápida III');
 });
 
 // ---------- T6: la red anti-"perks muertos" ----------
@@ -1159,9 +1136,9 @@ test('fragCost: llevar una torreta de Nvl.1 a Nvl.100 cuesta 22 860 fragmentos',
 // (upgradePlan/pendingUpgrades/pendingUpgradeCost/upgradeAllTowers) se
 // eliminaron: la UI se actualiza después.
 
-test('economía v2: META_VERSION, pool de 300 por victoria y costes de desbloqueo', () => {
+test('economía v2: META_VERSION, pool de 150 por victoria y costes de desbloqueo', () => {
   assert.equal(META_VERSION, 2);
-  assert.equal(META_FRAG_PER_VICTORY, 300);
+  assert.equal(META_FRAG_PER_VICTORY, 150);
   assert.equal(META_FIRST_CLEAR_MULT, 2);
   assert.equal(META_UNLOCK_COSTS.guardian, 0);
   assert.equal(META_UNLOCK_COSTS.laser, 500);
@@ -1224,7 +1201,7 @@ test('rewardVictory/rewardFrags: suman al pool UNA sola vez (no por torreta)', (
   const storage = memStorage();
   const first = rewardVictory(defaultMeta(), 3, storage);
   assert.equal(first.fragsPool, META_FRAG_PER_VICTORY * META_FIRST_CLEAR_MULT,
-    '300 × 2 = 600, una vez al pool');
+    '150 × 2 = 300, una vez al pool');
   const again = rewardVictory(first, 3, storage);
   assert.equal(again.fragsPool, first.fragsPool + META_FRAG_PER_VICTORY);
   const bonus = rewardFrags(again, 35, storage);

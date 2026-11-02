@@ -189,11 +189,11 @@ export const TECH_CARDS = [
     id: 'tech_exec_missile',
     rarity: 'rare',
     name: 'Cabeza Nuclear',
-    desc: 'Los misiles del Misil rematen a los que quedan bajo el 12 % de vida.',
+    desc: 'Duplica el umbral de remate del Misil: 6 % → 12 % sin perks; 15 % → 30 % con Remate III. Los jefes son inmunes: bajo el umbral reciben +30 % de daño.',
     weight: 5,
     minStage: 2,
     unit: 'missile',
-    mods: { executeThreshold: 0.12 },
+    mods: { executeThresholdMul: 2 },
   },
   // fase 74 — técnicas para el resto del arsenal. Todas usan mods que
   // `unitMods()` ya lee (o que se agregan en esta fase) y exigen poseer

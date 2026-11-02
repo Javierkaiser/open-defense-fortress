@@ -198,7 +198,7 @@ export class Drone {
         // ida y vuelta entre oleadas era tiempo sin daño).
         // DPS 25/s de tabla (el dial de presentación lo deja en 18,75)
         // escalado por meta (META_DMG_PER_LEVEL en meta.js — hoy
-        // +18 %/nivel; el comentario viejo decía "+10 %/nivel" y mentía) y
+        // +9 %/nivel desde 1.9.0; antes +18 %/nivel) y
         // por la carta exclusiva del dron (dmg_firewheel escribe
         // `this.dmgMul`).
         // v6 perk: +3 DPS del barrido por cada 10 niveles meta

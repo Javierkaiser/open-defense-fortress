@@ -160,7 +160,7 @@ MENU ⇄ CREDITS
 | Torre | Identidad | Mecánica firma |
 |---|---|---|
 | Guardian | Supresión balística | 3 impactos consecutivos al mismo blanco detonan foco (+45 %); crítico y rebote |
-| Missile | Cazador de una amenaza | Homing + remate intrínseco bajo 6 %, ampliable |
+| Missile | Cazador de una amenaza | Homing + remate intrínseco bajo 6 %; perks aditivos +9 % (tope 15 %, 30 % con Cabeza Nuclear) |
 | Beam | Foco térmico de un blanco | Ramp de foco + `melt` (hasta 3 stacks); robo de vida y slow |
 | Thunderstroke | Tormenta de control | Stun que marca `judgment` (+15 % eléctrico) y estallido de área |
 | Tesla | Conducción local | Cadena con `ion` (+10 % eléctrico) y bifurcación |
@@ -211,11 +211,13 @@ crías del divisor dañan la base pero no consumen la regla de fugas.
 5 tipos: balístico, luz, explosión, eléctrico y dron.
 4 familias: roca, cristal, espora y virus.
 La matriz `TYPE_MATRIX` define fortalezas y debilidades; ninguna variante es
-inmune: todo se puede matar, solo cambia el costo.
+inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 ### Perks
 
-- **Remate**: sólo el Misil (umbral intrínseco 6 %, perks hasta 20 %).
+- **Remate**: sólo el Misil (umbral intrínseco 6 %, +3 % por perk, tope 15 %;
+  30 % con Cabeza Nuclear). Los jefes son inmunes y reciben +30 % de daño del
+  atacante con remate mientras están bajo el umbral.
 - **Robo de vida**: sólo Beam y Mosquitos, con tope del 10 %.
 - **Explosión al matar**: sólo la Rueda de Fuego.
 - **Stun**: sólo Thunderstroke; **slow**: sólo Beam (el Campo de Fuerza lo
@@ -267,10 +269,12 @@ inmune: todo se puede matar, solo cambia el costo.
   excepción (level-up del Guardian). El daño global da +10 % una vez y el daño
   por tipo +20 % una vez; los combos exigen sus dos piezas.
 - **Meta**: 100 niveles por unidad con **un pool compartido de fragmentos**
-  (`fragsPool`): 300 por victoria y 600 la primera limpieza de cada etapa;
-  `fragCost(nivel) = 75 + 35·década` y +18 % de daño por nivel. No hay botón
+  (`fragsPool`): 150 por victoria y 300 la primera limpieza de cada etapa;
+  `fragCost(nivel) = 75 + 35·década` y +9 % de daño por nivel. No hay botón
   para subir todas las torretas a la vez: el jugador elige dónde invertir el
   pool. Las mejoras se aplican en batalla (`metaDmgMul`, `critBonusPct`).
+  La economía 1.9.0 es de **farmeo**: la campaña de una pasada no llega al S50;
+  hay que repetir etapas (150 por victoria) para subir el meta.
 - **Desbloqueos con oro**: una cuenta nueva arranca **solo con Guardian**; las
   otras 10 unidades se compran con oro (150–500) y una unidad bloqueada no entra
   en la oferta de cartas, no se mejora y su `metaDmgMul` es 1. Contrato en
@@ -336,7 +340,7 @@ inmune: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1041 tests (1041 pass, 0 skip) en 35 archivos.
+- 1050 tests (1050 pass, 0 skip) en 35 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

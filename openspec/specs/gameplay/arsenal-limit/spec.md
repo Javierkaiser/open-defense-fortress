@@ -94,5 +94,5 @@ partida no recibe un saldo propio.
 #### Scenario: El pool no se reparte por unidad
 
 - **GIVEN** una partida ganada en la que no se usó el Tesla
-- **THEN** el pool compartido recibe los mismos 300/600 fragmentos; no hay
+- **THEN** el pool compartido recibe los mismos 150/300 fragmentos; no hay
   un saldo separado para Tesla

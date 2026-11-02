@@ -51,7 +51,7 @@ El meta tiene tres políticas (`--meta`):
 
 | `--meta` | Qué modela |
 |---|---|
-| `pool-focus` (default de `trajectory`) | El pool acumulado (600 por etapa limpia) se reparte en cuotas iguales de 5: **cada torre y dron que entra en la run** recibe esa cuota. Es la trayectoria real de un jugador que invierte en lo que juega. |
+| `pool-focus` (default de `trajectory`) | El pool acumulado (300 por etapa limpia) se reparte en cuotas iguales de 5: **cada torre y dron que entra en la run** recibe esa cuota. Es la trayectoria de una limpieza por etapa; el farmeo se mide aparte con `--metalv`. |
 | `pool-spread` | El mismo pool repartido entre las **11 unidades** del catálogo desde el arranque (mide "no priorizar nada"). |
 | `--metalv=N` | Nivel fijo en todas las unidades (escenarios de piso/techo, comparable con las tablas viejas). |
 
@@ -167,12 +167,14 @@ no sólo un multiplicador de daño:
   relacionan con las unidades, tags y técnicas presentes. Incluyen daño global
   (+10% una vez), daño por tipo (+20% una vez), mecánicas por torre y 11 combos
   con prerrequisitos (frío, lifesteal, marcas, stun, rebote y perforación).
-- **Meta**: 100 niveles por unidad; **pool de fragmentos compartido** (300 por
-  victoria, 600 la primera limpieza de cada etapa); `fragCost(nivel) =
-  75 + 35·década` (22 860 para llevar una unidad a Nvl.100) y +18 % de daño por
-  nivel. La trayectoria real llega a **Nvl.44 en S50** si el pool se invierte en
-  las 5 unidades que juega el jugador (**Nvl.26** si se reparte entre las 11).
-  Ver §"Meta v2 — pool compartido".
+- **Meta**: 100 niveles por unidad; **pool de fragmentos compartido** (150 por
+  victoria, 300 la primera limpieza de cada etapa); `fragCost(nivel) =
+  75 + 35·década` (22 860 para llevar una unidad a Nvl.100) y +9 % de daño por
+  nivel. La trayectoria de **una limpieza por etapa** llega a **Nvl.28 en S50**
+  si el pool se invierte en las 5 unidades que juega el jugador (**Nvl.16** si
+  se reparte entre las 11). El S50 de 1.8.0 exigía Nvl.44: con +9 %/nivel el
+  jugador debe **farmear repitiendo etapas** hasta Nvl.87 para recuperar el
+  ×8,74. Ver §"Meta v2 — pool compartido".
 - **Desbloqueos con oro**: una cuenta nueva arranca **solo con Guardian**; las
   otras 10 unidades se compran con oro (150–500) y recién entonces su carta
   `unlock_*` entra en la oferta. Ver
@@ -191,10 +193,11 @@ no sólo un multiplicador de daño:
 ### Economía
 
 - **Fragmentos = un pool compartido** (`fragsPool`), no un saldo por torreta.
-  Cada victoria suma **300**; la **primera** limpieza de una etapa suma **600**
-  (300 × `META_FIRST_CLEAR_MULT`). Los hitos de Protocolo, la supervivencia y el
+  Cada victoria suma **150**; la **primera** limpieza de una etapa suma **300**
+  (150 × `META_FIRST_CLEAR_MULT`). Los hitos de Protocolo, la supervivencia y el
   ∞ suman al mismo pool. No hay "MEJORAR todo": se sube una torreta por vez
-  contra el mismo saldo.
+  contra el mismo saldo. **Repetir una etapa ya limpiada paga 150**: es la
+  fuente del farmeo de la economía 1.9.0.
 - **Oro**: se gana por etapa (25) y por campaña completa (150); se gasta en
   desbloquear unidades (150–500) y en redistribuir perks (500).
 - **Desbloqueos**: una cuenta nueva arranca **solo con Guardian**; las otras 10
@@ -202,37 +205,51 @@ no sólo un multiplicador de daño:
   cartas, no se mejora y su `metaDmgMul` es 1
   (`openspec/specs/meta-game/tower-unlocks/spec.md`).
 - **Coste de nivel**: `fragCost(n) = 75 + 35·década` → **22 860** fragmentos
-  para llevar una unidad de Nvl.1 a Nvl.100. **+18 %** de daño por nivel meta.
+  para llevar una unidad de Nvl.1 a Nvl.100. **+9 %** de daño por nivel meta.
 - **Migración**: un save v1 (fragmentos por torreta) suma todos sus saldos al
   pool y conserva niveles, oro y perks.
 
 ### Trayectoria del pool
 
 Antes del stage N el jugador lleva (N-1) limpiezas, cada una con su primera vez:
-**600 × (N-1)** fragmentos. Repartidos entre las **5 unidades que juega** (la
-cuota por slot) da 120 por unidad y por etapa, que es exactamente la trayectoria
-vieja de 120 por torreta. Repartidos entre las 11, la misma bolsa rinde mucho
-menos:
+**300 × (N-1)** fragmentos. Repartidos entre las **5 unidades que juega** (la
+cuota por slot) da 60 por unidad y por etapa. Repartidos entre las 11, la misma
+bolsa rinde mucho menos:
 
 | Stage | Pool acumulado | `pool-focus` (5) | `pool-spread` (11) |
 |---:|---:|---:|---:|
-| 10 | 5 400 | 14 | 7 |
-| 20 | 11 400 | 23 | 13 |
-| 25 | 14 400 | 28 | 16 |
-| 30 | 17 400 | 32 | 18 |
-| 40 | 23 400 | 38 | 22 |
-| 45 | 26 400 | 41 | 24 |
-| 50 | 29 400 | 44 | 26 |
+| 10 | 2 700 | 8 | 4 |
+| 20 | 5 700 | 14 | 7 |
+| 25 | 7 200 | 17 | 9 |
+| 30 | 8 700 | 20 | 11 |
+| 40 | 11 700 | 24 | 13 |
+| 45 | 13 200 | 26 | 15 |
+| 50 | 14 700 | 28 | 16 |
 
 `pool-focus` (alias de `--meta=trajectory`) aplica la cuota por unidad
 (pool / 5) a **cada torre y dron que entra en la run**: el jugador invierte el
-pool en lo que juega. La política vieja subía las 11 unidades al mismo nivel;
-la nueva sube las que pelean, con el MISMO nivel por unidad — por eso
-`--meta=pool-focus` en S50 da exactamente la misma corrida que `--metalv=44`
-(lo fija `tests/test-balance-sim.mjs`).
+pool en lo que juega. `--meta=pool-focus` en S50 da la misma corrida que
+`--metalv=28` (lo fija `tests/test-balance-sim.mjs`).
 
 `pool-spread` reparte el pool entre las 11 unidades desde el arranque: mide el
-coste de no priorizar nada (S50 = Nvl.26).
+coste de no priorizar nada (S50 = Nvl.16).
+
+### El bucle de farmeo (1.9.0)
+
+La tabla anterior es la de **una limpieza por etapa**, no la del jugador que
+farmea. Con 150 por victoria y +9 %/nivel, el S50 no se alcanza en una pasada:
+el jugador tiene que repetir etapas ya limpiadas, que siguen pagando 150.
+
+- Para recuperar el ×8,74 de 1.8.0 hace falta **Nvl.87** (17 930 fragmentos
+  por torre; 89 650 para las 5 del foco). La campaña de primeras limpiezas
+  aporta 14 700; faltan ~74 950 fragmentos = **~500 repeticiones** de 150.
+- **Nvl.75** deja el S50 en **70 % win / 42 % HP / 66 % bajas** y cuesta
+  13 880 por torre (69 400 para 5): **~365 repeticiones** extra.
+- **Nvl.87** deja el S50 en **90 % win / 61 % HP / 82 % bajas**.
+
+Ese es el coste explícito de la economía: el jugador ya no llega al S50 con la
+campaña limpia; tiene que farmear. La simulación de `pool-focus` mide el piso
+sin farmeo (S50 0 %) y `--metalv=75/87` mide el objetivo farmeado.
 
 ### Resultados medidos (10 semillas)
 
@@ -243,8 +260,12 @@ S50, `--mode=inteligente`:
 | Antes (1.6.0, 20 semillas) | 44 | 100 % | 93 % | 99 % | — | — |
 | `--meta=pool-focus` (1.7.1) | 44 | 70 % | 45 % | 66 % | 87,0 | 13 941 |
 | `--meta=pool-focus` (1.8.0) | 44 | **90 %** | **59 %** | **81 %** | 67,1 | 10 457 |
+| `--meta=pool-focus` (1.9.0, sin farmeo) | 28 | **0 %** | **0 %** | **0 %** | 116,1 | 25 500 |
+| `--metalv=75` (farmeado) | 75 | 70 % | 42 % | 66 % | 85,5 | 14 899 |
+| `--metalv=87` (farmeado) | 87 | 90 % | 61 % | 82 % | 61,9 | 9 941 |
 | `--meta=pool-spread` (1.7.1) | 26 | 50 % | 24 % | 49 % | 116,1 | 19 365 |
 | `--meta=pool-spread` (1.8.0) | 26 | **10 %** | **7 %** | **18 %** | 135,1 | 23 690 |
+| `--meta=pool-spread` (1.9.0, sin farmeo) | 16 | **0 %** | **0 %** | **0 %** | 130,5 | 25 500 |
 | `--stage=50` (piso, meta 1) | 1 | 0 % | 0 % | 0 % | 130,6 | 25 500 |
 
 S50 + Protocolo II (`--protocol=II --meta=pool-focus`):
@@ -254,7 +275,23 @@ S50 + Protocolo II (`--protocol=II --meta=pool-focus`):
 | Antes (1.6.0) | 44 | 70 % | 48 % | 61 % | — | — |
 | `--protocol=II --meta=pool-focus` (1.7.1) | 44 | 80 % | 24 % | 71 % | 85,5 | 19 645 |
 | `--protocol=II --meta=pool-focus` (1.8.0) | 44 | **40 %** | **17 %** | **42 %** | 88,8 | 21 166 |
+| `--protocol=II --meta=pool-focus` (1.9.0, sin farmeo) | 28 | **0 %** | **0 %** | **0 %** | 104,2 | 25 500 |
 | `--protocol=II` (piso, meta 1) | 1 | 0 % | 0 % | 0 % | 93,8 | 25 500 |
+
+Campaña con `--meta=pool-focus` (`--mode=inteligente`, 1.9.0 sin farmeo):
+
+| Stage | meta | win | HP fin | % bajas | leaks | daño de fugas |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 1 | 100 % | 95 % | 101 % | 4,7 | 104 |
+| 2 | 1 | 80 % | 71 % | 83 % | 23,5 | 734 |
+| 3 | 2 | 20 % | 5 % | 33 % | 39,9 | 2 746 |
+| 4 | 3 | 70 % | 53 % | 71 % | 30,2 | 1 589 |
+| 5 | 4 | 90 % | 59 % | 82 % | 32,3 | 1 575 |
+| 6 | 5 | 60 % | 25 % | 54 % | 70,7 | 3 291 |
+| 10 | 8 | 10 % | 4 % | 10 % | 99,3 | 6 019 |
+| 20 | 14 | 20 % | 6 % | 20 % | 142,4 | 10 480 |
+| 30 | 20 | 10 % | 7 % | 11 % | 111,7 | 14 734 |
+| 50 | 28 | 0 % | 0 % | 0 % | 116,1 | 25 500 |
 
 Campaña con `--meta=pool-focus` (`--mode=inteligente`, 1.8.0):
 
@@ -288,17 +325,22 @@ Campaña con `--meta=pool-spread` (`--mode=inteligente`, 1.7.1):
 
 Lectura:
 
-- **El pool no cambia el nivel por unidad**: `pool-focus` reproduce los 44 de la
-  trayectoria histórica. Lo que cambia es el alcance: el jugador ya no puede
-  subir las 11 a la vez.
+- **El pool no cambia el nivel por unidad**: `pool-focus` da Nvl.28 en el S50
+  con la economía de 1.9.0 (era Nvl.44 en 1.8.0). Lo que cambia es el alcance:
+  el jugador ya no puede subir las 11 a la vez.
 - **La caída de HP fin (93 → 45 %) es el ajuste de DPS de 1.7.1**, no el pool:
   Guardian 15 y el resto del arsenal ya venían del dial −25 %. El antes sale de
   la tabla de 1.6.0; el después está medido con este árbol.
 - **El win% no es monótono con el poder**: el director genera la ola con la
   potencia del jugador (`powerMul`), así que un meta más bajo pelea una ola más
-  chica. `pool-spread` gana 20 % en S30 (Nvl.18) y 50 % en S50 (Nvl.26);
-  `pool-focus` gana 80 % y 70 %. Comparar niveles distintos exige mirar HP fin
-  y bajas, no sólo el win.
+  chica. Comparar niveles distintos exige mirar HP fin y bajas, no sólo el win.
+  Por eso la economía 1.9.0 se mide con `--metalv=75/87` (objetivo farmeado),
+  no sólo con el nivel que da la campaña de una pasada.
+- **1.9.0 — la economía es de farmeo**: con 150 por victoria y +9 %/nivel, la
+  campaña de una sola pasada deja S50 en 0 %. El jugador tiene que repetir
+  etapas: Nvl.75 (365 repeticiones extra) da 70 %; Nvl.87 (~500) da 90 %. El
+  S50 de 1.8.0 dependía de Nvl.44 ×18 %; el nuevo techo se alcanza farmeando.
+  No se compensó el director.
 - **1.8.0 — el HP base no sube el HP de la ola**: el presupuesto del director
   está en HP base (`BUDGET_HP_PER_SLOT`), así que ×1,25 por enemigo con el mismo
   presupuesto compra ~20 % menos enemigos y deja el HP total de la descarga casi
@@ -359,18 +401,20 @@ Lectura:
 6. La suite tiene guardas de regresión de HP por etapa, apertura, jefes,
    variantes y supervivencia.
 
-## Estado actual (v1.8.0)
+## Estado actual (v1.9.0)
 
-- Campaña: S1–S10 90–100 %, S20 60 %, S30 50 %, S50 90 % con la trayectoria
-  real de meta y cartas (`pool-focus`, 10 semillas). La curva no es monótona:
-  el S30 es cristal (resiste balístico) y el S50 es roca (sufre balístico).
-- S50 sin heat: **90 % win / 59 % HP / 81 % bajas** (10 semillas, `pool-focus`;
-  1.7.1: 70 / 45 / 66). Las cartas one-shot premian la variedad; el HP base
-  ×1,25 no sube el HP total de la ola porque el presupuesto está en HP base.
-- Heat: Protocolo II queda en **40 % win / 17 % HP / 42 % bajas** en S50
-  (10 semillas, `pool-focus`; 1.7.1: 80 / 24 / 71).
-- `pool-spread` (meta 26) cae a **10 % win / 7 % HP / 18 % bajas**: el jugador
-  de bajo meta dependía de los stacks que 1.8.0 eliminó.
+- **Campaña de una pasada**: S1 100 %, S2 80 %, S3 20 %, S4 70 %, S5 90 %,
+  S6 60 %, S10 10 %, S20 20 %, S30 10 %, S50 0 % con `pool-focus` (10
+  semillas). Es el **piso sin farmeo**: el jugador ya no llega al S50 con una
+  limpieza por etapa.
+- **S50 farmeado**: `--metalv=75` da **70 % win / 42 % HP / 66 % bajas**;
+  `--metalv=87` da **90 % / 61 % / 82 %**. Para Nvl.87 hacen falta ~500
+  repeticiones extra de 150 fragmentos; para Nvl.75, ~365.
+- S50 sin farmeo: **0 % win / 0 % HP / 0 % bajas** (Nvl.28). 1.8.0: 90/59/81
+  con Nvl.44 y +18 %/nivel.
+- Heat: Protocolo II sin farmeo queda en **0 % / 0 % / 0 %** en S50; con el
+  mismo objetivo farmeado escala desde ahí.
+- `pool-spread` sin farmeo (Nvl.16) queda en **0 % win / 0 % HP / 0 % bajas**.
 - ∞: la pared empieza alrededor de 60–70; el win cae con la profundidad.
 - Heat en ∞/Daily (1.7.2): el Protocolo activo se aplica a ambos. El récord
   del ∞ es por Heat (`heat.endless`); el del Daily es global por fecha y
@@ -403,6 +447,11 @@ Lectura:
 - Meta v2 (1.7.0): pool compartido de 300/600, desbloqueos con oro y
   `DPS_SCALE = 0,75` (Tesla exenta). Detalle y aritmética en §"Meta v2 —
   pool compartido".
+- **Ronda 1.9.0**: fragmentos 150/300, daño meta +9 %/nivel, remate aditivo con
+  tope 15 % (30 % con Cabeza Nuclear), jefes inmunes al remate y +30 % de daño
+  bajo el umbral para el atacante con execute. La economía pasa a ser de
+  **farmeo**: el S50 no se alcanza en una pasada. Detalle en §"El bucle de
+  farmeo".
 - Ajuste de arsenal (1.7.1): Guardian **15,0 DPS** (5/0.25), Missile **20,0
   efectivo** (170/3.2, splash 64) y Tesla **10,0** (7/0.7). Medido con
   `--meta=pool-focus` (Nvl.44 en S50, 10 semillas): S50 sin heat **70 % win /

@@ -142,7 +142,7 @@ export const ENEMY_TYPES = {
     hp: 3250, vel: 22, score: 500, r: 85,
     desc: 'Meteorito gigante con deriva lenta: al 50 % de vida acelera ×1,4 y suelta 6 fragmentos.',
     counter: 'Balístico ×1,5 y foco sostenido: la luz le hace la mitad.',
-    boss: true, phaseHpFrac: 0.5, phaseVelMul: 1.4, phaseShedCount: 6,
+    boss: true, executeImmune: true, phaseHpFrac: 0.5, phaseVelMul: 1.4, phaseShedCount: 6,
     drift: { amp: 90, freq: 0.25 }, // deriva lenta lateral tras entrar
     body: '#0A0A0A', crack: '#FFDD55', glow: '#FF9A3D',
     trail1: '#FF9A3D', trail2: '#FFD24A', // dev-6: estela masiva del diseño base
@@ -160,7 +160,7 @@ ENEMY_TYPES.blobBoss = {
   name: 'BLOB VIRUS', bestiaryName: 'Blob Rey',
   hp: 3500, vel: 20, score: 700, r: 78,
   family: 'virus', role: 'boss', debut: 10, // fase 32: familia de daño (ver js/damagetypes.js)
-  boss: true, visual: 'blob',
+  boss: true, executeImmune: true, visual: 'blob',
   desc: 'Blob virus de dos fases: al 66 % entra en FURIA (escupe 6 esporas) y al 33 % en ENJAMBRE (8 más).',
   counter: 'Cambiá de tipo según la fase (FURIA premia la luz, ENJAMBRE castiga la explosión) y matá la escolta: la regeneración sale de ella.',
   drift: { amp: 80, freq: 0.28 },
@@ -192,7 +192,7 @@ ENEMY_TYPES.graveBlob = {
   name: 'BLOB NECRO', bestiaryName: 'Blob Necrótico',
   hp: 4625, vel: 19, score: 800, r: 82,
   family: 'virus', role: 'boss', debut: 20, // fase 32: familia de daño
-  boss: true, visual: 'blob',
+  boss: true, executeImmune: true, visual: 'blob',
   desc: 'Blob necrótico de 3 fases: escombros al 75 %, 2 blobs al 50 % y una última lluvia al 25 %.',
   counter: 'Cada fase premia un tipo distinto y LEGION castiga el dron; matá la escolta para cortar la regeneración.',
   drift: { amp: 70, freq: 0.26 },
@@ -212,7 +212,7 @@ ENEMY_TYPES.armoredBlob = {
   name: 'BLINDADO', bestiaryName: 'Coloso Blindado',
   hp: 5750, vel: 18, score: 900, r: 88,
   family: 'rock', role: 'boss', debut: 30, // fase 32: blindado de roca
-  boss: true, visual: 'armored',
+  boss: true, executeImmune: true, visual: 'armored',
   desc: 'Coloso de roca blindada: suelta 10 esporas al 60 % y un blob cuando abre la coraza (30 %).',
   counter: 'El balístico ×1,5 siempre; contra la roca el área pega la mitad. Al abrir la coraza, el eléctrico paga.',
   drift: { amp: 64, freq: 0.24 },
@@ -230,7 +230,7 @@ ENEMY_TYPES.hybridBoss = {
   name: 'HÍBRIDO', bestiaryName: 'Abominación Híbrida',
   hp: 7000, vel: 20, score: 1000, r: 92,
   family: 'rock', role: 'boss', debut: 40, // fase 32: cuerpo de meteoro
-  boss: true, visual: 'meteor',
+  boss: true, executeImmune: true, visual: 'meteor',
   desc: 'Meteorito-blob de 3 fases: 5 meteoritos al 66 %, 2 blobs al 33 % y 8 fragmentos al 15 %.',
   counter: 'Cuerpo de roca: el balístico ×1,5 (salvo en HÍBRIDO) y la luz/explosión pierden la mitad. Cortá la escolta.',
   drift: { amp: 76, freq: 0.27 },

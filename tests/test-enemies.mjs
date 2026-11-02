@@ -548,6 +548,17 @@ test('1.8.0: los 5 jefes tienen bestiaryName propio', () => {
   }
 });
 
+test('1.9.0: los 5 jefes declaran executeImmune (remate inmunes)', () => {
+  for (const type of ['boss', 'blobBoss', 'graveBlob', 'armoredBlob', 'hybridBoss']) {
+    assert.equal(ENEMY_TYPES[type].executeImmune, true,
+      `${type}: debe ser inmune al remate`);
+  }
+  // Los no-jefes no llevan el flag por defecto: se agrega cuando el diseño
+  // lo pida, sin tocar el código de combate.
+  assert.equal(ENEMY_TYPES.meteor.executeImmune, undefined);
+  assert.equal(ENEMY_TYPES.blob.executeImmune, undefined);
+});
+
 test('boulder: Desmoronamiento — 3 enjambres al morir, 10 % de XP y sin recursión', () => {
   const game = mkGame();
   const boulder = new Enemy('boulder', 100, { game, y: 300 });

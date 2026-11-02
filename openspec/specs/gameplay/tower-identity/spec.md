@@ -32,7 +32,7 @@ la unidad que lo declara.
 | Unidad | Identidad | Mecánica firma | No debe tener |
 |---|---|---|---|
 | Guardian | Supresión balística | `suppression`: 3 impactos consecutivos al mismo blanco detonan foco | execute, lifesteal, explodeOnKill, stun, slow |
-| Missile | Cazador de una amenaza | `execute`: remate intrínseco bajo 6 %, ampliable con perks | lifesteal, explodeOnKill, bounce |
+| Missile | Cazador de una amenaza | `execute`: remate intrínseco bajo 6 %, perks aditivos +3 % cada uno, tope 15 % (30 % con Cabeza Nuclear) | lifesteal, explodeOnKill, bounce |
 | Beam | Foco térmico | `melt`: stacks que amplifican el daño sobre el blanco | execute, explodeOnKill, bounce |
 | Thunderstroke | Tormenta de control | `judgment`: el stun marca y el eléctrico pega más | execute, lifesteal, explodeOnKill, bounce |
 | Tesla | Conducción local | `ion`: la cadena marca el racimo y el eléctrico pega más | execute, lifesteal, explodeOnKill, stun |
@@ -50,7 +50,8 @@ la unidad que lo declara.
 
 Las claves genéricas de los perks MUST quedar restringidas a su dueño:
 
-- `executeThreshold`: solo Missile.
+- `executeThreshold`: solo Missile. `executeThresholdMul` solo lo da Cabeza
+  Nuclear al Missile.
 - `lifesteal`: solo Beam y Mosquitos.
 - `explodeOnKillChance` / `explodeOnKillDmg` / `explodeOnKillRadius`: solo
   Firewheel.
@@ -72,6 +73,35 @@ Las claves genéricas de los perks MUST quedar restringidas a su dueño:
 
 - **WHEN** un tier del Guardian declara `lifesteal`
 - **THEN** el test de identidad falla
+
+### Requirement: Remate aditivo, tope 15/30 e inmunidad de jefes
+
+El Misil MUST partir de un umbral intrínseco de **6 %**. Cada perk de Remate
+MUST sumar **+3 %** (no reemplazar el umbral anterior) y el umbral efectivo
+MUST quedar topado en **15 %**. Cabeza Nuclear MUST multiplicar el umbral por
+**2**, con tope **30 %**. Los enemigos con `executeImmune` (hoy los jefes) MUST
+NOT ser rematados; si están bajo el umbral, el atacante que tiene remate les
+MUST hacer **×1,30 de daño**. Golpe de Gracia MUST respetar el mismo tope.
+
+#### Scenario: Tres Remate + Cabeza Nuclear
+
+- **WHEN** el jugador elige Remate I, II y III y Cabeza Nuclear
+- **THEN** el umbral efectivo del Misil es 30 %
+
+#### Scenario: Jefe bajo el umbral
+
+- **WHEN** un jefe inmune está al 10 % de vida con un umbral efectivo de 15 %
+- **THEN** el golpe del Misil no lo remata y hace +30 % de daño
+
+#### Scenario: Enemigo común bajo el umbral
+
+- **WHEN** un enemigo sin `executeImmune` está bajo el umbral efectivo
+- **THEN** el golpe lo remata
+
+#### Scenario: Golpe de Gracia sin carta
+
+- **WHEN** el Misil golpea a un enemigo con Juicio y no tiene Cabeza Nuclear
+- **THEN** el umbral efectivo es 15 %, no 30 %
 
 ### Requirement: Marcas y hooks
 

@@ -356,8 +356,8 @@ export class Tower {
 
   /** Daño escalado: +25% por nivel (§2.2) × multiplicadores de carta ×
    *  META-GAME v6 (mejora permanente de la torreta, META_DMG_PER_LEVEL en
-   *  meta.js — hoy +18 %/nivel meta, con el comentario viejo de "v3.5,
-   *  +10 %/nivel" ya corregido) × perks.
+   *  meta.js — hoy +9 %/nivel meta desde 1.9.0, con el comentario viejo de
+   *  "v3.5, +10 %/nivel" ya corregido) × perks.
    *  El multiplicador meta INCLUYE además el bonus de HITOS (+2 % por
    *  hito alcanzado: Nvl.25/50/75/100 → ×1.08 en Nvl.100), aplicado
    *  dentro de `metaDmgMul()` (ver meta.js `milestoneDmgMul`): el tope
@@ -566,7 +566,10 @@ export class Tower {
           const targets = this._acquireTargets(enemies, game, n);
           if (!targets.length) targets.push(null); // respaldo: sale igual (histórico)
           const mpm = unitMods(this); // fase 17: sistemáticos del Penetrador
-          const execBase = Math.max(mpm.executeThreshold ?? 0, d.mech?.threshold ?? 0);
+          // 1.9.0: los perks de Remate SUMAN al 6% intrínseco (antes eran
+          // umbrales absolutos con política max). El tope real (15% sin
+          // carta, 30% con Cabeza Nuclear) lo aplica perks.js al golpear.
+          const execBase = (d.mech?.threshold ?? 0) + (mpm.executeThreshold ?? 0);
           for (const tg of targets) {
             // Golpe de Gracia: contra un blanco con Juicio el umbral de
             // remate del Misil sube a 30 %, no es un +X% de daño.
@@ -583,6 +586,7 @@ export class Tower {
                 // que los perks/cartas suben. El resto del arsenal ya no
                 // tiene executeThreshold (test-tower-identity lo verifica).
                 executeThreshold: exec,
+                executeThresholdMul: mpm.executeThresholdMul ?? 1,
                 source: 'missile',
                 trailColor: fx?.trail ?? TOWERS.missile.trailColor,
                 explosionColor: fx?.explosion ?? '#FFB36A',

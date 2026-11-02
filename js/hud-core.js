@@ -1094,7 +1094,7 @@ export class HUD {
       <div class="meta-def-row"><span class="meta-def-k">Niveles totales de torreta</span><b>${totalMetaLevels(meta)}</b></div>
       <div class="meta-def-row"><span class="meta-def-k">Torretas al máximo</span><b>${maxedCount} de ${META_TOWERS.length}</b></div>
       <div class="meta-def-row"><span class="meta-def-k">Victorias</span><b>${meta.victories ?? 0}</b></div>
-      <div class="meta-def-row"><span class="meta-def-k">Fragmentos por victoria</span><b>${META_FRAG_PER_VICTORY} al pool (×2 la primera vez por stage)</b></div>
+      <div class="meta-def-row"><span class="meta-def-k">Fragmentos por victoria</span><b>${META_FRAG_PER_VICTORY} al pool (×2 la primera vez por stage; repetir etapas farmea)</b></div>
       <div class="meta-def-row"><span class="meta-def-k">Oro</span><b>${metaGold(meta)}● (se gasta en desbloquear unidades y redistribuir perks)</b></div>`;
   }
 

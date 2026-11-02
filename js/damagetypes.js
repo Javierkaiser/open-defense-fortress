@@ -433,6 +433,9 @@ function bestiaryCardHtml(type) {
       ? `<p class="bestiary-desc">${esc(d.desc)}</p>` : '')
     + (typeof d.counter === 'string' && d.counter
       ? `<p class="bestiary-counter"><strong>Contra:</strong> ${esc(d.counter)}</p>` : '')
+    + (d.executeImmune
+      ? '<p class="bestiary-note bestiary-immune">Inmune al remate: bajo el umbral recibe +30 % de daño del atacante con remate.</p>'
+      : '')
     + `<dl class="bestiary-stats">`
     + `<div class="bestiary-stat"><dt>HP</dt><dd>${num(d.hp)}</dd></div>`
     + `<div class="bestiary-stat"><dt>Vel</dt><dd>${num(d.vel)}</dd></div>`

@@ -16,11 +16,11 @@
 //    lo gastaba: 1080 de daño por ultimate quedaban sin usar).
 //  - TIMEOUT: "no terminó" (se agotó el corte de seguridad) es distinto de
 //    "murió" (HP a 0).
-//  - POOL COMPARTIDO (meta v2): la trayectoria reparte 600 fragmentos por
-//    etapa limpia (300 + 300 de la primera vez) entre las unidades del foco.
-//    `pool-focus` (5 torres) reproduce la curva histórica (S50 = Nvl.44);
-//    `pool-spread` (11 unidades) da Nvl.26. `setMetaLevel(s)` escribe
-//    `fragsPool` y `unlocked` (todas), no el mapa `frags` por torreta.
+//  - POOL COMPARTIDO (meta v2): la trayectoria reparte 300 fragmentos por
+//    etapa limpia (150 + 150 de la primera vez) entre las unidades del foco.
+//    `pool-focus` (5 torres) da S50 = Nvl.28; `pool-spread` (11 unidades)
+//    da Nvl.16. `setMetaLevel(s)` escribe `fragsPool` y `unlocked` (todas),
+//    no el mapa `frags` por torreta.
 //
 // El sim importa los módulos REALES del juego (Fortress/Tower/Enemy/
 // WaveManager/cards.js) con un stub de engine sin canvas/DOM: corre en Node.
@@ -180,42 +180,41 @@ test('FASE 67: la base del infinito es la curva REAL (no el fallback de 3000)', 
 // sin optimizar las cartas): con ese piso la tabla de docs/BALANCE.md daba win
 // 100 % en las 50 etapas y la base-esponja era invisible.
 
-test('POOL-FOCUS: la trayectoria del pool da los mismos niveles meta que docs/BALANCE.md', () => {
-  // v2: el meta reparte UN POOL COMPARTIDO de 600 por etapa limpia (300 de
-  // victoria + 300 del ×2 de la primera vez) → 600×(N-1) acumulados antes
-  // del stage N. Con las 5 torres del arsenal de referencia el reparto
-  // equitativo da 600/5 = 120 por torre: la MISMA curva histórica.
+test('POOL-FOCUS: la trayectoria del pool da los niveles meta que documenta BALANCE.md', () => {
+  // 1.9.0: el pool reparte 300 por etapa limpia (150 de victoria + 150 del
+  // ×2 de la primera vez) → 300×(N-1) acumulados antes del stage N. Con las
+  // 5 torres del arsenal de referencia el reparto equitativo da 60 por torre.
   assert.equal(poolFragsForStage(1), 0);
-  assert.equal(poolFragsForStage(50), 600 * 49);
-  assert.equal(poolFragsForStage(50) / POOL_FOCUS.length, 120 * 49);
+  assert.equal(poolFragsForStage(50), 300 * 49);
+  assert.equal(poolFragsForStage(50) / POOL_FOCUS.length, 60 * 49);
   assert.equal(trajectoryMetaLevel(1), 1);
-  assert.equal(trajectoryMetaLevel(10), 14);
-  assert.equal(trajectoryMetaLevel(20), 23);
-  assert.equal(trajectoryMetaLevel(21), 24);
-  assert.equal(trajectoryMetaLevel(30), 32);
-  assert.equal(trajectoryMetaLevel(40), 38);
-  assert.equal(trajectoryMetaLevel(50), 44);
+  assert.equal(trajectoryMetaLevel(10), 8);
+  assert.equal(trajectoryMetaLevel(20), 14);
+  assert.equal(trajectoryMetaLevel(21), 15);
+  assert.equal(trajectoryMetaLevel(30), 20);
+  assert.equal(trajectoryMetaLevel(40), 24);
+  assert.equal(trajectoryMetaLevel(50), 28);
 });
 
 test('POOL-FOCUS: el reparto es equitativo entre las 5 torres del foco', () => {
   const levels = trajectoryMetaLevels(50);
   assert.deepEqual(Object.keys(levels).sort(), [...POOL_FOCUS].sort());
   for (const key of POOL_FOCUS) {
-    assert.equal(levels[key], 44, `${key} debería llegar a Nvl.44 en el S50`);
+    assert.equal(levels[key], 28, `${key} debería llegar a Nvl.28 en el S50`);
   }
   // Las unidades FUERA del foco no reciben pool: quedan en Nvl.1.
   assert.equal(levels.laser, undefined);
-  // El reparto usa el coste REAL de meta.js (75 + 35 por década): 5 880
-  // fragmentos por torre son Nvl.44, no un número inventado.
-  assert.equal(trajectoryMetaLevels(10).guardian, 14);
+  // El reparto usa el coste REAL de meta.js (75 + 35 por década): 2 940
+  // fragmentos por torre son Nvl.28, no un número inventado.
+  assert.equal(trajectoryMetaLevels(10).guardian, 8);
 });
 
 test('POOL-SPREAD: el mismo pool entre las 11 unidades del catálogo', () => {
   assert.equal(POOL_SPREAD.length, META_TOWERS.length);
   const levels = trajectoryMetaLevels(50, POOL_SPREAD);
   assert.equal(Object.keys(levels).length, 11);
-  // 29 400 / 11 = 2 672 fragmentos por unidad → Nvl.26 (no 44).
-  for (const key of POOL_SPREAD) assert.equal(levels[key], 26, `${key} en S50`);
+  // 1.9.0: 14 700 / 11 = 1 336 fragmentos por unidad → Nvl.16 (no 28).
+  for (const key of POOL_SPREAD) assert.equal(levels[key], 16, `${key} en S50`);
   assert.ok(trajectoryMetaLevel(50, POOL_SPREAD) < trajectoryMetaLevel(50),
     'pool-spread no puede dar el mismo nivel que pool-focus');
   // Monótono y acotado, como la trayectoria de 5 torres.
@@ -277,7 +276,7 @@ test('FASE 59.1: la trayectoria es monótona y nunca baja de 1', () => {
 test('FASE 59.1: la trayectoria da más poder que el piso (y el sim lo usa)', async () => {
   const piso = await runStage(21, 'inteligente', 4242, { metaLv: 1 });
   const tray = await runStage(21, 'inteligente', 4242, { metaLv: 'trajectory' });
-  // La trayectoria (pool-focus → meta 24 en el S21) tiene que matar MÁS
+  // La trayectoria (pool-focus → meta 15 en el S21) tiene que matar MÁS
   // enemigos que el piso.
   assert.ok(tray.kills > piso.kills, `trayectoria ${tray.kills} kills vs piso ${piso.kills}`);
   assert.ok(tray.hpFrac >= piso.hpFrac, `trayectoria ${tray.hpFrac} HP vs piso ${piso.hpFrac}`);
@@ -299,13 +298,19 @@ test('POOL-FOCUS: la cuota se aplica a las unidades que juegan (== meta fijo)', 
 });
 
 test('POOL-SPREAD: el pool repartido entre 11 unidades llega al combate', async () => {
-  // S21: pool-focus Nvl.24 vs pool-spread Nvl.13. La política no puede
+  // S21: pool-focus Nvl.15 vs pool-spread Nvl.8. La política no puede
   // quedarse en el mapa de niveles: tiene que mover la partida.
   const focus = await runStage(21, 'inteligente', 4242, { metaLv: 'pool-focus' });
   const spread = await runStage(21, 'inteligente', 4242, { metaLv: 'pool-spread' });
-  assert.ok(focus.killPct >= spread.killPct,
-    `bajas: focus ${focus.killPct.toFixed(3)} vs spread ${spread.killPct.toFixed(3)}`);
-  assert.ok(focus.leaks <= spread.leaks, `fugas: focus ${focus.leaks} vs spread ${spread.leaks}`);
+  // 1.9.0: con el daño meta a la mitad, el director escala la ola con el
+  // poder y la composición cambia; la trayectoria focus ya no garantiza
+  // "más bajas" que spread. Lo que se exige es que la política LLEGUE al
+  // combate: si se ignorara, las dos corridas serían idénticas.
+  assert.notDeepEqual(
+    { enemies: focus.enemies, kills: focus.kills, leaks: focus.leaks },
+    { enemies: spread.enemies, kills: spread.kills, leaks: spread.leaks },
+    'pool-focus y pool-spread tienen que producir corridas distintas',
+  );
 });
 
 test('FASE 59.2: --killrate recorta las bajas al presupuesto', async () => {

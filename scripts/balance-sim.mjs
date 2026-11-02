@@ -76,10 +76,12 @@
 //   node scripts/balance-sim.mjs --mode=inteligente → el jugador que optimiza DPS
 //   node scripts/balance-sim.mjs --cards=ceiling → techo de poder (cartas reales topadas)
 //   node scripts/balance-sim.mjs --metalv=10    → nivel meta de las 11 unidades (1..100)
+//   NOTE 1.9.0: pool-focus/pool-spread son la trayectoria SIN farmeo. El
+//   objetivo farmeado se mide con --metalv=75/87 (ver docs/BALANCE.md).
 //   node scripts/balance-sim.mjs --meta=trajectory → pool compartido repartido entre el
 //                                                   arsenal de 5 (alias de pool-focus)
-//   node scripts/balance-sim.mjs --meta=pool-focus  → pool 600/etapa entre 5 torres
-//   node scripts/balance-sim.mjs --meta=pool-spread → pool 600/etapa entre las 11 unidades
+//   node scripts/balance-sim.mjs --meta=pool-focus  → pool 300/etapa entre 5 torres
+//   node scripts/balance-sim.mjs --meta=pool-spread → pool 300/etapa entre las 11 unidades
 //   node scripts/balance-sim.mjs --perks=optimal  → rama A/B óptima de los perks
 //   node scripts/balance-sim.mjs --killrate=75   → el jugador mata como máximo el 75 %
 //   node scripts/balance-sim.mjs --seeds=5       → seeds por stage
@@ -99,12 +101,12 @@
 // esponja y eso era INVISIBLE para la medición. Tres cosas nuevas:
 //
 //   · `--meta=trajectory` (alias de `pool-focus`): el nivel meta se deriva
-//     del stage con la política real del POOL COMPARTIDO (300 por victoria,
-//     600 la primera limpieza → 600 × (stage-1) acumulados y repartidos
+//     del stage con la política real del POOL COMPARTIDO (150 por victoria,
+//     300 la primera limpieza → 300 × (stage-1) acumulados y repartidos
 //     entre las 5 torres del arsenal de referencia). Con 5 torres el reparto
-//     equitativo da 120 por torre por etapa: la MISMA curva histórica de
-//     docs/BALANCE.md (S10=14, S20=23, S50=44). `pool-spread` reparte ese
-//     pool entre las 11 unidades (S50 ≈ Nvl.26). Ver `trajectoryMetaLevels`.
+//     equitativo da 60 por torre por etapa: S10=8, S20=14, S50=28.
+//     `pool-spread` reparte ese pool entre las 11 unidades (S50 ≈ Nvl.16).
+//     Ver `trajectoryMetaLevels`.
 //   · `--killrate=X`: el jugador mata como máximo el X % de los enemigos de
 //     la ola. Es un escenario de PRESIÓN: al agotarse el presupuesto las
 //     torres dejan de hacer daño y los que quedan se escapan pagando su HP
@@ -324,17 +326,15 @@ export function optimalPerkChoices(type, level = META_MAX_LEVEL) {
  * 100 % en las 50 etapas).
  *
  * Desde el rework del meta (v2) los fragmentos son UN POOL COMPARTIDO:
- *   · cada victoria paga META_FRAG_PER_VICTORY (300) al pool;
- *   · la PRIMERA limpieza de cada etapa lo duplica (×2 → 600);
+ *   · cada victoria paga META_FRAG_PER_VICTORY (150) al pool;
+ *   · la PRIMERA limpieza de cada etapa lo duplica (×2 → 300);
  *   · un jugador que limpia la campaña en orden acumula, antes del stage N,
- *     600 × (N-1) fragmentos.
+ *     300 × (N-1) fragmentos.
  *
- * ARITMÉTICA DE LA EQUIVALENCIA HISTÓRICA (por qué 300/victoria): la
- * trayectoria vieja daba 120 por torreta y por etapa (60 de victoria + 60
- * de la primera vez). Con las 5 torres del arsenal de referencia el pool
- * reparte 600 / 5 = 120 por torre: la MISMA curva (S10=14, S20=23,
- * S25=28, S30=32, S40=38, S45=41, S50=44). Con las 11 unidades del
- * catálogo (`pool-spread`) el mismo pool da ≈ Nvl.26 en el S50.
+ * ARITMÉTICA (1.9.0): la trayectoria vieja daba 120 por torreta y por etapa
+ * (60 de victoria + 60 de la primera vez). Ahora el pool reparte 300 / 5 =
+ * 60 por torre: S10=8, S20=14, S30=20, S40=24, S50=28. Con las 11 unidades
+ * del catálogo (`pool-spread`) el mismo pool da ~ Nvl.16 en el S50.
  *
  * POLÍTICA (explícita, `trajectoryMetaLevels`):
  *   · se reparte el pool acumulado en partes IGUALES entre las unidades de
@@ -1010,7 +1010,7 @@ export async function runStage(stageId, mode = DEFAULT_MODE, seed = 1, opts = {}
     const perks = opts.perks ?? DEFAULT_PERKS;
     const niveles = metaLevelsFor(stageId, metaLv);
     setMetaLevels(niveles, perks);
-    // POOL-FOCUS: la cuota por unidad del arsenal (pool / 5 = 120 × (stage-1)
+    // POOL-FOCUS: la cuota por unidad del arsenal (pool / 5 = 60 × (stage-1)
     // fragmentos) se aplica también a las torres y drones que ENTRAN durante
     // la run (ver `nivelar`): el jugador invierte el pool en las unidades que
     // juega. Sin esto, una torre fuera del foco (thunderstroke, láser, gauss,
@@ -1777,7 +1777,7 @@ async function main(argv = process.argv.slice(2)) {
   if (typeof META_SEL === 'string') {
     const ref = STAGES_TO_RUN.at(-1);
     console.log(`\nmeta ${META_SEL}: ${poolFragsForStage(ref)} fragmentos acumulados antes del S${ref} `
-      + '(600 por etapa limpia: 300 de victoria + 300 de la primera vez)');
+      + '(300 por etapa limpia: 150 de victoria + 150 de la primera vez)');
     if (META_SEL === 'pool-spread') {
       const niveles = trajectoryMetaLevels(ref, POOL_SPREAD);
       console.log(`repartidos entre las ${POOL_SPREAD.length} unidades del catálogo → `

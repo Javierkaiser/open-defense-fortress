@@ -13,7 +13,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyPerkDamage, onHitOpts, pickOnHit } from '../js/perks.js';
+import { applyPerkDamage, onHitOpts, pickOnHit, effectiveExecuteThreshold, isExecuteImmune } from '../js/perks.js';
 import { applyProjectileHit, Enemy, threatFactor } from '../js/enemies.js';
 import { dmgMultiplier } from '../js/damagetypes.js';
 
@@ -79,6 +79,74 @@ test('fase 26: el remate NUNCA reduce el daño (no castiga el robo de vida)', ()
   applyPerkDamage(e, 500, 'bullet', { executeThreshold: 0.5 }, game, [e]);
   assert.equal(e.dead, true);
   assert.equal(e.hp, 0);
+});
+
+// ---------- 1.9.0: remate aditivo, tope 15/30 e inmunidad ----------
+
+test('1.9.0: effectiveExecuteThreshold suma el intrínseco y los perks, y topa 15/30', () => {
+  assert.equal(effectiveExecuteThreshold({}, 0.06), 0.06);
+  assert.equal(effectiveExecuteThreshold({ executeThreshold: 0.09 }, 0.06), 0.15);
+  assert.equal(effectiveExecuteThreshold({ executeThreshold: 0.09, executeThresholdMul: 2 }, 0.06), 0.30);
+  assert.equal(effectiveExecuteThreshold({ executeThresholdMul: 2 }, 0.06), 0.12);
+  assert.equal(effectiveExecuteThreshold({ executeThreshold: 0.2 }, 0.06), 0.15,
+    'el tope base no deja pasar de 15%');
+  assert.equal(effectiveExecuteThreshold({ executeThreshold: 0.2, executeThresholdMul: 2 }, 0.06), 0.30,
+    'con carta el tope sube a 30%');
+});
+
+test('1.9.0: jefe inmune bajo el umbral recibe +30% y NO es rematado', () => {
+  const boss = mkEnemy(0, 0, 100, 1000);
+  boss.isBoss = true;
+  const { game } = mkGame();
+  applyPerkDamage(boss, 10, 'bullet', { executeThreshold: 0.15 }, game, [boss]);
+  assert.equal(boss.dead, false, 'el jefe no puede ser rematado');
+  assert.equal(boss.hp, 87, '10 × 1,30 = 13 de daño');
+});
+
+test('1.9.0: enemigo común bajo el umbral SÍ es rematado', () => {
+  const e = mkEnemy(0, 0, 10, 100);
+  const { game } = mkGame();
+  applyPerkDamage(e, 5, 'bullet', { executeThreshold: 0.15 }, game, [e]);
+  assert.equal(e.dead, true);
+  assert.equal(e.hp, 0);
+});
+
+test('1.9.0: inmune sobre el umbral recibe daño normal (sin +30%)', () => {
+  const boss = mkEnemy(0, 0, 250, 1000);
+  boss.isBoss = true;
+  const { game } = mkGame();
+  applyPerkDamage(boss, 10, 'bullet', { executeThreshold: 0.15 }, game, [boss]);
+  assert.equal(boss.dead, false);
+  assert.equal(boss.hp, 240, 'sin bonus: 10 de daño');
+});
+
+test('1.9.0: executeImmune también cubre a enemigos no-jefe', () => {
+  const e = mkEnemy(0, 0, 100, 1000);
+  e.data = { executeImmune: true };
+  const { game } = mkGame();
+  assert.equal(isExecuteImmune(e), true);
+  applyPerkDamage(e, 10, 'bullet', { executeThreshold: 0.15 }, game, [e]);
+  assert.equal(e.dead, false);
+  assert.equal(e.hp, 87, '10 × 1,30 = 13 de daño');
+});
+
+test('1.9.0: sin executeThreshold no hay bonus contra un inmune', () => {
+  const boss = mkEnemy(0, 0, 100, 1000);
+  boss.isBoss = true;
+  const { game } = mkGame();
+  applyPerkDamage(boss, 10, 'bullet', {}, game, [boss]);
+  assert.equal(boss.dead, false);
+  assert.equal(boss.hp, 90, 'sin remate no hay +30%');
+});
+
+test('1.9.0: Cabeza Nuclear duplica el umbral (10% → 20%) y el jefe recibe +30%', () => {
+  const boss = mkEnemy(0, 0, 150, 1000);
+  boss.isBoss = true;
+  const { game } = mkGame();
+  // 6% intrínseco + 4% de un perk = 10%; la carta ×2 → 20%.
+  applyPerkDamage(boss, 10, 'bullet', { executeThreshold: 0.10, executeThresholdMul: 2 }, game, [boss]);
+  assert.equal(boss.dead, false, 'el jefe sigue inmune al remate');
+  assert.equal(boss.hp, 137, '10 × 1,30 = 13 de daño');
 });
 
 // ---------- el robo de vida ----------
