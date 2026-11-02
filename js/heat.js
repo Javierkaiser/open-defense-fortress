@@ -97,12 +97,29 @@ const HEAT_MAX = HEAT_CONDS.reduce((a, c) => a + c.heat.reduce((x, y) => x + y, 
 export const HEAT_MAX_TOTAL = HEAT_MAX;
 
 /**
- * Protocolo FORZADO del desafío diario (1.10.0): las 11 condiciones en su
- * rango máximo. Heat resultante: 49.
+ * 1.12.0 - Condiciones que el desafío diario NO fuerza: Censura y Arsenal
+ * castigan la construcción (3→1 cartas y 5→4 slots) y hacían el daily
+ * injustamente duro para cuentas con pocas torres/cartas. El resto sigue en
+ * su rango máximo.
+ */
+export const DAILY_HEAT_EXCLUDED = Object.freeze(['censura', 'arsenal']);
+
+/**
+ * Protocolo FORZADO del desafío diario: las 9 condiciones restantes en su
+ * rango máximo. Heat resultante: 39 (49 − 5 de Censura − 5 de Arsenal).
  */
 export const DAILY_HEAT_MODS = Object.freeze(
-  Object.fromEntries(HEAT_CONDS.map((c) => [c.id, c.ranks])),
+  Object.fromEntries(
+    HEAT_CONDS
+      .filter((c) => !DAILY_HEAT_EXCLUDED.includes(c.id))
+      .map((c) => [c.id, c.ranks]),
+  ),
 );
+
+/** Heat total del protocolo diario (39). Lo usan el HUD y los tests. */
+export const DAILY_HEAT_TOTAL = HEAT_CONDS
+  .filter((c) => !DAILY_HEAT_EXCLUDED.includes(c.id))
+  .reduce((a, c) => a + c.heat.reduce((x, y) => x + y, 0), 0);
 
 /** Copia mutable del protocolo diario (para no exponer el objeto congelado). */
 export function dailyHeatMods() {
@@ -180,7 +197,8 @@ export function heatMods(mods) {
  * los tests y los reintentos que deben quedar neutrales).
  *
  * v1.7.2: el Infinito aplica el Protocolo activo. 1.10.0: el Daily pasa
- * `heatMods` explícito con las 11 condiciones al máximo (Heat 49) y guarda
+ * `heatMods` explícito con 9 condiciones al máximo (Heat 39; sin Censura ni
+ * Arsenal) y guarda
  * ese Heat en su récord personal (`progress.endless.daily.heat`).
  *
  * @param {{heatMods?:object|null, last?:object}} [opts]

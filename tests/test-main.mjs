@@ -194,7 +194,8 @@ test('1.10.0: _selectData expone la etapa congelada y el Heat forzado del daily'
   assert.equal(data.endless.daily.stage, 4, 'la etapa congelada manda sobre el pool');
   assert.equal(data.endless.daily.bestScore, 5000);
   assert.equal(data.endless.daily.heat, 49);
-  assert.equal(data.endless.daily.heatForced, 49, 'el HUD conoce el Heat forzado');
+  assert.equal(data.endless.daily.heatForced, 39, 'el HUD conoce el Heat forzado');
+  assert.equal(data.endless.daily.rewardMul, 1.5, 'y el bono diario');
   assert.equal(data.endless.open, false, 'el daily no exige el ∞ abierto');
 });
 
@@ -209,7 +210,7 @@ test('1.10.0: startDaily elige etapa del pool, fuerza Heat 49 y la congela', () 
   const first = runs[0];
   assert.ok(first.id >= 1 && first.id <= 3, `etapa fuera del pool: ${first.id}`);
   assert.equal(first.opts.daily, dailyRun().date);
-  assert.equal(heatTotal(first.opts.heatMods), 49, 'todos los heats al máximo');
+  assert.equal(heatTotal(first.opts.heatMods), 39, 'todos los heats restantes al máximo');
   assert.equal(g.progressData.endless.daily.stage, first.id, 'la etapa queda congelada');
 
   // Desbloquear más etapas durante el día NO cambia el reto ya elegido.

@@ -1341,6 +1341,10 @@ html, body {
   border-color: rgb(var(--crit-gold-rgb) / .85);
   box-shadow: 0 0 14px rgb(var(--crit-gold-rgb) / .35), inset 0 1px 0 rgb(var(--crit-gold-rgb) / .4);
 }
+/* 1.12.0: si el ∞ está cerrado, el diario queda solo en su fila (después
+   del protocolo); ocupa todo el ancho para que Heat 39 y bono no se aprieten. */
+.endless-cards > .stage-daily:only-child,
+.endless-cards > .stage-daily:nth-child(2):last-child { grid-column: 1 / -1; }
 /* Rótulo de la tarjeta (arriba, en versalitas) y pie con el dato. */
 .card-kicker {
   font-size: var(--text-xs);

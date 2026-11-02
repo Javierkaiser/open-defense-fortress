@@ -23,7 +23,7 @@ import {
   buildStageGroups, buildStageList, findStageHighlights, stageThemeColor,
   compactStageName, readMetaScroll, restoreMetaScroll,
   // fase 67: las dos tarjetas del endgame (∞ y desafío diario).
-  buildEndlessCardHtml, buildDailyCardHtml,
+  buildEndlessCardHtml, buildDailyCardHtml, dailySummaryRow,
   // fase 69: el Protocolo de asedio (heat) en el HUD.
   buildProtocolHtml, buildProtocolCardHtml,
   // fase 71: scroll y foco del Protocolo al re-renderizar.
@@ -3231,7 +3231,7 @@ const endlessPayload = (over = {}) => ({
   open: true,
   best: 62,
   next: 63,
-  daily: { date: '2026-10-26', stage: 57, bestScore: 0, heat: 0, heatForced: 49 },
+  daily: { date: '2026-10-26', stage: 57, bestScore: 0, heat: 0, heatForced: 39, rewardMul: 1.5 },
   ...over,
 });
 
@@ -3264,25 +3264,32 @@ test('fase 67: el récord del día se muestra formateado (o "sin récord")', () 
   assert.ok(sin.includes('sin récord hoy'), 'un bestScore 0 no es un récord');
   assert.ok(!sin.includes('tu récord'), 'y no se inventa uno');
   const con = buildDailyCardHtml(endlessPayload({
-    daily: { date: '2026-10-26', stage: 57, bestScore: 12345, heat: 5, heatForced: 49 },
+    daily: { date: '2026-10-26', stage: 57, bestScore: 12345, heat: 5, heatForced: 39, rewardMul: 1.5 },
   }));
   assert.ok(con.includes('tu récord: 012345'), 'el score usa el formato del HUD');
   assert.ok(con.includes('Heat 5'), 'y el Heat con el que se logró el récord');
-  assert.ok(con.includes('TODOS LOS HEATS · HEAT 49'), 'y el Heat forzado del diario');
-  // Si el récord ya es a Heat 49, no se repite dos veces en la misma línea.
+  assert.ok(con.includes('HEAT 39 · SIN CENSURA NI ARSENAL'), 'el Heat forzado del diario');
+  assert.ok(con.includes('BONO ×1,5'), 'y el bono de recompensa');
+  // Si el récord ya es a Heat 39, no se repite dos veces en la misma línea.
   const max = buildDailyCardHtml(endlessPayload({
-    daily: { date: '2026-10-26', stage: 57, bestScore: 12345, heat: 49, heatForced: 49 },
+    daily: { date: '2026-10-26', stage: 57, bestScore: 12345, heat: 39, heatForced: 39, rewardMul: 1.5 },
   }));
   assert.ok(max.includes('tu récord: 012345'));
-  assert.ok(!max.includes('Heat 49 · TODOS'), 'sin duplicar el Heat forzado');
-  assert.ok(max.includes('TODOS LOS HEATS · HEAT 49'));
+  assert.ok(!max.includes('Heat 39 · HEAT 39'), 'sin duplicar el Heat forzado');
+  assert.ok(max.includes('HEAT 39 · SIN CENSURA NI ARSENAL'));
+  assert.ok(css.includes('.endless-cards > .stage-daily:nth-child(2):last-child'),
+    'si el ∞ está cerrado, el diario ocupa la fila completa');
+  const row = dailySummaryRow({
+    date: '2026-10-26', stage: 5, score: 12345, rewardMul: 1.5,
+  });
+  assert.ok(row.includes('BONO DIARIO ×1,5'), 'el resumen de victoria muestra el bono');
 });
 
 test('1.10.0: el diario aparece desde S1 aunque el ∞ esté cerrado', () => {
   const html = buildStageList(fakeStages(1), {
     endless: {
       open: false,
-      daily: { date: '2026-10-26', stage: 1, bestScore: 0, heat: 0, heatForced: 49 },
+      daily: { date: '2026-10-26', stage: 1, bestScore: 0, heat: 0, heatForced: 39, rewardMul: 1.5 },
     },
   });
   assert.ok(html.includes('data-action="start-daily"'), 'el diario tiene su acción');

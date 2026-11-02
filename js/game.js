@@ -22,7 +22,7 @@ import { resolveKillScore, resolveKillXp } from './economy.js';
 import { STAGES } from './stages.js';
 import {
   stageDef, isEndless, endlessOpen, bestDepth, nextEndlessStage, isMilestone,
-  endlessRewardMul, dailyRun,
+  endlessRewardMul, dailyRun, DAILY_REWARD_MUL,
 } from './endless.js';
 import {
   rollOffer, applyCard, comboSummary, legendaryCardsFor,
@@ -438,7 +438,9 @@ export class Game {
       // fase 67: oro y fragmentos escalan con la profundidad (el ×1,5 del
       // hito lo aplica endlessRewardMul; rewardVictory lo lleva por dentro).
       // fase 69: y con el heat (heatRewardMul = 1 + 0,08 × heat).
-      const rewardMul = heatRewardMul(heat);
+      // 1.12.0: el daily suma su propio bono (Heat 39 × 1,5 = 6,18×).
+      const dailyMul = this._runOpts?.daily ? DAILY_REWARD_MUL : 1;
+      const rewardMul = heatRewardMul(heat) * dailyMul;
       const goldGain = Math.round(
         (META_GOLD_PER_CLEAR + (isFinal ? META_GOLD_PER_VICTORY : 0))
         * endlessRewardMul(stageId)
@@ -466,6 +468,7 @@ export class Game {
       this.meta = rewardGold(goldGain, this.meta, undefined); // primero oro (preserva lastGain luego)
       this.meta = rewardVictory(this.meta, stageId, undefined, { heatMul: rewardMul });
       const daily = this._recordDaily(true);
+      if (daily) daily.rewardMul = dailyMul;
       // fase 69: ¿la run mejora el récord del modo? Campaña: heat máximo
       // limpiado en ESA etapa. ∞: profundidad máxima a ESE heat. El heat 0
       // nunca es récord (es la run base).
@@ -854,7 +857,7 @@ export class Game {
     // el estado interno del nombre de etapa).
     this.hud.setSurvivalWave?.(0);
     // El Protocolo se aplica a campaña e ∞; el Daily pasa `heatMods`
-    // explícito con Heat 49. `heatMods: null` sigue siendo la vía explícita
+    // explícito con Heat 39 (sin Censura ni Arsenal). `heatMods: null` sigue siendo la vía explícita
     // para una run neutral (tests/reintentos).
     const heatProtocol = heatProtocolForRun({
       heatMods: opts.heatMods,
@@ -958,8 +961,9 @@ export class Game {
    * 1.10.0 - DESAFÍO DIARIO: la etapa sale del pool de campaña/∞ ya
    * desbloqueado (automática por fecha). La etapa se CONGELA en el primer
    * intento del día (`progress.endless.daily.stage`) para que desbloquear
-   * una etapa nueva no cambie el reto. Todos los heats van al máximo
-   * (Heat 49), sin importar el Protocolo activo. El récord es personal:
+   * una etapa nueva no cambie el reto. Van las 9 condiciones restantes al
+   * máximo (Heat 39; sin Censura ni Arsenal), sin importar el Protocolo
+   * activo. La victoria suma el bono diario ×1,5. El récord es personal:
    * la etapa puede variar entre jugadores.
    */
   startDaily() {
@@ -1451,6 +1455,7 @@ export class Game {
           bestScore: daily?.date === today.date ? daily.bestScore : 0,
           heat: daily?.date === today.date ? daily.heat : 0,
           heatForced: heatTotal(dailyHeatMods()),
+          rewardMul: DAILY_REWARD_MUL,
         },
       },
       heat: { active: activeHeat, best: this.progressData.heat.best },

@@ -236,6 +236,19 @@ test('fase 74: Horizonte de Sucesos alarga y agranda el Black Hole', () => {
   assert.equal(bh.radius, 204);
 });
 
+test('1.12.0: fireBlackHole aparece cerca del racimo más denso', () => {
+  const game = bhGame();
+  const enemies = [
+    mkEnemy(420, 310), mkEnemy(430, 320), mkEnemy(410, 300),
+    mkEnemy(80, 700),
+  ];
+  game.fortress.enemies = enemies;
+  assert.equal(game.fortress.fireBlackHole(game), true);
+  const bh = game.engine.entities.find((e) => e.constructor?.name === 'BlackHoleFx');
+  assert.ok(bh.x > 380 && bh.x < 460, `x del BH (${bh.x})`);
+  assert.ok(bh.y > 270 && bh.y < 360, `y del BH (${bh.y})`);
+});
+
 test('fase 74: Colapso explota al terminar el Black Hole', () => {
   const game = bhGame();
   applyCard(card('bh_collapse'), game);

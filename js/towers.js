@@ -47,14 +47,16 @@ import {
   guardianLeadAim,
 } from './towers-targeting.js';
 import { Bullet, MortarShell, HomingMissile } from './towers-projectiles.js';
-import { BLACK_HOLE, BlackHoleFx, CraterFx, LaserStaticFx, BeamFx, BoltFx } from './towers-fx.js';
+import {
+  BLACK_HOLE, BlackHoleFx, blackHolePoint, CraterFx, LaserStaticFx, BeamFx, BoltFx,
+} from './towers-fx.js';
 import { MAX_DRONES, Drone, forcefieldBubbleR } from './towers-drones.js';
 import { onMechanicHit, onMechanicTick } from './tower-mechanics.js';
 export {
   unitMods, hurtP, applyExplosionCombo, TARGETING, TRAVERSE, TRAVERSE_AIM,
   targetingFor, targetInRange, pickByPolicy, beamAimAngle, traverseAim,
   beamGradient, detectWidth, guardianLeadAim, Bullet, MortarShell,
-  HomingMissile, BLACK_HOLE, BlackHoleFx, CraterFx, LaserStaticFx, BeamFx, BoltFx,
+  HomingMissile, BLACK_HOLE, BlackHoleFx, blackHolePoint, CraterFx, LaserStaticFx, BeamFx, BoltFx,
   MAX_DRONES, Drone, forcefieldBubbleR,
 };
 

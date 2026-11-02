@@ -1187,15 +1187,27 @@ export class Engine {
     for (let i = 0; i < count; i++) {
       const ang = rand(0, Math.PI * 2);
       const spd = rand(opts.speedMin ?? 40, opts.speedMax ?? 140);
+      let vx = Math.cos(ang) * spd;
+      let vy = Math.sin(ang) * spd - (opts.upBias ?? 0);
+      let gravity = opts.gravity ?? 60;
+      // 1.12.0: partículas dirigidas (Black Hole). Si `towardX/Y` vienen,
+      // la velocidad apunta al centro y la gravedad por defecto es 0.
+      if (Number.isFinite(opts.towardX) && Number.isFinite(opts.towardY)) {
+        const dx = opts.towardX - x;
+        const dy = opts.towardY - y;
+        const len = Math.hypot(dx, dy) || 1;
+        vx = (dx / len) * spd;
+        vy = (dy / len) * spd;
+        gravity = opts.gravity ?? 0;
+      }
       this.particles.push({
         x, y,
-        vx: Math.cos(ang) * spd,
-        vy: Math.sin(ang) * spd - (opts.upBias ?? 0),
+        vx, vy,
         life: rand(opts.lifeMin ?? 0.35, opts.lifeMax ?? 0.7),
         age: 0,
         size: rand(opts.sizeMin ?? 1.5, opts.sizeMax ?? 3.5),
         color,
-        gravity: opts.gravity ?? 60,
+        gravity,
       });
     }
   }

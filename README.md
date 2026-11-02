@@ -5,7 +5,7 @@
 [![CI](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml/badge.svg)](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml)
 [![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-3FD4FF.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-6DA55F.svg)](package.json)
-[![Tests](https://img.shields.io/badge/tests-1083-3FD4FF.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-1088-3FD4FF.svg)](tests/)
 
 [Demo web](https://opendefensefortress.javierlust.net.ar/) · [English summary](README.en.md) · [Diseño técnico](docs/DESIGN.md) · [Balance](docs/BALANCE.md) · [Testing](docs/TESTING.md) · [Créditos](docs/CREDITS.md) · [Cómo contribuir](CONTRIBUTING.md) · [Código de conducta](CODE_OF_CONDUCT.md)
 
@@ -70,7 +70,7 @@ La demo se publica sola: cada push a `main` corre el workflow de deploy
 - **Campaña de 50 etapas** con jefes, biomas y dificultad creciente.
 - **Modo infinito** (etapas 51+) con profundidad, hitos y récord.
 - **Supervivencia**: olas infinitas, atrición de base y jefe cada 5 oleadas.
-- **Desafío diario** sobre cualquier etapa desbloqueada, con semilla por fecha, Heat 49 forzado y récord personal.
+- **Desafío diario** sobre cualquier etapa desbloqueada, con semilla por fecha, **Heat 39** (sin Censura ni Arsenal), **bono de recompensa ×1,5** y récord personal.
 - **Protocolo / Heat**: 11 condiciones, presets I–V y recompensas extra.
 - **8 torres + 3 drones**, cada una con una **mecánica firma** (supresión, fusión, juicio, ion, cráter, riel, corte, ignición, veneno y burbuja), **nivel 1–6 y maestría 0–15**, 107 cartas normales + 33 legendarias, 7 afijos de élite y 5 temas visuales con **skins de torres** (paleta, motivos, pad y FX por tema).
 - **Legendarias por maestría**: cada 5 puntos de maestría elegís 1 de las 3 cartas legendarias de esa unidad; la elección no consume un nivel y Censura no la recorta.
@@ -81,7 +81,7 @@ La demo se publica sola: cada push a `main` corre el workflow de deploy
 - **Sin anuncios, sin compras, sin cuentas, sin telemetría.**
 - **Offline real**: fuentes, sprites y SFX locales.
 - **Calidad gráfica Alta/Baja** para equipos modestos.
-- **1083 tests** en Node, sin DOM ni canvas.
+- **1088 tests** en Node, sin DOM ni canvas.
 
 ## Controles
 
@@ -100,7 +100,7 @@ El disparo es automático: no hay apuntado ni joystick.
 ## Tests
 
 ```bash
-node --test "tests/test-*.mjs"            # 1083 tests (1083 pass, 0 skip, 0 fail)
+node --test "tests/test-*.mjs"            # 1088 tests (1088 pass, 0 skip, 0 fail)
 node .github/scripts/ci-checks.mjs   # checks estáticos (sintaxis, zero-dep, refs)
 ```
 

@@ -549,7 +549,7 @@ export function buildEndlessCardHtml(endless) {
  * número, no pasar la etapa: por eso el récord se ve en la propia tarjeta.
  * No exige el ∞ abierto: el diario existe desde el S1.
  *
- * @param {{daily?:{date?:string,stage?:number,bestScore?:number,heat?:number,heatForced?:number}}|null|undefined} endless
+ * @param {{daily?:{date?:string,stage?:number,bestScore?:number,heat?:number,heatForced?:number,rewardMul?:number}}|null|undefined} endless
  * @returns {string} HTML de la tarjeta ('' sin etapa/fecha válidas)
  */
 export function buildDailyCardHtml(endless) {
@@ -562,20 +562,22 @@ export function buildDailyCardHtml(endless) {
   const bestScore = Math.max(0, payloadInt(daily.bestScore) ?? 0);
   const bestHeat = heatInt(daily.heat);
   const forcedHeat = heatInt(daily.heatForced);
+  const rewardMul = Number(daily.rewardMul) > 1 ? Number(daily.rewardMul) : 0;
   // El Heat del récord se omite si es el mismo forzado por el diario: evita
-  // "Heat 49 · TODOS LOS HEATS · HEAT 49".
+  // "Heat 39 · HEAT 39".
   const record = bestScore > 0
     ? `tu récord: ${fmt(bestScore)}${bestHeat > 0 && bestHeat !== forcedHeat ? ` · Heat ${bestHeat}` : ''}`
     : 'sin récord hoy';
   const label = stage >= ENDLESS_MIN_STAGE ? `∞ ETAPA ${stage}` : `ETAPA ${stage}`;
   const heatTxt = forcedHeat > 0
-    ? ` · TODOS LOS HEATS · HEAT ${forcedHeat}`
+    ? ` · HEAT ${forcedHeat} · SIN CENSURA NI ARSENAL`
     : '';
+  const bonusTxt = rewardMul > 0 ? ` · BONO ${fmtRewardMul(rewardMul)}` : '';
   return `
     <button class="stage-daily" data-action="start-daily">
       <span class="card-kicker">DESAFÍO DIARIO · PERSONAL</span>
       <span class="card-title">${label} · ${esc(date)}</span>
-      <span class="card-sub">${esc(record)}${esc(heatTxt)}</span>
+      <span class="card-sub">${esc(record)}${esc(heatTxt)}${esc(bonusTxt)}</span>
     </button>`;
 }
 
@@ -608,7 +610,7 @@ export function endlessSummaryRows(endless, { milestone = false } = {}) {
  * es el mejor de hoy. El score se registra gane o pierda, así que la fila
  * sale en las dos pantallas.
  *
- * @param {{date?:string,stage?:number,score?:number,isRecord?:boolean}|null|undefined} daily
+ * @param {{date?:string,stage?:number,score?:number,isRecord?:boolean,rewardMul?:number}|null|undefined} daily
  * @returns {string} la fila ('' si no hay payload diario)
  */
 export function dailySummaryRow(daily) {
@@ -620,7 +622,9 @@ export function dailySummaryRow(daily) {
   const stageTxt = stage != null && stage >= 1 ? `ETAPA ${stage} · ` : '';
   const bestHeat = heatInt(daily.bestHeat);
   const heatTxt = bestHeat > 0 ? ` · récord a Heat ${bestHeat}` : '';
-  return `<div><dt>DESAFÍO DIARIO</dt><dd class="ok">${stageTxt}${fmt(score)}${record}${heatTxt}</dd></div>`;
+  const rewardMul = Number(daily.rewardMul) > 1 ? Number(daily.rewardMul) : 0;
+  const bonusTxt = rewardMul > 0 ? ` · BONO DIARIO ${fmtRewardMul(rewardMul)}` : '';
+  return `<div><dt>DESAFÍO DIARIO</dt><dd class="ok">${stageTxt}${fmt(score)}${record}${heatTxt}${bonusTxt}</dd></div>`;
 }
 
 /**

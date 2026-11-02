@@ -177,6 +177,17 @@ test('spawnParticles: respeta el tope vigente (FIFO)', () => {
   assert.ok(e.particles.length <= 10, `se pasaron del tope: ${e.particles.length}`);
 });
 
+test('1.12.0: spawnParticles towardX/Y dirige la partícula al centro', () => {
+  const e = makeEngine();
+  e.spawnParticles(100, 100, '#B48CFF', 1, {
+    towardX: 0, towardY: 100, speedMin: 50, speedMax: 50, gravity: 0,
+  });
+  const p = e.particles[0];
+  assert.ok(p.vx < 0, `debe viajar hacia la izquierda (vx=${p.vx})`);
+  assert.ok(Math.abs(p.vy) < 1e-9, `sin componente vertical (vy=${p.vy})`);
+  assert.equal(p.gravity, 0);
+});
+
 // ---------- BUG 2: las teclas 1/2/3 en pausa no reanudan ----------
 
 test('setTimeScale: en PAUSED no cambia timeScale pero guarda la velocidad', () => {

@@ -10,7 +10,9 @@ import {
   ENDLESS_START, MILESTONE_EVERY, DAILY_STAGES,
   isEndless, stageDef, endlessOpen, bestDepth, nextEndlessStage,
   isMilestone, endlessRewardMul, dailyKey, dailySeed, dailyStage, dailyRun,
+  DAILY_REWARD_MUL,
 } from '../js/endless.js';
+import { heatRewardMul } from '../js/heat.js';
 import { STAGES, baseHpForStage } from '../js/stages.js';
 
 // Progreso mínimo con la campaña completa (lo único que abre el modo).
@@ -150,6 +152,12 @@ test('daily: la semilla no depende del reloj ni del azar local', () => {
   const before = dailySeed('2027-03-14');
   for (let i = 0; i < 100; i++) Math.random();
   assert.equal(dailySeed('2027-03-14'), before);
+});
+
+test('1.12.0: el bono diario lleva la recompensa a ×6,18', () => {
+  assert.equal(DAILY_REWARD_MUL, 1.5);
+  assert.ok(Math.abs(heatRewardMul(39) * DAILY_REWARD_MUL - 6.18) < 1e-9,
+    'Heat 39 (×4,12) × 1,5 = ×6,18');
 });
 
 test('1.10.0: daily elige una etapa del pool y respeta la etapa congelada', () => {

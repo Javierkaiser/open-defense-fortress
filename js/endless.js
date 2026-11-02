@@ -148,6 +148,14 @@ export function dailySeed(key) {
   return h >>> 0;
 }
 
+/**
+ * 1.12.0 - BONO de recompensa del desafío diario. Se aplica ADEMÁS de
+ * `heatRewardMul(39)` a fragmentos y oro de la victoria. Con Heat 39 el
+ * multiplicador base es 4,12; ×1,5 = 6,18 (el daily a Heat 49 pagaba 4,92).
+ * Los hitos únicos de Heat NO se multiplican.
+ */
+export const DAILY_REWARD_MUL = 1.5;
+
 /** Etapa del desafío diario: 51..60, elegida por la fecha. */
 export function dailyStage(key) {
   return ENDLESS_START + (dailySeed(key) % DAILY_STAGES);

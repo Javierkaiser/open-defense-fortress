@@ -5,7 +5,8 @@ El Protocolo de asedio (Heat) es la pista de dificultad opcional de la campaña:
 elige un conjunto de handicaps con rangos (más enemigos, más HP, fugas más caras, menos cartas,
 sin Ultimate, etc.), el heat total mide cuánto se castigó y cada etapa guarda su propio récord
 de heat. Se aplica a campaña, ∞ y supervivencia. El daily es la excepción: fuerza
-**todas las condiciones al máximo (Heat 49)** y guarda ese Heat en su récord personal.
+**todas las condiciones al máximo salvo Censura y Arsenal (Heat 39)**, aplica un
+**bono de recompensa ×1,5** y guarda ese Heat en su récord personal.
 
 ## Requirements
 
@@ -48,19 +49,21 @@ editar los rangos uno a uno. El heat máximo personalizable MUST ser 49.
 
 El Protocolo MUST aplicarse a **campaña, modo infinito y supervivencia**. El récord de
 profundidad del ∞ es **por nivel de Heat** (`heat.endless`). El desafío diario MUST forzar
-todas las condiciones al rango máximo (Heat 49), ignorando el Protocolo activo, y su récord
-es **personal por fecha** (`endless.daily`, con `heat = 49`).
+todas las condiciones al rango máximo **excepto Censura y Arsenal** (Heat 39), ignorando
+el Protocolo activo, y su récord es **personal por fecha** (`endless.daily`, con
+`heat = 39`). La victoria diaria MUST recibir además el bono `DAILY_REWARD_MUL = 1.5`.
 
 #### Scenario: Una etapa de campaña con Protocolo
 
 - **WHEN** el jugador arranca una etapa de campaña con heat 8
 - **THEN** la etapa usa los modificadores del Protocolo y el resumen muestra el heat
 
-#### Scenario: El diario fuerza el Heat máximo
+#### Scenario: El diario fuerza 9 condiciones
 
 - **WHEN** el jugador arranca el desafío diario con un Protocolo activo cualquiera
-- **THEN** la run diaria usa las once condiciones al máximo (Heat 49) y, si supera su
-  récord personal del día, guarda el score con `endless.daily.heat = 49`
+- **THEN** la run diaria usa las 9 condiciones restantes al máximo (Heat 39), mantiene
+  3 cartas y 5 slots, y si supera su récord personal guarda `endless.daily.heat = 39`
+- **AND** la victoria cobra el bono diario ×1,5 sobre fragmentos y oro
 
 #### Scenario: El infinito aplica el Protocolo
 
@@ -128,7 +131,7 @@ La carga de datos viejos o corruptos MUST NOT romper el progreso.
 #### Scenario: El récord diario guarda su Heat forzado
 
 - **WHEN** el jugador logra un nuevo récord diario
-- **THEN** el score y `endless.daily.heat = 49` se guardan; un run posterior con
+- **THEN** el score y `endless.daily.heat = 39` se guardan; un run posterior con
   peor score no cambia ninguno de los dos
 
 #### Scenario: Progreso viejo

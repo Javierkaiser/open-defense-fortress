@@ -15,6 +15,51 @@ import { onMechanicHit } from './tower-mechanics.js';
 
 export const BLACK_HOLE = { duration: 4, dps: 10, pull: 260, radius: 170 };
 
+/**
+ * 1.12.0 - Punto de aparición del Black Hole principal: el CENTROIDE del
+ * racimo con más enemigos dentro del radio real del vórtice. Antes caía en
+ * una X aleatoria y siempre en y=380, así que muchas veces no agarraba a
+ * nadie. El mini BH de Singularidad NO usa esto: nace en la explosión.
+ *
+ * @param {Array} enemies lista viva de la fortaleza
+ * @param {{radius?:number,width?:number,top?:number,bottom?:number}} [opts]
+ * @returns {{x:number,y:number}}
+ */
+export function blackHolePoint(enemies, opts = {}) {
+  const radius = Math.max(40, Number(opts.radius) || BLACK_HOLE.radius);
+  const width = Number(opts.width) || CONFIG.CANVAS_W;
+  const top = Number(opts.top) || 120;
+  const bottom = Number(opts.bottom) || (CONFIG.TOWER_Y - 80);
+  const list = (Array.isArray(enemies) ? enemies : []).filter(
+    (e) => e && !e.dead && Number.isFinite(e.x) && Number.isFinite(e.y),
+  );
+  const fallback = {
+    x: CONFIG.BASE_X ?? width / 2,
+    y: clamp(380, top, bottom),
+  };
+  if (!list.length) return fallback;
+
+  // Candidato por enemigo: cuántos caen dentro del 90 % del radio. El
+  // centroide del mejor grupo evita poner el vórtice sobre un borde.
+  let best = null;
+  for (const anchor of list) {
+    const group = list.filter(
+      (e) => Math.hypot(e.x - anchor.x, e.y - anchor.y) <= radius * 0.9,
+    );
+    const avgY = group.reduce((sum, e) => sum + e.y, 0) / group.length;
+    if (!best || group.length > best.group.length
+      || (group.length === best.group.length && avgY > best.avgY)) {
+      best = { group, avgY };
+    }
+  }
+  const cx = best.group.reduce((sum, e) => sum + e.x, 0) / best.group.length;
+  const cy = best.group.reduce((sum, e) => sum + e.y, 0) / best.group.length;
+  return {
+    x: clamp(cx, 40, width - 40),
+    y: clamp(cy, top, bottom),
+  };
+}
+
 export class BlackHoleFx {
   constructor(game, xOrOpts = {}) {
     this.game = game;
@@ -33,10 +78,12 @@ export class BlackHoleFx {
     this.mini = !!opts.mini;
     this.dead = false;
     this._spin = 0;
+    this._pAcc = 0;
     if (!this.mini) {
       const eng = game?.engine;
-      eng?.emit('blackhole:start', { x: this.x });
+      eng?.emit('blackhole:start', { x: this.x, y: this.y });
       eng?.sfxSafe?.('blackhole');
+      eng?.shake?.(2, 120);
     }
   }
 
@@ -65,6 +112,28 @@ export class BlackHoleFx {
         eng?.shake?.(3, 180);
       }
       return;
+    }
+    // 1.12.0 - Chispas que caen hacia el centro. Throttle fijo y sin
+    // lluvia en calidad Baja: el vórtice se lee mejor sin castigar el loop.
+    const eng = this.game?.engine;
+    const lowQ = eng?._qualityId === 'baja';
+    this._pAcc += dt;
+    const pRate = this.mini ? 0.12 : (lowQ ? 0.18 : 0.07);
+    if (eng?.spawnParticles && this.t < this.life - 0.45 && this._pAcc >= pRate) {
+      this._pAcc = 0;
+      const ang = rand(0, Math.PI * 2);
+      const rad = this.radius * rand(0.62, 0.95);
+      eng.spawnParticles(
+        this.x + Math.cos(ang) * rad,
+        this.y + Math.sin(ang) * rad,
+        this.mini ? '#9A6CFF' : '#B48CFF',
+        this.mini ? 1 : 2,
+        {
+          speedMin: 35, speedMax: 85, gravity: 0,
+          towardX: this.x, towardY: this.y,
+          lifeMin: 0.18, lifeMax: 0.42, sizeMin: 1, sizeMax: 2.2,
+        },
+      );
     }
     // Succión: arrastra a los enemigos vivos hacia el vórtice
     if (Array.isArray(list)) {
@@ -98,30 +167,100 @@ export class BlackHoleFx {
     const fade = this.active
       ? Math.min(1, this.t * 4, (this.life - this.t) * 2.5)
       : 0;
+    if (fade <= 0) return;
+    const lowQ = this.game?.engine?._qualityId === 'baja';
+    const pulse = 1 + 0.04 * Math.sin(t * 5 + this._spin);
+    const arms = lowQ || this.mini ? 2 : 4;
     ctx.save();
     ctx.translate(this.x, this.y);
-    ctx.globalAlpha = 0.28 * fade;
-    ctx.fillStyle = '#B48CFF';
-    ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
-    // Disco negro + anillo violeta rotante
-    ctx.globalAlpha = fade;
-    ctx.fillStyle = '#050308';
-    ctx.beginPath(); ctx.arc(0, 0, this.radius * 0.2, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#B48CFF';
-    ctx.shadowColor = '#B48CFF';
-    ctx.shadowBlur = 18;
-    ctx.lineWidth = 3;
-    for (let i = 0; i < 3; i++) {
+
+    // Halo exterior: gradiente radial si el canvas lo soporta; si no, un
+    // disco violeta tenue (tests con ctx mínimo).
+    ctx.globalAlpha = 1;
+    if (typeof ctx.createRadialGradient === 'function') {
+      const halo = ctx.createRadialGradient(0, 0, this.radius * 0.12, 0, 0, this.radius * 1.08);
+      halo.addColorStop(0, `rgba(180, 140, 255, ${0.34 * fade})`);
+      halo.addColorStop(0.58, `rgba(120, 80, 220, ${0.13 * fade})`);
+      halo.addColorStop(1, 'rgba(35, 15, 70, 0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius * 1.08, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.globalAlpha = 0.28 * fade;
+      ctx.fillStyle = '#B48CFF';
+      ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Disco de acreción: brazos elípticos girando en sentidos alternos.
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < arms; i++) {
+      ctx.globalAlpha = fade * (0.52 - i * 0.075);
+      ctx.strokeStyle = i % 2 ? '#7F5CFF' : '#B48CFF';
+      ctx.lineWidth = Math.max(1.2, 2.8 - i * 0.35);
+      ctx.shadowColor = lowQ ? 'transparent' : '#B48CFF';
+      ctx.shadowBlur = lowQ ? 0 : 16;
+      const dir = i % 2 ? -1 : 1;
       ctx.beginPath();
       ctx.ellipse(
         0, 0,
-        this.radius * (0.26 + i * 0.082),
-        this.radius * (0.07 + i * 0.03),
-        this._spin + i, 0, Math.PI * 2,
+        this.radius * (0.24 + i * 0.078),
+        this.radius * (0.065 + i * 0.027),
+        this._spin * dir + i * 0.7, 0, Math.PI * 2,
       );
       ctx.stroke();
     }
-    void t;
+
+    // Horizonte de sucesos: anillo fino que late.
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = fade;
+    ctx.strokeStyle = '#EADFFF';
+    ctx.lineWidth = lowQ ? 1.2 : 1.8;
+    ctx.shadowColor = lowQ ? 'transparent' : '#D8C4FF';
+    ctx.shadowBlur = lowQ ? 0 : 20;
+    ctx.beginPath();
+    ctx.arc(0, 0, this.radius * 0.21 * pulse, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Núcleo negro con borde interior.
+    if (typeof ctx.createRadialGradient === 'function') {
+      const core = ctx.createRadialGradient(0, 0, 0, 0, 0, this.radius * 0.22);
+      core.addColorStop(0, '#000000');
+      core.addColorStop(0.72, '#050308');
+      core.addColorStop(1, 'rgba(10, 4, 22, 0.92)');
+      ctx.fillStyle = core;
+    } else {
+      ctx.fillStyle = '#050308';
+    }
+    ctx.beginPath();
+    ctx.arc(0, 0, this.radius * 0.21 * pulse, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Arcos de lente gravitacional (sólo calidad normal).
+    if (!lowQ) {
+      ctx.globalAlpha = fade * 0.42;
+      ctx.strokeStyle = '#8F6BFF';
+      ctx.lineWidth = 1.2;
+      ctx.shadowBlur = 0;
+      for (const [r, a0] of [[0.46, 0.4], [0.62, 3.5]]) {
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius * r, a0 + this._spin * 0.5, a0 + this._spin * 0.5 + 1.15);
+        ctx.stroke();
+      }
+    }
+
+    // Onda de aparición (0,45 s): un anillo que se abre desde el núcleo.
+    if (this.t < 0.45) {
+      const k = this.t / 0.45;
+      ctx.globalAlpha = (1 - k) * 0.75 * fade;
+      ctx.strokeStyle = '#D8C4FF';
+      ctx.lineWidth = 2.4;
+      ctx.shadowBlur = lowQ ? 0 : 12;
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius * (0.18 + k * 0.95), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
     ctx.restore();
   }
 }

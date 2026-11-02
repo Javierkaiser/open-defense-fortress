@@ -11,7 +11,7 @@ import {
   TOWERS, DRONES, Tower, Drone, Bullet, HomingMissile, MUZZLE_ACCENT,
   LaserStaticFx, projectileColor, levelPips, MAX_TOWER_LEVEL, WASPS, FIREWHEEL,
   TARGETING, targetingFor, pickByPolicy, targetInRange,
-  MortarShell, BlackHoleFx, CraterFx, beamAimAngle, forcefieldBubbleR,
+  MortarShell, BlackHoleFx, blackHolePoint, CraterFx, beamAimAngle, forcefieldBubbleR,
 } from '../js/towers.js';
 // El dial de presentación del arsenal (towers-data.js): los tests lo leen de
 // la fuente en vez de repetir el 0,75.
@@ -312,6 +312,49 @@ test('fase 75: el Black Hole arrastra también el ancla de drift/zigzag', () => 
   bh.update(0.1);
   assert.ok(e.entryX < 200, `entryX debe acercarse al vórtice (quedó en ${e.entryX})`);
   assert.ok(e.x < 200, `x debe acercarse al vórtice (quedó en ${e.x})`);
+});
+
+test('1.12.0: blackHolePoint elige el racimo más denso y respeta el campo', () => {
+  const cluster = [
+    { x: 400, y: 300, r: 10, dead: false },
+    { x: 415, y: 310, r: 10, dead: false },
+    { x: 390, y: 292, r: 10, dead: false },
+  ];
+  const lone = { x: 80, y: 700, r: 10, dead: false };
+  const p = blackHolePoint([...cluster, lone], { radius: 170 });
+  assert.ok(p.x > 360 && p.x < 440, `x en el racimo (${p.x})`);
+  assert.ok(p.y > 250 && p.y < 350, `y en el racimo (${p.y})`);
+  // Sin enemigos: fallback determinista al centro del campo.
+  const empty = blackHolePoint([], { radius: 170 });
+  assert.equal(empty.x, 270);
+  assert.equal(empty.y, 380);
+  // Un racimo pegado arriba se clampa al campo jugable.
+  const top = blackHolePoint([{ x: 10, y: 20, r: 10, dead: false }], { radius: 170 });
+  assert.ok(top.x >= 40, 'x clampada');
+  assert.ok(top.y >= 120, 'y clampada');
+  // Un radio más grande puede meter al solitario en el mismo grupo.
+  const wide = blackHolePoint([...cluster, lone], { radius: 900 });
+  assert.ok(wide.x > 250 && wide.x < 350,
+    'con radio enorme el centroide incluye al solitario');
+});
+
+test('1.12.0: el Black Hole dibuja halo, anillo y brazos sin romper', () => {
+  const grad = { addColorStop() {} };
+  const ctx = {
+    save() {}, restore() {}, translate() {},
+    beginPath() {}, arc() {}, ellipse() {}, fill() {}, stroke() {},
+    createRadialGradient() { return grad; },
+  };
+  const game = mkGame();
+  const bh = new BlackHoleFx(game, { x: 200, y: 300, radius: 170 });
+  bh.t = 0.25;
+  assert.doesNotThrow(() => bh.draw(ctx));
+  // También en calidad Baja y en el mini BH.
+  game.engine._qualityId = 'baja';
+  assert.doesNotThrow(() => bh.draw(ctx));
+  const mini = new BlackHoleFx(game, { x: 100, y: 200, radius: 80, mini: true });
+  mini.t = 0.2;
+  assert.doesNotThrow(() => mini.draw(ctx));
 });
 
 test('HomingMissile._explode: splash propaga los debuffs/crit de perks', () => {

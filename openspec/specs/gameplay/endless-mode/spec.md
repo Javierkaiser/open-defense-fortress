@@ -169,35 +169,45 @@ rerolear), y el score MUST registrarse tanto si se gana como si se pierde.
 - **WHEN** la run diaria termina en derrota
 - **THEN** el score obtenido igual se registra como candidato al récord del día
 
-### Requirement: El desafío diario fuerza el Heat máximo
+### Requirement: El desafío diario fuerza 9 condiciones (Heat 39)
 
-El desafío diario MUST aplicar **todas las condiciones del Protocolo en su rango máximo**
-(Heat 49), sin importar el Protocolo activo del jugador. El récord diario MUST guardar el
-Heat forzado. El jugador MUST poder jugar el diario desde el Stage 1, sin exigir la campaña
+El desafío diario MUST aplicar **todas las condiciones del Protocolo en su rango máximo,
+excepto Censura y Arsenal** (Heat 39), sin importar el Protocolo activo del jugador. Esas
+dos quedan fuera porque castigan la construcción (3→1 cartas y 5→4 slots) y hacían el reto
+injustamente duro para cuentas con pocas unidades. El récord diario MUST guardar el Heat
+forzado (39). El jugador MUST poder jugar el diario desde el Stage 1, sin exigir la campaña
 completa ni el modo infinito abierto.
 
-#### Scenario: Todos los heats, siempre
+#### Scenario: Sin Censura ni Arsenal
 
 - **WHEN** el jugador arranca el desafío diario con el Protocolo en Heat 0
-- **THEN** la run usa las once condiciones al máximo y el resumen informa Heat 49
+- **THEN** la run usa las 9 condiciones restantes al máximo, la oferta mantiene 3 cartas,
+  los 5 slots siguen disponibles y el resumen informa Heat 39
 
 #### Scenario: Récord personal con Heat forzado
 
 - **WHEN** el jugador logra un nuevo récord diario
-- **THEN** el score se guarda con Heat 49, aunque su Protocolo activo sea otro
+- **THEN** el score se guarda con Heat 39, aunque su Protocolo activo sea otro
+
+#### Scenario: Recompensa diaria
+
+- **WHEN** el jugador limpia el desafío diario
+- **THEN** fragmentos y oro reciben el bono `DAILY_REWARD_MUL = 1.5` además del
+  multiplicador de Heat 39 (total ×6,18) y el resumen lo muestra
 
 #### Scenario: Diario disponible desde el inicio
 
 - **WHEN** una cuenta nueva con solo el Stage 1 desbloqueado abre el selector
-- **THEN** ve la tarjeta del desafío diario con una etapa jugable de su pool
+- **THEN** ve la tarjeta del desafío diario con una etapa jugable de su pool, Heat 39
+  y el bono de recompensa
 
 ### Requirement: El endgame se ve y se entiende
 
 El selector de etapas MUST mostrar la tarjeta de continuación del infinito con la
 profundidad a jugar y el récord de profundidad, y MUST mostrar el desafío del día con su
-etapa, su Heat forzado y su récord personal. El resumen de fin de run del infinito MUST
-indicar la profundidad jugada, el récord y si se batió; el resumen de un hito MUST
-anunciarlo.
+etapa, su Heat forzado, su bono de recompensa y su récord personal. El resumen de fin de
+run del infinito MUST indicar la profundidad jugada, el récord y si se batió; el resumen
+de un hito MUST anunciarlo.
 
 #### Scenario: El selector ofrece continuar
 

@@ -12,7 +12,10 @@
 // ============================================================
 
 import { CONFIG, SCENE, clamp, rand, TOWER_BAY } from './engine.js';
-import { Tower, TOWERS, Drone, MAX_DRONES, DRONES, BlackHoleFx, BLACK_HOLE } from './towers.js';
+import {
+  Tower, TOWERS, Drone, MAX_DRONES, DRONES,
+  BlackHoleFx, blackHolePoint, BLACK_HOLE,
+} from './towers.js';
 // fase 60: la caja del ENCAJE de los slots vacíos sale del pad de las
 // torres (misma geometría para vacío y ocupado).
 import { TOWER_PAD, TOWER_VISUAL_SCALE } from './tower-art.js';
@@ -417,9 +420,14 @@ export class Fortress {
     this.blackHoleCharge = 0;
     this.bhReady = false;
     const mods = this.blackHoleMods ?? {};
-    const fx = new BlackHoleFx(game, { // X aleatoria §2.3
+    const radius = BLACK_HOLE.radius * (mods.radiusMul ?? 1);
+    // 1.12.0: aparece en el centroide del racimo más denso (no en X random).
+    const point = blackHolePoint(game?.fortress?.enemies, { radius });
+    const fx = new BlackHoleFx(game, {
+      x: point.x,
+      y: point.y,
       duration: BLACK_HOLE.duration + (mods.durationAdd ?? 0),
-      radius: BLACK_HOLE.radius * (mods.radiusMul ?? 1),
+      radius,
       endBurst: mods.endBurst ?? 0,
       drain: mods.drain ?? 0,
     });

@@ -6,7 +6,7 @@
 node --test "tests/test-*.mjs"
 ```
 
-Estado actual: **1083 tests** (1083 pass, 0 skip, 0 fail) en **36 archivos**.
+Estado actual: **1088 tests** (1088 pass, 0 skip, 0 fail) en **36 archivos**.
 
 Requisitos: Node 22 o superior.
 
@@ -88,8 +88,12 @@ Para eso hay **smoke manual** y una checklist Android (APK debug).
    queden visibles a 360×640 y 390×844.
 6. Subir una torre a maestría 5 y comprobar el draft legendario (3/2/1), el
    badge `R2/2` de las doctrinas y la fila de drones con maestría.
-7. Probar `SELECCIONAR STAGE`, `TORRETAS`, `PROTOCOLO` y `RÉCORDS`.
-8. Verificar que no haya requests de red en DevTools.
+7. Abrir el desafío diario: la tarjeta debe decir `HEAT 39 · SIN CENSURA NI
+   ARSENAL · BONO ×1,5`; al jugar deben quedar 3 cartas por oferta y 5 slots.
+8. Probar el Black Hole con un racimo: debe aparecer sobre el grupo más
+   denso, no en una X random; revisar el dibujo en calidad Alta/Baja.
+9. Probar `SELECCIONAR STAGE`, `TORRETAS`, `PROTOCOLO` y `RÉCORDS`.
+10. Verificar que no haya requests de red en DevTools.
 
 ## Smoke Android (APK debug)
 

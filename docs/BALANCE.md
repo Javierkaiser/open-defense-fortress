@@ -367,8 +367,9 @@ Lectura:
   +8 % y la tendencia S60 > S50, S70 > S60 se cumple.
 - El ∞ **aplica el Protocolo activo** (v1.7.2). La profundidad se guarda por
   nivel de Heat (`heat.endless`); el récord global de profundidad se conserva.
-  El Daily es la excepción 1.10.0: fuerza Heat 49 y guarda su récord personal
-  por fecha (`endless.daily`, `heat = 49`).
+  El Daily es la excepción 1.12.0: fuerza Heat 39 (sin Censura ni Arsenal),
+  aplica un bono de recompensa ×1,5 y guarda su récord personal por fecha
+  (`endless.daily`, `heat = 39`).
 
 ## Supervivencia
 
@@ -388,8 +389,10 @@ Lectura:
 - **Recompensa**: `heatRewardMul = 1 + 0,08·heat` (heat 10 ≈ ×1,8).
 - **Hitos únicos** 5/10/20/35: 60/120/240/420 fragmentos **al pool**.
 - Se aplica a **campaña, ∞ y supervivencia**. El **desafío diario** es la
-  excepción: fuerza las 11 condiciones al máximo (**Heat 49**, recompensa
-  ×4,92) y guarda ese Heat como récord personal.
+  excepción: fuerza las **9 condiciones restantes** al máximo (**Heat 39**;
+  sin Censura ni Arsenal), suma un **bono ×1,5** a la recompensa
+  (`heatRewardMul(39) = 4,12 → 6,18` total) y guarda ese Heat como récord
+  personal.
 
 ## Prestigio y desafío diario (1.10.0)
 
@@ -403,12 +406,15 @@ Lectura:
   compradas. El oro vuelve al inicial (100). No toca tema, calidad ni audio.
 - **Desafío diario**: elige una etapa del pool ya desbloqueado (campaña 1..N +
   profundidades abiertas del ∞) con la fecha local y la congela en el primer
-  intento. Todos los heats van al máximo, sin importar el Protocolo activo.
-  El récord es **personal**: la etapa puede diferir entre jugadores con
-  progreso distinto, así que no se compara entre cuentas.
+  intento. Aplica **Heat 39** (las 9 condiciones restantes al máximo, sin
+  Censura ni Arsenal), sin importar el Protocolo activo. El bono diario
+  **×1,5** se suma a fragmentos y oro; los hitos únicos de Heat no se
+  multiplican. El récord es **personal**: la etapa puede diferir entre
+  jugadores con progreso distinto, así que no se compara entre cuentas.
 - El diario ya no exige el ∞ abierto: una cuenta nueva con solo el S1 puede
-  jugarlo. La dificultad de Heat 49 lo convierte en un objetivo de largo
-  plazo, no en la primera run.
+  jugarlo. Heat 39 y el bono ×1,5 lo dejan como un objetivo de largo plazo,
+  pero con una recompensa acorde: una primera limpieza diaria paga ~1.854
+  fragmentos (antes ~1.476) y ~154 de oro (antes ~123).
 
 ## Maestría y legendarias (1.11.0)
 
@@ -470,9 +476,10 @@ legendarias, no la curva base.
   mismo objetivo farmeado escala desde ahí.
 - `pool-spread` sin farmeo (Nvl.16) queda en **0 % win / 0 % HP / 0 % bajas**.
 - ∞: la pared empieza alrededor de 60–70; el win cae con la profundidad.
-- Heat en ∞/Daily (1.10.0): el ∞ sigue usando el Protocolo activo y guarda su
-  récord por Heat (`heat.endless`). El Daily fuerza Heat 49 y guarda su récord
-  personal por fecha (`endless.daily`, `heat = 49`).
+- Heat en ∞/Daily (1.12.0): el ∞ sigue usando el Protocolo activo y guarda su
+  récord por Heat (`heat.endless`). El Daily fuerza Heat 39 (sin Censura ni
+  Arsenal), aplica bono ×1,5 y guarda su récord personal por fecha
+  (`endless.daily`, `heat = 39`).
 - **Prestigio (1.10.0)**: NG+ da +5 % de daño global por ciclo (tope +100 % en
   20). No se re-midieron las tablas de campaña: el bonus es posterior al S50 y
   el balance base de 1.9.0 no cambia.
@@ -509,6 +516,10 @@ legendarias, no la curva base.
   bajo el umbral para el atacante con execute. La economía pasa a ser de
   **farmeo**: el S50 no se alcanza en una pasada. Detalle en §"El bucle de
   farmeo".
+- **Ronda 1.12.0**: desafío diario a **Heat 39** (sin Censura ni Arsenal) con
+  **bono de recompensa ×1,5** (total ×6,18) y Black Hole que aparece en el
+  centroide del racimo más denso. La estética del BH suma halo, anillo
+  pulsante, brazos espirales y chispas; sin cambios de DPS/duración/radio.
 - **Ronda 1.11.0**: nivel 1–6 para las 11 unidades (+5 % daño/−2 % recarga),
   maestría 0–15, 23 doctrinas y 33 legendarias (3 por unidad). El Guardian
   conserva sus 3 balas vía `bullets_5` (`burstBonus`), no vía nivel. El S50

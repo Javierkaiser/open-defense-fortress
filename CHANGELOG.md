@@ -4,6 +4,37 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.12.0] — 2026-11-02
+
+### Desafío diario
+
+- **Heat 39 en vez de 49**: se sacan **Censura** y **Arsenal** del protocolo
+  forzado. El daily mantiene las 9 condiciones restantes al máximo, pero
+  vuelve a ofrecer **3 cartas** y **5 slots**, que es lo que más castigaba a
+  las cuentas con pocas unidades. El Protocolo personal sigue llegando a 49.
+- **Bono de recompensa ×1,5**: la victoria diaria multiplica fragmentos y oro
+  por `heatRewardMul(39) × 1,5 = 6,18×` (antes 4,92× a Heat 49). Los hitos
+  únicos de Heat no se multiplican. La tarjeta del selector y el resumen
+  muestran `HEAT 39 · SIN CENSURA NI ARSENAL · BONO ×1,5`.
+
+### Black Hole
+
+- **Aparece en el racimo más denso**: `blackHolePoint()` evalúa a los enemigos
+  vivos, elige el grupo con más unidades dentro del radio real (incluyendo
+  `radiusMul`) y coloca el vórtice en su centroide, con clamp al campo. Sin
+  enemigos cae al centro. El mini BH de Singularidad sigue naciendo en la
+  explosión.
+- **Estética**: halo con gradiente, horizonte pulsante, brazos espirales,
+  arcos de lente, onda de aparición y chispas que caen al centro. En calidad
+  Baja se reducen anillos, sombras y partículas. No cambian DPS, duración,
+  radio ni pull.
+- `spawnParticles` acepta `towardX/towardY` para partículas dirigidas.
+
+### Tests / versión
+
+- **1088 tests, 0 skip** (36 archivos).
+- Versión **1.12.0** / Android `versionCode 20`.
+
 ## [1.11.0] — 2026-11-02
 
 ### Nuevo
@@ -39,7 +70,7 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 
 ### Tests / versión
 
-- **1083 tests, 0 skip** (36 archivos).
+- **1087 tests, 0 skip** (36 archivos).
 - Versión **1.11.0** / Android `versionCode 19`.
 
 ## [1.10.0] — 2026-11-02

@@ -253,8 +253,8 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 | Campaña | 50 etapas; se desbloquean al limpiar la anterior; jefe en 1, 10, 20, 30, 40 y 50. |
 | Infinito (∞) | 51+; HP de base de la misma curva; jefe cada 10; profundidad “mejor + 1”; hitos y recompensas. |
 | Supervivencia | Olas infinitas; sin contador de fugas; cada fuga resta el HP máximo del enemigo; base 25 500 HP; jefe cada 5; tema cada 5; presupuesto lineal `60 + 30·oleada`. |
-| Desafío diario | Etapa elegida por fecha desde el pool de campaña/∞ desbloqueado; se congela en el primer intento; semilla FNV; **Heat 49 forzado**; récord personal. |
-| Protocolo / Heat | 11 condiciones sobre campaña, ∞ y supervivencia; el daily fuerza Heat 49; presets I–V (5/10/16/24/35); máximo 49; recompensa ×1 + 0,08·heat; hitos 60/120/240/420 fragmentos al pool. |
+| Desafío diario | Etapa elegida por fecha desde el pool de campaña/∞ desbloqueado; se congela en el primer intento; semilla FNV; **Heat 39 forzado** (sin Censura ni Arsenal); **bono de recompensa ×1,5**; récord personal. |
+| Protocolo / Heat | 11 condiciones sobre campaña, ∞ y supervivencia; el daily fuerza **Heat 39** (sin Censura ni Arsenal) y paga **×1,5** extra; presets I–V (5/10/16/24/35); máximo 49; recompensa ×1 + 0,08·heat; hitos 60/120/240/420 fragmentos al pool. |
 
 ## 10. Progresión y economía
 
@@ -298,6 +298,11 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
   desbloqueadas.
 - **Récords**: por etapa, por modo, por heat y por oleada; se guardan en
   `progress.js` de forma tolerante a datos viejos/corruptos.
+- **Black Hole (1.12.0)**: el vórtice principal aparece en el **centroide
+  del racimo con más enemigos** dentro de su radio (clamp al campo), no en
+  una X aleatoria. El mini BH de Singularidad sigue naciendo en la
+  explosión. El dibujo suma halo, horizonte pulsante, brazos espirales,
+  arcos de lente y chispas; en calidad Baja se recorta.
 
 ## 11. HUD y responsive
 
@@ -361,7 +366,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1083 tests (1083 pass, 0 skip) en 36 archivos.
+- 1088 tests (1088 pass, 0 skip) en 36 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

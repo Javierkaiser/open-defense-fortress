@@ -9,7 +9,7 @@ import {
   HEAT_CONDS, HEAT_PRESETS, HEAT_MILESTONES, HEAT_MAX_TOTAL,
   normalizeHeatMods, heatTotal, heatMods, presetMods, presetFor,
   heatRewardMul, heatMilestoneBonus, heatProtocolForRun,
-  DAILY_HEAT_MODS, dailyHeatMods,
+  DAILY_HEAT_MODS, DAILY_HEAT_EXCLUDED, DAILY_HEAT_TOTAL, dailyHeatMods,
 } from '../js/heat.js';
 
 test('heat: 11 condiciones, rangos válidos y 49 de heat máximo', () => {
@@ -54,16 +54,25 @@ test('v1.7.2: heatProtocolForRun resuelve campaña, ∞ y daily', () => {
   assert.deepEqual(heatProtocolForRun({}), {}, 'sin nada queda neutro');
 });
 
-test('1.10.0: el diario fuerza TODAS las condiciones al máximo (Heat 49)', () => {
+test('1.12.0: el diario fuerza las 9 condiciones restantes (Heat 39)', () => {
+  assert.deepEqual([...DAILY_HEAT_EXCLUDED], ['censura', 'arsenal']);
   for (const c of HEAT_CONDS) {
-    assert.equal(DAILY_HEAT_MODS[c.id], c.ranks, `${c.id} debe ir al rango máximo`);
+    if (DAILY_HEAT_EXCLUDED.includes(c.id)) {
+      assert.equal(DAILY_HEAT_MODS[c.id], undefined, `${c.id} NO debe estar en el diario`);
+    } else {
+      assert.equal(DAILY_HEAT_MODS[c.id], c.ranks, `${c.id} debe ir al rango máximo`);
+    }
   }
-  assert.equal(heatTotal(DAILY_HEAT_MODS), HEAT_MAX_TOTAL);
-  assert.equal(heatTotal(dailyHeatMods()), 49);
+  assert.equal(DAILY_HEAT_TOTAL, 39);
+  assert.equal(heatTotal(DAILY_HEAT_MODS), 39);
+  assert.equal(heatTotal(dailyHeatMods()), 39);
+  assert.equal(HEAT_MAX_TOTAL, 49, 'el Protocolo personal sigue llegando a 49');
   const dials = heatMods(dailyHeatMods());
-  assert.equal(dials.heat, 49);
-  assert.equal(dials.noUlt, true, 'Apagón al máximo apaga la ultimate');
-  assert.equal(dials.doubleAffix, true, 'Dobles al máximo activa el doble afijo');
+  assert.equal(dials.heat, 39);
+  assert.equal(dials.offerCount, 3, 'sin Censura la oferta vuelve a 3 cartas');
+  assert.equal(dials.slotDelta, 0, 'sin Arsenal vuelven los 5 slots');
+  assert.equal(dials.noUlt, true, 'Apagón sigue');
+  assert.equal(dials.doubleAffix, true, 'Dobles sigue');
   // La copia es mutable sin tocar el catálogo congelado.
   const copy = dailyHeatMods();
   copy.asedio = 1;
