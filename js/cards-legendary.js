@@ -135,9 +135,9 @@ export const LEGENDARY_CARDS = [
   legendary('leg_firewheel_chain', 'firewheel', 'Combustión en Cadena',
     '50 % de explotar al matar: 60 de daño en un radio de 80.',
     { explodeOnKillChance: 0.5, explodeOnKillDmg: 60, explodeOnKillRadius: 80 }),
-  legendary('leg_firewheel_solar', 'firewheel', 'Órbita Solar',
-    '+10 dps del barrido y +4 dps de burn.',
-    { dpsAdd: 10, burnDpsAdd: 4 }),
+  legendary('leg_firewheel_spontaneous', 'firewheel', 'Combustión Espontánea',
+    'Si no hay enemigos a menos de 150 px, cada 0,9 s tiene 40 % de apagarse 0,22 s y reencenderse sobre el enemigo más avanzado a 230 px o más. Recarga 4 s.',
+    { spontaneousRelight: 1 }),
 
   // ---------------- Mosquitos: plaga y enjambre ----------------
   legendary('leg_wasps_plague', 'wasps', 'Plaga',

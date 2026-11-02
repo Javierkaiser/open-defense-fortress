@@ -109,7 +109,7 @@ const REPEATABLE_CARDS = [
   'bh_horizon', 'bh_collapse',
   // dev-7 fase 50: las 4 cartas de CAZA DE FAMILIA.
   'hunt_rock', 'hunt_crystal', 'hunt_spore', 'hunt_virus',
-  // 1.11.0: las 23 DOCTRINAS (repetibles 2 veces).
+  // 1.12.1: las 28 DOCTRINAS (repetibles 2 veces).
   ...DOCTRINE_CARDS.map((c) => c.id),
 ];
 
@@ -152,9 +152,9 @@ test('CATALOG: toda carta tiene apply() y weight > 0', () => {
   }
 });
 
-test('CATALOG: 84 cartas + 23 doctrinas de la 1.11.0', () => {
+test('CATALOG: 84 cartas + 28 doctrinas de la 1.12.1', () => {
   assert.equal(CATALOG.length, 84 + DOCTRINE_CARDS.length);
-  assert.equal(CATALOG.length, 107);
+  assert.equal(CATALOG.length, 112);
   assert.equal(REPEATABLE_CARDS.length, 72 + DOCTRINE_CARDS.length);
   // Las legendarias NO viven en el catálogo normal: sólo en el draft.
   for (const c of LEGENDARY_CARDS) {

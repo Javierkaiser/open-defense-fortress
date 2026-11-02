@@ -3,9 +3,11 @@
 ## Purpose
 
 Progresión de las 11 unidades dentro de una run (8 torres + 3 drones): el
-nivel (1–6) sube con cartas dedicadas, la maestría (0–15) cuenta cualquier
-carta que mejore a la unidad y cada 5 puntos desbloquea una elección entre las
-3 cartas legendarias de esa unidad. Es una pista **solo de run**: no toca el
+nivel (1–6) sube con cartas dedicadas, la maestría (0–15) cuenta las cartas
+que la mejoran de forma directa o por sinergia (dedicadas, de tipo, global,
+cadencia, combos y legendarias) y cada 5 puntos desbloquea una elección entre
+las 3 cartas legendarias de esa unidad. Las cazas de familia NO cuentan para
+ninguna de las dos pistas. Es una pista **solo de run**: no toca el
 meta-juego, los perks permanentes ni NG+.
 
 ## Requirements
@@ -37,11 +39,11 @@ tope, la carta sigue aplicando su efecto y su maestría, pero el nivel no sube.
 ### Requirement: Maestría y umbrales
 
 La maestría de cada unidad MUST empezar en 0 y MUST subir +1 por cada carta
-que la mejore: dedicadas, de tipo, daño global, cadencia, caza de familia o
-combos que la incluyan. Las cartas de desbloqueo, defensa de base, Ultimate y
-Black Hole NO MUST dar maestría. Cada **5 puntos** (5, 10 y 15) MUST encolar
-una elección legendaria para esa unidad. La maestría MUST NOT persistir fuera
-de la run.
+que la mejore: dedicadas, de tipo, daño global, cadencia, combos que la
+incluyan y legendarias. Las cartas de desbloqueo, defensa de base, Ultimate,
+Black Hole y **caza de familia (`hunt_*`)** NO MUST dar maestría. Cada
+**5 puntos** (5, 10 y 15) MUST encolar una elección legendaria para esa
+unidad. La maestría MUST NOT persistir fuera de la run.
 
 #### Scenario: Carta global
 
@@ -58,13 +60,22 @@ de la run.
 - **WHEN** una unidad llega a 5, 10 o 15 de maestría
 - **THEN** se encola una elección legendaria para esa unidad
 
+#### Scenario: Caza de familia
+
+- **WHEN** el jugador elige una carta `hunt_*`
+- **THEN** su multiplicador contra la familia se aplica a todas las unidades,
+  pero ninguna sube de nivel ni gana maestría
+
 ### Requirement: Doctrinas
 
-El catálogo MUST incluir **23 cartas Doctrina** dedicadas a una unidad. Cada
+El catálogo MUST incluir **28 cartas Doctrina** dedicadas a una unidad. Cada
 una MUST poder elegirse **dos veces** (`CAPS = 2`): el rango 1 y el rango 2
 aplican efectos distintos. Cada aplicación MUST subir el nivel (hasta 6) y la
 maestría de la unidad. Las doctrinas MUST entrar al pool normal de cartas y
-MUST NOT ofrecerse sin poseer la unidad.
+MUST NOT ofrecerse sin poseer la unidad. Las 5 doctrinas de compensación
+(Missile, Láser, Rueda de Fuego, Mosquitos y Campo de Fuerza) MUST garantizar
+que cada una de esas unidades pueda llegar a maestría 15 con sus cartas
+normales y 2 legendarias, sin depender de las cazas.
 
 #### Scenario: Doctrina repetida
 

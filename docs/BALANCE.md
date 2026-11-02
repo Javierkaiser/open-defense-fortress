@@ -162,7 +162,7 @@ no sólo un multiplicador de daño:
   perks `extraCount`/`chainFork` suman mini rayos, no rayos principales. DPS
   nominal ≈40,6 a un blanco y ≈102 contra un principal + 3 vecinos. Se
   diferencia de la Tesla, que encadena saltos con falloff.
-- **107 cartas normales** (84 + 23 doctrinas) y **33 legendarias** fuera del
+- **112 cartas normales** (84 + 28 doctrinas) y **33 legendarias** fuera del
   catálogo. Casi todas las mejoras se eligen una sola vez (`CAPS = 1`); las
   doctrinas son la excepción (2 rangos) y `bullets_5` sigue siendo el level-up
   del Guardian. Las mejoras ofrecidas se relacionan con las unidades, tags y
@@ -416,7 +416,7 @@ Lectura:
   pero con una recompensa acorde: una primera limpieza diaria paga ~1.854
   fragmentos (antes ~1.476) y ~154 de oro (antes ~123).
 
-## Maestría y legendarias (1.11.0)
+## Maestría y legendarias (1.11.0–1.12.1)
 
 - **Nivel 1–6 para las 11 unidades**: cada carta dedicada sube un nivel. La
   curva se suaviza a **+5 % daño / −2 % recarga por nivel** (antes +25 %/−8 %)
@@ -427,10 +427,18 @@ Lectura:
   entrega `burstBonus` por aplicación. Sin este recorte, cualquier carta del
   Guardian lo llevaba a 3 balas y el S50 subía ~20 puntos de win rate.
 - **Maestría 0–15**: suma con cartas dedicadas, de tipo, globales, de cadencia,
-  caza y combos. Cada 5 abre una elección legendaria (3/2/1 cartas). Las
-  legendarias son solo de run y no tocan el meta, NG+ ni los récords.
-- **Doctrinas**: 23 cartas repetibles 2 veces. Son la vía para que todas las
-  unidades alcancen Lv.6 sin depender de cartas exclusivas.
+  combos y legendarias. **Las cazas `hunt_*` no dan nivel ni maestría** desde
+  1.12.1: son multiplicadores de matchup global. Cada 5 abre una elección
+  legendaria (3/2/1 cartas). Las legendarias son solo de run y no tocan el
+  meta, NG+ ni los récords.
+- **Doctrinas**: 28 cartas repetibles 2 veces. Son la vía para que todas las
+  unidades alcancen Lv.6 sin depender de cartas exclusivas. Las 5 de
+  compensación (1.12.1) devuelven a Missile, Láser, Rueda, Mosquitos y Campo
+  la posibilidad de llegar a maestría 15 tras sacar las cazas del conteo.
+- **Combustión Espontánea (1.12.1)**: reemplaza a Órbita Solar en la Rueda.
+  Es una legendaria de reposicionamiento/uptime (40 % cada 0,9 s, apagado
+  0,22 s, recarga 4 s, cerca 150 px, lejos 230 px); no cambia DPS, radio ni
+  duración base de la rueda.
 
 ### Medición (10 semillas, `--mode=inteligente`)
 
@@ -516,12 +524,17 @@ legendarias, no la curva base.
   bajo el umbral para el atacante con execute. La economía pasa a ser de
   **farmeo**: el S50 no se alcanza en una pasada. Detalle en §"El bucle de
   farmeo".
+- **Ronda 1.12.1**: las cazas dejan de dar nivel/maestría; 5 doctrinas nuevas
+  compensan el tercer hito de las unidades afectadas y la Rueda de Fuego
+  cambia Órbita Solar por **Combustión Espontánea**. No se re-midieron las
+  tablas de balance: la rueda conserva su DPS nominal y las doctrinas son
+  progresión, no potencia nueva.
 - **Ronda 1.12.0**: desafío diario a **Heat 39** (sin Censura ni Arsenal) con
   **bono de recompensa ×1,5** (total ×6,18) y Black Hole que aparece en el
   centroide del racimo más denso. La estética del BH suma halo, anillo
   pulsante, brazos espirales y chispas; sin cambios de DPS/duración/radio.
 - **Ronda 1.11.0**: nivel 1–6 para las 11 unidades (+5 % daño/−2 % recarga),
-  maestría 0–15, 23 doctrinas y 33 legendarias (3 por unidad). El Guardian
+  maestría 0–15, 28 doctrinas y 33 legendarias (3 por unidad). El Guardian
   conserva sus 3 balas vía `bullets_5` (`burstBonus`), no vía nivel. El S50
   farmeado queda en 70/37/67 (Nvl.75) y 90/54/82 (Nvl.87); la cota superior
   con todas las legendarias es 80/40/72 y 100/56/88.

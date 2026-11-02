@@ -338,4 +338,13 @@ export const FIREWHEEL = {
   // blanco: si no, podía terminar con un blob lento mientras un fragmento
   // se le acercaba a la base.
   switchMargin: 70,  // px de ventaja que justifican cambiar de blanco
+  // 1.12.1 — Combustión Espontánea (legendaria): si no hay enemigos a
+  // `relightNear`, la rueda puede apagarse y reencenderse sobre el enemigo
+  // más avanzado que esté a `relightMinDist` o más.
+  relightNear: 150,
+  relightMinDist: 230,
+  relightCheck: 0.9,    // s entre tiradas
+  relightChance: 0.4,   // 40 %
+  relightOffTime: 0.22, // s apagada antes de reencender
+  relightCooldown: 4,   // s de recarga entre reencendidos
 }

@@ -74,7 +74,7 @@ openspec/specs/         specs de comportamiento
 | `towers-fx.js` | Black Hole, Láser, Beam, Bolt y cráter del Mortar. |
 | `towers-drones.js` | Drones orbitales: ignición, veneno y burbuja. |
 | `player.js` | `Fortress`: base, slots, drones, HP/escudo, Black Hole y render de la plataforma. |
-| `cards.js` | 107 cartas normales + 33 legendarias aparte, nivel/maestría, efectos, combos, ofertas y topes. |
+| `cards.js` | 112 cartas normales + 33 legendarias aparte, nivel/maestría, efectos, combos, ofertas y topes. |
 | `cards-data.js` | Topes, tags de unidad, técnicas y cazas de familia. |
 | `card-constants.js` | Multiplicadores compartidos por cartas y unidades futuras. |
 | `combo-mods.js` | Schema único de los flags de combos. |
@@ -263,7 +263,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 - **XP**: escala con el `hpMul` de la etapa; al subir de nivel se ofrece 1 de 3
   cartas. La campaña reparte ~20 cartas por etapa; el tope es 21 en campaña y
   31 en supervivencia.
-- **Cartas**: 107 normales (84 + 23 doctrinas) y 33 legendarias aparte.
+- **Cartas**: 112 normales (84 + 28 doctrinas) y 33 legendarias aparte.
   Pueden desbloquear torres/drones, mejorar una unidad, agregar mecánicas,
   combos con prerrequisitos de tags o dar bonuses globales. Desde 1.8.0 casi
   todas las mejoras se eligen una sola vez; las **doctrinas** son la excepción
@@ -273,11 +273,22 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 - **Nivel y maestría (1.11.0)**: las 8 torres y los 3 drones van de **Lv.1 a
   Lv.6**; cada carta dedicada sube un nivel (+5 % daño, −2 % recarga; drones
   +5 % a su efecto). La **maestría** (0–15) suma con cualquier carta que
-  mejore a la unidad (dedicada, tipo, global, cadencia, caza o combo). Cada 5
-  puntos abre una **elección legendaria**: 3 cartas propias de la unidad a
-  los 5, las 2 restantes a los 10 y la última a los 15. La elección no consume
-  un nivel pendiente y Censura no la recorta. Contrato en
-  `openspec/specs/gameplay/tower-mastery/spec.md`.
+  mejore a la unidad (dedicada, tipo, global, cadencia, combo o legendaria),
+  pero **las cazas `hunt_*` no dan nivel ni maestría**: son una carta de
+  matchup global. Cada 5 puntos abre una **elección legendaria**: 3 cartas
+  propias de la unidad a los 5, las 2 restantes a los 10 y la última a los 15.
+  La elección no consume un nivel pendiente y Censura no la recorta. Contrato
+  en `openspec/specs/gameplay/tower-mastery/spec.md`.
+- **Compensación 1.12.1**: al dejar de contar las cazas, 5 unidades se quedaban
+  sin llegar a 15. Se agregaron **5 doctrinas de 2 rangos** (Missile, Láser,
+  Rueda de Fuego, Mosquitos y Campo de Fuerza) para que todas alcancen el
+  tercer hito con sus cartas normales y 2 legendarias.
+- **Combustión Espontánea (1.12.1)**: la legendaria de la Rueda de Fuego
+  reemplaza a Órbita Solar. Sin enemigos a menos de 150 px, tira 40 % cada
+  0,9 s de apagarse 0,22 s y reencenderse sobre el enemigo más avanzado a
+  230 px o más (recarga 4 s). Mientras está apagada no se mueve, no quema y
+  se dibuja como brasa humeante. Contrato en
+  `openspec/specs/gameplay/tower-identity/spec.md`.
 - **Meta**: 100 niveles por unidad con **un pool compartido de fragmentos**
   (`fragsPool`): 150 por victoria y 300 la primera limpieza de cada etapa;
   `fragCost(nivel) = 75 + 35·década` y +9 % de daño por nivel. No hay botón
@@ -366,7 +377,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1088 tests (1088 pass, 0 skip) en 36 archivos.
+- 1094 tests (1094 pass, 0 skip) en 36 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

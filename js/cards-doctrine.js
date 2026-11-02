@@ -179,6 +179,34 @@ export const DOCTRINE_CARDS = [
     { desc: '+1,5 de daño por segundo de espinas', mods: { thornDps: 1.5 } },
     { desc: '+1,5 HP/s de regeneración por enemigo', mods: { bubbleRegen: 1.5 } },
   ),
+
+  // 1.12.1 - doctrinas de compensación: estas 5 unidades se quedaban sin
+  // poder alcanzar maestría 15 al dejar de contar las cartas de caza.
+  doctrine(
+    'doc_missile_lock', 'missile', 'Doctrina: Bloqueo de Impacto',
+    { desc: '+0,5 de guiado', mods: { homingStrength: 0.5 } },
+    { desc: '+10 % de daño y +5 % de radio de explosión', mods: { dmgMul: 1.1, areaMul: 1.05 } },
+  ),
+  doctrine(
+    'doc_laser_pulse', 'laser', 'Doctrina: Pulso Sostenido',
+    { desc: '+0,2 s de duración del rayo', mods: { laserDurationAdd: 0.2 } },
+    { desc: '+10 % de daño', mods: { dmgMul: 1.1 } },
+  ),
+  doctrine(
+    'doc_firewheel_embers', 'firewheel', 'Doctrina: Brasas',
+    { desc: '+2 de daño por segundo de burn', mods: { burnDpsAdd: 2 } },
+    { desc: '+0,5 s de burn', mods: { burnTimeAdd: 0.5 } },
+  ),
+  doctrine(
+    'doc_wasps_hive', 'wasps', 'Doctrina: Colmena',
+    { desc: '+1 de daño por segundo de veneno', mods: { venomDpsAdd: 1 } },
+    { desc: '+10 % de daño del enjambre', mods: { dmgMul: 1.1 } },
+  ),
+  doctrine(
+    'doc_forcefield_dome', 'forcefield', 'Doctrina: Cúpula',
+    { desc: '+4 px de radio de burbuja', mods: { radiusAdd: 4 } },
+    { desc: '+3 % de slow a los atrapados', mods: { slowOnHit: 0.03 } },
+  ),
 ];
 
 export const DOCTRINE_BY_ID = new Map(DOCTRINE_CARDS.map((c) => [c.id, c]));

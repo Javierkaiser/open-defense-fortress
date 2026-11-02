@@ -63,6 +63,7 @@ Las claves genéricas de los perks MUST quedar restringidas a su dueño:
 - `extraCount`: solo Missile, Tesla, Mosquitos y Láser.
 - `areaMul`: solo Mortar.
 - `radiusAdd`: solo Firewheel y Forcefield.
+- `spontaneousRelight`: solo Firewheel (legendaria Combustión Espontánea).
 
 #### Scenario: Perk de remate en el Beam
 
@@ -126,6 +127,34 @@ torre dentro de `Enemy.takeDamage`:
 
 - **WHEN** un enemigo envenenado por los Mosquitos muere
 - **THEN** hasta 2 vecinos en 110 px reciben el 50 % del DPS de veneno
+
+### Requirement: Combustión Espontánea de la Rueda de Fuego
+
+La legendaria **Combustión Espontánea** MUST reemplazar a **Órbita Solar** en
+la Rueda de Fuego. Con `spontaneousRelight`, si no hay enemigos a menos de
+**150 px**, la rueda MUST tirar **40 %** cada **0,9 s** de apagarse durante
+**0,22 s** y reencenderse sobre el enemigo más avanzado que esté a **230 px**
+o más. La recarga tras cada apagado MUST ser de **4 s**. Mientras está
+apagada MUST NOT moverse, quemar ni hacer contacto, y MUST dibujarse como una
+brasa humeante. Si el objetivo muere durante el apagado, MUST elegir otro
+enemigo lejano o reencenderse en el lugar. Al reencenderse MUST entrar directo
+al barrido y emitir partículas y `drone:fire`.
+
+#### Scenario: Enemigo lejano
+
+- **WHEN** la Rueda con Combustión Espontánea no tiene enemigos a menos de 150 px
+  y la tirada de 40 % sale bien
+- **THEN** se apaga 0,22 s y reaparece sobre el enemigo más avanzado a 230 px o más
+
+#### Scenario: Enemigo cerca
+
+- **WHEN** hay un enemigo a menos de 150 px
+- **THEN** la Rueda no se apaga y sigue quemando normalmente
+
+#### Scenario: Objetivo muerto durante el apagado
+
+- **WHEN** el enemigo elegido muere mientras la Rueda está apagada
+- **THEN** elige otro enemigo lejano; si no hay, se reenciende en el lugar
 
 ### Requirement: El cráter del Mortar es visible
 

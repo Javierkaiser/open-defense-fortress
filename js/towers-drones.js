@@ -103,6 +103,13 @@ export class Drone {
     this._sweepT = 0;                // s restantes de sobrevuelo
     this._sweepA = 0;                // ángulo del barrido sobre el blanco
     this._wp = null;                 // waypoint de patrulla (sin blancos)
+    // 1.12.1 — Combustión Espontánea (legendaria): apagado + reencendido
+    // sobre un enemigo lejano. `_offT > 0` significa que está apagada.
+    this._relightCd = 0;             // s de recarga entre reencendidos
+    this._relightAcc = 0;            // s acumulados para la próxima tirada
+    this._offT = 0;                  // s restantes apagada
+    this._relightTo = null;          // enemigo elegido para reencender
+    this._ignited = true;            // estado visual (brasa vs. aspas)
   }
 
   /**
@@ -150,6 +157,103 @@ export class Drone {
       x: clamp(this.x + Math.cos(ang) * rad, 40, CONFIG.CANVAS_W - 40),
       y: clamp(this.y + Math.sin(ang) * rad, 120, CONFIG.TOWER_Y - 160),
     };
+  }
+
+  /** 1.12.1 — enemigo vivo más avanzado a `relightMinDist` o más (o null). */
+  _farRelightTarget(alive) {
+    let far = null;
+    for (const e of alive || []) {
+      if (Math.hypot(e.x - this.x, e.y - this.y) < FIREWHEEL.relightMinDist) continue;
+      if (!far || e.y > far.y) far = e;
+    }
+    return far;
+  }
+
+  /**
+   * 1.12.1 — Combustión Espontánea (legendaria de la Rueda).
+   *
+   * Si no hay enemigos a menos de `relightNear`, cada `relightCheck`
+   * segundos tira `relightChance` de apagarse `relightOffTime` y
+   * reencenderse sobre el enemigo más avanzado que esté lejos. Devuelve
+   * true cuando la rueda está apagada y el update normal no debe correr.
+   *
+   * @param {number} dt segundos reales
+   * @param {Array} alive enemigos vivos ya filtrados
+   * @returns {boolean}
+   */
+  _updateRelight(dt, alive) {
+    if (!unitMods(this).spontaneousRelight) return false;
+    this._relightCd = Math.max(0, this._relightCd - dt);
+    if (this._offT > 0) {
+      this._offT -= dt;
+      if (this._offT <= 0) this._finishRelight(alive);
+      return true;
+    }
+    if (this._relightCd > 0 || !alive.length) {
+      this._relightAcc = 0;
+      return false;
+    }
+    let nearest = Infinity;
+    for (const e of alive) {
+      const d = Math.hypot(e.x - this.x, e.y - this.y);
+      if (d < nearest) nearest = d;
+    }
+    // Con un enemigo cerca no se apaga: la rueda sigue quemando.
+    if (nearest < FIREWHEEL.relightNear) {
+      this._relightAcc = 0;
+      return false;
+    }
+    const far = this._farRelightTarget(alive);
+    if (!far) {
+      this._relightAcc = 0;
+      return false;
+    }
+    this._relightAcc += dt;
+    if (this._relightAcc < FIREWHEEL.relightCheck) return false;
+    this._relightAcc = 0;
+    if (Math.random() >= FIREWHEEL.relightChance) return false;
+    // Apagado: sin movimiento, sin contacto, sin burn y sin patrulla.
+    this._offT = FIREWHEEL.relightOffTime;
+    this._relightTo = far;
+    this._relightCd = FIREWHEEL.relightCooldown;
+    this._ignited = false;
+    this.fwTarget = null;
+    this._sweepT = 0;
+    this._wp = null;
+    this._hitAcc.clear();
+    return true;
+  }
+
+  /** 1.12.1 — reenciende sobre el objetivo elegido o en el lugar. */
+  _finishRelight(alive) {
+    this._offT = 0;
+    this._ignited = true;
+    let target = this._relightTo;
+    if (!target || target.dead || !alive.includes(target)) {
+      target = this._farRelightTarget(alive);
+    }
+    this._relightTo = null;
+    const pal = this._skin()?.palette ?? this.data;
+    if (target) {
+      // Aparece SOBRE el enemigo y entra directo al barrido.
+      this.x = target.x;
+      this.y = target.y;
+      this.fwTarget = target;
+      this.fwState = 'sweep';
+      this._sweepT = 0;
+      this._sweepA = rand(0, Math.PI * 2);
+    } else {
+      // No quedan lejanos: se reenciende donde estaba y vuelve a elegir.
+      this.fwTarget = null;
+      this.fwState = 'advance';
+      this._sweepT = 0;
+    }
+    this.game?.engine?.spawnParticles?.(this.x, this.y, pal.accent ?? '#FF8A3D', 10, {
+      speedMin: 25, speedMax: 110, gravity: -25,
+      lifeMin: 0.18, lifeMax: 0.5, sizeMin: 1.2, sizeMax: 3,
+    });
+    this._sfxAcc = 0; // el pulso del reencendido no se pierde
+    this._sfxFire();
   }
 
   /**
@@ -243,6 +347,8 @@ export class Drone {
             alive.push(e);
           }
         }
+        // 1.12.1 — Combustión Espontánea: puede consumir el frame apagada.
+        if (this._updateRelight(dt, alive)) break;
         // Blanco inválido (muerto o podado) → liberar y re-elegir
         if (this.fwTarget && (this.fwTarget.dead || !alive.includes(this.fwTarget))) {
           this.fwTarget = null;
@@ -660,6 +766,33 @@ export class Drone {
     const t = this.game?.engine?._t ?? this._bobT;
     ctx.save();
     ctx.translate(this.x, this.y);
+    // 1.12.1 — Combustión Espontánea: mientras está apagada se dibuja
+    // como una brasa humeante, sin aspas ni glow grande.
+    if (d.kind === 'firewheel' && this._offT > 0) {
+      const pulse = 0.5 + 0.25 * Math.sin(t * 9 + this.slotIdx);
+      ctx.globalAlpha = pulse;
+      ctx.fillStyle = pal.accent;
+      ctx.beginPath(); ctx.arc(0, 0, 2.6, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.24;
+      ctx.fillStyle = pal.body;
+      ctx.beginPath(); ctx.arc(0, 0, 5.5, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.2;
+      ctx.strokeStyle = pal.metal ?? pal.accent;
+      ctx.lineWidth = 1.2;
+      for (let i = 0; i < 3; i++) {
+        const k = (t * 0.55 + i / 3) % 1;
+        ctx.beginPath();
+        ctx.arc(
+          Math.sin(t * 2.2 + i * 2.1) * (2 + k * 3),
+          -3 - k * 14,
+          1.4 + k * 2.2,
+          0, Math.PI * 2,
+        );
+        ctx.stroke();
+      }
+      ctx.restore();
+      return;
+    }
     // Glow de acento (render simple §2.3)
     ctx.globalAlpha = 0.16 + 0.06 * Math.sin(t * 3 + this.slotIdx);
     ctx.fillStyle = pal.accent;

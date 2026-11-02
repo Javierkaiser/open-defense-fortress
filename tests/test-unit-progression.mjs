@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   CATALOG, CAPS, applyCard, cardUnitTargets, legendaryCardsFor,
-  DOCTRINE_CARDS, LEGENDARY_CARDS,
+  DOCTRINE_CARDS, LEGENDARY_CARDS, grantUnitProgress,
 } from '../js/cards.js';
 import {
   MAX_TOWER_LEVEL, Drone, HomingMissile, Tower,
@@ -57,8 +57,8 @@ function gameWith(unit) {
   };
 }
 
-test('1.11.0: 23 doctrinas, cap 2 y presentes en el catálogo normal', () => {
-  assert.equal(DOCTRINE_CARDS.length, 23);
+test('1.12.1: 28 doctrinas, cap 2 y presentes en el catálogo normal', () => {
+  assert.equal(DOCTRINE_CARDS.length, 28);
   for (const c of DOCTRINE_CARDS) {
     assert.ok(c.unit && c.doctrine, `${c.id}: unidad/doctrina`);
     assert.equal(CAPS[c.id], 2, `${c.id}: cap 2`);
@@ -66,9 +66,13 @@ test('1.11.0: 23 doctrinas, cap 2 y presentes en el catálogo normal', () => {
   }
 });
 
-test('1.11.0: 33 legendarias, 3 por unidad y fuera del catálogo normal', () => {
+test('1.11.0–1.12.1: 33 legendarias, 3 por unidad y fuera del catálogo normal', () => {
   assert.equal(LEGENDARY_CARDS.length, 33);
   assert.equal(new Set(LEGENDARY_CARDS.map((c) => c.id)).size, 33);
+  assert.ok(!LEGENDARY_CARDS.some((c) => c.id === 'leg_firewheel_solar'),
+    'Órbita Solar salió del catálogo');
+  assert.ok(LEGENDARY_CARDS.some((c) => c.id === 'leg_firewheel_spontaneous'),
+    'Combustión Espontánea entró en su lugar');
   for (const type of UNITS) {
     const cards = legendaryCardsFor(type);
     assert.equal(cards.length, 3, `${type}: 3 legendarias`);
@@ -90,6 +94,35 @@ test('1.11.0: todas las unidades pueden llegar a Lv.6 con cartas dedicadas', () 
     assert.ok(existing + doctrines * 2 >= MAX_TOWER_LEVEL - 1,
       `${type}: ${existing} dedicadas + ${doctrines}×2 doctrinas no llegan a Lv.6`);
   }
+});
+
+test('1.12.1: todas las unidades llegan a maestría 15 con 2 legendarias', () => {
+  // El tercer draft sale AL LLEGAR a 15, así que la cuenta que importa es
+  // normales + las 2 legendarias previas. Las cazas ya no suman maestría:
+  // esta prueba cubre que las 5 doctrinas nuevas compensan ese hueco.
+  for (const type of UNITS) {
+    const unit = dummyUnit(type);
+    const game = gameWith(unit);
+    for (const card of CATALOG) {
+      const apps = card.doctrine ? 2 : (card.id === 'bullets_5' ? 5 : 1);
+      for (let i = 0; i < apps; i++) grantUnitProgress(game, card);
+    }
+    assert.ok(unit.mastery >= 13,
+      `${type}: ${unit.mastery} normales + 2 legendarias deben llegar a 15`);
+  }
+});
+
+test('1.12.1: las cartas de caza no dan nivel ni maestría', () => {
+  const tower = dummyUnit('missile');
+  const game = gameWith(tower);
+  for (const id of ['hunt_rock', 'hunt_crystal', 'hunt_spore', 'hunt_virus']) {
+    const card = CATALOG.find((c) => c.id === id);
+    assert.equal(applyCard(card, game), card, `${id}: la carta se aplica`);
+    assert.equal(tower.level, 1, `${id}: no sube nivel`);
+    assert.equal(tower.mastery, 0, `${id}: no da maestría`);
+  }
+  assert.ok(tower.cardMods.famRockMul > 1, 'la caza de rocas sí aplica su ×1,8');
+  assert.equal(game.fortress.huntStacks.rock, 1);
 });
 
 test('1.11.0: carta dedicada sube nivel y maestría; carta global sólo maestría', () => {

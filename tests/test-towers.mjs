@@ -1393,6 +1393,102 @@ test('fase 31: la rueda realiza al menos el 85 % de su DPS nominal', () => {
     `la rueda debe realizar ≥85 % de ${nominal} DPS (hizo ${dps.toFixed(1)})`);
 });
 
+// ============================================================
+// 1.12.1 — COMBUSTIÓN ESPONTÁNEA (legendaria de la Rueda)
+// ============================================================
+
+test('1.12.1: Combustión Espontánea se apaga y reenciende sobre un lejano', () => {
+  setMeta({});
+  const juego = mkGame();
+  const dr = new Drone('firewheel', juego, 0);
+  dr.cardMods = { spontaneousRelight: 1 };
+  dr.x = 270; dr.y = 600;
+  const lejano = mkTank(270, 100, 1e6);
+  juego.fortress.enemies = [lejano];
+  const azar = Math.random;
+  Math.random = () => 0.1; // 10 % < 40 %: siempre se apaga
+  try {
+    const DT = 0.1;
+    for (let i = 0; i < 10; i++) dr.update(DT, [lejano]);
+    assert.ok(dr._offT > 0, 'a los 0,9 s debía apagarse');
+    assert.equal(dr.fwTarget, null, 'apagada no conserva blanco');
+    assert.equal(dr._ignited, false);
+    const offX = dr.x;
+    const offY = dr.y;
+    // Avanza en pasos de 0,05 s hasta cruzar los 0,22 s de apagado.
+    let pasos = 0;
+    while (!dr._ignited && pasos < 10) {
+      dr.update(0.05, [lejano]);
+      pasos++;
+    }
+    assert.equal(dr._offT, 0, 'volvió a encenderse');
+    assert.equal(dr._ignited, true);
+    assert.equal(dr.fwTarget, lejano, 'reencendió sobre el enemigo lejano');
+    assert.equal(dr.x, lejano.x, 'aparece sobre el objetivo (x)');
+    assert.equal(dr.y, lejano.y, 'aparece sobre el objetivo (y)');
+    assert.equal(dr.fwState, 'sweep', 'entra directo al barrido');
+    assert.ok(offX !== dr.x || offY !== dr.y, 'cambió de posición al reencender');
+  } finally {
+    Math.random = azar;
+  }
+});
+
+test('1.12.1: con un enemigo cerca la rueda NO se apaga', () => {
+  setMeta({});
+  const juego = mkGame();
+  const dr = new Drone('firewheel', juego, 0);
+  dr.cardMods = { spontaneousRelight: 1 };
+  const cerca = mkTank(dr.x, dr.y - 100, 1e6);
+  juego.fortress.enemies = [cerca];
+  const azar = Math.random;
+  Math.random = () => 0.1;
+  try {
+    for (let i = 0; i < 30; i++) dr.update(0.1, [cerca]);
+    assert.equal(dr._offT, 0, 'nunca se apagó');
+    assert.equal(dr._ignited, true);
+  } finally {
+    Math.random = azar;
+  }
+});
+
+test('1.12.1: si el objetivo muere apagada, elige otro lejano', () => {
+  setMeta({});
+  const juego = mkGame();
+  const dr = new Drone('firewheel', juego, 0);
+  dr.cardMods = { spontaneousRelight: 1 };
+  dr.x = 270; dr.y = 600;
+  const primero = mkTank(270, 190, 1e6); // más avanzado y aún lejos al tirar
+  const segundo = mkTank(270, 100, 1e6);
+  juego.fortress.enemies = [primero, segundo];
+  const azar = Math.random;
+  Math.random = () => 0.1;
+  try {
+    for (let i = 0; i < 10; i++) dr.update(0.1, [primero, segundo]);
+    assert.ok(dr._offT > 0, 'debía apagarse sobre el primero');
+    primero.dead = true;
+    let pasos = 0;
+    while (!dr._ignited && pasos < 10) {
+      dr.update(0.05, [primero, segundo]);
+      pasos++;
+    }
+    assert.equal(dr.fwTarget, segundo, 'eligió el otro enemigo lejano');
+    assert.equal(dr._ignited, true);
+  } finally {
+    Math.random = azar;
+  }
+});
+
+test('1.12.1: la brasa apagada se dibuja sin romper', () => {
+  const ctx = {
+    save() {}, restore() {}, translate() {},
+    beginPath() {}, arc() {}, fill() {}, stroke() {},
+  };
+  const juego = mkGame();
+  const dr = new Drone('firewheel', juego, 0);
+  dr._offT = 0.12;
+  dr._ignited = false;
+  assert.doesNotThrow(() => dr.draw(ctx));
+});
 
 // ============================================================
 // dev-7 fase 33 — EL TARGETING: POLÍTICA POR TORRE Y BLANCO STICKY

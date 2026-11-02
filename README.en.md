@@ -18,11 +18,11 @@ and the upgrade cards offered on level-up. Every run is a roguelike.
 - New Game+ and Global Reset: after clearing the campaign, restart while keeping
   your unlocked units and gaining +5 % global damage per cycle (up to +100 %);
   Global Reset wipes everything.
-- 8 towers + 3 drones, each with a signature mechanic (suppression, melt, judgment, ion, crater, rail, cut, ignition, venom and bubble), **level 1–6 and mastery 0–15**, 107 normal cards + 33 legendaries, 7 elite affixes, 5 visual themes with per-theme tower skins (palette, motifs, pad and FX). Every 5 mastery points unlocks a choice of that unit's 3 legendary cards.
+- 8 towers + 3 drones, each with a signature mechanic (suppression, melt, judgment, ion, crater, rail, cut, ignition, venom and bubble), **level 1–6 and mastery 0–15**, 112 normal cards + 33 legendaries, 7 elite affixes, 5 visual themes with per-theme tower skins (palette, motifs, pad and FX). Every 5 mastery points unlocks a choice of that unit's 3 legendary cards.
 - Decision-driven progression: a new account starts with **Guardian only**; the other 10 units are unlocked with gold. Fragments are a **shared pool**, so leveling one tower leaves less for the rest. **Replaying cleared stages still pays fragments**: the 1.9.0 economy is farm-based.
 - No ads, no purchases, no accounts, no telemetry.
 - Canvas 2D + DOM/CSS + ES modules; no build step, no server, no network calls.
-- 1088 Node tests.
+- 1094 Node tests.
 
 ## Run it
 
@@ -35,7 +35,7 @@ install needed, and it keeps working offline after the first load.
 node scripts/serve.mjs 8080
 # open http://localhost:8080
 
-# tests (1088) + static checks
+# tests (1094) + static checks
 node --test "tests/test-*.mjs"
 node .github/scripts/ci-checks.mjs
 ```

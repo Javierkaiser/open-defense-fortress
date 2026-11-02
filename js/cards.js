@@ -639,7 +639,9 @@ function cardMasteryTargets(card, game) {
     // La cadencia de la carta afecta a las torres y al dron Mosquitos.
     return all.filter((type) => type !== 'firewheel' && type !== 'forcefield');
   }
-  if (String(card.id).startsWith('hunt_')) return all;
+  // 1.12.1: las CAZAS de familia no dan maestría. Son una carta de
+  // matchup global, no una mejora de la unidad; contarlas inflaba el
+  // camino a las legendarias.
   if (card.type) {
     return all.filter((type) => (TOWERS[type] ?? DRONES[type])?.dmgType === card.type);
   }

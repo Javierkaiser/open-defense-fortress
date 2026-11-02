@@ -4,6 +4,37 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.12.1] — 2026-11-02
+
+### Cazas y maestría
+
+- **Las cartas de caza (`hunt_*`) ya no dan maestría**. Nunca daban nivel; el
+  bug era que `cardMasteryTargets()` las trataba como una mejora de todas las
+  unidades y permitía saltarse el camino normal a las legendarias. El
+  multiplicador de familia se sigue aplicando a todo el arsenal.
+- **5 doctrinas nuevas** de 2 rangos para las unidades que se quedaban sin
+  tercer hito: Missile (Bloqueo de Impacto), Láser (Pulso Sostenido), Rueda
+  de Fuego (Brasas), Mosquitos (Colmena) y Campo de Fuerza (Cúpula). El
+  catálogo normal pasa a **112 cartas (84 + 28 doctrinas)**; las legendarias
+  siguen siendo 33.
+- La maestría máxima se mantiene en 15 con las cartas normales y **2
+  legendarias**; no se tocaron los umbrales 5/10/15 ni la fórmula de maestría.
+
+### Rueda de Fuego
+
+- **Combustión Espontánea** reemplaza a **Órbita Solar**. Si no hay enemigos a
+  menos de **150 px**, cada **0,9 s** tira **40 %** de apagarse **0,22 s** y
+  reencenderse sobre el enemigo más avanzado a **230 px** o más, con **4 s**
+  de recarga. Mientras está apagada no se mueve, no quema y se dibuja como
+  una brasa humeante; al reencender entra directo al barrido.
+- Si el objetivo muere durante el apagado, elige otro lejano o se reenciende
+  en el lugar. Sin cambios de DPS, radio ni duración de la rueda.
+
+### Tests / versión
+
+- **1094 tests, 0 skip** (36 archivos).
+- Versión **1.12.1** / Android `versionCode 21`.
+
 ## [1.12.0] — 2026-11-02
 
 ### Desafío diario
