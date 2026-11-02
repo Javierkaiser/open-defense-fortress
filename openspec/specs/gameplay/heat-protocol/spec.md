@@ -4,8 +4,8 @@
 El Protocolo de asedio (Heat) es la pista de dificultad opcional de la campaña: el jugador
 elige un conjunto de handicaps con rangos (más enemigos, más HP, fugas más caras, menos cartas,
 sin Ultimate, etc.), el heat total mide cuánto se castigó y cada etapa guarda su propio récord
-de heat. Se aplica a campaña, ∞, daily y supervivencia; el daily guarda el Heat
-con el que se logró su récord global.
+de heat. Se aplica a campaña, ∞ y supervivencia. El daily es la excepción: fuerza
+**todas las condiciones al máximo (Heat 49)** y guarda ese Heat en su récord personal.
 
 ## Requirements
 
@@ -46,21 +46,21 @@ editar los rangos uno a uno. El heat máximo personalizable MUST ser 49.
 
 ### Requirement: Alcance por modo
 
-El Protocolo MUST aplicarse a **campaña, modo infinito, desafío diario y supervivencia**.
-El récord de profundidad del ∞ es **por nivel de Heat** (`heat.endless`). El récord del
-diario es **global por fecha**, pero MUST guardar el Heat con el que se logró
-(`endless.daily.heat`).
+El Protocolo MUST aplicarse a **campaña, modo infinito y supervivencia**. El récord de
+profundidad del ∞ es **por nivel de Heat** (`heat.endless`). El desafío diario MUST forzar
+todas las condiciones al rango máximo (Heat 49), ignorando el Protocolo activo, y su récord
+es **personal por fecha** (`endless.daily`, con `heat = 49`).
 
 #### Scenario: Una etapa de campaña con Protocolo
 
 - **WHEN** el jugador arranca una etapa de campaña con heat 8
 - **THEN** la etapa usa los modificadores del Protocolo y el resumen muestra el heat
 
-#### Scenario: El diario aplica el Protocolo
+#### Scenario: El diario fuerza el Heat máximo
 
-- **WHEN** el jugador arranca el desafío diario con un Protocolo activo
-- **THEN** la run diaria usa los modificadores del Protocolo y, si supera el récord
-  global del día, guarda también el Heat con el que se logró
+- **WHEN** el jugador arranca el desafío diario con un Protocolo activo cualquiera
+- **THEN** la run diaria usa las once condiciones al máximo (Heat 49) y, si supera su
+  récord personal del día, guarda el score con `endless.daily.heat = 49`
 
 #### Scenario: El infinito aplica el Protocolo
 
@@ -125,10 +125,10 @@ La carga de datos viejos o corruptos MUST NOT romper el progreso.
 - **THEN** `heat.endless[8]` sube a 60 si corresponde y el récord global de
   profundidad se conserva
 
-#### Scenario: El récord diario guarda su Heat
+#### Scenario: El récord diario guarda su Heat forzado
 
-- **WHEN** el jugador logra un nuevo récord diario a Heat 8
-- **THEN** el score y `endless.daily.heat = 8` se guardan; un run posterior con
+- **WHEN** el jugador logra un nuevo récord diario
+- **THEN** el score y `endless.daily.heat = 49` se guardan; un run posterior con
   peor score no cambia ninguno de los dos
 
 #### Scenario: Progreso viejo

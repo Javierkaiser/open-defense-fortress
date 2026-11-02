@@ -151,3 +151,20 @@ test('daily: la semilla no depende del reloj ni del azar local', () => {
   for (let i = 0; i < 100; i++) Math.random();
   assert.equal(dailySeed('2027-03-14'), before);
 });
+
+test('1.10.0: daily elige una etapa del pool y respeta la etapa congelada', () => {
+  const pool = [1, 2, 3, 4, 5, 51, 52];
+  const run = dailyRun('2026-10-26', { pool });
+  assert.ok(pool.includes(run.stage), `la etapa ${run.stage} debe salir del pool`);
+  assert.equal(run.stage, pool[run.seed % pool.length], 'la semilla decide dentro del pool');
+  // La etapa congelada gana sobre el pool, con la MISMA semilla del día.
+  const frozen = dailyRun('2026-10-26', { pool, stage: 4 });
+  assert.equal(frozen.stage, 4);
+  assert.equal(frozen.seed, run.seed);
+  // Un stage inválido no congela: vuelve a elegir del pool.
+  assert.equal(dailyRun('2026-10-26', { pool, stage: 3.5 }).stage, run.stage);
+  assert.equal(dailyRun('2026-10-26', { pool, stage: 0 }).stage, run.stage);
+  // Sin pool se conserva el fallback histórico del ∞ (51..60).
+  const fallback = dailyRun('2026-10-26', { pool: [] });
+  assert.ok(fallback.stage >= ENDLESS_START && fallback.stage < ENDLESS_START + DAILY_STAGES);
+});

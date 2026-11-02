@@ -130,12 +130,46 @@ los perks y los fragmentos (sumados al pool) se conservan.
 - **WHEN** se carga con el sistema nuevo
 - **THEN** ambas siguen desbloqueadas y conservan sus niveles
 
-### Requirement: Reset de progreso
+### Requirement: Reset Global
 
-“Borrar progreso” MUST volver al estado inicial: solo Guardian desbloqueado,
-pool en 0, oro inicial y niveles en 1.
+“Reset Global” MUST estar disponible siempre en el menú principal y MUST volver
+al estado inicial: solo Guardian desbloqueado, pool en 0, oro inicial, niveles
+en 1, campaña y récords borrados y bonus de Nueva Partida+ en 0. La acción MUST
+pedir confirmación explícita antes de borrar.
 
-#### Scenario: Borrar progreso
+#### Scenario: Reset Global confirmado
 
-- **WHEN** el jugador confirma el borrado
-- **THEN** las 10 unidades vuelven a estar bloqueadas y el oro vuelve al inicial
+- **WHEN** el jugador confirma “Reset Global”
+- **THEN** las 10 unidades vuelven a estar bloqueadas, el oro vuelve al inicial,
+  la campaña y los récords desaparecen y el ciclo NG+ vuelve a 0
+
+#### Scenario: Reset Global cancelado
+
+- **WHEN** el jugador abre la confirmación y elige CANCELAR
+- **THEN** el progreso y el meta-juego quedan intactos
+
+### Requirement: Nueva Partida+ (prestigio)
+
+Nueva Partida+ MUST habilitarse solo cuando la campaña está completa (Stage 50
+limpiado). Al confirmarla MUST conservar las unidades desbloqueadas y MUST subir
+el ciclo NG+, que otorga **+5 % de daño global acumulativo por ciclo** con tope
+**+100 % (20 ciclos)**. MUST resetear la campaña, los récords, el rango y las
+victorias, los perks, los niveles meta, los fragmentos y el oro, y MUST arrancar
+directo en el Stage 1 con el bonus ya aplicado. En el tope, el ciclo no sube más
+pero la partida puede reiniciarse conservando el +100 %.
+
+#### Scenario: Primera Nueva Partida+
+
+- **WHEN** el jugador con la campaña completa y Missile comprado confirma NG+
+- **THEN** conserva Missile, sube a NG+ 1 con +5 % de daño global, vuelve al
+  Stage 1 y pierde niveles, fragmentos, oro, perks y récords
+
+#### Scenario: Bonus acumulativo con tope
+
+- **WHEN** el jugador encadena ciclos NG+
+- **THEN** cada ciclo suma +5 % de daño global hasta el tope de +100 % en NG+ 20
+
+#### Scenario: NG+ bloqueada
+
+- **WHEN** el jugador todavía no limpió el Stage 50
+- **THEN** el menú muestra Nueva Partida+ deshabilitada y no permite confirmarla

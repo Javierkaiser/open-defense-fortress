@@ -97,6 +97,19 @@ const HEAT_MAX = HEAT_CONDS.reduce((a, c) => a + c.heat.reduce((x, y) => x + y, 
 export const HEAT_MAX_TOTAL = HEAT_MAX;
 
 /**
+ * Protocolo FORZADO del desafío diario (1.10.0): las 11 condiciones en su
+ * rango máximo. Heat resultante: 49.
+ */
+export const DAILY_HEAT_MODS = Object.freeze(
+  Object.fromEntries(HEAT_CONDS.map((c) => [c.id, c.ranks])),
+);
+
+/** Copia mutable del protocolo diario (para no exponer el objeto congelado). */
+export function dailyHeatMods() {
+  return { ...DAILY_HEAT_MODS };
+}
+
+/**
  * Normaliza un mapa de rangos: ids conocidos, enteros, 0..ranks. Devuelve
  * SÓLO los rangos > 0 (el resto no se persiste): un protocolo vacío es `{}`.
  *
@@ -166,9 +179,9 @@ export function heatMods(mods) {
  * hereda el último Protocolo guardado. Sólo `null` fuerza heat 0 (lo usan
  * los tests y los reintentos que deben quedar neutrales).
  *
- * v1.7.2: el Infinito y el Daily YA NO fuerzan heat 0; el Protocolo activo
- * se aplica a todos los modos. El Daily conserva un récord global, pero
- * guarda el Heat con el que se logró (`progress.endless.daily.heat`).
+ * v1.7.2: el Infinito aplica el Protocolo activo. 1.10.0: el Daily pasa
+ * `heatMods` explícito con las 11 condiciones al máximo (Heat 49) y guarda
+ * ese Heat en su récord personal (`progress.endless.daily.heat`).
  *
  * @param {{heatMods?:object|null, last?:object}} [opts]
  * @returns {object} mapa de rangos

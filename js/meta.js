@@ -93,6 +93,15 @@ export const META_MAX_LEVEL = 100;
  * balance-sim y no se compensa automáticamente.
  */
 export const META_DMG_PER_LEVEL = 0.09;
+
+/**
+ * Bonus de daño GLOBAL por ciclo de Nueva Partida+. Se aplica en
+ * `metaDmgMul()` a todas las torres y drones, por encima de la curva de
+ * nivel. Acumulativo con tope: 20 ciclos = +100 %.
+ */
+export const META_NG_DMG_PER_CYCLE = 0.05;
+/** Tope de ciclos NG+ (bonus máximo +100 %). */
+export const META_NG_MAX_CYCLES = 20;
 /** Dron de Interferencia: +1 p.p. de slow por nivel meta (parte de 30%). */
 export const META_SLOW_PER_LEVEL = 0.01;
 /** Slow base del Campo de Fuerza (Nvl.1): 30%. */
@@ -561,6 +570,7 @@ export function defaultMeta() {
     metaVersion: META_VERSION,
     levels, fragsPool: 0, unlocked, victories: 0, firstClear: [],
     gold: META_GOLD_START, perkChoices,
+    ngPlus: 0,
     perkSchemaVersion: PERK_SCHEMA_VERSION,
   };
 }
@@ -617,6 +627,7 @@ export function normalizeMeta(raw) {
   return {
     metaVersion: META_VERSION,
     levels, fragsPool, unlocked, victories, firstClear, gold, perkChoices,
+    ngPlus: clampInt(m.ngPlus, 0, META_NG_MAX_CYCLES, 0),
     perkSchemaVersion: PERK_SCHEMA_VERSION,
   };
 }
@@ -664,6 +675,38 @@ export function saveMeta(meta, storage = safeLocalStorage()) {
  *  theme.js). */
 export function resetMeta(storage = safeLocalStorage()) {
   return saveMeta(defaultMeta(), storage);
+}
+
+/**
+ * Nueva Partida+ (1.10.0): conserva las unidades DESBLOQUEADAS y sube el
+ * ciclo NG+; resetea niveles, fragmentos, oro, victorias, primeras
+ * limpiezas y perks. El bonus global se aplica en `metaDmgMul`.
+ *
+ * Función PURA: el llamador decide cuándo persistir. El progreso de
+ * campaña/récords lo resetea `Game.newGamePlus` con `resetProgress`.
+ *
+ * @param {object} meta
+ * @returns {object} meta normalizado del ciclo nuevo
+ */
+export function newGamePlusMeta(meta) {
+  const m = normalizeMeta(meta);
+  const levels = {};
+  const perkChoices = {};
+  for (const t of META_TOWERS) {
+    levels[t.key] = 1;
+    perkChoices[t.key] = Array(PERK_TIERS).fill(null);
+  }
+  return {
+    ...m,
+    levels,
+    fragsPool: 0,
+    gold: 0,
+    victories: 0,
+    firstClear: [],
+    perkChoices,
+    ngPlus: Math.min(META_NG_MAX_CYCLES, (m.ngPlus ?? 0) + 1),
+    perkSchemaVersion: PERK_SCHEMA_VERSION,
+  };
 }
 
 /** Estado meta actual (usa caché si existe). */
@@ -1034,7 +1077,8 @@ export function towerMilestones(type, meta = currentMeta()) {
 /**
  * Multiplicador de daño meta de un tipo (v6, 100 niveles): 1 + 9%×(nivel-1)
  *  — Nvl.100 = ×9.91 — MÁS el bonus de HITOS de esa torreta (+2% por hito
- *  alcanzado: ×1.08 en Nvl.100 con los 4 hitos).
+ *  alcanzado: ×1.08 en Nvl.100 con los 4 hitos) y × el bonus GLOBAL de
+ *  Nueva Partida+ (+5 % por ciclo, tope 20 ciclos).
  * (Comentario viejo corregido: NO es "10%×tope Nvl.5", esa era la v3.5
  *  base; ver META_DMG_PER_LEVEL/META_MAX_LEVEL arriba y docs/BALANCE.md
  *  "Plan integral — dev-7" para la medición real del techo.)
@@ -1056,7 +1100,8 @@ export function metaDmgMul(type, meta = currentMeta()) {
   if (m.unlocked?.[key] === false) return 1;
   const lv = m.levels[key] ?? 1;
   const curva = 1 + META_DMG_PER_LEVEL * Math.max(0, lv - 1);
-  return curva * milestoneDmgMul(type, meta);
+  const ngPlus = 1 + META_NG_DMG_PER_CYCLE * (m.ngPlus ?? 0);
+  return curva * milestoneDmgMul(type, meta) * ngPlus;
 }
 
 /**

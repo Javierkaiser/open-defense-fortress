@@ -9,6 +9,7 @@ import {
   HEAT_CONDS, HEAT_PRESETS, HEAT_MILESTONES, HEAT_MAX_TOTAL,
   normalizeHeatMods, heatTotal, heatMods, presetMods, presetFor,
   heatRewardMul, heatMilestoneBonus, heatProtocolForRun,
+  DAILY_HEAT_MODS, dailyHeatMods,
 } from '../js/heat.js';
 
 test('heat: 11 condiciones, rangos válidos y 49 de heat máximo', () => {
@@ -51,6 +52,23 @@ test('v1.7.2: heatProtocolForRun resuelve campaña, ∞ y daily', () => {
   assert.deepEqual(heatProtocolForRun({ heatMods: null, last }), {},
     'null es la vía explícita para heat 0');
   assert.deepEqual(heatProtocolForRun({}), {}, 'sin nada queda neutro');
+});
+
+test('1.10.0: el diario fuerza TODAS las condiciones al máximo (Heat 49)', () => {
+  for (const c of HEAT_CONDS) {
+    assert.equal(DAILY_HEAT_MODS[c.id], c.ranks, `${c.id} debe ir al rango máximo`);
+  }
+  assert.equal(heatTotal(DAILY_HEAT_MODS), HEAT_MAX_TOTAL);
+  assert.equal(heatTotal(dailyHeatMods()), 49);
+  const dials = heatMods(dailyHeatMods());
+  assert.equal(dials.heat, 49);
+  assert.equal(dials.noUlt, true, 'Apagón al máximo apaga la ultimate');
+  assert.equal(dials.doubleAffix, true, 'Dobles al máximo activa el doble afijo');
+  // La copia es mutable sin tocar el catálogo congelado.
+  const copy = dailyHeatMods();
+  copy.asedio = 1;
+  assert.equal(DAILY_HEAT_MODS.asedio, HEAT_CONDS.find((c) => c.id === 'asedio').ranks);
+  assert.ok(Object.isFrozen(DAILY_HEAT_MODS));
 });
 
 test('heat: heat 0 deja TODOS los diales neutros (fase 68 exacta)', () => {

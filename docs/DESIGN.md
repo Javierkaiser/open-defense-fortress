@@ -253,8 +253,8 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 | Campaña | 50 etapas; se desbloquean al limpiar la anterior; jefe en 1, 10, 20, 30, 40 y 50. |
 | Infinito (∞) | 51+; HP de base de la misma curva; jefe cada 10; profundidad “mejor + 1”; hitos y recompensas. |
 | Supervivencia | Olas infinitas; sin contador de fugas; cada fuga resta el HP máximo del enemigo; base 25 500 HP; jefe cada 5; tema cada 5; presupuesto lineal `60 + 30·oleada`. |
-| Desafío diario | Etapa 51–60 elegida por la fecha local; semilla FNV. |
-| Protocolo / Heat | 11 condiciones sobre campaña, ∞, daily y supervivencia; presets I–V (5/10/16/24/35); máximo 49; recompensa ×1 + 0,08·heat; hitos 60/120/240/420 fragmentos al pool. |
+| Desafío diario | Etapa elegida por fecha desde el pool de campaña/∞ desbloqueado; se congela en el primer intento; semilla FNV; **Heat 49 forzado**; récord personal. |
+| Protocolo / Heat | 11 condiciones sobre campaña, ∞ y supervivencia; el daily fuerza Heat 49; presets I–V (5/10/16/24/35); máximo 49; recompensa ×1 + 0,08·heat; hitos 60/120/240/420 fragmentos al pool. |
 
 ## 10. Progresión y economía
 
@@ -275,6 +275,10 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
   pool. Las mejoras se aplican en batalla (`metaDmgMul`, `critBonusPct`).
   La economía 1.9.0 es de **farmeo**: la campaña de una pasada no llega al S50;
   hay que repetir etapas (150 por victoria) para subir el meta.
+- **Nueva Partida+**: con el Stage 50 limpiado, el menú ofrece reiniciar la
+  campaña conservando las unidades compradas y subiendo **+5 % de daño global
+  por ciclo** (tope +100 % en NG+ 20). Resetea niveles, perks, fragmentos, oro,
+  rango, victorias y récords. “Reset Global” borra todo, incluido el ciclo NG+.
 - **Desbloqueos con oro**: una cuenta nueva arranca **solo con Guardian**; las
   otras 10 unidades se compran con oro (150–500) y una unidad bloqueada no entra
   en la oferta de cartas, no se mejora y su `metaDmgMul` es 1. Contrato en
@@ -294,6 +298,9 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
   combo, torretas, protocolo y récords.
 - El escenario de overlays es un nodo fijo fuera del marco: usa el alto real de
   la pantalla y permite scrollear las cartas.
+- El **STAGE CLEAR** es un modal con cabecera fija, cuerpo scrolleable y
+  acciones fijas (`screen-clear`/`clear-panel`/`clear-body`/`clear-actions`).
+  En pantallas bajas el cuerpo scrollea solo; los botones nunca se recortan.
 - `@container marco` adapta el HUD a marcos angostos; `@media (pointer: coarse)`
   agranda los botones a 52 px.
 - `viewport-fit=cover` + `env(safe-area-inset-*)` para notch y barras.
@@ -340,7 +347,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1050 tests (1050 pass, 0 skip) en 35 archivos.
+- 1066 tests (1066 pass, 0 skip) en 35 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

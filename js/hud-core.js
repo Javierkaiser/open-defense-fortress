@@ -36,7 +36,7 @@ import {
 import { THEMES, loadTheme, saveTheme, applyThemeToGame } from './theme.js';
 import { loadSkin } from './tower-skins.js';
 import { QUALITY_LEVELS, loadQuality, saveQuality, applyQualityToContext, applyQualityToDom, particleCapFor } from './quality.js';
-import { resetProgress } from './progress.js';
+import { resetProgress, loadProgress } from './progress.js';
 import { resetMeta } from './meta.js';
 // dev-7 fase 64: el TOPE de nivel de una etapa (`MAX_LEVEL_PER_STAGE`, el
 // techo de cartas de score.js). Sin ciclo: score.js sólo importa stages.js
@@ -152,6 +152,8 @@ export class HUD {
     // dev-7 fase 14: estado del botón "Borrar progreso" (confirmación
     // inline en 2 pasos, ver _screenMenu()/_bindResetProgress()).
     this._confirmingReset = false;
+    // 1.10.0: confirmación inline de Nueva Partida+.
+    this._confirmingNG = false;
     // dev-7 fase 39: acción pendiente de CONFIRMAR antes de abandonar la
     // partida en curso desde la pausa ('torretas' | 'menu' |
     // 'select-stage' | null).
@@ -533,7 +535,10 @@ export class HUD {
    * `_unlockArmed` (la compra de una unidad con oro).
    */
   _resetTransientUi(name) {
-    if (name !== 'MENU') this._confirmingReset = false;
+    if (name !== 'MENU') {
+      this._confirmingReset = false;
+      this._confirmingNG = false;
+    }
     if (name !== 'PAUSED') this._abandonPending = null;
     if (name !== 'TORRETAS') {
       this._perkResetArmed = {};
@@ -582,6 +587,7 @@ export class HUD {
         el.innerHTML = this._screenMenu();
         this._bindThemePicker();
         this._bindResetProgress();
+        this._bindNewGamePlus();
         break;
       case 'SELECT_STAGE': el.innerHTML = this._screenSelectStage(); break;
       // fase 69: el menú de handicaps del heat. No es UI de combate: solo
@@ -663,10 +669,17 @@ export class HUD {
     // (no el canvas del juego, ver theme.js). El activo queda marcado.
     // dev-7 fase 19: calidad gráfica (ver quality.js).
     // dev-7 fase 14: "Borrar progreso" — confirmación inline en 2 pasos.
+    // 1.10.0: Nueva Partida+ y Reset Global viven en el menú principal.
+    const progress = loadProgress();
+    const meta = loadMeta();
+    const campaignComplete = !!progress?.bestScore?.[STAGES.length];
     return buildMenuScreen({
       theme: loadTheme(),
       quality: loadQuality(),
       confirmingReset: this._confirmingReset,
+      confirmingNG: this._confirmingNG,
+      campaignComplete,
+      ngPlus: meta?.ngPlus ?? 0,
     });
   }
 
@@ -719,19 +732,53 @@ export class HUD {
         } else if (step === 'cancel') {
           this._confirmingReset = false;
         } else if (step === 'confirm') {
+          // 1.10.0: el reset real vive en Game (incluye NG+ y estado vivo).
+          const game = typeof window !== 'undefined' ? window.__GDF__?.game : null;
+          this._confirmingReset = false;
+          if (game?.resetGlobal) {
+            game.resetGlobal();
+            return;
+          }
           resetProgress();
           resetMeta();
-          this._confirmingReset = false;
           // Refleja el borrado en la Game viva (igual que el patrón ya
           // usado al mejorar una torreta desde TORRETAS). OJO: el campo
           // real es `progressData` (desbloqueo de stages) — `progress`
           // es un campo DISTINTO (0..1, progreso de oleada del HUD).
-          if (typeof window !== 'undefined' && window.__GDF__?.game) {
-            window.__GDF__.game.progressData = undefined;
-            window.__GDF__.game.meta = undefined;
+          if (game) {
+            game.progressData = undefined;
+            game.meta = undefined;
           }
         }
         this.showScreen('MENU');
+      });
+    });
+  }
+
+  /**
+   * 1.10.0 - Nueva Partida+: confirmación inline. El reset real lo hace
+   * `Game.newGamePlus()` (conserva torres, sube NG+ y arranca S1).
+   */
+  _bindNewGamePlus() {
+    this.overlayRoot.querySelectorAll('[data-action-ngplus]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const step = b.dataset.actionNgplus;
+        if (step === 'ask') {
+          this._confirmingNG = true;
+          this.showScreen('MENU');
+          return;
+        }
+        if (step === 'cancel') {
+          this._confirmingNG = false;
+          this.showScreen('MENU');
+          return;
+        }
+        if (step === 'confirm') {
+          this._confirmingNG = false;
+          const game = typeof window !== 'undefined' ? window.__GDF__?.game : null;
+          if (game?.newGamePlus) game.newGamePlus();
+          else this.showScreen('MENU');
+        }
       });
     });
   }
@@ -926,35 +973,61 @@ export class HUD {
     // cartel de "campaña completa" que ya existía.
     const campaignFinal = d.isFinal === true
       || (d.isFinal == null && d.endless == null && d.stageId === STAGES.length);
+    const rewardRows = [
+      d.metaFrags
+        ? `<div><dt>FRAGMENTOS META (al pool)</dt><dd class="ok">+${d.metaFrags}${d.metaFirst ? ' · ×2 1ª vez' : ''}</dd></div>`
+        : '',
+      d.metaGold
+        ? `<div><dt>ORO META${d.metaGoldBonus ? ' · campaña completa' : ''}</dt><dd class="ok">+${d.metaGold}</dd></div>`
+        : '',
+      endlessSummaryRows(d.endless, { milestone: true }),
+      heatSummaryRows(d.heat),
+      dailySummaryRow(d.daily),
+    ].filter(Boolean).join('');
     return `
-      <section class="screen">
-        <div class="panel">
+      <section class="screen screen-clear">
+        <div class="panel clear-panel">
           <img class="clear-sparkle tl" src="assets/sprites/ui_tinted/sparkle_gold.png" alt="">
           <img class="clear-sparkle tr" src="assets/sprites/ui_tinted/sparkle_gold.png" alt="">
           <img class="clear-sparkle br" src="assets/sprites/ui_tinted/sparkle_gold.png" alt="">
-          <h2 class="screen-title gold">STAGE CLEAR</h2>
-          <p class="hint">${esc(d.stageName)} · ${fmtTime(d.time)}</p>
-          <dl class="summary">
-            <div><dt>SCORE TOTAL</dt><dd>${fmt(d.score)}</dd></div>
-            ${d.scoreKills != null ? `<div><dt>&nbsp;· por kills</dt><dd>${fmt(d.scoreKills)}</dd></div>` : ''}
-            <div><dt>BONUS DE OLA/CLEAR</dt><dd class="ok">+${fmt(d.clearBonus)}</dd></div>
-            <div><dt>NIVEL ALCANZADO</dt><dd>Lv.${d.lv}</dd></div>
-            ${d.cards ? `<div><dt>MEJORAS APLICADAS</dt><dd>${d.cards}</dd></div>` : ''}
-            <div><dt>KILLS</dt><dd>${d.kills}</dd></div>
-            ${d.leaks != null ? `<div><dt>FUGAS</dt><dd>${d.leaks ?? 0}</dd></div>` : ''}
-            ${d.hpFrac != null ? `<div><dt>INTEGRIDAD DE LA BASE</dt><dd>${Math.round(d.hpFrac * 100)} %</dd></div>` : ''}
-            ${d.metaFrags ? `<div><dt>FRAGMENTOS META (al pool)</dt><dd class="ok">+${d.metaFrags}${d.metaFirst ? ' · ×2 1ª vez' : ''}</dd></div>` : ''}
-            ${d.metaGold ? `<div><dt>ORO META${d.metaGoldBonus ? ' · campaña completa' : ''}</dt><dd class="ok">+${d.metaGold}</dd></div>` : ''}
-            ${endlessSummaryRows(d.endless, { milestone: true })}
-            ${heatSummaryRows(d.heat)}
-            ${dailySummaryRow(d.daily)}
-          </dl>
-          <div class="stage-actions">
-          ${campaignFinal ? '<p class="hint ok">¡CAMPAÑA COMPLETA! Seguí en el modo infinito</p>' : ''}
-          ${d.hasNext ? `<button class="btn big" data-action="next-stage">${nextLabel}</button>` : ''}
-          ${d.metaFrags ? `<button class="btn big" data-action="torretas" title="Gastar los fragmentos que ganaste en subir de nivel tus torretas">${UI_ICONS.torreta} MEJORAR TORRETAS</button>` : ''}
-          <button class="btn ghost" data-action="retry">↻ REINTENTAR</button>
-          <button class="btn" data-action="select-stage">ELEGIR STAGE</button>
+          <header class="clear-head">
+            <h2 class="screen-title gold">STAGE CLEAR</h2>
+            <p class="hint">${esc(d.stageName)} · ${fmtTime(d.time)}</p>
+            ${campaignFinal ? '<p class="clear-banner">¡CAMPAÑA COMPLETA! Seguí en el modo infinito</p>' : ''}
+          </header>
+          <div class="clear-body">
+            <section class="clear-section">
+              <h3 class="clear-section-title">RESULTADO</h3>
+              <dl class="summary clear-summary">
+                <div><dt>SCORE TOTAL</dt><dd>${fmt(d.score)}</dd></div>
+                ${d.scoreKills != null ? `<div><dt>SCORE POR KILLS</dt><dd>${fmt(d.scoreKills)}</dd></div>` : ''}
+                <div><dt>BONUS DE CLEAR</dt><dd class="ok">+${fmt(d.clearBonus)}</dd></div>
+              </dl>
+            </section>
+            <section class="clear-section">
+              <h3 class="clear-section-title">RENDIMIENTO</h3>
+              <dl class="summary clear-summary">
+                <div><dt>NIVEL ALCANZADO</dt><dd>Lv.${d.lv}</dd></div>
+                ${d.cards ? `<div><dt>MEJORAS APLICADAS</dt><dd>${d.cards}</dd></div>` : ''}
+                <div><dt>KILLS</dt><dd>${d.kills}</dd></div>
+                ${d.leaks != null ? `<div><dt>FUGAS</dt><dd>${d.leaks ?? 0}</dd></div>` : ''}
+                ${d.hpFrac != null ? `<div><dt>INTEGRIDAD DE LA BASE</dt><dd>${Math.round(d.hpFrac * 100)} %</dd></div>` : ''}
+              </dl>
+            </section>
+            ${rewardRows ? `
+            <section class="clear-section">
+              <h3 class="clear-section-title">RECOMPENSAS</h3>
+              <dl class="summary clear-summary">${rewardRows}</dl>
+            </section>` : ''}
+          </div>
+          <div class="clear-actions">
+            ${d.hasNext ? `<button class="btn big" data-action="next-stage">${nextLabel}</button>` : ''}
+            ${d.metaFrags ? `<button class="btn big" data-action="torretas" title="Gastar los fragmentos que ganaste en subir de nivel tus torretas">${UI_ICONS.torreta} MEJORAR TORRETAS</button>` : ''}
+            <div class="clear-secondary">
+              <button class="btn ghost" data-action="retry">↻ REINTENTAR</button>
+              <button class="btn ghost" data-action="select-stage">ELEGIR STAGE</button>
+            </div>
+            ${!d.hasNext ? '<button class="btn ghost" data-action="menu">MENÚ PRINCIPAL</button>' : ''}
           </div>
         </div>
       </section>`;

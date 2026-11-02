@@ -365,8 +365,8 @@ Lectura:
   +8 % y la tendencia S60 > S50, S70 > S60 se cumple.
 - El ∞ **aplica el Protocolo activo** (v1.7.2). La profundidad se guarda por
   nivel de Heat (`heat.endless`); el récord global de profundidad se conserva.
-  El Daily también aplica el Protocolo: su récord de score es global por fecha,
-  pero guarda el Heat con el que se logró (`endless.daily.heat`).
+  El Daily es la excepción 1.10.0: fuerza Heat 49 y guarda su récord personal
+  por fecha (`endless.daily`, `heat = 49`).
 
 ## Supervivencia
 
@@ -385,8 +385,28 @@ Lectura:
 - **Presets**: I=5, II=10, III=16, IV=24, V=35.
 - **Recompensa**: `heatRewardMul = 1 + 0,08·heat` (heat 10 ≈ ×1,8).
 - **Hitos únicos** 5/10/20/35: 60/120/240/420 fragmentos **al pool**.
-- Se aplica a **campaña, ∞, daily y supervivencia**. El daily guarda el Heat
-  con el que se logró su récord global de score.
+- Se aplica a **campaña, ∞ y supervivencia**. El **desafío diario** es la
+  excepción: fuerza las 11 condiciones al máximo (**Heat 49**, recompensa
+  ×4,92) y guarda ese Heat como récord personal.
+
+## Prestigio y desafío diario (1.10.0)
+
+- **Nueva Partida+**: se habilita al limpiar el S50. Conserva las unidades
+  compradas y suma **+5 % de daño global por ciclo**, acumulativo hasta
+  **+100 % (NG+ 20)**. El bonus entra en `metaDmgMul`, así que multiplica la
+  curva de nivel y los hitos (en Nvl.100, NG+ 20 lleva ×9,91 a ×19,82 antes de
+  hitos). Resetea campaña, récords, rango/victorias, perks, niveles,
+  fragmentos y oro; el jugador vuelve a empezar en S1 con esas unidades.
+- **Reset Global**: borra todo, incluido el ciclo NG+ y las unidades
+  compradas. El oro vuelve al inicial (100). No toca tema, calidad ni audio.
+- **Desafío diario**: elige una etapa del pool ya desbloqueado (campaña 1..N +
+  profundidades abiertas del ∞) con la fecha local y la congela en el primer
+  intento. Todos los heats van al máximo, sin importar el Protocolo activo.
+  El récord es **personal**: la etapa puede diferir entre jugadores con
+  progreso distinto, así que no se compara entre cuentas.
+- El diario ya no exige el ∞ abierto: una cuenta nueva con solo el S1 puede
+  jugarlo. La dificultad de Heat 49 lo convierte en un objetivo de largo
+  plazo, no en la primera run.
 
 ## Metodología y guardas
 
@@ -401,7 +421,7 @@ Lectura:
 6. La suite tiene guardas de regresión de HP por etapa, apertura, jefes,
    variantes y supervivencia.
 
-## Estado actual (v1.9.0)
+## Estado actual (v1.10.0)
 
 - **Campaña de una pasada**: S1 100 %, S2 80 %, S3 20 %, S4 70 %, S5 90 %,
   S6 60 %, S10 10 %, S20 20 %, S30 10 %, S50 0 % con `pool-focus` (10
@@ -416,9 +436,12 @@ Lectura:
   mismo objetivo farmeado escala desde ahí.
 - `pool-spread` sin farmeo (Nvl.16) queda en **0 % win / 0 % HP / 0 % bajas**.
 - ∞: la pared empieza alrededor de 60–70; el win cae con la profundidad.
-- Heat en ∞/Daily (1.7.2): el Protocolo activo se aplica a ambos. El récord
-  del ∞ es por Heat (`heat.endless`); el del Daily es global por fecha y
-  guarda el Heat con el que se logró (`endless.daily.heat`).
+- Heat en ∞/Daily (1.10.0): el ∞ sigue usando el Protocolo activo y guarda su
+  récord por Heat (`heat.endless`). El Daily fuerza Heat 49 y guarda su récord
+  personal por fecha (`endless.daily`, `heat = 49`).
+- **Prestigio (1.10.0)**: NG+ da +5 % de daño global por ciclo (tope +100 % en
+  20). No se re-midieron las tablas de campaña: el bonus es posterior al S50 y
+  el balance base de 1.9.0 no cambia.
 - Supervivencia: ~84 oleadas planas en el simulador; el número absoluto no es
   confiable, la tendencia sí.
 - Identidad (1.5.0): el rework de perks/mecánicas no movió las métricas
@@ -452,6 +475,9 @@ Lectura:
   bajo el umbral para el atacante con execute. La economía pasa a ser de
   **farmeo**: el S50 no se alcanza en una pasada. Detalle en §"El bucle de
   farmeo".
+- **Ronda 1.10.0**: Nueva Partida+ (+5 % global/ciclo, tope +100 %), Reset
+  Global, modal de victoria scrolleable y daily sobre cualquier etapa
+  desbloqueada con Heat 49 forzado. Sin cambios a la curva de la campaña.
 - Ajuste de arsenal (1.7.1): Guardian **15,0 DPS** (5/0.25), Missile **20,0
   efectivo** (170/3.2, splash 64) y Tesla **10,0** (7/0.7). Medido con
   `--meta=pool-focus` (Nvl.44 en S50, 10 semillas): S50 sin heat **70 % win /

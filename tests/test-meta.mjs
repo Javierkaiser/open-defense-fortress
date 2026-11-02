@@ -16,6 +16,7 @@ import {
   META_FRAG_PER_VICTORY, META_FIRST_CLEAR_MULT, rewardVictory, rewardFrags,
   normalizeMeta, fragCost, perkCount, metaDmgMul, PERKS, perkMods, mergeMods,
   defaultMeta, loadMeta, saveMeta, resetMeta,
+  META_NG_DMG_PER_CYCLE, META_NG_MAX_CYCLES, newGamePlusMeta,
   tierAtLevel, getPerkOptions, pendingPerkTiers, setPerkChoice,
   metaGold, rewardGold, resetPerks,
   META_SLOW_BASE, META_SLOW_CAP, metaSlowFrac,
@@ -114,6 +115,39 @@ test('metaDmgMul: 1× en nivel 1, curva ×9,91 + hitos en el techo real (nivel 1
     'metaDmgMul debe incluir el bonus de hitos');
   assert.ok(Math.abs(milestoneDmgMul(type, metaLv100) - 1.08) < 1e-9,
     'en Nvl.100 la torre tiene los 4 hitos: +8% de daño');
+});
+
+test('1.10.0: NG+ suma +5% global por ciclo con tope 20', () => {
+  const m0 = normalizeMeta({ levels: { guardian: 10 }, ngPlus: 0 });
+  const m2 = normalizeMeta({ levels: { guardian: 10 }, ngPlus: 2 });
+  const m99 = normalizeMeta({ levels: { guardian: 10 }, ngPlus: 99 });
+  assert.equal(META_NG_DMG_PER_CYCLE, 0.05);
+  assert.equal(META_NG_MAX_CYCLES, 20);
+  assert.equal(m0.ngPlus, 0);
+  assert.equal(m2.ngPlus, 2);
+  assert.equal(m99.ngPlus, 20, 'el tope es +100%');
+  const ratio = metaDmgMul('guardian', m2) / metaDmgMul('guardian', m0);
+  assert.ok(Math.abs(ratio - 1.10) < 1e-9, `ratio=${ratio}`);
+});
+
+test('1.10.0: newGamePlusMeta conserva torres y sube NG+; resetea el resto', () => {
+  const base = normalizeMeta({
+    ...defaultMeta(),
+    levels: { ...defaultMeta().levels, guardian: 50 },
+    unlocked: { ...defaultMeta().unlocked, missile: true },
+    fragsPool: 1000, gold: 500, victories: 10, firstClear: [1, 2],
+    ngPlus: 2,
+  });
+  const ng = newGamePlusMeta(base);
+  assert.equal(ng.ngPlus, 3);
+  assert.equal(ng.unlocked.missile, true, 'la torre comprada se conserva');
+  assert.equal(ng.levels.guardian, 1, 'niveles a 1');
+  assert.equal(ng.fragsPool, 0);
+  assert.equal(ng.gold, 0);
+  assert.equal(ng.victories, 0);
+  assert.deepEqual(ng.firstClear, []);
+  assert.ok(ng.perkChoices.guardian.every((v) => v === null), 'perks reseteados');
+  assert.ok(ng.levels.missile === 1);
 });
 
 test('perkCount: 1 perk cada 10 niveles (0 en nivel 9, 1 en nivel 10, 10 en nivel 100)', () => {

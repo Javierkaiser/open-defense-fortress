@@ -194,6 +194,50 @@ test('buildMenuScreen: sin confirmación muestra el botón de pedir confirmació
   assert.ok(!html.includes('reset-warn'), 'sin confirmación no hay aviso de borrado');
 });
 
+test('1.10.0: Nueva Partida+ queda bloqueada hasta completar la campaña', () => {
+  const html = buildMenuScreen({ theme: 'neon', quality: 'alta' });
+  assert.ok(html.includes('NUEVA PARTIDA+ · completá la campaña'),
+    'sin S50 limpiado no se ofrece NG+');
+  assert.ok(html.includes('disabled title="Completá la campaña'),
+    'el botón está deshabilitado y explica por qué');
+  assert.ok(!html.includes('data-action-ngplus="ask"'), 'no se puede pedir confirmación');
+  assert.ok(!html.includes('ng-plus-badge'), 'sin ciclo no hay badge');
+  assert.ok(html.includes('data-action-reset="ask"'), 'Reset Global sigue disponible');
+});
+
+test('1.10.0: con la campaña completa el menú ofrece NG+ y su badge', () => {
+  const html = buildMenuScreen({
+    theme: 'neon', quality: 'alta', campaignComplete: true, ngPlus: 2,
+  });
+  assert.ok(html.includes('class="ng-plus-badge"'), 'el ciclo actual se muestra');
+  assert.ok(html.includes('NG+ 2 · +10% de daño global'));
+  assert.ok(html.includes('data-action-ngplus="ask"'), 'se puede pedir confirmación');
+  assert.ok(html.includes('NG+ 3 · +15% daño global'), 'el próximo ciclo y su bonus');
+  assert.ok(html.includes('data-action-reset="ask"'), 'Reset Global sigue disponible');
+});
+
+test('1.10.0: la confirmación de NG+ avisa qué se conserva y qué se resetea', () => {
+  const html = buildMenuScreen({
+    theme: 'neon', quality: 'alta', campaignComplete: true, ngPlus: 0, confirmingNG: true,
+  });
+  assert.ok(html.includes('data-action-ngplus="confirm"'), 'ofrece confirmar');
+  assert.ok(html.includes('data-action-ngplus="cancel"'), 'y cancelar');
+  assert.ok(html.includes('se conservan las torres y drones'), 'dice qué conserva');
+  assert.ok(html.includes('0% → 5%'), 'muestra el bonus que gana');
+  assert.ok(html.includes('Se resetean campaña, récords, rango, perks, niveles, fragmentos y oro'),
+    'dice qué se pierde');
+});
+
+test('1.10.0: el menú capa el ciclo NG+ al tope de 20 (+100%)', () => {
+  const html = buildMenuScreen({
+    theme: 'neon', quality: 'alta', campaignComplete: true, ngPlus: 99,
+  });
+  assert.ok(html.includes('NG+ 20 · +100% de daño global'));
+  assert.ok(html.includes('NG+ 20 · +100% daño global (máximo)'),
+    'en el tope no promete un ciclo 21');
+  assert.ok(!html.includes('105%'), 'el bonus no puede pasar del tope');
+});
+
 test('buildTorretasScreen: el banner escala con los niveles (11 de 1100 por defecto)', () => {
   const html = buildTorretasScreen(defaultMeta());
   // defaultMeta: todas las torretas en Nvl.1 → 11 niveles de 1100.
@@ -3149,7 +3193,7 @@ const endlessPayload = (over = {}) => ({
   open: true,
   best: 62,
   next: 63,
-  daily: { date: '2026-10-26', stage: 57, bestScore: 0, heat: 0 },
+  daily: { date: '2026-10-26', stage: 57, bestScore: 0, heat: 0, heatForced: 49 },
   ...over,
 });
 
@@ -3180,12 +3224,32 @@ test('fase 67: abierto, el selector antepone la tarjeta ∞ y la del diario', ()
 test('fase 67: el récord del día se muestra formateado (o "sin récord")', () => {
   const sin = buildDailyCardHtml(endlessPayload());
   assert.ok(sin.includes('sin récord hoy'), 'un bestScore 0 no es un récord');
-  assert.ok(!sin.includes('récord de hoy'), 'y no se inventa uno');
+  assert.ok(!sin.includes('tu récord'), 'y no se inventa uno');
   const con = buildDailyCardHtml(endlessPayload({
-    daily: { date: '2026-10-26', stage: 57, bestScore: 12345, heat: 5 },
+    daily: { date: '2026-10-26', stage: 57, bestScore: 12345, heat: 5, heatForced: 49 },
   }));
-  assert.ok(con.includes('récord de hoy: 012345'), 'el score usa el formato del HUD');
+  assert.ok(con.includes('tu récord: 012345'), 'el score usa el formato del HUD');
   assert.ok(con.includes('Heat 5'), 'y el Heat con el que se logró el récord');
+  assert.ok(con.includes('TODOS LOS HEATS · HEAT 49'), 'y el Heat forzado del diario');
+  // Si el récord ya es a Heat 49, no se repite dos veces en la misma línea.
+  const max = buildDailyCardHtml(endlessPayload({
+    daily: { date: '2026-10-26', stage: 57, bestScore: 12345, heat: 49, heatForced: 49 },
+  }));
+  assert.ok(max.includes('tu récord: 012345'));
+  assert.ok(!max.includes('Heat 49 · TODOS'), 'sin duplicar el Heat forzado');
+  assert.ok(max.includes('TODOS LOS HEATS · HEAT 49'));
+});
+
+test('1.10.0: el diario aparece desde S1 aunque el ∞ esté cerrado', () => {
+  const html = buildStageList(fakeStages(1), {
+    endless: {
+      open: false,
+      daily: { date: '2026-10-26', stage: 1, bestScore: 0, heat: 0, heatForced: 49 },
+    },
+  });
+  assert.ok(html.includes('data-action="start-daily"'), 'el diario tiene su acción');
+  assert.ok(html.includes('ETAPA 1'), 'la etapa del día es la 1 desbloqueada');
+  assert.ok(!html.includes('∞ CONTINUAR'), 'el ∞ sigue cerrado');
 });
 
 test('fase 67: un payload corrupto no pinta tarjeta (y no lanza)', () => {
@@ -3283,6 +3347,51 @@ test('fase 67: el S50 convive con el cartel de campaña completa y el botón del
     clearBonus: 0, hpBonus: 0, lv: 9, cards: 5, kills: 10, hasNext: true,
   });
   assert.ok(sinIsFinal.includes('¡CAMPAÑA COMPLETA!'), 'el cartel sale sin el campo nuevo');
+});
+
+test('1.10.0: el modal STAGE CLEAR tiene cabecera, cuerpo scrolleable y acciones fijas', () => {
+  const hud = Object.create(HUD.prototype);
+  const html = hud._screenStageClear({
+    stageId: 7, stageName: 'Normal Stage 7', time: 65, score: 4321,
+    clearBonus: 300, hpBonus: 0, lv: 4, cards: 2, kills: 44, hasNext: true,
+    daily: {
+      date: '2026-10-26', stage: 7, score: 4321, best: 4321,
+      bestHeat: 8, isRecord: true, cleared: true,
+    },
+  });
+  assert.ok(html.includes('class="screen screen-clear"'), 'la pantalla usa el layout nuevo');
+  assert.ok(html.includes('class="panel clear-panel"'), 'con panel flexible');
+  assert.ok(html.includes('class="clear-head"'), 'cabecera propia');
+  assert.ok(html.includes('class="clear-body"'), 'cuerpo scrolleable');
+  assert.ok(html.includes('class="clear-actions"'), 'acciones fijas');
+  assert.ok(html.includes('ETAPA 7 · 004321'), 'el resumen diario muestra la etapa');
+  // Las acciones viven FUERA del cuerpo: no se van con el scroll.
+  const bodyStart = html.indexOf('<div class="clear-body">');
+  const actionsStart = html.indexOf('<div class="clear-actions">');
+  assert.ok(bodyStart >= 0 && actionsStart > bodyStart, 'el orden es cuerpo → acciones');
+  const bodyHtml = html.slice(bodyStart, actionsStart);
+  const actionsHtml = html.slice(actionsStart);
+  assert.ok(bodyHtml.includes('RESULTADO') && bodyHtml.includes('RENDIMIENTO'),
+    'los datos van dentro del cuerpo');
+  assert.ok(!bodyHtml.includes('data-action="next-stage"'), 'los botones no scrollean');
+  assert.ok(actionsHtml.includes('data-action="next-stage"'), 'CONTINUAR queda fijo abajo');
+  assert.ok(actionsHtml.includes('data-action="retry"'), 'REINTENTAR también');
+  assert.ok(actionsHtml.includes('data-action="select-stage"'), 'y ELEGIR STAGE');
+  // CSS: overlay con scroll global, panel flex y cuerpo con su propio scroll.
+  const root = cssRule('#overlay-root');
+  assert.ok(root.includes('overflow-y: auto'), 'el overlay scrollea en móvil');
+  assert.ok(root.includes('align-items: flex-start'), 'el contenido no se recorta arriba');
+  const panel = cssRule('.clear-panel');
+  assert.ok(panel.includes('display: flex') && panel.includes('flex-direction: column'));
+  assert.ok(panel.includes('max-height'), 'el panel no supera la pantalla');
+  assert.ok(panel.includes('overflow: hidden'), 'el panel contiene a sus hijos');
+  const body = cssRule('.clear-body');
+  assert.ok(body.includes('overflow-y: auto'), 'el cuerpo scrollea solo');
+  assert.ok(body.includes('min-height: 0'), 'el flex permite que encoja');
+  assert.ok(body.includes('overscroll-behavior: contain'), 'el scroll no encadena');
+  const actions = cssRule('.clear-actions');
+  assert.ok(actions.includes('flex: 0 0 auto'), 'las acciones no se comprimen');
+  assert.ok(css.includes('env(safe-area-inset-bottom)'), 'respeta la safe-area del móvil');
 });
 
 test('fase 67: el score del día aparece en las DOS pantallas de fin de run', () => {

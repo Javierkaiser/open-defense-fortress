@@ -6,7 +6,7 @@
 node --test "tests/test-*.mjs"
 ```
 
-Estado actual: **1050 tests** (1050 pass, 0 skip, 0 fail) en **35 archivos**.
+Estado actual: **1066 tests** (1066 pass, 0 skip, 0 fail) en **35 archivos**.
 
 Requisitos: Node 22 o superior.
 
@@ -82,7 +82,9 @@ Para eso hay **smoke manual** y una checklist Android (APK debug).
 2. Abrir en Chrome a 390×844 (mobile emulation).
 3. Menú → JUGAR → Stage 1 → 60 s sin errores de consola.
 4. Probar pausa, velocidad ×2, Ultimate, Black Hole, cartas y combo.
-5. Probar tema, calidad Alta/Baja y “Borrar progreso”.
+5. Probar tema, calidad Alta/Baja, “Reset Global” y “Nueva Partida+” (con la
+   campaña completa). Verificar que el STAGE CLEAR scrollee y que sus botones
+   queden visibles a 360×640 y 390×844.
 6. Probar `SELECCIONAR STAGE`, `TORRETAS`, `PROTOCOLO` y `RÉCORDS`.
 7. Verificar que no haya requests de red en DevTools.
 

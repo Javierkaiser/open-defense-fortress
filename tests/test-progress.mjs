@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import {
   defaultProgress, normalizeProgress, loadProgress, saveProgress,
   recordVictory, recordDaily, isUnlocked, resetProgress,
-  recordHeatRun, claimHeatMilestone, recordSurvival,
+  recordHeatRun, claimHeatMilestone, recordSurvival, dailyStagePool,
 } from '../js/progress.js';
 import { fakeStorage } from './helpers/storage.mjs';
 
@@ -17,7 +17,7 @@ function campaignDone(extra = {}) {
   return {
     unlocked: 50,
     bestScore: { 50: 12345 },
-    endless: { best: 0, daily: { date: '', bestScore: 0 } },
+    endless: { best: 0, daily: { date: '', stage: 0, bestScore: 0 } },
     ...extra,
   };
 }
@@ -26,7 +26,7 @@ test('defaultProgress: solo Stage 1 desbloqueado, sin récords ni endgame', () =
   const p = defaultProgress();
   assert.equal(p.unlocked, 1);
   assert.deepEqual(p.bestScore, {});
-  assert.deepEqual(p.endless, { best: 0, daily: { date: '', bestScore: 0, heat: 0 } });
+  assert.deepEqual(p.endless, { best: 0, daily: { date: '', stage: 0, bestScore: 0, heat: 0 } });
 });
 
 test('normalizeProgress: tolera datos corruptos/fuera de rango', () => {
@@ -37,7 +37,7 @@ test('normalizeProgress: tolera datos corruptos/fuera de rango', () => {
 
 test('normalizeProgress: un progreso VIEJO (sin endless) carga sin romper', () => {
   const p = normalizeProgress({ unlocked: 12, bestScore: { 12: 800 } });
-  assert.deepEqual(p.endless, { best: 0, daily: { date: '', bestScore: 0, heat: 0 } });
+  assert.deepEqual(p.endless, { best: 0, daily: { date: '', stage: 0, bestScore: 0, heat: 0 } });
   assert.equal(p.unlocked, 12);
 });
 
@@ -47,7 +47,7 @@ test('normalizeProgress: el campo endless corrupto se descarta, el resto sobrevi
     bestScore: { 50: 900 },
     endless: { best: 'x', daily: { date: 'ayer', bestScore: -4 } },
   });
-  assert.deepEqual(p.endless, { best: 0, daily: { date: '', bestScore: 0, heat: 0 } });
+  assert.deepEqual(p.endless, { best: 0, daily: { date: '', stage: 0, bestScore: 0, heat: 0 } });
   assert.equal(p.bestScore[50], 900);
   // Un `best` por debajo del infinito tampoco vale.
   assert.equal(normalizeProgress({ endless: { best: 40 } }).endless.best, 0);
@@ -91,27 +91,46 @@ test('isUnlocked: el infinito va hasta la mejor limpiada + 1 y exige el modo abi
   assert.equal(isUnlocked(open, 51), true);
   assert.equal(isUnlocked(open, 52), false);
 
-  const deep = campaignDone({ endless: { best: 62, daily: { date: '', bestScore: 0, heat: 0 } } });
+  const deep = campaignDone({ endless: { best: 62, daily: { date: '', stage: 0, bestScore: 0, heat: 0 } } });
   assert.equal(isUnlocked(deep, 51), true, 'se puede rejugar una etapa vieja');
   assert.equal(isUnlocked(deep, 63), true, 'la siguiente a la mejor limpiada');
   assert.equal(isUnlocked(deep, 64), false, 'no se salta la pared');
 });
 
-test('recordDaily: mejor score global y Heat con el que se logró', () => {
+test('1.10.0: dailyStagePool = campaña desbloqueada + profundidades abiertas', () => {
+  assert.deepEqual(dailyStagePool(null), [1], 'sin progreso sólo existe el S1');
+  assert.deepEqual(dailyStagePool(defaultProgress()), [1]);
+  assert.deepEqual(dailyStagePool(normalizeProgress({ unlocked: 3 })), [1, 2, 3]);
+  // Campaña completa: 1..50 + el 51 que abre el ∞ (sin récord aún).
+  const open = dailyStagePool(campaignDone());
+  assert.equal(open.length, 51);
+  assert.deepEqual(open.slice(-3), [49, 50, 51]);
+  // Con profundidad: llega hasta la mejor limpiada + 1.
+  const deep = dailyStagePool(campaignDone({
+    endless: { best: 52, daily: { date: '', stage: 0, bestScore: 0 } },
+  }));
+  assert.ok(deep.includes(51) && deep.includes(53));
+  assert.ok(!deep.includes(54), 'no se salta la pared del ∞');
+  // El ∞ cerrado no aporta etapas aunque `unlocked` sea 50.
+  const notCleared = normalizeProgress({ unlocked: 50, bestScore: {} });
+  assert.deepEqual(dailyStagePool(notCleared), Array.from({ length: 50 }, (_, i) => i + 1));
+});
+
+test('recordDaily: mejor score personal, Heat y etapa congelada del día', () => {
   let p = campaignDone();
-  p = recordDaily(p, '2026-10-26', 3000, 0);
-  assert.deepEqual(p.endless.daily, { date: '2026-10-26', bestScore: 3000, heat: 0 });
-  p = recordDaily(p, '2026-10-26', 2500, 8); // peor: no baja score ni cambia heat
-  assert.deepEqual(p.endless.daily, { date: '2026-10-26', bestScore: 3000, heat: 0 });
-  p = recordDaily(p, '2026-10-26', 4200, 5); // mejor: sube score y heat
-  assert.deepEqual(p.endless.daily, { date: '2026-10-26', bestScore: 4200, heat: 5 });
-  p = recordDaily(p, '2026-10-26', 4200, 8); // empate: conserva el heat original
-  assert.deepEqual(p.endless.daily, { date: '2026-10-26', bestScore: 4200, heat: 5 });
-  p = recordDaily(p, '2026-10-27', 100, 3); // otro día: arranca de cero
-  assert.deepEqual(p.endless.daily, { date: '2026-10-27', bestScore: 100, heat: 3 });
+  p = recordDaily(p, '2026-10-26', 3000, 0, 5);
+  assert.deepEqual(p.endless.daily, { date: '2026-10-26', stage: 5, bestScore: 3000, heat: 0 });
+  p = recordDaily(p, '2026-10-26', 2500, 8, 7); // peor: no baja score ni cambia heat/stage
+  assert.deepEqual(p.endless.daily, { date: '2026-10-26', stage: 5, bestScore: 3000, heat: 0 });
+  p = recordDaily(p, '2026-10-26', 4200, 5, 9); // mejor: sube score/heat; stage queda congelada
+  assert.deepEqual(p.endless.daily, { date: '2026-10-26', stage: 5, bestScore: 4200, heat: 5 });
+  p = recordDaily(p, '2026-10-26', 4200, 8, 9); // empate: conserva heat y stage
+  assert.deepEqual(p.endless.daily, { date: '2026-10-26', stage: 5, bestScore: 4200, heat: 5 });
+  p = recordDaily(p, '2026-10-27', 100, 3, 8); // otro día: arranca de cero con su etapa
+  assert.deepEqual(p.endless.daily, { date: '2026-10-27', stage: 8, bestScore: 100, heat: 3 });
   // Una fecha inválida no toca nada.
   const before = { ...p.endless.daily };
-  p = recordDaily(p, 'ayer', 9999, 9);
+  p = recordDaily(p, 'ayer', 9999, 9, 10);
   assert.deepEqual(p.endless.daily, before);
 });
 
@@ -124,7 +143,7 @@ test('saveProgress/loadProgress: el endgame persiste en el storage inyectado', (
   assert.equal(saved.endless.best, 63);
   const loaded = loadProgress(storage);
   assert.equal(loaded.endless.best, 63);
-  assert.deepEqual(loaded.endless.daily, { date: '2026-10-26', bestScore: 5555, heat: 0 });
+  assert.deepEqual(loaded.endless.daily, { date: '2026-10-26', stage: 0, bestScore: 5555, heat: 0 });
   assert.equal(loaded.bestScore[63], 7777);
 });
 

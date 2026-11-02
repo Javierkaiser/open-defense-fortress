@@ -23,7 +23,7 @@ export function defaultProgress() {
   return {
     unlocked: 1,
     bestScore: {},
-    endless: { best: 0, daily: { date: '', bestScore: 0, heat: 0 } },
+    endless: { best: 0, daily: { date: '', stage: 0, bestScore: 0, heat: 0 } },
     heat: { best: 0, byStage: {}, endless: {}, claimed: [], last: {} },
     survival: { bestWave: 0, bestScore: 0, runs: 0, byHeat: {} },
   };
@@ -71,7 +71,11 @@ function normalizeEndless(raw) {
   const heatRaw = Number(d.heat);
   const heat = Number.isFinite(heatRaw)
     ? Math.max(0, Math.min(HEAT_MAX_TOTAL, Math.trunc(heatRaw))) : 0;
-  return { best, daily: { date, bestScore, heat } };
+  // 1.10.0: la etapa del día se congela al jugar el primer intento.
+  const stageRaw = Number(d.stage);
+  const stage = Number.isFinite(stageRaw) && stageRaw >= 1
+    ? Math.trunc(stageRaw) : 0;
+  return { best, daily: { date, stage, bestScore, heat } };
 }
 
 /**
@@ -254,6 +258,25 @@ export function isUnlocked(progress, id) {
 }
 
 /**
+ * Pool de etapas elegibles para el DESAFÍO DIARIO (1.10.0): cualquier
+ * etapa de campaña desbloqueada + las profundidades del ∞ ya abiertas.
+ * El diario automático elige una de acá por fecha/semilla.
+ *
+ * @param {object} progress
+ * @returns {number[]} etapas (mínimo [1])
+ */
+export function dailyStagePool(progress) {
+  const p = normalizeProgress(progress);
+  const pool = [];
+  for (let i = 1; i <= p.unlocked; i++) pool.push(i);
+  if (endlessOpen(p)) {
+    const next = nextEndlessStage(p);
+    for (let i = ENDLESS_START; i <= next; i++) pool.push(i);
+  }
+  return pool.length ? pool : [1];
+}
+
+/**
  * Registra una victoria. Completa Stage N → desbloquea N+1 (hasta el 50)
  * y guarda el mejor score del stage jugado.
  *
@@ -287,16 +310,22 @@ export function recordVictory(progress, stageId, score) {
  * @param {string} dateKey 'YYYY-MM-DD'
  * @param {number} score
  * @param {number} [heat=0] Heat con el que se jugó la run
+ * @param {number} [stage=0] etapa jugada (se congela la primera del día)
  */
-export function recordDaily(progress, dateKey, score, heat = 0) {
+export function recordDaily(progress, dateKey, score, heat = 0, stage = 0) {
   const p = normalizeProgress(progress);
   const key = typeof dateKey === 'string' && DATE_RE.test(dateKey) ? dateKey : '';
   if (!key) return p;
   if (p.endless.daily.date !== key) {
-    p.endless.daily = { date: key, bestScore: 0, heat: 0 };
+    p.endless.daily = { date: key, stage: 0, bestScore: 0, heat: 0 };
   }
+  const st = Number.isFinite(Number(stage)) && Number(stage) >= 1
+    ? Math.trunc(Number(stage)) : 0;
+  // La etapa del día se congela en el primer intento: desbloquear una etapa
+  // nueva durante el día no cambia el reto que ya se jugó.
+  if (st > 0 && !p.endless.daily.stage) p.endless.daily.stage = st;
   const val = Math.max(0, Math.floor(Number(score) || 0));
-  // Récord GLOBAL por fecha: sólo un score ESTRICTAMENTE mejor actualiza
+  // Récord PERSONAL por fecha: sólo un score ESTRICTAMENTE mejor actualiza
   // también el Heat registrado. Un empate conserva el Heat original.
   if (val > p.endless.daily.bestScore) {
     const h = Math.max(0, Math.min(HEAT_MAX_TOTAL, Math.trunc(Number(heat) || 0)));

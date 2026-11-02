@@ -1047,11 +1047,14 @@ html, body {
   inset: 0;
   z-index: 10;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   /* dev-7 fase 57: el velo es UNIFORME cuando el overlay es de
      PANTALLA COMPLETA (ver #overlay-stage[data-full]): el mismo para el
-     menú, la pausa, el selector y el fin de partida — se ve como una
+     menú, la pausa, el selector y el fin de partida - se ve como una
      pantalla propia del juego, sin el fondo del mundo volcánico atrás.
      En escritorio (el overlay coincide con el marco) el menú conserva
      su velo claro de "portada" y TORRETAS el suyo. */
@@ -1065,12 +1068,18 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center; /* el contenido sigue CENTRADO en el overlay */
+  justify-content: flex-start; /* el scroll del overlay maneja el alto */
   gap: var(--space-4);
   width: 100%;
-  padding: 24px;
+  padding: max(16px, env(safe-area-inset-top)) 24px max(16px, env(safe-area-inset-bottom));
   text-align: center;
 }
+/* En pantallas cortas el panel se centra si entra y scrollea si no. */
+.screen > .panel { margin-block: auto; }
+/* El menú no usa .panel: estos márgenes lo centran cuando entra y los
+   colapsan cuando el contenido es más alto que la pantalla. */
+.screen > .game-title { margin-top: auto; }
+.screen > .version { margin-bottom: auto; }
 .screen::before {
   content: '';
   position: absolute;
@@ -1993,6 +2002,42 @@ html, body {
   margin-bottom: 10px;
 }
 .reset-confirm-row { display: flex; gap: 10px; justify-content: center; }
+
+/* 1.10.0: Nueva Partida+ y Reset Global en el menú */
+.ng-plus-badge {
+  margin: 0;
+  padding: 5px 12px;
+  border: 1px solid rgb(var(--crit-gold-rgb) / .45);
+  border-radius: 999px;
+  background: rgb(var(--crit-gold-rgb) / .10);
+  color: var(--crit-gold);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+}
+.btn.ngplus {
+  border-color: rgb(var(--crit-gold-rgb) / .55);
+  color: var(--crit-gold);
+  box-shadow: 0 0 14px rgb(var(--crit-gold-rgb) / .10);
+}
+.btn.ngplus:hover { box-shadow: 0 0 18px rgb(var(--crit-gold-rgb) / .45); }
+.btn.ngplus-confirm {
+  border-color: rgb(var(--crit-gold-rgb) / .65);
+  background: linear-gradient(180deg, rgb(var(--crit-gold-rgb) / .18), rgba(12, 16, 18, .9));
+  color: var(--crit-gold);
+}
+.reset-confirm.ng-confirm {
+  border-color: rgb(var(--crit-gold-rgb) / .35);
+}
+.menu-danger-zone {
+  width: 100%;
+  max-width: 320px;
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(159, 180, 200, .16);
+  display: flex;
+  justify-content: center;
+}
 /* Acciones del resumen STAGE_CLEAR: Reintentar / Siguiente / Menú (dev-5b) */
 .stage-actions { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
 
@@ -2190,8 +2235,121 @@ html, body {
   gap: 12px;
 }
 
-/* ---------- dev-7 fase 2: acentos con sprites reales en STAGE_CLEAR /
-   GAME_OVER (ver assets/sprites/ui_tinted/) ---------- */
+/* ---------- 1.10.0: STAGE CLEAR legible y scrolleable ---------- */
+.screen-clear {
+  height: 100%;
+  min-height: 100%;
+  justify-content: center;
+  overflow: hidden;
+  padding: max(12px, env(safe-area-inset-top)) 16px max(12px, env(safe-area-inset-bottom));
+}
+.clear-panel {
+  width: min(460px, 100%);
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  padding: 18px 18px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  overflow: hidden;
+}
+.clear-head {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 100%;
+  text-align: center;
+}
+.clear-banner {
+  margin: 4px 0 0;
+  padding: 6px 10px;
+  border: 1px solid rgb(var(--crit-gold-rgb) / .35);
+  border-radius: var(--radius-s);
+  background: rgb(var(--crit-gold-rgb) / .08);
+  color: var(--crit-gold);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.3;
+}
+.clear-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  padding: 2px 4px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  scrollbar-gutter: stable;
+}
+.clear-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.clear-section-title {
+  margin: 0;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  color: rgb(var(--hud-teal-rgb) / .85);
+}
+.clear-summary {
+  margin: 0;
+  gap: 7px;
+}
+.clear-summary > div {
+  gap: 10px;
+  align-items: flex-start;
+}
+.clear-summary dt {
+  font-size: var(--text-sm);
+  line-height: 1.25;
+}
+.clear-summary dd {
+  font-size: var(--text-md);
+  text-align: right;
+}
+.clear-actions {
+  flex: 0 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgb(var(--hud-teal-rgb) / .16);
+}
+.clear-actions .btn { width: 100%; }
+.clear-secondary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.clear-secondary .btn { width: 100%; }
+
+@media (max-height: 700px) {
+  .clear-panel { padding: 12px 12px 10px; }
+  .clear-sparkle { display: none; }
+  .clear-head .screen-title { font-size: var(--text-xl); }
+  .clear-body { gap: 8px; }
+  .clear-summary { gap: 5px; }
+}
+@media (max-width: 420px) {
+  .screen-clear { padding: 8px; }
+  .clear-panel {
+    width: 100%;
+    max-height: calc(100vh - 16px);
+    max-height: calc(100dvh - 16px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    padding: 14px 12px 10px;
+  }
+}
 .clear-sparkle {
   position: absolute;
   pointer-events: none;

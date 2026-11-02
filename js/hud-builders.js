@@ -30,6 +30,7 @@ import {
   META_PLAYER_NAME, META_FRAG_PER_VICTORY, META_DMG_PER_LEVEL, META_GOLD_START,
   META_UNLOCK_COSTS, loadMeta, fragCost, metaGold, metaDmgMul, playerRank,
   totalMetaLevels, renderTowerIcon, upgradeTower, isUnitUnlocked,
+  META_NG_MAX_CYCLES, META_NG_DMG_PER_CYCLE,
   PERKS, PERK_TIERS, PERK_EVERY, PERK_RESET_COST,
   pendingPerkTiers, tierAtLevel, getPerkOptions, setPerkChoice, resetPerks,
 } from './meta.js';
@@ -543,29 +544,38 @@ export function buildEndlessCardHtml(endless) {
 }
 
 /**
- * Tarjeta del DESAFÍO DIARIO (fase 67): la etapa del día (fija, misma
- * semilla) + el récord de HOY. El aliciente es subir ese número, no
- * pasar la etapa: por eso el récord se ve en la propia tarjeta.
+ * Tarjeta del DESAFÍO DIARIO (fase 67 / 1.10.0): la etapa del día (fija,
+ * misma semilla) + el récord personal de HOY. El aliciente es subir ese
+ * número, no pasar la etapa: por eso el récord se ve en la propia tarjeta.
+ * No exige el ∞ abierto: el diario existe desde el S1.
  *
- * @param {{open?:boolean,daily?:{date?:string,stage?:number,bestScore?:number}}|null|undefined} endless
- * @returns {string} HTML de la tarjeta ('' si el modo está cerrado)
+ * @param {{daily?:{date?:string,stage?:number,bestScore?:number,heat?:number,heatForced?:number}}|null|undefined} endless
+ * @returns {string} HTML de la tarjeta ('' sin etapa/fecha válidas)
  */
 export function buildDailyCardHtml(endless) {
-  if (!endless?.open) return '';
-  const daily = endless.daily;
-  const stage = payloadInt(daily?.stage);
-  const date = typeof daily?.date === 'string' ? daily.date.trim() : '';
-  if (stage == null || stage < ENDLESS_MIN_STAGE || !date) return '';
+  // 1.10.0: el diario existe desde S1; el `open` del ∞ ya no es requisito.
+  const daily = endless?.daily;
+  if (!daily || typeof daily !== 'object') return '';
+  const stage = payloadInt(daily.stage);
+  const date = typeof daily.date === 'string' ? daily.date.trim() : '';
+  if (stage == null || stage < 1 || !date) return '';
   const bestScore = Math.max(0, payloadInt(daily.bestScore) ?? 0);
   const bestHeat = heatInt(daily.heat);
+  const forcedHeat = heatInt(daily.heatForced);
+  // El Heat del récord se omite si es el mismo forzado por el diario: evita
+  // "Heat 49 · TODOS LOS HEATS · HEAT 49".
   const record = bestScore > 0
-    ? `récord de hoy: ${fmt(bestScore)}${bestHeat > 0 ? ` · Heat ${bestHeat}` : ''}`
+    ? `tu récord: ${fmt(bestScore)}${bestHeat > 0 && bestHeat !== forcedHeat ? ` · Heat ${bestHeat}` : ''}`
     : 'sin récord hoy';
+  const label = stage >= ENDLESS_MIN_STAGE ? `∞ ETAPA ${stage}` : `ETAPA ${stage}`;
+  const heatTxt = forcedHeat > 0
+    ? ` · TODOS LOS HEATS · HEAT ${forcedHeat}`
+    : '';
   return `
     <button class="stage-daily" data-action="start-daily">
-      <span class="card-kicker">DESAFÍO DIARIO</span>
-      <span class="card-title">ETAPA ${stage} · ${esc(date)}</span>
-      <span class="card-sub">${esc(record)}</span>
+      <span class="card-kicker">DESAFÍO DIARIO · PERSONAL</span>
+      <span class="card-title">${label} · ${esc(date)}</span>
+      <span class="card-sub">${esc(record)}${esc(heatTxt)}</span>
     </button>`;
 }
 
@@ -605,10 +615,12 @@ export function dailySummaryRow(daily) {
   if (!daily || typeof daily !== 'object') return '';
   const score = Math.max(0, payloadInt(daily.score) ?? 0);
   const record = daily.isRecord ? ' · ¡RÉCORD DEL DÍA!' : '';
-  // v1.7.2: el récord es global, pero se informa el Heat con el que se logró.
+  // 1.10.0: el récord es personal; la etapa del día se muestra si vino.
+  const stage = payloadInt(daily.stage);
+  const stageTxt = stage != null && stage >= 1 ? `ETAPA ${stage} · ` : '';
   const bestHeat = heatInt(daily.bestHeat);
   const heatTxt = bestHeat > 0 ? ` · récord a Heat ${bestHeat}` : '';
-  return `<div><dt>DESAFÍO DIARIO</dt><dd class="ok">${fmt(score)}${record}${heatTxt}</dd></div>`;
+  return `<div><dt>DESAFÍO DIARIO</dt><dd class="ok">${stageTxt}${fmt(score)}${record}${heatTxt}</dd></div>`;
 }
 
 /**
@@ -1725,9 +1737,13 @@ export function buildThemeSwatches(activeId = '') {
 /**
  * Pantalla del MENÚ principal.
  *
- * @param {{theme?: string, quality?: string, confirmingReset?: boolean}} [opts]
+ * @param {{theme?: string, quality?: string, confirmingReset?: boolean,
+ *   confirmingNG?: boolean, campaignComplete?: boolean, ngPlus?: number}} [opts]
  */
-export function buildMenuScreen({ theme = '', quality = '', confirmingReset = false } = {}) {
+export function buildMenuScreen({
+  theme = '', quality = '', confirmingReset = false,
+  confirmingNG = false, campaignComplete = false, ngPlus = 0,
+} = {}) {
   // dev-7 fase 13: selector de temas — reskinea el HUD/paneles/botones
   // (no el canvas del juego, ver theme.js). El activo queda marcado.
   // dev-7 fase 55: el selector de tema es un bloque reutilizable (el
@@ -1740,26 +1756,54 @@ export function buildMenuScreen({ theme = '', quality = '', confirmingReset = fa
   // apaga shadowBlur en todo el juego y baja el tope de partículas.
   const qButtons = QUALITY_LEVELS.map((q) => `
     <button class="quality-btn${q.id === quality ? ' active' : ''}" data-quality-id="${q.id}">${q.name}</button>`).join('');
-  // dev-7 fase 14: "Borrar progreso" — confirmación inline en 2 pasos
+  const ng = Math.max(0, Math.min(META_NG_MAX_CYCLES, Math.trunc(Number(ngPlus) || 0)));
+  const bonusPct = (cycles) => Math.round(cycles * META_NG_DMG_PER_CYCLE * 100);
+  const currentBonus = bonusPct(ng);
+  const nextBonus = bonusPct(Math.min(META_NG_MAX_CYCLES, ng + 1));
+  const atMax = ng >= META_NG_MAX_CYCLES;
+  // 1.10.0: Nueva Partida+ se habilita con la campaña completa. Conserva
+  // torres/drones desbloqueados y sube el bonus global; resetea el resto.
+  // En el tope (NG+ 20 / +100%) sigue disponible para rejugar la campaña,
+  // pero el texto no promete un bonus que el modelo ya no puede dar.
+  const ngBlock = confirmingNG ? `
+    <div class="reset-confirm ng-confirm">
+      <p class="reset-warn">Nueva Partida+ ${atMax ? ng : ng + 1}: se conservan las torres y drones
+        desbloqueados y el bonus NG+ (${atMax ? `tope alcanzado: +${currentBonus}%` : `${currentBonus}% → ${nextBonus}%`} de daño global).
+        Se resetean campaña, récords, rango, perks, niveles, fragmentos y oro.
+        Empezás en el Stage 1. No se puede deshacer.</p>
+      <div class="reset-confirm-row">
+        <button class="btn ghost small" data-action-ngplus="cancel">CANCELAR</button>
+        <button class="btn ngplus-confirm small" data-action-ngplus="confirm">SÍ, EMPEZAR NG+</button>
+      </div>
+    </div>`
+    : campaignComplete
+      ? `<button class="btn ghost ngplus" data-action-ngplus="ask">NUEVA PARTIDA+ · NG+ ${atMax ? `${ng} · +${currentBonus}% daño global (máximo)` : `${ng + 1} · +${nextBonus}% daño global`}</button>`
+      : `<button class="btn ghost" disabled title="Completá la campaña (Stage 50) para desbloquear">NUEVA PARTIDA+ · completá la campaña</button>`;
+  const ngBadge = ng > 0
+    ? `<p class="ng-plus-badge">NG+ ${ng} · +${currentBonus}% de daño global</p>`
+    : '';
+  // dev-7 fase 14: Reset Global — confirmación inline en 2 pasos
   // (nada de confirm() nativo del navegador, rompería la estética).
   const resetBlock = confirmingReset ? `
     <div class="reset-confirm">
-      <p class="reset-warn">¿Seguro? Se pierden los stages desbloqueados,
-        los récords, las ${META_TOWERS.length} torretas mejoradas del meta-juego, las
-        unidades compradas con oro y tu saldo (vuelve a ${META_GOLD_START}; solo Guardian
-        queda desbloqueado). No se puede deshacer.</p>
+      <p class="reset-warn">¿Reset Global? Se pierden la campaña, los récords,
+        las ${META_TOWERS.length} torretas mejoradas, las unidades compradas,
+        los perks, el saldo de fragmentos/oro (el oro vuelve a ${META_GOLD_START})
+        y el bonus NG+. Queda solo el Guardian y el Stage 1. No se puede deshacer.</p>
       <div class="reset-confirm-row">
         <button class="btn ghost small" data-action-reset="cancel">CANCELAR</button>
         <button class="btn danger small" data-action-reset="confirm">SÍ, BORRAR TODO</button>
       </div>
     </div>`
-    : `<button class="btn ghost danger-link" data-action-reset="ask">Borrar progreso</button>`;
+    : `<button class="btn ghost danger-link" data-action-reset="ask">RESET GLOBAL</button>`;
   return `
     <section class="screen">
       <h1 class="game-title">OPEN DEFENSE<span class="subtitle">FORTRESS</span></h1>
       <p class="tagline">Defiende la base · torres fijas · ${STAGES.length} stages</p>
+      ${ngBadge}
       <button class="btn big" data-action="play">▶ JUGAR</button>
       <button class="btn ghost" data-action="select-stage">SELECCIONAR STAGE</button>
+      ${ngBlock}
       <button class="btn ghost" data-action="torretas">${UI_ICONS.torreta} TORRETAS · mejoras permanentes</button>
       <button class="btn ghost" data-action="protocol">PROTOCOLO · heat y récords</button>
       <button class="btn ghost" data-action="records">RÉCORDS · los cinco modos</button>
@@ -1769,7 +1813,7 @@ export function buildMenuScreen({ theme = '', quality = '', confirmingReset = fa
       <div class="quality-picker">${qButtons}</div>
       <p class="theme-picker-label">Calidad gráfica (probá "Baja" si el juego anda lento)</p>
       <p class="hint menu-hint">[P] pausa · [1][2][3] velocidad · [Espacio] ultimate · [B] black hole</p>
-      ${resetBlock}
+      <div class="menu-danger-zone">${resetBlock}</div>
       <p class="version">v${VERSION} · sin anuncios · 100% offline</p>
     </section>`;
 }

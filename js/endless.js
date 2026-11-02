@@ -157,11 +157,25 @@ export function dailyStage(key) {
  * Todo lo que necesita una run diaria, en un solo objeto.
  * Acepta una fecha `YYYY-MM-DD` o un Date (default: hoy).
  *
+ * 1.10.0: la etapa se elige de `opts.pool` (campaña/infinito desbloqueados)
+ * y puede venir CONGELADA desde el primer intento del día (`opts.stage`).
+ * Sin pool conserva el fallback histórico 51..60 para tests/llamadas viejas.
+ *
  * @param {string|Date} [when]
+ * @param {{pool?:number[], stage?:number}} [opts]
  * @returns {{date:string, stage:number, seed:number}}
  */
-export function dailyRun(when = new Date()) {
+export function dailyRun(when = new Date(), opts = {}) {
   const date = typeof when === 'string' && DATE_RE.test(when) ? when : dailyKey(when);
   const seed = dailySeed(date);
-  return { date, stage: ENDLESS_START + (seed % DAILY_STAGES), seed };
+  const frozen = Number.isInteger(opts?.stage) && opts.stage >= 1
+    ? Math.trunc(opts.stage) : 0;
+  if (frozen) return { date, stage: frozen, seed };
+  const pool = Array.isArray(opts?.pool)
+    ? opts.pool.map(Number).filter((n) => Number.isInteger(n) && n >= 1)
+    : [];
+  const stage = pool.length
+    ? pool[seed % pool.length]
+    : ENDLESS_START + (seed % DAILY_STAGES);
+  return { date, stage, seed };
 }

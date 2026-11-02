@@ -128,18 +128,31 @@ errores y MUST quedar en un estado válido.
 - **WHEN** el campo del infinito trae tipos inválidos o una fecha malformada
 - **THEN** se descartan esos valores y el resto del progreso se conserva
 
-### Requirement: Desafío diario determinista
+### Requirement: Desafío diario sobre el progreso desbloqueado
 
-El desafío diario MUST derivar la **etapa** y la **semilla de olas** de la fecha local del
-jugador, de modo que dos jugadores el mismo día jueguen la misma etapa con la misma
-composición de olas. El mejor score del día MUST persistirse y MUST reiniciarse al cambiar
-la fecha. Reintentar un desafío MUST reusar la semilla del día (no se puede rerolear), y el
-score MUST registrarse tanto si se gana como si se pierde.
+El desafío diario MUST elegir la **etapa** de forma determinista desde el pool de etapas ya
+desbloqueadas por el jugador (campaña 1..`unlocked` y profundidades abiertas del ∞) usando
+la fecha local como semilla, y MUST derivar de esa misma fecha la **semilla de olas**. La
+etapa elegida MUST congelarse en `progress.endless.daily.stage` en el primer intento del
+día, de modo que desbloquear una etapa nueva no cambie el reto ya jugado. El mejor score
+del día MUST persistirse como **récord personal** y MUST reiniciarse al cambiar la fecha.
+Reintentar un desafío MUST reusar la etapa congelada y la semilla del día (no se puede
+rerolear), y el score MUST registrarse tanto si se gana como si se pierde.
 
-#### Scenario: Dos jugadores el mismo día
+#### Scenario: Mismo progreso, misma fecha
 
-- **WHEN** dos instancias resuelven el desafío con la misma fecha
+- **WHEN** dos instancias con el mismo progreso resuelven el desafío con la misma fecha
 - **THEN** obtienen la misma etapa y la misma semilla de olas
+
+#### Scenario: Progreso distinto
+
+- **WHEN** dos jugadores tienen pools de etapas desbloqueadas distintos
+- **THEN** la etapa del día puede diferir; el récord es personal y no se compara entre jugadores
+
+#### Scenario: Congelar la etapa del día
+
+- **WHEN** el jugador arranca el desafío y después desbloquea una etapa nueva
+- **THEN** los intentos siguientes del día siguen usando la etapa congelada en el primero
 
 #### Scenario: Cambia el día
 
@@ -149,19 +162,42 @@ score MUST registrarse tanto si se gana como si se pierde.
 #### Scenario: Reintentar no rerolea
 
 - **WHEN** el jugador reintenta el desafío del día
-- **THEN** la run usa la misma semilla de olas que el intento anterior
+- **THEN** la run usa la misma etapa congelada y la misma semilla de olas que el intento anterior
 
 #### Scenario: Se pierde el desafío
 
 - **WHEN** la run diaria termina en derrota
 - **THEN** el score obtenido igual se registra como candidato al récord del día
 
+### Requirement: El desafío diario fuerza el Heat máximo
+
+El desafío diario MUST aplicar **todas las condiciones del Protocolo en su rango máximo**
+(Heat 49), sin importar el Protocolo activo del jugador. El récord diario MUST guardar el
+Heat forzado. El jugador MUST poder jugar el diario desde el Stage 1, sin exigir la campaña
+completa ni el modo infinito abierto.
+
+#### Scenario: Todos los heats, siempre
+
+- **WHEN** el jugador arranca el desafío diario con el Protocolo en Heat 0
+- **THEN** la run usa las once condiciones al máximo y el resumen informa Heat 49
+
+#### Scenario: Récord personal con Heat forzado
+
+- **WHEN** el jugador logra un nuevo récord diario
+- **THEN** el score se guarda con Heat 49, aunque su Protocolo activo sea otro
+
+#### Scenario: Diario disponible desde el inicio
+
+- **WHEN** una cuenta nueva con solo el Stage 1 desbloqueado abre el selector
+- **THEN** ve la tarjeta del desafío diario con una etapa jugable de su pool
+
 ### Requirement: El endgame se ve y se entiende
 
 El selector de etapas MUST mostrar la tarjeta de continuación del infinito con la
 profundidad a jugar y el récord de profundidad, y MUST mostrar el desafío del día con su
-etapa y su récord. El resumen de fin de run del infinito MUST indicar la profundidad
-jugada, el récord y si se batió; el resumen de un hito MUST anunciarlo.
+etapa, su Heat forzado y su récord personal. El resumen de fin de run del infinito MUST
+indicar la profundidad jugada, el récord y si se batió; el resumen de un hito MUST
+anunciarlo.
 
 #### Scenario: El selector ofrece continuar
 

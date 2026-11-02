@@ -31,21 +31,22 @@ import {
 } from './effects.js';
 import {
   loadProgress, saveProgress, recordVictory, recordDaily, isUnlocked,
-  recordHeatRun, claimHeatMilestone, recordSurvival,
+  recordHeatRun, claimHeatMilestone, recordSurvival, resetProgress,
+  dailyStagePool,
 } from './progress.js';
 import { loadQuality, applyQualityToContext, applyQualityToDom, particleCapFor } from './quality.js';
 import {
   loadMeta, saveMeta, rewardVictory, rewardGold, rewardFrags,
   META_GOLD_PER_CLEAR, META_GOLD_PER_VICTORY,
   META_FRAG_PER_VICTORY, META_FIRST_CLEAR_MULT,
-  metaDmgMul,
+  metaDmgMul, resetMeta, newGamePlusMeta,
 } from './meta.js';
 // fase 69 — EL PROTOCOLO DE ASEDIO: reglas puras (heat.js) + persistencia
 // de récords e hitos (progress.js).
 import {
   HEAT_CONDS, HEAT_PRESETS, HEAT_MILESTONES, heatMods, heatTotal,
   heatRewardMul, heatMilestoneBonus, normalizeHeatMods, presetMods, presetFor,
-  heatProtocolForRun,
+  heatProtocolForRun, dailyHeatMods,
 } from './heat.js';
 // fase 70 — LA SUPERVIVENCIA: reglas puras del modo (survival.js). La cola de
 // olas es INFINITA y se pide por bloques al WaveManager (extend), así que este
@@ -629,6 +630,9 @@ export class Game {
       },
       // v5 5a/5: volver al menú principal desde PAUSA (data-action="menu")
       menu: () => this.toMenu(),
+      // 1.10.0: prestigio y borrado total desde el menú.
+      'new-game-plus': () => this.newGamePlus(),
+      'reset-global': () => this.resetGlobal(),
       // v3.5 meta-game: pantalla TORRETAS desde el menú / nav inferior
       torretas: () => this.toTorretas(),
       // fase 69: pantalla PROTOCOLO (heat) y sus ajustes. El handler recibe
@@ -674,6 +678,38 @@ export class Game {
   toMenu() {
     this._clearBattlefield();
     this.engine.setState('MENU');
+  }
+
+  /**
+   * 1.10.0 - NUEVA PARTIDA+: disponible sólo con la campaña completa.
+   * Conserva las unidades desbloqueadas y sube el ciclo NG+ (+5 % de daño
+   * global por ciclo, tope 20). Resetea campaña, récords, rango, perks,
+   * niveles, fragmentos y oro. Arranca en el S1 con el bonus ya aplicado.
+   *
+   * @returns {boolean} true si se ejecutó
+   */
+  newGamePlus() {
+    if (!endlessOpen(this.progressData)) return false;
+    this.progressData = resetProgress();
+    this.meta = saveMeta(newGamePlusMeta(this.meta ?? loadMeta()));
+    const n = this.meta.ngPlus ?? 0;
+    this.startStage(1);
+    this.hud?.showAviso?.({
+      variant: 'fase',
+      title: `NUEVA PARTIDA+ ${n}`,
+      name: `+${n * 5}% DAÑO GLOBAL`,
+      rule: 'Campaña reiniciada · torres conservadas',
+      ms: 3200,
+    });
+    return true;
+  }
+
+  /** 1.10.0 - RESET GLOBAL: borra progreso, meta, NG+ y récords. */
+  resetGlobal() {
+    this.progressData = resetProgress();
+    this.meta = resetMeta();
+    this.toMenu();
+    return true;
   }
 
   /** v3.5 meta-game: pantalla TORRETAS (mejoras permanentes). Recarga el
@@ -805,8 +841,9 @@ export class Game {
     // anterior; si no, el HUD de campaña lo arrastraría (showScreen no toca
     // el estado interno del nombre de etapa).
     this.hud.setSurvivalWave?.(0);
-    // v1.7.2: el Protocolo se aplica a campaña, ∞ y Daily. `heatMods: null`
-    // sigue siendo la vía explícita para una run neutral (tests/reintentos).
+    // El Protocolo se aplica a campaña e ∞; el Daily pasa `heatMods`
+    // explícito con Heat 49. `heatMods: null` sigue siendo la vía explícita
+    // para una run neutral (tests/reintentos).
     const heatProtocol = heatProtocolForRun({
       heatMods: opts.heatMods,
       last: this.progressData?.heat?.last,
@@ -903,19 +940,32 @@ export class Game {
   }
 
   /**
-   * fase 67 — DESAFÍO DIARIO: la etapa y la semilla salen de la fecha LOCAL
-   * del jugador (`dailyRun()`, endless.js), así todos juegan la misma
-   * composición ese día. Sólo existe con la campaña completa; los intentos
-   * son ilimitados y `retry` reusa la semilla (si no, el récord del día se
-   * podría rerolear).
+   * 1.10.0 - DESAFÍO DIARIO: la etapa sale del pool de campaña/∞ ya
+   * desbloqueado (automática por fecha). La etapa se CONGELA en el primer
+   * intento del día (`progress.endless.daily.stage`) para que desbloquear
+   * una etapa nueva no cambie el reto. Todos los heats van al máximo
+   * (Heat 49), sin importar el Protocolo activo. El récord es personal:
+   * la etapa puede variar entre jugadores.
    */
   startDaily() {
-    if (!endlessOpen(this.progressData)) return;
-    const run = dailyRun();
-    // v1.7.2: el Daily aplica el Protocolo activo. Su récord de score sigue
-    // siendo GLOBAL por fecha, pero guarda el Heat con el que se logró
-    // (`progress.endless.daily.heat`).
-    this.startStage(run.stage, { seed: run.seed, daily: run.date });
+    const pool = dailyStagePool(this.progressData);
+    if (!pool.length) return;
+    const today = dailyRun();
+    const saved = this.progressData?.endless?.daily;
+    const frozen = saved?.date === today.date ? saved.stage : 0;
+    const run = dailyRun(today.date, { pool, stage: frozen });
+    // Congela la etapa del día ya en el primer arranque (aunque el jugador
+    // abandone): desbloquear otra etapa no cambia el reto de hoy.
+    if (saved?.date !== run.date || !saved?.stage) {
+      this.progressData = saveProgress(
+        recordDaily(this.progressData, run.date, 0, 0, run.stage),
+      );
+    }
+    this.startStage(run.stage, {
+      seed: run.seed,
+      daily: run.date,
+      heatMods: dailyHeatMods(),
+    });
   }
 
   /**
@@ -1214,10 +1264,10 @@ export class Game {
     const score = this.score;
     const prev = this.progressData?.endless?.daily;
     const prevScore = prev?.date === daily ? prev.bestScore : 0;
-    // v1.7.2: el récord es global, pero guarda el Heat con el que se logró.
+    // 1.10.0: el récord es personal y guarda el Heat forzado del Daily.
     // Si esta run no supera el score, el Heat del récord no cambia.
     const heat = this.runMods?.heat ?? 0;
-    this.progressData = saveProgress(recordDaily(this.progressData, daily, score, heat));
+    this.progressData = saveProgress(recordDaily(this.progressData, daily, score, heat, stageId));
     return {
       date: daily,
       stage: stageId,
@@ -1272,10 +1322,16 @@ export class Game {
   /** Datos para SELECT_STAGE (§2.10): desbloqueo + mejor score reales. */
   _selectData() {
     if (!this.progressData) this.progressData = loadProgress();
-    // fase 67: la tarjeta ∞ y el desafío diario del selector. El récord del
-    // día sólo vale si es de HOY (el de ayer lo descarta progress.js).
-    const today = dailyRun();
-    const daily = this.progressData?.endless?.daily;
+    // fase 67 / 1.10.0: la tarjeta del diario usa el pool de etapas ya
+    // desbloqueadas (campaña o ∞). Si el jugador ya jugó hoy, la etapa
+    // congelada manda.
+    const now = new Date();
+    const todayDate = dailyRun(now).date;
+    const pool = dailyStagePool(this.progressData);
+    const savedDaily = this.progressData?.endless?.daily;
+    const frozen = savedDaily?.date === todayDate ? savedDaily.stage : 0;
+    const today = dailyRun(now, { pool, stage: frozen });
+    const daily = savedDaily;
     // fase 69: el Protocolo activo y su récord. El selector muestra
     // "Heat N · récord H" y la tarjeta ∞ la mejor profundidad a ESE heat.
     const activeHeat = heatTotal(this.progressData.heat.last);
@@ -1296,8 +1352,7 @@ export class Game {
         best: bestDepth(this.progressData),
         next: nextEndlessStage(this.progressData),
         // v1.7.2: la tarjeta ∞ muestra el Heat activo y su récord de
-        // profundidad; el Daily muestra el Heat con el que se logró su
-        // récord global.
+        // profundidad; 1.10.0: el Daily muestra su Heat forzado (49).
         heat: activeHeat,
         bestAtHeat: this.progressData.heat.endless?.[activeHeat] ?? 0,
         daily: {
@@ -1305,6 +1360,7 @@ export class Game {
           stage: today.stage,
           bestScore: daily?.date === today.date ? daily.bestScore : 0,
           heat: daily?.date === today.date ? daily.heat : 0,
+          heatForced: heatTotal(dailyHeatMods()),
         },
       },
       heat: { active: activeHeat, best: this.progressData.heat.best },
@@ -1345,7 +1401,12 @@ export class Game {
     // fase 70: el próximo hito de la supervivencia es la siguiente decena
     // de 5 oleadas (la primera es la 5 si todavía no hay récord).
     const bestWave = p.survival.bestWave;
-    const today = dailyRun();
+    const now = new Date();
+    const todayDate = dailyRun(now).date;
+    const pool = dailyStagePool(p);
+    const savedDaily = p.endless.daily;
+    const frozen = savedDaily?.date === todayDate ? savedDaily.stage : 0;
+    const today = dailyRun(now, { pool, stage: frozen });
     return {
       campaign: { cleared, bestScore },
       endless: { best: bestDepth(p), next: nextEndlessStage(p) },
@@ -1362,6 +1423,7 @@ export class Game {
       },
       daily: {
         date: today.date,
+        stage: today.stage,
         bestScore: p.endless.daily.date === today.date ? p.endless.daily.bestScore : 0,
         heat: p.endless.daily.date === today.date ? p.endless.daily.heat : 0,
       },

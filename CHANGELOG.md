@@ -4,6 +4,40 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.10.0] — 2026-11-02
+
+### Nuevo
+
+- **Nueva Partida+**: se habilita al limpiar el S50. Conserva las unidades
+  compradas y suma **+5 % de daño global por ciclo**, acumulativo hasta
+  **+100 % (20 ciclos)**; resetea campaña, récords, rango, perks, niveles,
+  fragmentos y oro, y arranca directo en el Stage 1. El menú muestra el ciclo
+  actual y el próximo bonus.
+- **Reset Global**: disponible siempre en el menú, con confirmación inline.
+  Borra progreso, récords, meta, unidades compradas y el ciclo NG+; el oro
+  vuelve al inicial y no toca tema, calidad ni audio.
+- **Desafío diario universal**: elige una etapa del pool ya desbloqueado
+  (campaña o ∞) por fecha local y la congela en `endless.daily.stage` al primer
+  intento. Aplica **todas las condiciones del Protocolo al máximo (Heat 49)**,
+  sin importar el Protocolo activo, y guarda un **récord personal**. Ya no exige
+  la campaña completa: aparece desde el S1.
+- **STAGE CLEAR rediseñado**: cabecera fija, cuerpo scrolleable por secciones
+  (resultado, rendimiento, recompensas) y acciones fijas. En móvil respeta
+  `safe-area`, no recorta botones y usa el scroll global del overlay.
+
+### Persistencia / compatibilidad
+
+- `meta.ngPlus` (0..20) y `progress.endless.daily.stage` se normalizan de forma
+  tolerante: los saves viejos cargan con NG+ 0 y etapa 0, sin errores.
+- El menú calcula “campaña completa” desde `bestScore[50]`; NG+ solo se ofrece
+  después de limpiar el S50.
+- `PERK_SCHEMA_VERSION` sigue en 3: NG+ resetea los perks explícitamente.
+
+### Tests / versión
+
+- **1066 tests, 0 skip** (35 archivos).
+- Versión **1.10.0** / Android `versionCode 18`.
+
 ## [1.9.0] — 2026-11-02
 
 ### Balance
