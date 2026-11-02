@@ -1752,6 +1752,7 @@ test('fase 39: el GAME OVER tiene un MENÚ de verdad (el fallback iba al selecto
     fragsLost: 60, goldLost: 25, lv: 2, cards: 1,
   });
   assert.ok(real.includes('data-action="menu"'), 'el MENÚ real existe');
+  assert.ok(real.includes('data-action="retry"'), 'sin diario el reintento sigue disponible');
   // El fallback (sin datos) también: antes su botón "MENÚ" iba al selector.
   const fallback = hud._screenGameOver(null);
   assert.ok(fallback.includes('data-action="menu"'), 'el fallback también va al menú');
@@ -3279,6 +3280,26 @@ test('fase 67: el récord del día se muestra formateado (o "sin récord")', () 
   assert.ok(max.includes('HEAT 39 · SIN CENSURA NI ARSENAL'));
   assert.ok(css.includes('.endless-cards > .stage-daily:nth-child(2):last-child'),
     'si el ∞ está cerrado, el diario ocupa la fila completa');
+  // 1.12.3: un intento por día. La tarjeta queda visible pero deshabilitada.
+  const jugado = buildDailyCardHtml(endlessPayload({
+    daily: {
+      date: '2026-10-26', stage: 57, bestScore: 12345, heat: 39,
+      heatForced: 39, rewardMul: 1.5, played: true,
+    },
+  }));
+  assert.ok(jugado.includes('JUGADO HOY'), 'marca el intento consumido');
+  assert.ok(jugado.includes('volvé mañana'), 'invita a volver al día siguiente');
+  assert.ok(jugado.includes('tu récord: 012345'), 'conserva el resultado del intento');
+  assert.ok(jugado.includes('disabled'), 'la tarjeta no se puede volver a tocar');
+  assert.ok(!jugado.includes('data-action="start-daily"'), 'sin acción de arranque');
+  assert.ok(css.includes('.stage-daily.is-played'), 'la tarjeta jugada se ve apagada');
+  const jugadoSinScore = buildDailyCardHtml(endlessPayload({
+    daily: {
+      date: '2026-10-26', stage: 57, bestScore: 0,
+      heatForced: 39, rewardMul: 1.5, played: true,
+    },
+  }));
+  assert.ok(jugadoSinScore.includes('JUGADO HOY · sin récord'));
   const row = dailySummaryRow({
     date: '2026-10-26', stage: 5, score: 12345, rewardMul: 1.5,
   });
@@ -3420,7 +3441,8 @@ test('1.10.0: el modal STAGE CLEAR tiene cabecera, cuerpo scrolleable y acciones
     'los datos van dentro del cuerpo');
   assert.ok(!bodyHtml.includes('data-action="next-stage"'), 'los botones no scrollean');
   assert.ok(actionsHtml.includes('data-action="next-stage"'), 'CONTINUAR queda fijo abajo');
-  assert.ok(actionsHtml.includes('data-action="retry"'), 'REINTENTAR también');
+  assert.ok(!actionsHtml.includes('data-action="retry"'),
+    'el diario no ofrece REINTENTAR: es un intento por día');
   assert.ok(actionsHtml.includes('data-action="select-stage"'), 'y ELEGIR STAGE');
   // CSS: overlay con scroll global, panel flex y cuerpo con su propio scroll.
   const root = cssRule('#overlay-root');
@@ -3458,6 +3480,8 @@ test('fase 67: el score del día aparece en las DOS pantallas de fin de run', ()
   });
   assert.ok(over.includes('DESAFÍO DIARIO'), 'la derrota diaria también (el score cuenta igual)');
   assert.ok(over.includes('004321'), 'con el mismo score');
+  assert.ok(!over.includes('data-action="retry"'),
+    'la derrota diaria no ofrece REINTENTAR');
   // Sin récord del día no se festeja nada.
   const sinRecord = hud._screenGameOver({
     stageName: '∞ Stage 57', score: 10, kills: 1, time: 20,

@@ -136,8 +136,8 @@ la fecha local como semilla, y MUST derivar de esa misma fecha la **semilla de o
 etapa elegida MUST congelarse en `progress.endless.daily.stage` en el primer intento del
 día, de modo que desbloquear una etapa nueva no cambie el reto ya jugado. El mejor score
 del día MUST persistirse como **récord personal** y MUST reiniciarse al cambiar la fecha.
-Reintentar un desafío MUST reusar la etapa congelada y la semilla del día (no se puede
-rerolear), y el score MUST registrarse tanto si se gana como si se pierde.
+El intento MUST consumirse al arrancar: abandonar o perder NO MUST habilitar un reintento
+ese día. El score MUST registrarse tanto si se gana como si se pierde.
 
 #### Scenario: Mismo progreso, misma fecha
 
@@ -152,22 +152,18 @@ rerolear), y el score MUST registrarse tanto si se gana como si se pierde.
 #### Scenario: Congelar la etapa del día
 
 - **WHEN** el jugador arranca el desafío y después desbloquea una etapa nueva
-- **THEN** los intentos siguientes del día siguen usando la etapa congelada en el primero
+- **THEN** la tarjeta sigue mostrando la etapa congelada en el primer intento
 
 #### Scenario: Cambia el día
 
 - **WHEN** se resuelve el desafío con la fecha del día siguiente
 - **THEN** el récord del día anterior se descarta y el desafío puede tener otra etapa
 
-#### Scenario: Reintentar no rerolea
-
-- **WHEN** el jugador reintenta el desafío del día
-- **THEN** la run usa la misma etapa congelada y la misma semilla de olas que el intento anterior
-
 #### Scenario: Se pierde el desafío
 
 - **WHEN** la run diaria termina en derrota
 - **THEN** el score obtenido igual se registra como candidato al récord del día
+  y el intento queda consumido
 
 ### Requirement: El desafío diario fuerza 9 condiciones (Heat 39)
 
@@ -201,11 +197,36 @@ completa ni el modo infinito abierto.
 - **THEN** ve la tarjeta del desafío diario con una etapa jugable de su pool, Heat 39
   y el bono de recompensa
 
+### Requirement: Un intento por día
+
+El desafío diario MUST consumirse al **arrancar** y MUST NOT permitir una segunda run
+el mismo día, incluso si la primera se abandona o se pierde. El intento MUST persistir
+en `endless.daily` y MUST reiniciarse al cambiar la fecha local. La tarjeta del selector
+MUST quedar deshabilitada, mostrar `JUGADO HOY · volvé mañana` y conservar el resultado
+del intento. `startDaily()` MUST rechazar el segundo intento aunque la acción se dispare
+directamente.
+
+#### Scenario: Segundo intento del día
+
+- **WHEN** el jugador ya arrancó el desafío diario y vuelve al selector el mismo día
+- **THEN** la tarjeta está deshabilitada y no se puede iniciar otra run
+
+#### Scenario: Intento abandonado
+
+- **WHEN** el jugador arranca el diario y vuelve al menú sin terminarlo
+- **THEN** el intento ya está consumido y no puede repetirlo hasta mañana
+
+#### Scenario: Día siguiente
+
+- **WHEN** cambia la fecha local
+- **THEN** el intento se reinicia y la tarjeta vuelve a estar disponible
+
 ### Requirement: El endgame se ve y se entiende
 
 El selector de etapas MUST mostrar la tarjeta de continuación del infinito con la
 profundidad a jugar y el récord de profundidad, y MUST mostrar el desafío del día con su
-etapa, su Heat forzado, su bono de recompensa y su récord personal. El resumen de fin de
+etapa, su Heat forzado, su bono de recompensa y su récord personal; si ya se jugó, MUST
+indicarlo y bloquear un segundo intento. El resumen de fin de
 run del infinito MUST indicar la profundidad jugada, el récord y si se batió; el resumen
 de un hito MUST anunciarlo.
 

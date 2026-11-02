@@ -10,7 +10,7 @@ import {
   ENDLESS_START, MILESTONE_EVERY, DAILY_STAGES,
   isEndless, stageDef, endlessOpen, bestDepth, nextEndlessStage,
   isMilestone, endlessRewardMul, dailyKey, dailySeed, dailyStage, dailyRun,
-  DAILY_REWARD_MUL,
+  dailyPlayed, DAILY_REWARD_MUL,
 } from '../js/endless.js';
 import { heatRewardMul } from '../js/heat.js';
 import { STAGES, baseHpForStage } from '../js/stages.js';
@@ -152,6 +152,16 @@ test('daily: la semilla no depende del reloj ni del azar local', () => {
   const before = dailySeed('2027-03-14');
   for (let i = 0; i < 100; i++) Math.random();
   assert.equal(dailySeed('2027-03-14'), before);
+});
+
+test('1.12.3: el intento diario se marca al arrancar (stage o score)', () => {
+  assert.equal(dailyPlayed(null, '2027-03-14'), false);
+  assert.equal(dailyPlayed({ date: '2027-03-14', stage: 0, bestScore: 0 }, '2027-03-14'), false);
+  assert.equal(dailyPlayed({ date: '2027-03-14', stage: 4, bestScore: 0 }, '2027-03-14'), true);
+  assert.equal(dailyPlayed({ date: '2027-03-14', stage: 0, bestScore: 1200 }, '2027-03-14'), true);
+  assert.equal(dailyPlayed({ date: '2027-03-13', stage: 4, bestScore: 0 }, '2027-03-14'), false,
+    'la fecha vieja no bloquea el día nuevo');
+  assert.equal(dailyPlayed({ date: '2027-03-14', stage: 4, bestScore: 0 }, '2027-03-15'), false);
 });
 
 test('1.12.0: el bono diario lleva la recompensa a ×6,18', () => {

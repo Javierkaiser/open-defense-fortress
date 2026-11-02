@@ -6,7 +6,7 @@
 node --test "tests/test-*.mjs"
 ```
 
-Estado actual: **1091 tests** (1091 pass, 0 skip, 0 fail) en **36 archivos**.
+Estado actual: **1092 tests** (1092 pass, 0 skip, 0 fail) en **36 archivos**.
 
 Requisitos: Node 22 o superior.
 
@@ -94,10 +94,12 @@ Para eso hay **smoke manual** y una checklist Android (APK debug).
    debe apagarse como brasa humeante y reencenderse sobre el más avanzado.
 9. Abrir el desafío diario: la tarjeta debe decir `HEAT 39 · SIN CENSURA NI
    ARSENAL · BONO ×1,5`; al jugar deben quedar 3 cartas por oferta y 5 slots.
-10. Probar el Black Hole con un racimo: debe aparecer sobre el grupo más
+10. Arrancar el diario, volver al menú y reabrir el selector: la tarjeta debe
+    quedar apagada con `JUGADO HOY · volvé mañana` y no debe abrir otra run.
+11. Probar el Black Hole con un racimo: debe aparecer sobre el grupo más
     denso, no en una X random; revisar el dibujo en calidad Alta/Baja.
-11. Probar `SELECCIONAR STAGE`, `TORRETAS`, `PROTOCOLO` y `RÉCORDS`.
-12. Verificar que no haya requests de red en DevTools.
+12. Probar `SELECCIONAR STAGE`, `TORRETAS`, `PROTOCOLO` y `RÉCORDS`.
+13. Verificar que no haya requests de red en DevTools.
 
 ## Smoke Android (APK debug)
 

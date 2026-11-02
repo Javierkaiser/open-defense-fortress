@@ -1025,7 +1025,7 @@ export class HUD {
             ${d.hasNext ? `<button class="btn big" data-action="next-stage">${nextLabel}</button>` : ''}
             ${d.metaFrags ? `<button class="btn big" data-action="torretas" title="Gastar los fragmentos que ganaste en subir de nivel tus torretas">${UI_ICONS.torreta} MEJORAR TORRETAS</button>` : ''}
             <div class="clear-secondary">
-              <button class="btn ghost" data-action="retry">↻ REINTENTAR</button>
+              ${d.daily ? '' : '<button class="btn ghost" data-action="retry">↻ REINTENTAR</button>'}
               <button class="btn ghost" data-action="select-stage">ELEGIR STAGE</button>
             </div>
             ${!d.hasNext ? '<button class="btn ghost" data-action="menu">MENÚ PRINCIPAL</button>' : ''}
@@ -1071,7 +1071,7 @@ export class HUD {
               <div><dt>ORO META</dt><dd>${d.goldLost ?? 0}</dd></div>
             </dl>
           </div>` : ''}
-          <button class="btn big" data-action="retry">↻ REINTENTAR</button>
+          ${d.daily ? '' : '<button class="btn big" data-action="retry">↻ REINTENTAR</button>'}
           <button class="btn" data-action="select-stage">ELEGIR STAGE</button>
           <button class="btn ghost" data-action="menu">${UI_ICONS.menu} MENÚ PRINCIPAL</button>
         </div>

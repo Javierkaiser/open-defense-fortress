@@ -52,6 +52,7 @@ profundidad del ∞ es **por nivel de Heat** (`heat.endless`). El desafío diari
 todas las condiciones al rango máximo **excepto Censura y Arsenal** (Heat 39), ignorando
 el Protocolo activo, y su récord es **personal por fecha** (`endless.daily`, con
 `heat = 39`). La victoria diaria MUST recibir además el bono `DAILY_REWARD_MUL = 1.5`.
+El desafío diario MUST permitir **un solo intento por fecha**, consumido al arrancar.
 
 #### Scenario: Una etapa de campaña con Protocolo
 

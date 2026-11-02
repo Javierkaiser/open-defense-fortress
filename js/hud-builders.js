@@ -549,7 +549,7 @@ export function buildEndlessCardHtml(endless) {
  * número, no pasar la etapa: por eso el récord se ve en la propia tarjeta.
  * No exige el ∞ abierto: el diario existe desde el S1.
  *
- * @param {{daily?:{date?:string,stage?:number,bestScore?:number,heat?:number,heatForced?:number,rewardMul?:number}}|null|undefined} endless
+ * @param {{daily?:{date?:string,stage?:number,bestScore?:number,heat?:number,heatForced?:number,rewardMul?:number,played?:boolean}}|null|undefined} endless
  * @returns {string} HTML de la tarjeta ('' sin etapa/fecha válidas)
  */
 export function buildDailyCardHtml(endless) {
@@ -563,21 +563,27 @@ export function buildDailyCardHtml(endless) {
   const bestHeat = heatInt(daily.heat);
   const forcedHeat = heatInt(daily.heatForced);
   const rewardMul = Number(daily.rewardMul) > 1 ? Number(daily.rewardMul) : 0;
+  const played = daily.played === true;
   // El Heat del récord se omite si es el mismo forzado por el diario: evita
   // "Heat 39 · HEAT 39".
   const record = bestScore > 0
     ? `tu récord: ${fmt(bestScore)}${bestHeat > 0 && bestHeat !== forcedHeat ? ` · Heat ${bestHeat}` : ''}`
     : 'sin récord hoy';
+  const status = played
+    ? `JUGADO HOY · ${bestScore > 0 ? record : 'sin récord'} · volvé mañana`
+    : record;
   const label = stage >= ENDLESS_MIN_STAGE ? `∞ ETAPA ${stage}` : `ETAPA ${stage}`;
   const heatTxt = forcedHeat > 0
     ? ` · HEAT ${forcedHeat} · SIN CENSURA NI ARSENAL`
     : '';
   const bonusTxt = rewardMul > 0 ? ` · BONO ${fmtRewardMul(rewardMul)}` : '';
+  const action = played ? '' : ' data-action="start-daily"';
+  const disabled = played ? ' disabled' : '';
   return `
-    <button class="stage-daily" data-action="start-daily">
+    <button class="stage-daily${played ? ' is-played' : ''}"${action}${disabled}>
       <span class="card-kicker">DESAFÍO DIARIO · PERSONAL</span>
       <span class="card-title">${label} · ${esc(date)}</span>
-      <span class="card-sub">${esc(record)}${esc(heatTxt)}${esc(bonusTxt)}</span>
+      <span class="card-sub">${esc(status)}${esc(heatTxt)}${esc(bonusTxt)}</span>
     </button>`;
 }
 

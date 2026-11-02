@@ -14,7 +14,8 @@ and the upgrade cards offered on level-up. Every run is a roguelike.
 
 - 50-stage campaign, endless mode (51+), survival (infinite waves), daily
   challenge on any unlocked stage (forced Heat 39 without Censura/Arsenal,
-  1.5× reward bonus, personal record) and the Heat/Protocol modifiers.
+  1.5× reward bonus, **one attempt per day**, personal record) and the
+  Heat/Protocol modifiers.
 - New Game+ and Global Reset: after clearing the campaign, restart while keeping
   your unlocked units and gaining +5 % global damage per cycle (up to +100 %);
   Global Reset wipes everything.
@@ -22,7 +23,7 @@ and the upgrade cards offered on level-up. Every run is a roguelike.
 - Decision-driven progression: a new account starts with **Guardian only**; the other 10 units are unlocked with gold. Fragments are a **shared pool**, so leveling one tower leaves less for the rest. **Replaying cleared stages still pays fragments**: the 1.9.0 economy is farm-based.
 - No ads, no purchases, no accounts, no telemetry.
 - Canvas 2D + DOM/CSS + ES modules; no build step, no server, no network calls.
-- 1091 Node tests.
+- 1092 Node tests.
 
 ## Run it
 
@@ -35,7 +36,7 @@ install needed, and it keeps working offline after the first load.
 node scripts/serve.mjs 8080
 # open http://localhost:8080
 
-# tests (1091) + static checks
+# tests (1092) + static checks
 node --test "tests/test-*.mjs"
 node .github/scripts/ci-checks.mjs
 ```

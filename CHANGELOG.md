@@ -4,6 +4,24 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.12.3] — 2026-11-02
+
+### Desafío diario: un intento por día
+
+- El desafío diario se **consume al arrancar**, no al terminar: si el
+  jugador abandona o pierde, no puede repetirlo hasta el día siguiente.
+- La tarjeta del selector queda **deshabilitada** y muestra `JUGADO HOY ·
+  volvé mañana`, conservando el resultado del intento.
+- El intento se guarda en el progreso existente (`endless.daily.stage`), sin
+  cambiar el esquema de saves. Al cambiar la fecha se habilita de nuevo.
+- `startDaily()` también bloquea el segundo intento aunque se dispare la
+  acción directamente.
+
+### Tests / versión
+
+- **1092 tests, 0 skip** (36 archivos).
+- Versión **1.12.3** / Android `versionCode 23`.
+
 ## [1.12.2] — 2026-11-02
 
 ### Cartas retiradas

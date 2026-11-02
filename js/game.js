@@ -22,7 +22,7 @@ import { resolveKillScore, resolveKillXp } from './economy.js';
 import { STAGES } from './stages.js';
 import {
   stageDef, isEndless, endlessOpen, bestDepth, nextEndlessStage, isMilestone,
-  endlessRewardMul, dailyRun, DAILY_REWARD_MUL,
+  endlessRewardMul, dailyRun, dailyPlayed, DAILY_REWARD_MUL,
 } from './endless.js';
 import {
   rollOffer, applyCard, comboSummary, legendaryCardsFor,
@@ -633,6 +633,18 @@ export class Game {
       // no, reintentar el diario rerolearía la composición del día.
       // fase 70: en supervivencia rejuega la MISMA semilla (ver startSurvival).
       retry: () => {
+        // 1.12.3: el diario se consume al arrancar. Aunque la pantalla ya
+        // esconde el botón, la acción no debe poder reabrir la run.
+        if (this._runOpts?.daily) {
+          this.hud?.showAviso?.({
+            variant: 'info',
+            title: 'DESAFÍO DIARIO YA JUGADO',
+            name: 'VOLVÉ MAÑANA',
+            ms: 2600,
+          });
+          this.toSelectStage();
+          return;
+        }
         if (this.mode === 'survival') {
           this.startSurvival({ seed: this._runOpts?.seed });
           return;
@@ -961,20 +973,34 @@ export class Game {
    * 1.10.0 - DESAFÍO DIARIO: la etapa sale del pool de campaña/∞ ya
    * desbloqueado (automática por fecha). La etapa se CONGELA en el primer
    * intento del día (`progress.endless.daily.stage`) para que desbloquear
-   * una etapa nueva no cambie el reto. Van las 9 condiciones restantes al
-   * máximo (Heat 39; sin Censura ni Arsenal), sin importar el Protocolo
-   * activo. La victoria suma el bono diario ×1,5. El récord es personal:
-   * la etapa puede variar entre jugadores.
+   * una etapa nueva no cambie el reto. 1.12.3: hay UN intento por día,
+   * consumido al arrancar (abandonar o perder no habilita otro). Van las 9
+   * condiciones restantes al máximo (Heat 39; sin Censura ni Arsenal), sin
+   * importar el Protocolo activo. La victoria suma el bono diario ×1,5. El
+   * récord es personal: la etapa puede variar entre jugadores.
    */
   startDaily() {
     const pool = dailyStagePool(this.progressData);
-    if (!pool.length) return;
+    if (!pool.length) return false;
     const today = dailyRun();
     const saved = this.progressData?.endless?.daily;
+    // 1.12.3 — UN intento por día. El stage se congela al arrancar, así que
+    // si ya hay una etapa de hoy el intento está consumido aunque el
+    // jugador haya abandonado o perdido.
+    if (dailyPlayed(saved, today.date)) {
+      this.hud?.showAviso?.({
+        variant: 'info',
+        title: 'DESAFÍO DIARIO YA JUGADO',
+        name: 'VOLVÉ MAÑANA',
+        ms: 2600,
+      });
+      return false;
+    }
     const frozen = saved?.date === today.date ? saved.stage : 0;
     const run = dailyRun(today.date, { pool, stage: frozen });
     // Congela la etapa del día ya en el primer arranque (aunque el jugador
-    // abandone): desbloquear otra etapa no cambia el reto de hoy.
+    // abandone): desbloquear otra etapa no cambia el reto de hoy y el
+    // intento queda marcado.
     if (saved?.date !== run.date || !saved?.stage) {
       this.progressData = saveProgress(
         recordDaily(this.progressData, run.date, 0, 0, run.stage),
@@ -985,6 +1011,7 @@ export class Game {
       daily: run.date,
       heatMods: dailyHeatMods(),
     });
+    return true;
   }
 
   /**
@@ -1446,7 +1473,7 @@ export class Game {
         best: bestDepth(this.progressData),
         next: nextEndlessStage(this.progressData),
         // v1.7.2: la tarjeta ∞ muestra el Heat activo y su récord de
-        // profundidad; 1.10.0: el Daily muestra su Heat forzado (49).
+        // profundidad; 1.10.0: el Daily muestra su Heat forzado (39).
         heat: activeHeat,
         bestAtHeat: this.progressData.heat.endless?.[activeHeat] ?? 0,
         daily: {
@@ -1454,6 +1481,7 @@ export class Game {
           stage: today.stage,
           bestScore: daily?.date === today.date ? daily.bestScore : 0,
           heat: daily?.date === today.date ? daily.heat : 0,
+          played: dailyPlayed(daily, today.date),
           heatForced: heatTotal(dailyHeatMods()),
           rewardMul: DAILY_REWARD_MUL,
         },

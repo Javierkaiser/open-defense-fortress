@@ -60,6 +60,7 @@ test('v1.7.2: _selectData expone el Heat activo y su récord en el ∞', () => {
   assert.equal(data.endless.heat, 3, 'la tarjeta ∞ conoce el Heat activo');
   assert.equal(data.endless.bestAtHeat, 60, 'y su récord de profundidad');
   assert.equal(data.endless.daily.heat, 0, 'sin récord diario hoy no inventa Heat');
+  assert.equal(data.endless.daily.played, false, 'sin intento hoy no está jugado');
 });
 
 test('v1.7.2: _recordDaily guarda el Heat del récord y no lo pisa con un score peor', () => {
@@ -196,16 +197,17 @@ test('1.10.0: _selectData expone la etapa congelada y el Heat forzado del daily'
   assert.equal(data.endless.daily.heat, 49);
   assert.equal(data.endless.daily.heatForced, 39, 'el HUD conoce el Heat forzado');
   assert.equal(data.endless.daily.rewardMul, 1.5, 'y el bono diario');
+  assert.equal(data.endless.daily.played, true, 'la etapa congelada marca el intento');
   assert.equal(data.endless.open, false, 'el daily no exige el ∞ abierto');
 });
 
-test('1.10.0: startDaily elige etapa del pool, fuerza Heat 49 y la congela', () => {
+test('1.12.3: startDaily elige etapa, fuerza Heat 39 y solo deja un intento por día', () => {
   const g = Object.create(Game.prototype);
   g.progressData = normalizeProgress({ unlocked: 3 });
   const runs = [];
   g.startStage = (id, opts) => runs.push({ id, opts });
 
-  g.startDaily();
+  assert.equal(g.startDaily(), true);
   assert.equal(runs.length, 1);
   const first = runs[0];
   assert.ok(first.id >= 1 && first.id <= 3, `etapa fuera del pool: ${first.id}`);
@@ -213,9 +215,21 @@ test('1.10.0: startDaily elige etapa del pool, fuerza Heat 49 y la congela', () 
   assert.equal(heatTotal(first.opts.heatMods), 39, 'todos los heats restantes al máximo');
   assert.equal(g.progressData.endless.daily.stage, first.id, 'la etapa queda congelada');
 
-  // Desbloquear más etapas durante el día NO cambia el reto ya elegido.
-  g.progressData = normalizeProgress({ ...g.progressData, unlocked: 10 });
-  g.startDaily();
-  assert.equal(runs[1].id, first.id);
+  // Segundo intento del MISMO día: no arranca otra run.
+  assert.equal(g.startDaily(), false);
+  assert.equal(runs.length, 1, 'no debe abrir una segunda run diaria');
   assert.equal(g.progressData.endless.daily.stage, first.id);
+
+  // Desbloquear más etapas durante el día tampoco habilita otro intento.
+  g.progressData = normalizeProgress({ ...g.progressData, unlocked: 10 });
+  assert.equal(g.startDaily(), false);
+  assert.equal(runs.length, 1);
+  assert.equal(g.progressData.endless.daily.stage, first.id);
+
+  // Día siguiente: el intento vuelve a estar disponible.
+  g.progressData.endless.daily.date = '2000-01-01';
+  assert.equal(g.startDaily(), true);
+  assert.equal(runs.length, 2);
+  assert.equal(runs[1].opts.daily, dailyRun().date);
+  assert.equal(g.progressData.endless.daily.date, dailyRun().date);
 });

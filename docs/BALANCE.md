@@ -411,6 +411,9 @@ Lectura:
   **×1,5** se suma a fragmentos y oro; los hitos únicos de Heat no se
   multiplican. El récord es **personal**: la etapa puede diferir entre
   jugadores con progreso distinto, así que no se compara entre cuentas.
+  Hay **un solo intento por día**, consumido al arrancar: abandonar o perder
+  no habilita otro hasta la fecha siguiente. La tarjeta queda deshabilitada
+  con `JUGADO HOY · volvé mañana`.
 - El diario ya no exige el ∞ abierto: una cuenta nueva con solo el S1 puede
   jugarlo. Heat 39 y el bono ×1,5 lo dejan como un objetivo de largo plazo,
   pero con una recompensa acorde: una primera limpieza diaria paga ~1.854
@@ -524,6 +527,10 @@ legendarias, no la curva base.
   bajo el umbral para el atacante con execute. La economía pasa a ser de
   **farmeo**: el S50 no se alcanza en una pasada. Detalle en §"El bucle de
   farmeo".
+- **Ronda 1.12.3**: el desafío diario pasa a **un intento por día**. Se
+  consume al arrancar (aunque se abandone o se pierda) y la tarjeta queda
+  deshabilitada hasta la fecha siguiente. Sin cambios de dificultad ni de
+  recompensa.
 - **Ronda 1.12.2**: se retiran **Núcleos Perforantes II**, **Sensores
   Ampliados** y **Carga Orbital**; el catálogo queda en 109 cartas (81 + 28
   doctrinas). La Tesla sube su banda de 330 a **462 px** (330 × 1,4) para

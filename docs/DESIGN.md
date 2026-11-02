@@ -253,7 +253,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 | Campaña | 50 etapas; se desbloquean al limpiar la anterior; jefe en 1, 10, 20, 30, 40 y 50. |
 | Infinito (∞) | 51+; HP de base de la misma curva; jefe cada 10; profundidad “mejor + 1”; hitos y recompensas. |
 | Supervivencia | Olas infinitas; sin contador de fugas; cada fuga resta el HP máximo del enemigo; base 25 500 HP; jefe cada 5; tema cada 5; presupuesto lineal `60 + 30·oleada`. |
-| Desafío diario | Etapa elegida por fecha desde el pool de campaña/∞ desbloqueado; se congela en el primer intento; semilla FNV; **Heat 39 forzado** (sin Censura ni Arsenal); **bono de recompensa ×1,5**; récord personal. |
+| Desafío diario | Etapa elegida por fecha desde el pool de campaña/∞ desbloqueado; se congela en el primer intento; semilla FNV; **Heat 39 forzado** (sin Censura ni Arsenal); **bono de recompensa ×1,5**; **un intento por día**; récord personal. |
 | Protocolo / Heat | 11 condiciones sobre campaña, ∞ y supervivencia; el daily fuerza **Heat 39** (sin Censura ni Arsenal) y paga **×1,5** extra; presets I–V (5/10/16/24/35); máximo 49; recompensa ×1 + 0,08·heat; hitos 60/120/240/420 fragmentos al pool. |
 
 ## 10. Progresión y economía
@@ -381,7 +381,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1091 tests (1091 pass, 0 skip) en 36 archivos.
+- 1092 tests (1092 pass, 0 skip) en 36 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

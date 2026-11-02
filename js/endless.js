@@ -187,3 +187,19 @@ export function dailyRun(when = new Date(), opts = {}) {
     : ENDLESS_START + (seed % DAILY_STAGES);
   return { date, stage, seed };
 }
+
+/**
+ * 1.12.3 — ¿Ya se jugó el desafío diario de `date`? El intento se marca al
+ * ARRANCAR: `startDaily()` congela la etapa con `recordDaily()` antes de
+ * entrar a la run, así que `stage` (o un `bestScore` viejo) alcanza para
+ * saber que ya se consumió. El récord se reinicia al cambiar la fecha.
+ *
+ * @param {{date?:string,stage?:number,bestScore?:number}|null|undefined} saved
+ * @param {string} [date] fecha de hoy (`YYYY-MM-DD`)
+ * @returns {boolean}
+ */
+export function dailyPlayed(saved, date = '') {
+  if (!saved || typeof saved !== 'object') return false;
+  if (date && saved.date !== date) return false;
+  return (Number(saved.stage) || 0) > 0 || (Number(saved.bestScore) || 0) > 0;
+}
