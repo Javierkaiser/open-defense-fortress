@@ -101,6 +101,9 @@ export function svgIcon(paths) {
  *  - torreta:    torre de cúpula con el cañón saliendo en diagonal.
  *  - bestiario:  un ojo (lente almondada + pupila).
  *  - progreso:   tres barras de distinta altura sobre una base.
+ *  - trofeo:     una copa con asas y base (récords/NG+).
+ *  - heat:       una llama (Protocolo/Heat).
+ *  - candado:    un candado (hito bloqueado).
  *  - batalla:    una mira (cruz con círculo).
  *  - menu:       una casa (techo + paredes + puerta).
  *  - cartas:     dos rectángulos redondeados apilados (dos cartas).
@@ -128,6 +131,25 @@ export const UI_ICONS = {
     + '<path d="M7 17v3.5"/>'
     + '<path d="M12 13v7.5"/>'
     + '<path d="M17 7v13.5"/>',
+  ),
+  // Trofeo: copa con asas y base.
+  trofeo: svgIcon(
+    '<path d="M8 3.5h8v4.2a4 4 0 0 1-8 0z"/>'
+    + '<path d="M8 5H4.8v1.8A3.2 3.2 0 0 0 8 10"/>'
+    + '<path d="M16 5h3.2v1.8A3.2 3.2 0 0 1 16 10"/>'
+    + '<path d="M12 11.7v5"/>'
+    + '<path d="M8.5 21h7"/>'
+    + '<path d="M10 21c0-2.2 1-3.2 2-4.3 1 1.1 2 2.1 2 4.3"/>',
+  ),
+  // Calor: llama/gauge del Protocolo.
+  heat: svgIcon(
+    '<path d="M12 21.5c4 0 6.8-2.8 6.8-6.6 0-3.8-2.7-5.9-3.8-8.9-1 2-3.2 3.2-3.2 5.3 0 1.3.8 2 1 3.2.2 1.4-.8 2.4-2 2.4s-2.1-1-2.1-2.5c0-1.4.8-2.7.8-4.4-1.8 1.6-3.5 3.4-3.5 6 0 3.7 2.8 5.5 6 5.5z"/>',
+  ),
+  // Candado: hito bloqueado (NG+).
+  candado: svgIcon(
+    '<rect x="4.5" y="10" width="15" height="11" rx="2"/>'
+    + '<path d="M8 10V7a4 4 0 0 1 8 0v3"/>'
+    + '<path d="M12 14v3"/>',
   ),
   // Batalla: una mira (cruz + círculo).
   batalla: svgIcon(
@@ -1748,11 +1770,12 @@ export function buildThemeSwatches(activeId = '') {
  * Pantalla del MENÚ principal.
  *
  * @param {{theme?: string, quality?: string, confirmingReset?: boolean,
- *   confirmingNG?: boolean, campaignComplete?: boolean, ngPlus?: number}} [opts]
+ *   confirmingNG?: boolean, campaignComplete?: boolean, ngPlus?: number,
+ *   nextStage?: number}} [opts]
  */
 export function buildMenuScreen({
   theme = '', quality = '', confirmingReset = false,
-  confirmingNG = false, campaignComplete = false, ngPlus = 0,
+  confirmingNG = false, campaignComplete = false, ngPlus = 0, nextStage = 0,
 } = {}) {
   // dev-7 fase 13: selector de temas — reskinea el HUD/paneles/botones
   // (no el canvas del juego, ver theme.js). El activo queda marcado.
@@ -1771,12 +1794,15 @@ export function buildMenuScreen({
   const currentBonus = bonusPct(ng);
   const nextBonus = bonusPct(Math.min(META_NG_MAX_CYCLES, ng + 1));
   const atMax = ng >= META_NG_MAX_CYCLES;
+  const next = Math.max(0, Math.trunc(Number(nextStage) || 0));
+  const campaignLabel = next > 0 ? `Campaña · Stage ${next}` : 'Campaña';
+  const themeName = THEMES.find((t) => t.id === theme)?.name ?? theme;
   // 1.10.0: Nueva Partida+ se habilita con la campaña completa. Conserva
   // torres/drones desbloqueados y sube el bonus global; resetea el resto.
   // En el tope (NG+ 20 / +100%) sigue disponible para rejugar la campaña,
   // pero el texto no promete un bonus que el modelo ya no puede dar.
-  const ngBlock = confirmingNG ? `
-    <div class="reset-confirm ng-confirm">
+  const ngConfirm = confirmingNG ? `
+    <div class="menu-confirm ng-confirm">
       <p class="reset-warn">Nueva Partida+ ${atMax ? ng : ng + 1}: se conservan las torres y drones
         desbloqueados y el bonus NG+ (${atMax ? `tope alcanzado: +${currentBonus}%` : `${currentBonus}% → ${nextBonus}%`} de daño global).
         Se resetean campaña, récords, rango, perks, niveles, fragmentos y oro.
@@ -1785,10 +1811,22 @@ export function buildMenuScreen({
         <button class="btn ghost small" data-action-ngplus="cancel">CANCELAR</button>
         <button class="btn ngplus-confirm small" data-action-ngplus="confirm">SÍ, EMPEZAR NG+</button>
       </div>
-    </div>`
-    : campaignComplete
-      ? `<button class="btn ghost ngplus" data-action-ngplus="ask">NUEVA PARTIDA+ · NG+ ${atMax ? `${ng} · +${currentBonus}% daño global (máximo)` : `${ng + 1} · +${nextBonus}% daño global`}</button>`
-      : `<button class="btn ghost" disabled title="Completá la campaña (Stage 50) para desbloquear">NUEVA PARTIDA+ · completá la campaña</button>`;
+    </div>` : '';
+  const ngTile = confirmingNG ? '' : campaignComplete
+    ? `<button class="menu-tile menu-tile-wide menu-tile-ng${atMax ? ' is-max' : ''}" data-action-ngplus="ask">
+        <span class="menu-tile-icon" aria-hidden="true">${UI_ICONS.trofeo}</span>
+        <span class="menu-tile-copy">
+          <span class="menu-tile-title">NUEVA PARTIDA+</span>
+          <span class="menu-tile-sub">${atMax ? `NG+ ${ng} · +${currentBonus}% daño global (máximo)` : `NG+ ${ng + 1} · +${nextBonus}% daño global`}</span>
+        </span>
+      </button>`
+    : `<button class="menu-tile menu-tile-wide menu-tile-locked" disabled title="Completá la campaña (Stage 50) para desbloquear">
+        <span class="menu-tile-icon" aria-hidden="true">${UI_ICONS.candado}</span>
+        <span class="menu-tile-copy">
+          <span class="menu-tile-title">NUEVA PARTIDA+</span>
+          <span class="menu-tile-sub">Completá la campaña</span>
+        </span>
+      </button>`;
   const ngBadge = ng > 0
     ? `<p class="ng-plus-badge">NG+ ${ng} · +${currentBonus}% de daño global</p>`
     : '';
@@ -1806,25 +1844,92 @@ export function buildMenuScreen({
       </div>
     </div>`
     : `<button class="btn ghost danger-link" data-action-reset="ask">RESET GLOBAL</button>`;
+  const keyHints = `
+    <span><kbd>P</kbd> pausa</span>
+    <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> velocidad</span>
+    <span><kbd>Espacio</kbd> ultimate</span>
+    <span><kbd>B</kbd> black hole</span>`;
   return `
-    <section class="screen">
-      <h1 class="game-title">OPEN DEFENSE<span class="subtitle">FORTRESS</span></h1>
-      <p class="tagline">Defiende la base · torres fijas · ${STAGES.length} stages</p>
-      ${ngBadge}
-      <button class="btn big" data-action="play">▶ JUGAR</button>
-      <button class="btn ghost" data-action="select-stage">SELECCIONAR STAGE</button>
-      ${ngBlock}
-      <button class="btn ghost" data-action="torretas">${UI_ICONS.torreta} TORRETAS · mejoras permanentes</button>
-      <button class="btn ghost" data-action="protocol">PROTOCOLO · heat y récords</button>
-      <button class="btn ghost" data-action="records">RÉCORDS · los cinco modos</button>
-      <button class="btn ghost" data-action="credits">CRÉDITOS · licencias y atribuciones</button>
-      <div class="theme-picker" role="radiogroup" aria-label="Tema de la interfaz">${swatches}</div>
-      <p class="theme-picker-label" data-theme-label>Tema: ${THEMES.find((t) => t.id === theme)?.name ?? theme}</p>
-      <div class="quality-picker">${qButtons}</div>
-      <p class="theme-picker-label">Calidad gráfica (probá "Baja" si el juego anda lento)</p>
-      <p class="hint menu-hint">[P] pausa · [1][2][3] velocidad · [Espacio] ultimate · [B] black hole</p>
-      <div class="menu-danger-zone">${resetBlock}</div>
-      <p class="version">v${VERSION} · sin anuncios · 100% offline</p>
+    <section class="screen screen-menu">
+      <div class="menu-shell">
+        <header class="menu-hero">
+          <p class="menu-kicker"><span class="menu-rule"></span><span>FRENTE VOLCÁNICO · PUESTO DE MANDO</span><span class="menu-rule"></span></p>
+          <h1 class="game-title">OPEN DEFENSE<span class="subtitle">FORTRESS</span></h1>
+          <p class="tagline">Defendé la base · torres fijas · <b>${STAGES.length} stages</b></p>
+          ${ngBadge}
+        </header>
+
+        <nav class="menu-command" aria-label="Menú principal">
+          <button class="menu-cta" data-action="play">
+            <span class="menu-cta-icon" aria-hidden="true">▶</span>
+            <span class="menu-cta-copy">
+              <span class="menu-cta-label">JUGAR</span>
+              <span class="menu-cta-sub">${esc(campaignLabel)}</span>
+            </span>
+            <span class="menu-cta-chevron" aria-hidden="true">›</span>
+          </button>
+
+          <div class="menu-tile-grid">
+            <button class="menu-tile" data-action="select-stage">
+              <span class="menu-tile-icon" aria-hidden="true">${UI_ICONS.batalla}</span>
+              <span class="menu-tile-copy">
+                <span class="menu-tile-title">STAGES</span>
+                <span class="menu-tile-sub">Elegir etapa</span>
+              </span>
+            </button>
+            <button class="menu-tile" data-action="torretas">
+              <span class="menu-tile-icon" aria-hidden="true">${UI_ICONS.torreta}</span>
+              <span class="menu-tile-copy">
+                <span class="menu-tile-title">TORRETAS</span>
+                <span class="menu-tile-sub">Mejoras permanentes</span>
+              </span>
+            </button>
+            <button class="menu-tile" data-action="protocol">
+              <span class="menu-tile-icon" aria-hidden="true">${UI_ICONS.heat}</span>
+              <span class="menu-tile-copy">
+                <span class="menu-tile-title">PROTOCOLO</span>
+                <span class="menu-tile-sub">Heat y récords</span>
+              </span>
+            </button>
+            <button class="menu-tile" data-action="records">
+              <span class="menu-tile-icon" aria-hidden="true">${UI_ICONS.trofeo}</span>
+              <span class="menu-tile-copy">
+                <span class="menu-tile-title">RÉCORDS</span>
+                <span class="menu-tile-sub">Los cinco modos</span>
+              </span>
+            </button>
+            <button class="menu-tile menu-tile-wide" data-action="credits">
+              <span class="menu-tile-icon" aria-hidden="true">${UI_ICONS.cartas}</span>
+              <span class="menu-tile-copy">
+                <span class="menu-tile-title">CRÉDITOS</span>
+                <span class="menu-tile-sub">Licencias y atribuciones</span>
+              </span>
+            </button>
+            ${ngTile}
+          </div>
+          ${ngConfirm}
+        </nav>
+
+        <section class="menu-settings" aria-label="Ajustes de interfaz">
+          <div class="menu-section-head"><span>SISTEMA</span></div>
+          <div class="menu-field">
+            <span class="menu-field-label">TEMA</span>
+            <div class="theme-picker" role="radiogroup" aria-label="Tema de la interfaz">${swatches}</div>
+            <p class="theme-picker-label" data-theme-label>Tema: ${esc(themeName)}</p>
+          </div>
+          <div class="menu-field">
+            <span class="menu-field-label">CALIDAD GRÁFICA</span>
+            <div class="quality-picker">${qButtons}</div>
+            <p class="theme-picker-label">Probá "Baja" si el juego anda lento</p>
+          </div>
+        </section>
+
+        <footer class="menu-footer">
+          <p class="hint menu-hint menu-keys">${keyHints}</p>
+          <div class="menu-danger-zone">${resetBlock}</div>
+          <p class="version">v${VERSION} · sin anuncios · 100% offline</p>
+        </footer>
+      </div>
     </section>`;
 }
 

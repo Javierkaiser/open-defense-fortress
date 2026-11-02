@@ -4,6 +4,30 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.12.4] — 2026-11-02
+
+### HUD: menú y pausa
+
+- **Menú principal rediseñado** como una consola de forja: CTA `JUGAR` en
+  placa ámbar con subtexto de campaña, acciones secundarias en grilla de
+  tiles (STAGES, TORRETAS, PROTOCOLO, RÉCORDS, CRÉDITOS, NG+) y ajustes
+  agrupados bajo `SISTEMA`.
+- **Nueva Partida+ bloqueada** se muestra como hito con candado, no como un
+  botón gris partido. Al completar la campaña pasa a tile dorado con el
+  próximo ciclo y su bonus.
+- **Pausa rediseñada**: panel compacto con `CONTINUAR` como CTA, salidas
+  agrupadas bajo `SALIR DE LA RUN` (con la confirmación de siempre), matriz
+  de daño más legible, selector de tema al pie y atajos como chips `kbd`.
+- **Foco del título**: el encabezado sigue recibiendo foco programático para
+  accesibilidad, pero ya no dibuja el recuadro de "título seleccionado".
+- Microinteracciones con `prefers-reduced-motion` y sin sombras/sweep en
+  calidad Baja. Sin cambios de lógica de juego ni de acciones.
+
+### Tests / versión
+
+- **1095 tests, 0 skip** (36 archivos).
+- Versión **1.12.4** / Android `versionCode 24`.
+
 ## [1.12.3] — 2026-11-02
 
 ### Desafío diario: un intento por día

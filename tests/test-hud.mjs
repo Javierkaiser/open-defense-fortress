@@ -180,6 +180,50 @@ test('buildTorretasScreen: NO contiene ningún conteo de torretas hardcodeado', 
   assert.deepEqual(hits, [], `aparece "900" fuera de contexto: ${hits.join(' | ')}`);
 });
 
+test('1.12.4: el menú usa la consola de forja (CTA, tiles y ajustes)', () => {
+  const html = buildMenuScreen({
+    theme: 'neon', quality: 'alta', nextStage: 7,
+  });
+  for (const cls of [
+    'screen-menu', 'menu-shell', 'menu-hero', 'menu-kicker', 'menu-cta',
+    'menu-tile-grid', 'menu-tile', 'menu-settings', 'menu-footer',
+  ]) {
+    assert.ok(html.includes(cls), `falta el bloque ${cls}`);
+  }
+  assert.ok(html.includes('data-action="play"'), 'el CTA sigue siendo JUGAR');
+  assert.ok(html.includes('Campaña · Stage 7'), 'el CTA dice la próxima etapa');
+  assert.ok(html.includes('data-action="select-stage"'), 'STAGES conserva su acción');
+  assert.ok(html.includes('data-action="torretas"'), 'TORRETAS conserva su acción');
+  assert.ok(html.includes('data-action="protocol"'), 'PROTOCOLO conserva su acción');
+  assert.ok(html.includes('data-action="records"'), 'RÉCORDS conserva su acción');
+  assert.ok(html.includes('data-action="credits"'), 'CRÉDITOS conserva su acción');
+  assert.ok(html.includes('data-theme-id="neon"'), 'el tema activo sigue marcado');
+  assert.ok(html.includes('data-quality-id="alta"'), 'la calidad activa sigue marcada');
+});
+
+test('1.12.4: el foco programático del título no parece una selección', () => {
+  assert.ok(css.includes(':where(h1, h2)[tabindex="-1"]:focus-visible'),
+    'el encabezado enfocado no debe llevar outline');
+  assert.ok(css.includes('outline: none'));
+});
+
+test('1.12.4: la pausa agrupa continuar, salir y la matriz de daño', () => {
+  const hud = Object.create(HUD.prototype);
+  hud._abandonPending = null;
+  const html = hud._screenPaused();
+  for (const cls of ['screen-pause', 'pause-panel', 'pause-head', 'pause-cta', 'pause-grid', 'pause-data', 'pause-settings']) {
+    assert.ok(html.includes(cls), `falta el bloque ${cls}`);
+  }
+  assert.ok(html.includes('data-action="resume"'), 'CONTINUAR conserva su acción');
+  assert.ok(html.includes('SALIR DE LA RUN'), 'las salidas están agrupadas');
+  assert.ok(html.includes('MATRIZ DE DAÑO'), 'la matriz sigue disponible');
+  assert.ok(html.includes('data-abandon="torretas"'), 'TORRETAS pide confirmación');
+  assert.ok(html.includes('data-abandon="menu"'), 'MENÚ pide confirmación');
+  assert.ok(html.includes('data-abandon="select-stage"'), 'ELEGIR STAGE pide confirmación');
+  assert.ok(html.includes('pause-tile-wide'), 'MENÚ ocupa la fila completa');
+  assert.ok(html.includes('data-theme-id='), 'el tema se puede cambiar desde pausa');
+});
+
 test('buildMenuScreen: la advertencia de borrado usa la cantidad real de torretas', () => {
   const html = buildMenuScreen({ theme: 'neon', quality: 'alta', confirmingReset: true });
   assert.ok(html.includes(`las ${META_TOWERS.length} torretas mejoradas`),
@@ -196,8 +240,10 @@ test('buildMenuScreen: sin confirmación muestra el botón de pedir confirmació
 
 test('1.10.0: Nueva Partida+ queda bloqueada hasta completar la campaña', () => {
   const html = buildMenuScreen({ theme: 'neon', quality: 'alta' });
-  assert.ok(html.includes('NUEVA PARTIDA+ · completá la campaña'),
+  assert.ok(html.includes('NUEVA PARTIDA+'),
     'sin S50 limpiado no se ofrece NG+');
+  assert.ok(html.includes('Completá la campaña'),
+    'el hito bloqueado explica cómo se desbloquea');
   assert.ok(html.includes('disabled title="Completá la campaña'),
     'el botón está deshabilitado y explica por qué');
   assert.ok(!html.includes('data-action-ngplus="ask"'), 'no se puede pedir confirmación');
@@ -1476,7 +1522,8 @@ test('T1: el punto de color distingue el tema de cada stage', () => {
 
 test('T3: el tagline del MENÚ dice la cantidad REAL de stages', () => {
   const html = buildMenuScreen({ theme: 'neon', quality: 'alta' });
-  const tagline = html.match(/<p class="tagline">([^<]*)<\/p>/)?.[1] ?? '';
+  const tagline = html.match(/<p class="tagline">([\s\S]*?)<\/p>/)?.[1]
+    ?.replace(/<[^>]+>/g, '') ?? '';
   assert.ok(tagline.includes(`${STAGES.length} stages`),
     `el tagline debe decir "${STAGES.length} stages" (dice "${tagline}")`);
   assert.ok(!tagline.includes('5 stages'), 'no debe quedar el conteo viejo');

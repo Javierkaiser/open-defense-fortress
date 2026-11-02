@@ -527,6 +527,9 @@ legendarias, no la curva base.
   bajo el umbral para el atacante con execute. La economía pasa a ser de
   **farmeo**: el S50 no se alcanza en una pasada. Detalle en §"El bucle de
   farmeo".
+- **Ronda 1.12.4**: rediseño estético del menú principal y la pausa
+  (consola de forja, tiles de acción y foco del título corregido). Sin
+  cambios de lógica, dificultad ni recompensas.
 - **Ronda 1.12.3**: el desafío diario pasa a **un intento por día**. Se
   consume al arrancar (aunque se abandone o se pierda) y la tarjeta queda
   deshabilitada hasta la fecha siguiente. Sin cambios de dificultad ni de

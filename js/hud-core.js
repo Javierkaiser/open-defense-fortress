@@ -674,6 +674,8 @@ export class HUD {
     const progress = loadProgress();
     const meta = loadMeta();
     const campaignComplete = !!progress?.bestScore?.[STAGES.length];
+    const game = typeof window !== 'undefined' ? window.__GDF__?.game : null;
+    const nextStage = typeof game?._nextStageId === 'function' ? game._nextStageId() : 0;
     return buildMenuScreen({
       theme: loadTheme(),
       quality: loadQuality(),
@@ -681,6 +683,7 @@ export class HUD {
       confirmingNG: this._confirmingNG,
       campaignComplete,
       ngPlus: meta?.ngPlus ?? 0,
+      nextStage,
     });
   }
 
@@ -885,28 +888,88 @@ export class HUD {
    */
   _screenPaused() {
     const p = this._abandonPending;
+    const game = typeof window !== 'undefined' ? window.__GDF__?.game : null;
+    const chips = [
+      game?.stageId ? `<span class="pause-chip">STAGE ${esc(String(game.stageId))}</span>` : '',
+      (game?.runMods?.heat ?? 0) > 0 ? `<span class="pause-chip">HEAT ${game.runMods.heat}</span>` : '',
+      (game?.meta?.ngPlus ?? 0) > 0 ? `<span class="pause-chip">NG+ ${game.meta.ngPlus}</span>` : '',
+    ].filter(Boolean).join('');
     // Un botón destructivo: primero pregunta, después actúa (el
     // `data-action` real sólo aparece en el segundo paso).
     // dev-7 fase 41: los iconos son SVG inline (antes eran emoji del
     // sistema, que se veían distintos en cada plataforma).
-    const exit = (act, label, icon) => (p === act
-      ? `<button class="btn ghost danger" data-action="${act}">${UI_ICONS.aviso} ${label} · ¿SEGURO?</button>`
-      : `<button class="btn ghost" data-abandon="${act}">${icon} ${label}</button>`);
+    const exit = (act, label, icon, desc, wide = false) => {
+      const cls = `pause-tile${wide ? ' pause-tile-wide' : ''}`;
+      return p === act
+        ? `<button class="${cls} is-armed" data-action="${act}">
+            <span class="pause-tile-icon" aria-hidden="true">${UI_ICONS.aviso}</span>
+            <span class="pause-tile-copy">
+              <span class="pause-tile-title">${label}</span>
+              <span class="pause-tile-sub">¿SEGURO? · Confirmá para salir</span>
+            </span>
+          </button>`
+        : `<button class="${cls}" data-abandon="${act}">
+            <span class="pause-tile-icon" aria-hidden="true">${icon}</span>
+            <span class="pause-tile-copy">
+              <span class="pause-tile-title">${label}</span>
+              <span class="pause-tile-sub">${desc}</span>
+            </span>
+          </button>`;
+    };
+    const themeName = THEMES.find((t) => t.id === loadTheme())?.name ?? loadTheme();
     return `
-      <section class="screen">
-        <div class="panel">
-          <h2 class="screen-title">PAUSA</h2>
-          <p class="hint pause-hint">[P]/[Esc] continuar · [1][2][3] velocidad x1/x1.5/x2 · [Espacio] ultimate</p>
-          ${buildDamageLegendHtml()}
-          <div class="theme-picker" role="radiogroup" aria-label="Tema de la interfaz">
-            ${buildThemeSwatches(loadTheme())}
-          </div>
-          <p class="theme-picker-label" data-theme-label>Tema: ${THEMES.find((t) => t.id === loadTheme())?.name ?? loadTheme()}</p>
-          <button class="btn" data-action="resume">▶ CONTINUAR</button>
-          ${exit('torretas', 'TORRETAS', UI_ICONS.torreta)}
-          ${exit('menu', 'MENÚ PRINCIPAL', UI_ICONS.menu)}
-          ${exit('select-stage', 'ELEGIR STAGE', UI_ICONS.batalla)}
-          ${p ? '<button class="btn ghost" data-abandon-cancel>SEGUIR JUGANDO</button>' : ''}
+      <section class="screen screen-pause">
+        <div class="panel pause-panel">
+          <header class="pause-head">
+            <p class="pause-kicker">SISTEMA EN PAUSA</p>
+            <h2 class="screen-title">PAUSA</h2>
+            ${chips ? `<div class="pause-status">${chips}</div>` : ''}
+          </header>
+
+          <button class="pause-cta" data-action="resume">
+            <span class="pause-cta-icon" aria-hidden="true">▶</span>
+            <span class="pause-cta-copy">
+              <span class="pause-cta-label">CONTINUAR</span>
+              <span class="pause-cta-sub">Volver al combate</span>
+            </span>
+            <span class="pause-cta-chevron" aria-hidden="true">›</span>
+          </button>
+
+          <section class="pause-group" aria-label="Salir de la run">
+            <p class="pause-group-title">SALIR DE LA RUN</p>
+            <div class="pause-grid">
+              ${exit('torretas', 'TORRETAS', UI_ICONS.torreta, 'Mejoras permanentes')}
+              ${exit('select-stage', 'ELEGIR STAGE', UI_ICONS.batalla, 'Abandonar y elegir')}
+              ${exit('menu', 'MENÚ PRINCIPAL', UI_ICONS.menu, 'Abandonar la run', true)}
+              ${p ? `<button class="pause-tile pause-tile-cancel" data-abandon-cancel>
+                <span class="pause-tile-icon" aria-hidden="true">${UI_ICONS.aviso}</span>
+                <span class="pause-tile-copy">
+                  <span class="pause-tile-title">SEGUIR JUGANDO</span>
+                  <span class="pause-tile-sub">Cancelar la salida</span>
+                </span>
+              </button>` : ''}
+            </div>
+          </section>
+
+          <section class="pause-data" aria-label="Matriz de daño">
+            <p class="pause-group-title">MATRIZ DE DAÑO</p>
+            ${buildDamageLegendHtml()}
+          </section>
+
+          <section class="pause-settings" aria-label="Tema de la interfaz">
+            <p class="pause-group-title">TEMA</p>
+            <div class="theme-picker" role="radiogroup" aria-label="Tema de la interfaz">
+              ${buildThemeSwatches(loadTheme())}
+            </div>
+            <p class="theme-picker-label" data-theme-label>Tema: ${esc(themeName)}</p>
+          </section>
+
+          <p class="pause-keys pause-hint">
+            <span><kbd>P</kbd><kbd>Esc</kbd> continuar</span>
+            <span><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> velocidad</span>
+            <span><kbd>Espacio</kbd> ultimate</span>
+            <span><kbd>B</kbd> black hole</span>
+          </p>
         </div>
       </section>`;
   }

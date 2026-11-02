@@ -326,6 +326,11 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 - HUD inferior: score + multiplicador.
 - Overlays: menú, selector, pausa, fin de stage, game over, cartas, perks,
   combo, torretas, protocolo y récords.
+- **Menú y pausa (1.12.4)**: consola de forja con CTA principal, tiles de
+  acciones y ajustes agrupados. La pausa separa `CONTINUAR` de `SALIR DE LA
+  RUN` y compacta la matriz de daño. El foco programático del encabezado no
+  dibuja outline; los controles conservan anillo de foco. Movimiento
+  escalonado con `prefers-reduced-motion` y sin sweep/sombras en calidad Baja.
 - El escenario de overlays es un nodo fijo fuera del marco: usa el alto real de
   la pantalla y permite scrollear las cartas.
 - El **STAGE CLEAR** es un modal con cabecera fija, cuerpo scrolleable y
@@ -381,7 +386,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1092 tests (1092 pass, 0 skip) en 36 archivos.
+- 1095 tests (1095 pass, 0 skip) en 36 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

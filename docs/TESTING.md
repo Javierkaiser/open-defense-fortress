@@ -6,7 +6,7 @@
 node --test "tests/test-*.mjs"
 ```
 
-Estado actual: **1092 tests** (1092 pass, 0 skip, 0 fail) en **36 archivos**.
+Estado actual: **1095 tests** (1095 pass, 0 skip, 0 fail) en **36 archivos**.
 
 Requisitos: Node 22 o superior.
 
@@ -81,25 +81,30 @@ Para eso hay **smoke manual** y una checklist Android (APK debug).
 
 1. `node scripts/serve.mjs 8080`.
 2. Abrir en Chrome a 390×844 (mobile emulation).
-3. Menú → JUGAR → Stage 1 → 60 s sin errores de consola.
-4. Probar pausa, velocidad ×2, Ultimate, Black Hole, cartas y combo.
-5. Probar tema, calidad Alta/Baja, “Reset Global” y “Nueva Partida+” (con la
+3. Menú: comprobar CTA `JUGAR`, grilla de tiles, NG+ bloqueado con candado
+   y que el título **no** tenga recuadro de foco. Repetir a 360×640: debe
+   scrollear sin overflow horizontal.
+4. Menú → JUGAR → Stage 1 → 60 s sin errores de consola.
+5. Pausa: comprobar `CONTINUAR`, grupo `SALIR DE LA RUN`, matriz de daño,
+   selector de tema y chips `kbd` en escritorio.
+6. Probar velocidad ×2, Ultimate, Black Hole, cartas y combo.
+7. Probar tema, calidad Alta/Baja, “Reset Global” y “Nueva Partida+” (con la
    campaña completa). Verificar que el STAGE CLEAR scrollee y que sus botones
    queden visibles a 360×640 y 390×844.
-6. Subir una torre a maestría 5 y comprobar el draft legendario (3/2/1), el
+8. Subir una torre a maestría 5 y comprobar el draft legendario (3/2/1), el
    badge `R2/2` de las doctrinas y la fila de drones con maestría.
-7. Elegir una carta de caza y confirmar que ninguna unidad sube nivel ni
+9. Elegir una carta de caza y confirmar que ninguna unidad sube nivel ni
    maestría (el multiplicador de familia sí debe aplicarse).
-8. Con la Rueda de Fuego y **Combustión Espontánea**, dejar enemigos lejanos:
-   debe apagarse como brasa humeante y reencenderse sobre el más avanzado.
-9. Abrir el desafío diario: la tarjeta debe decir `HEAT 39 · SIN CENSURA NI
-   ARSENAL · BONO ×1,5`; al jugar deben quedar 3 cartas por oferta y 5 slots.
-10. Arrancar el diario, volver al menú y reabrir el selector: la tarjeta debe
+10. Con la Rueda de Fuego y **Combustión Espontánea**, dejar enemigos lejanos:
+    debe apagarse como brasa humeante y reencenderse sobre el más avanzado.
+11. Abrir el desafío diario: la tarjeta debe decir `HEAT 39 · SIN CENSURA NI
+    ARSENAL · BONO ×1,5`; al jugar deben quedar 3 cartas por oferta y 5 slots.
+12. Arrancar el diario, volver al menú y reabrir el selector: la tarjeta debe
     quedar apagada con `JUGADO HOY · volvé mañana` y no debe abrir otra run.
-11. Probar el Black Hole con un racimo: debe aparecer sobre el grupo más
+13. Probar el Black Hole con un racimo: debe aparecer sobre el grupo más
     denso, no en una X random; revisar el dibujo en calidad Alta/Baja.
-12. Probar `SELECCIONAR STAGE`, `TORRETAS`, `PROTOCOLO` y `RÉCORDS`.
-13. Verificar que no haya requests de red en DevTools.
+14. Probar `SELECCIONAR STAGE`, `TORRETAS`, `PROTOCOLO` y `RÉCORDS`.
+15. Verificar que no haya requests de red en DevTools.
 
 ## Smoke Android (APK debug)
 
