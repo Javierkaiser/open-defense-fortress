@@ -554,7 +554,6 @@ export class Engine {
     // dev-7 fase 28: 3er cache para la niebla (8 gradientes radiales por
     // frame = 3.34 Mpx de relleno alpha, el mayor coste de fill-rate).
     this._fogCache = this._makeOffscreen();
-    this._fogFrameSkip = 0;
     this._fogDirty = true;
     // dev-7 fase 19: tope de partículas simultáneas — mutable en runtime
     // vía setParticleCap() (quality.js decide el valor; engine.js no lo
@@ -601,6 +600,8 @@ export class Engine {
     // Juice (presupuesto §4): pool con reciclado FIFO
     /** @type {Array} */
     this.particles = [];
+    /** 1.12.5: pool de partículas para no crear/GC 400 objetos/frame. */
+    this._particlePool = [];
     /** @type {Array} */
     this.floats = [];
     this.shakePx = 0;
@@ -1321,15 +1322,18 @@ export class Engine {
         vy = (dy / len) * spd;
         gravity = opts.gravity ?? 0;
       }
-      this.particles.push({
-        x, y,
-        vx, vy,
-        life: rand(opts.lifeMin ?? 0.35, opts.lifeMax ?? 0.7),
-        age: 0,
-        size: rand(opts.sizeMin ?? 1.5, opts.sizeMax ?? 3.5),
-        color,
-        gravity,
-      });
+      // 1.12.5: reciclar el objeto de la pool en vez de crear uno nuevo.
+      const p = this._particlePool.pop() ?? {};
+      p.x = x;
+      p.y = y;
+      p.vx = vx;
+      p.vy = vy;
+      p.life = rand(opts.lifeMin ?? 0.35, opts.lifeMax ?? 0.7);
+      p.age = 0;
+      p.size = rand(opts.sizeMin ?? 1.5, opts.sizeMax ?? 3.5);
+      p.color = color;
+      p.gravity = gravity;
+      this.particles.push(p);
     }
   }
 
@@ -1358,14 +1362,24 @@ export class Engine {
   }
 
   _updateParticles(dt) {
-    for (let i = this.particles.length - 1; i >= 0; i--) {
-      const p = this.particles[i];
+    // 1.12.5: compactación in-place + pool. Antes cada muerte hacía
+    // `splice(i,1)` (O(n)) y el objeto se tiraba al GC. Ahora se escribe
+    // con un índice y los muertos vuelven a `_particlePool`.
+    const list = this.particles;
+    let write = 0;
+    for (let i = 0; i < list.length; i++) {
+      const p = list[i];
       p.age += dt;
-      if (p.age >= p.life) { this.particles.splice(i, 1); continue; }
+      if (p.age >= p.life) {
+        if (this._particlePool.length < 400) this._particlePool.push(p);
+        continue;
+      }
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.vy += p.gravity * dt;
+      list[write++] = p;
     }
+    list.length = write;
     for (let i = this.floats.length - 1; i >= 0; i--) {
       const f = this.floats[i];
       f.age += dt;
@@ -1511,15 +1525,7 @@ export class Engine {
   // ---------- Render ----------
   render() {
     const ctx = this.ctx;
-    ctx.save();
-
-    // Shake acumulado (translate aleatorio dentro del radio actual)
-    if (this.shakePx > 0) {
-      ctx.translate(
-        rand(-this.shakePx, this.shakePx),
-        rand(-this.shakePx, this.shakePx),
-      );
-    }
+    ctx.save(); // capa 0: fondo estático
 
     // Fondo ESTÁTICO horneado (cielo + degradé + luna + nebulosa + tema).
     // Ya no hay planeta ni refresh periódico: un solo drawImage.
@@ -1527,6 +1533,20 @@ export class Engine {
     // v3 3c/7: modo night (fondo general) ↔ game según el tema activo
     this.stars.setMode((this.theme?.feature ?? 'rich') === 'night' ? 'night' : 'game');
     this.stars.draw(ctx);
+
+    // 1.12.5 — EL SHAKE MUEVE SOLO EL MUNDO, NO EL FONDO. Antes se
+    // traducía todo el canvas y los caches se bliteaban en 0,0: los
+    // bordes quedaban con píxeles viejos (smear). Ahora el cielo/estrellas
+    // quedan fijos y el mundo (plataforma, niebla, base, entidades, FX)
+    // se sacude sobre un fondo que siempre cubre el canvas.
+    ctx.save(); // capa 1: mundo
+    if (this.shakePx > 0) {
+      ctx.translate(
+        rand(-this.shakePx, this.shakePx),
+        rand(-this.shakePx, this.shakePx),
+      );
+    }
+
     // El halo de spawn ya vive horneado en el fondo estático.
     this._drawPlatform(ctx);
     this._drawFog(ctx);
@@ -1550,7 +1570,8 @@ export class Engine {
     // Juice encima
     this._drawJuice(ctx);
 
-    ctx.restore();
+    ctx.restore(); // fin capa mundo
+    ctx.restore(); // fin fondo
   }
 
   _drawSky(ctx) {
@@ -2769,11 +2790,10 @@ export class Engine {
       this._drawFogDirect(ctx, th);
       return;
     }
-    this._fogFrameSkip = (this._fogFrameSkip + 1) % 3;
-    // Flag propio: `_bgDirty` lo consume el refresh del fondo (que corre
-    // antes), así que la niebla necesita el suyo para invalidarse al
-    // cambiar de tema.
-    if (this._fogDirty || this._fogFrameSkip === 0) {
+    // 1.12.5: la niebla es ESTÁTICA. Antes se redibujaba cada 3 frames
+    // (7.6 MB de clear + 15 gradientes a DPR 2). La deriva era de 0.04-
+    // 0.12 rad/s: congelarla es imperceptible y elimina el trabajo.
+    if (this._fogDirty) {
       this._fogDirty = false;
       const fctx = this._fogCache.ctx;
       fctx.clearRect(0, 0, CONFIG.CANVAS_W, CONFIG.CANVAS_H);

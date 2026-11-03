@@ -779,9 +779,12 @@ html, body {
 .bar > span {
   display: block;
   height: 100%;
-  width: 0%;
+  width: 100%;
+  /* 1.12.5: transform en vez de width (compositor, no layout+paint). */
+  transform: scaleX(0);
+  transform-origin: left center;
   background: linear-gradient(90deg, var(--progress-neutral-deep), var(--progress-neutral));
-  transition: width .25s ease;
+  transition: transform .25s ease;
 }
 
 /* La barra de XP es la TEAL: es MI nivel, no el del mundo. */
@@ -965,9 +968,12 @@ html, body {
   display: block;
   height: 100%;
   width: 100%;
+  /* 1.12.5: transform en vez de width (sin layout por frame). */
+  transform: scaleX(1);
+  transform-origin: left center;
   background: linear-gradient(90deg, var(--boss-red-deep), var(--boss-red));
   box-shadow: 0 0 8px rgb(var(--boss-red-rgb) / .7);
-  transition: width .15s linear;
+  transition: transform .15s linear;
 }
 #boss-bar .boss-mult {
   font-family: var(--font-mono);

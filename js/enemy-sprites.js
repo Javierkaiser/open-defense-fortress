@@ -24,6 +24,22 @@ export function registerEnemyFactory(fn) {
 /** Fases horneadas por tipo (12 fps → loop de ~0,67 s). */
 const PHASES = 8;
 
+/**
+ * Tipos con ROTACIÓN CONTINUA del cuerpo. No se hornean como flipbook:
+ * se guarda UNA pose y la rotación se aplica en vivo con ctx.rotate.
+ * Hornear 8 fases de una rotación de `t*1.6` producía un salto visible
+ * cada 0,67 s (el atlas volvía a la fase 0). El flipbook sirve para
+ * deformaciones/pulsos, no para transforms continuos.
+ */
+const SPIN_TYPES = new Set([
+  'meteor', 'fragment', 'spore', 'boulder', 'crystal', 'geode',
+]);
+
+/** Cantidad de fases del atlas para un tipo (1 = rotación en runtime). */
+export function spritePhaseCount(type) {
+  return SPIN_TYPES.has(type) ? 1 : PHASES;
+}
+
 /** Caché por `type|dpr`. */
 const CACHE = new Map();
 
@@ -50,17 +66,18 @@ function bakeSheet(type, data, dpr) {
   // Caja lógica: cubre cuerpo + tentáculos/placas (hasta ~1,8 r).
   const box = Math.max(28, Math.ceil(r * 3.8));
   const cell = Math.max(24, Math.ceil(box * dpr));
+  const phases = spritePhaseCount(type);
   let cv;
   try {
     cv = document.createElement('canvas');
-    cv.width = cell * PHASES;
+    cv.width = cell * phases;
     cv.height = cell;
   } catch (_err) { return null; }
   let ctx;
   try { ctx = cv.getContext('2d'); } catch (_err) { return null; }
   if (!ctx) return null;
 
-  for (let i = 0; i < PHASES; i++) {
+  for (let i = 0; i < phases; i++) {
     let e;
     try {
       e = makeEnemy(type, {
@@ -75,7 +92,9 @@ function bakeSheet(type, data, dpr) {
     e.x = 0;
     e.y = 0;
     e.phase = 0;
-    e.t = (i / PHASES) * 0.9;
+    // 12 fps: la pose i representa t = i/12. Para spinners hay 1 sola
+    // pose (la rotación va en runtime).
+    e.t = phases === 1 ? 0 : i / 12;
     e.vel = 0;
     e.variants = [];
     e.flash = 0;
@@ -91,7 +110,7 @@ function bakeSheet(type, data, dpr) {
     try { e.draw(ctx); } catch (_err) { /* una fase rota no rompe el resto */ }
     ctx.restore();
   }
-  return { canvas: cv, cell, box, phases: PHASES, dpr };
+  return { canvas: cv, cell, box, phases, dpr };
 }
 
 /**

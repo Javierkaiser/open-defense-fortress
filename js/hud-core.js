@@ -2348,7 +2348,7 @@ export class HUD {
     if (pct !== this._lastBossPct) {
       this._lastBossPct = pct;
       if (this.el.bossFill) {
-        this.el.bossFill.style.width = `${pct}%`;
+        this.el.bossFill.style.transform = `scaleX(${pct / 100})`;
         this.el.bossFill.parentElement?.setAttribute('aria-valuenow', String(pct));
       }
     }
@@ -2439,7 +2439,7 @@ export class HUD {
       const pct = Math.round((s.progress ?? 0) * 100);
       if (pct !== this._lastProgressPct) {
         this._lastProgressPct = pct;
-        this.el.progress.style.width = `${pct}%`;
+        this.el.progress.style.transform = `scaleX(${pct / 100})`;
         this.el.progress.parentElement?.setAttribute('aria-valuenow', String(pct));
       }
     }
@@ -2471,7 +2471,7 @@ export class HUD {
       const pct = Math.round((s.xpFrac ?? 0) * 100);
       if (pct !== this._lastXpPct) {
         this._lastXpPct = pct;
-        this.el.xp.style.width = `${pct}%`;
+        this.el.xp.style.transform = `scaleX(${pct / 100})`;
         this.el.xp.parentElement?.setAttribute('aria-valuenow', String(pct));
       }
     }

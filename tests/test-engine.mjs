@@ -386,13 +386,16 @@ test('caches offscreen: existen y el fondo NO se redibuja en cada frame', () => 
     e._bgDirty = true;
     e._refreshBgCacheIfNeeded();
     assert.equal(skyRefreshes, 2, 'un cambio de tema/layout debe volver a hornearlo');
-    // Niebla: mismo criterio (1 de cada 3).
+    // Niebla: 1.12.5 es estática; se hornea 1 vez y solo se rehace si
+    // cambia el tema/layout/calidad.
     let fogRefreshes = 0;
     e._drawFogDirect = () => { fogRefreshes++; };
     const ctx = recordingCtx();
     for (let i = 0; i < 6; i++) e._drawFogCached(ctx, e.theme);
-    assert.ok(fogRefreshes < 6, `la niebla se redibuja cada frame (${fogRefreshes}/6)`);
-    assert.equal(fogRefreshes, 3, 'el cache de la niebla debería refrescar 1 de cada 3 frames');
+    assert.equal(fogRefreshes, 1, `la niebla debería hornearse 1 vez, no ${fogRefreshes}/6`);
+    e._fogDirty = true;
+    e._drawFogCached(ctx, e.theme);
+    assert.equal(fogRefreshes, 2, 'un cambio de tema/layout debe rehornearla');
   });
 });
 

@@ -1869,12 +1869,18 @@ export class Enemy {
       const box = spr.box;
       ctx.save();
       ctx.translate(this.x, this.y);
+      // 1.12.5: rotación CONTINUA en runtime. El atlas guarda la pose;
+      // hornear la rotación producía un salto cada 0,67 s.
+      const spin = this._spriteSpin();
+      if (spin) ctx.rotate(spin);
       ctx.scale(scale, scale);
       ctx.drawImage(
         spr.canvas,
         spr.sx, 0, spr.sw, spr.sh,
         -box / 2, -box / 2, box, box,
       );
+      // Las placas de la geoda no viven en el sprite: órbita propia.
+      if (this.type === 'geode') this._drawGeodePlates(ctx);
       this._drawLocalOverlays(ctx, threat);
       ctx.restore();
       ctx.restore(); // fin de draw()
@@ -1889,7 +1895,7 @@ export class Enemy {
     switch (visKey) {
       case 'crystal': { // diamante #E01818 con brillo #FFD0D0 y estela propia
         ctx.translate(this.x, this.y);
-        ctx.rotate(Math.sin(this.t * 1.5 + this.phase) * 0.2);
+        if (!this._bake) ctx.rotate(Math.sin(this.t * 1.5 + this.phase) * 0.2);
         const r = this.r;
         // Estética v3 4/7 (diseño base): halo pulsante que hace a la gema
         // "brillante" incluso sobre el fondo cálido del volcán.
@@ -1952,7 +1958,7 @@ export class Enemy {
       }
       case 'spore': { // bolita negra con púas + puntos rosados
         ctx.translate(this.x, this.y);
-        ctx.rotate(this.t * 2 + this.phase);
+        if (!this._bake) ctx.rotate(this.t * 2 + this.phase);
         ctx.fillStyle = d.body;
         ctx.beginPath();
         ctx.arc(0, 0, this.r * 0.8, 0, Math.PI * 2);
@@ -2012,7 +2018,7 @@ export class Enemy {
       }
       case 'boulder': { // roca maciza: placas frías, sin fuego, polvo
         ctx.translate(this.x, this.y);
-        ctx.rotate(this.t * 0.18 + this.phase * 0.1);
+        if (!this._bake) ctx.rotate(this.t * 0.18 + this.phase * 0.1);
         const r = this.r;
         ctx.fillStyle = d.dark;
         tracePoly(ctx, this.poly, r);
@@ -2095,7 +2101,7 @@ export class Enemy {
       }
       case 'geode': { // geoda: cuerpo de cristal + placas orbitantes
         ctx.translate(this.x, this.y);
-        ctx.rotate(this.t * 0.22 + this.phase * 0.2);
+        if (!this._bake) ctx.rotate(this.t * 0.22 + this.phase * 0.2);
         const r = this.r;
         ctx.fillStyle = d.dark;
         tracePoly(ctx, this.poly, r);
@@ -2114,26 +2120,10 @@ export class Enemy {
         ctx.arc(0, 0, r * 0.24, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 1;
-        // Placas vivas: una por cada `platesLeft`.
-        const left = Math.max(0, this.platesLeft ?? 0);
-        for (let i = 0; i < left; i++) {
-          const a = this.phase + (Math.PI * 2 * i) / Math.max(1, this.platesLeft + (3 - left))
-            + this.t * 0.8;
-          const px = Math.cos(a) * r * 1.22;
-          const py = Math.sin(a) * r * 1.22;
-          ctx.save();
-          ctx.translate(px, py);
-          ctx.rotate(a + this.t * 1.4);
-          ctx.fillStyle = d.crystal;
-          ctx.beginPath();
-          ctx.moveTo(0, -r * 0.28);
-          ctx.lineTo(r * 0.18, 0);
-          ctx.lineTo(0, r * 0.28);
-          ctx.lineTo(-r * 0.18, 0);
-          ctx.closePath();
-          ctx.fill();
-          ctx.restore();
-        }
+        // Placas vivas: una por cada `platesLeft`. En el bake se omiten
+        // (el sprite es solo el cuerpo); el camino de sprite las dibuja
+        // con su órbita propia, así no se pegan al giro del cuerpo.
+        if (!this._bake) this._drawGeodePlates(ctx);
         break;
       }
       case 'blob': { // masa roja/negra con protuberancias pulsantes
@@ -2274,7 +2264,7 @@ export class Enemy {
       }
       default: { // meteorito / fragmento: polígono irregular + cráteres/grietas blancas
         ctx.translate(this.x, this.y);
-        ctx.rotate(this.t * (this.type === 'fragment' ? 1.6 : 0.5) + this.phase);
+        if (!this._bake) ctx.rotate(this.t * (this.type === 'fragment' ? 1.6 : 0.5) + this.phase);
         ctx.fillStyle = d.body;
         tracePoly(ctx, this.poly, this.r);
         ctx.fill();
@@ -2340,6 +2330,54 @@ export class Enemy {
     ctx.restore(); // fin de la silueta
     ctx.restore(); // fin del pulso de escala
     ctx.restore(); // fin de draw()
+  }
+
+  /**
+   * 1.12.5 — Rotación de cuerpo para el camino de sprite. Es EXACTAMENTE
+   * la fórmula del arte procedural; el atlas ya no la hornea. Así el
+   * meteorito/fragmento gira continuo, sin el salto del flipbook.
+   * @returns {number} radianes (0 = sin rotación)
+   */
+  _spriteSpin() {
+    switch (this.type) {
+      case 'fragment': return this.t * 1.6 + this.phase;
+      case 'meteor': return this.t * 0.5 + this.phase;
+      case 'spore': return this.t * 2 + this.phase;
+      case 'boulder': return this.t * 0.18 + this.phase * 0.1;
+      case 'crystal': return Math.sin(this.t * 1.5 + this.phase) * 0.2;
+      case 'geode': return this.t * 0.22 + this.phase * 0.2;
+      default: return 0;
+    }
+  }
+
+  /**
+   * 1.12.5 — Placas orbitantes de la geoda. Viven fuera del sprite porque
+   * su órbita (t*0.8) y su giro (t*1.4) no son una rotación global del
+   * cuerpo; hornearlas producía el mismo salto que meteorito/fragmento.
+   * Se dibujan con el contexto ya trasladado/rotado al cuerpo.
+   */
+  _drawGeodePlates(ctx) {
+    const d = this.data;
+    const r = this.r;
+    const left = Math.max(0, this.platesLeft ?? 0);
+    for (let i = 0; i < left; i++) {
+      const a = this.phase + (Math.PI * 2 * i) / Math.max(1, this.platesLeft + (3 - left))
+        + this.t * 0.8;
+      const px = Math.cos(a) * r * 1.22;
+      const py = Math.sin(a) * r * 1.22;
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(a + this.t * 1.4);
+      ctx.fillStyle = d.crystal;
+      ctx.beginPath();
+      ctx.moveTo(0, -r * 0.28);
+      ctx.lineTo(r * 0.18, 0);
+      ctx.lineTo(0, r * 0.28);
+      ctx.lineTo(-r * 0.18, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
   }
 
   /**

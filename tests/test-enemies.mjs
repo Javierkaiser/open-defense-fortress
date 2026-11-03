@@ -30,7 +30,9 @@ import {
   ENEMY_TYPES, ENEMY_VARIANTS, Enemy, effectiveHpOf,
 } from '../js/enemies.js';
 import { renderEnemyIcon } from '../js/enemies-bestiary.js';
-import { enemySpriteFor, resetEnemySprites, warmEnemySprites } from '../js/enemy-sprites.js';
+import {
+  enemySpriteFor, resetEnemySprites, warmEnemySprites, spritePhaseCount,
+} from '../js/enemy-sprites.js';
 import { DAMAGE_TYPE_IDS, dmgMultiplier } from '../js/damagetypes.js';
 import { CONFIG } from '../js/engine.js';
 
@@ -64,8 +66,9 @@ function mkCtx() {
     globalAlpha: 1, globalCompositeOperation: 'source-over',
     fillStyle: '', strokeStyle: '', lineWidth: 1, lineCap: 'butt',
     shadowColor: '', shadowBlur: 0,
-    arcs: [], strokes: 0, drawImages: 0,
-    save: noop, restore: noop, translate: noop, rotate: noop, scale: noop,
+    arcs: [], strokes: 0, drawImages: 0, rotations: [],
+    save: noop, restore: noop, translate: noop, scale: noop,
+    rotate(a) { this.rotations.push(a); },
     drawImage() { this.drawImages += 1; },
     beginPath: noop, closePath: noop, moveTo: noop, lineTo: noop,
     quadraticCurveTo: noop, bezierCurveTo: noop,
@@ -522,6 +525,46 @@ test('atlas runtime: sin DOM devuelve null; con sprite, el cuerpo usa drawImage'
   assert.equal(ctx.drawImages, 1, 'el cuerpo se pinta con UN drawImage');
   assert.equal(ctx.arcs.length, 0, 'no se reconstruyen los arcos del cuerpo');
   resetEnemySprites();
+});
+
+test('atlas runtime: los spinners usan 1 fase y rotan en runtime', () => {
+  // Spinners: el flipbook de rotación producía un salto cada 0,67 s.
+  for (const type of ['meteor', 'fragment', 'spore', 'boulder', 'crystal', 'geode']) {
+    assert.equal(spritePhaseCount(type), 1, `${type} debe tener 1 pose`);
+  }
+  assert.equal(spritePhaseCount('blob'), 8, 'los cuerpos con pulso conservan 8 fases');
+
+  const game = mkGame();
+  const meteor = new Enemy('meteor', 270, { game, y: 600 });
+  meteor.t = 1;
+  const antes = meteor._spriteSpin();
+  meteor.t = 1.25;
+  const despues = meteor._spriteSpin();
+  assert.ok(Math.abs((despues - antes) - 0.25 * 0.5) < 1e-9,
+    'meteor gira 0.5 rad/s de forma continua');
+
+  meteor.t = 1;
+  meteor._spriteOverride = {
+    canvas: { width: 64, height: 64 },
+    sx: 0, sw: 64, sh: 64, box: 40, phases: 1,
+  };
+  const ctx = dibujar(meteor);
+  assert.equal(ctx.drawImages, 1);
+  assert.equal(ctx.rotations.length, 1, 'el sprite del meteorito rota en runtime');
+  assert.ok(Math.abs(ctx.rotations[0] - (1 * 0.5 + meteor.phase)) < 1e-9,
+    'la rotación coincide con la fórmula procedural');
+
+  // La geoda rota el cuerpo y ADEMÁS dibuja sus 3 placas orbitantes.
+  const geode = new Enemy('geode', 270, { game, y: 600 });
+  geode.t = 1;
+  geode.platesLeft = 3;
+  geode._spriteOverride = {
+    canvas: { width: 92, height: 92 },
+    sx: 0, sw: 92, sh: 92, box: 92, phases: 1,
+  };
+  const gctx = dibujar(geode);
+  assert.equal(gctx.rotations.length, 4,
+    'geoda: 1 rotación de cuerpo + 3 placas orbitantes');
 });
 
 // ============================================================

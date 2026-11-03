@@ -386,6 +386,19 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
   un `drawImage`. HP, estelas, variantes, veneno, flash y overlays siguen
   vivos. En Node (sin DOM) cae al dibujo procedural. En idle se
   pre-hornean todos los tipos no-jefe desde `main.js`.
+- **Rotaciones continuas fuera del atlas**: meteorito, fragmento, espora,
+  boulder, crystal y geoda se hornean en **1 pose** y giran con
+  `ctx.rotate` en runtime (`_spriteSpin`). Hornear la rotación en un
+  flipbook de 8 fases producía un salto visible cada 0,67 s. Las placas
+  de la geoda se dibujan vivas para conservar su órbita propia.
+- **Niebla estática** y **shake solo del mundo**: el fondo (cielo,
+  estrellas) no se traduce; el mundo (plataforma, niebla, base, entidades
+  y FX) sí. Se eliminó el smear de los bordes y el redibujado de niebla
+  cada 3 frames.
+- **Pool de partículas** con compactación in-place: sin `splice`/GC por
+  partícula muerta.
+- Barras del HUD con `transform: scaleX()` en vez de `width` (compositor,
+  no layout+paint).
 - `shadowBlur` sigue siendo caro: se eliminó de proyectiles, base, deck,
   floats y haces; el arte de enemigos lo paga solo al hornear el atlas.
   Calidad Baja lo anula en el resto.
@@ -409,7 +422,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1098 tests (1098 pass, 0 skip) en 36 archivos.
+- 1099 tests (1099 pass, 0 skip) en 36 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 
