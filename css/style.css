@@ -5823,14 +5823,14 @@ kbd {
 
 /* ---------- MODAL DE CARTAS ---------- */
 #card-choice {
-  gap: 10px;
-  padding: 12px;
+  gap: 12px;
+  padding: 14px;
   justify-content: flex-start;
   justify-content: safe center;
   background: rgba(4, 7, 10, .99);
 }
 #card-choice .card-title {
-  font-size: clamp(22px, 5.2vw, 30px);
+  font-size: clamp(26px, 6.2vw, 34px);
   letter-spacing: .05em;
   text-shadow: 0 0 10px rgb(var(--crit-gold-rgb) / .45);
   animation: none;
@@ -5840,28 +5840,28 @@ kbd {
   padding: 0 2px;
   color: var(--platform-light);
   font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: .12em;
+  font-size: 10px;
+  letter-spacing: .1em;
   text-transform: uppercase;
 }
 .card-head span:last-child { color: var(--hud-teal); }
 .own-row {
   width: min(520px, 100%);
   justify-content: flex-start;
-  gap: 5px;
+  gap: 6px;
 }
 .own-tower {
   border-radius: 0;
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
   border-color: rgb(var(--hud-teal-rgb) / .22);
   background: rgba(10, 18, 22, .72);
-  padding: 4px 8px;
+  padding: 5px 9px;
   color: var(--score-white);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
 }
 .own-tower b { font-weight: 700; }
-.own-tower i, .own-mastery { color: var(--crit-gold); font-size: 8px; }
+.own-tower i, .own-mastery { color: var(--crit-gold); font-size: 9px; }
 .combo-btn {
   border-radius: 0;
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
@@ -5870,13 +5870,15 @@ kbd {
   color: var(--hud-teal);
   box-shadow: none;
   font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: .06em;
-  padding: 5px 10px;
+  font-size: 10px;
+  letter-spacing: .05em;
+  padding: 6px 11px;
 }
 .combo-btn:hover { box-shadow: 0 0 10px rgb(var(--hud-teal-rgb) / .2); }
-.cards-row { gap: 8px; }
+.cards-row { gap: 10px; }
 .card-choice-card {
+  max-width: 190px;
+  padding: 13px 14px;
   border-radius: 0;
   clip-path: polygon(
     0 0, calc(100% - 10px) 0, 100% 10px,
@@ -5886,7 +5888,6 @@ kbd {
   border-left-width: 3px;
   background: linear-gradient(180deg, rgba(16, 28, 31, .96), rgba(8, 12, 16, .98));
   box-shadow: none;
-  padding: 10px;
   text-align: left;
   animation: none;
   transform: none;
@@ -5908,31 +5909,85 @@ kbd {
 }
 .card-inner {
   text-align: left;
-  gap: 6px;
-  padding-top: 12px;
+  gap: 8px;
+  padding-top: 15px;
 }
 .card-lv-badge {
-  top: 8px;
-  right: 8px;
+  top: 9px;
+  right: 9px;
   width: auto;
   height: auto;
-  min-width: 22px;
-  padding: 2px 5px;
+  min-width: 24px;
+  padding: 2px 6px;
   border-radius: 0;
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
   box-shadow: none;
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: 9px;
 }
 .card-lv-badge.is-legendary { width: auto; border-radius: 0; }
-.card-name { padding-right: 24px; font-size: var(--text-md); line-height: 1.15; }
-.card-gems { font-size: 9px; letter-spacing: .08em; text-shadow: none; }
-.card-rarity-label { margin: 0; font-family: var(--font-mono); font-size: 8px; letter-spacing: .08em; }
-.card-desc { font-size: 11px; line-height: 1.4; color: var(--platform-light); }
-.card-synergy { font-family: var(--font-mono); font-size: 8px; line-height: 1.3; }
-#card-choice .hint { margin-top: 2px; font-size: 10px; text-align: center; }
-.legendary-kicker { color: var(--crit-gold); font-size: 10px; }
+.card-name {
+  padding-right: 34px;
+  font-size: clamp(16px, 4.3vw, 20px);
+  line-height: 1.2;
+}
+.card-gems { font-size: 10px; letter-spacing: .08em; text-shadow: none; }
+.card-rarity-label {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: .1em;
+}
+.card-desc {
+  margin-top: 1px;
+  color: rgba(232, 255, 246, .92);
+  font-size: clamp(13px, 3.4vw, 15px);
+  font-weight: 600;
+  line-height: 1.5;
+}
+.card-synergy {
+  padding-top: 6px;
+  border-top: 1px solid rgba(159, 180, 200, .14);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+#card-choice .hint { margin-top: 2px; font-size: 11px; text-align: center; }
+.legendary-kicker { color: var(--crit-gold); font-size: 11px; }
 #card-choice[data-kind="legendary"] .card-title { color: var(--crit-gold); }
+
+@media (max-width: 430px) {
+  .cards-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    overflow-y: auto;
+    min-height: 0;
+    padding: 2px;
+  }
+  .card-choice-card {
+    width: 100%;
+    max-width: none;
+    flex: 0 0 auto;
+  }
+}
+
+/* Móviles bajos (360×640): las tres cartas apiladas no entran con el
+   ritmo grande. Se compacta solo el aire vertical (padding/gaps); las
+   descripciones conservan 14 px y las cartas no scrollean por dentro. */
+@media (max-width: 430px) and (max-height: 700px) {
+  #card-choice { padding: 10px; gap: 8px; }
+  #card-choice .card-title { font-size: 26px; }
+  .cards-row { gap: 8px; }
+  .card-choice-card { padding: 10px 12px; }
+  .card-inner { padding-top: 12px; gap: 6px; }
+  .card-synergy { padding-top: 4px; }
+  .card-head { font-size: 9px; }
+  .own-row { gap: 4px; }
+  .own-tower { padding: 4px 8px; font-size: 9px; }
+  .combo-btn { padding: 5px 9px; font-size: 9px; }
+  #card-choice .hint { font-size: 10px; }
+}
 
 /* ---------- PERK CHOICE ---------- */
 .perk-choice-row { gap: 8px; }

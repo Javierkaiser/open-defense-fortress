@@ -4,6 +4,25 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.12.7] — 2026-11-03
+
+### Legibilidad del modal de subida de nivel
+
+- Las cartas de mejora crecen a todo el ancho útil en móvil (hasta 190 px
+  por carta en escritorio) y las descripciones pasan a 14–15 px con más
+  interlineado y contraste. Los títulos también suben de tamaño.
+- El nombre de la carta, la rareza, la sinergia y el pie del modal ganan
+  aire y jerarquía; la sinergia se separa con una regla fina.
+- En móviles bajos (360×640) se compacta solo el espacio vertical: las
+  tres cartas entran sin scroll interno y conservan la tipografía grande.
+- En táctil el velo del modal es opaco, para que el texto no compita con
+  el HUD del combate de fondo.
+
+### Tests / versión
+
+- **1102 tests, 0 skip** (36 archivos).
+- Versión **1.12.7** / Android `versionCode 27`.
+
 ## [1.12.6] — 2026-11-03
 
 ### HUD: modernización de toda la interfaz restante

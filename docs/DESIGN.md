@@ -335,6 +335,10 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
   Protocolo, Récords, Créditos, Torretas/Bestiario/Progreso, cartas, perks,
   combo, STAGE CLEAR, GAME OVER, HUD de combate, avisos y boot. Candados SVG,
   texto del Protocolo corregido y overlay de cartas opaco en táctil.
+- **Legibilidad de cartas (1.12.7)**: descripciones a 14–15 px con interlineado
+  1,5, títulos más grandes y cartas a todo el ancho en móvil (190 px máximo en
+  escritorio). En pantallas de 360×640 se compacta solo el aire vertical para
+  que las tres cartas entren sin scroll; la tipografía no se reduce.
 - El escenario de overlays es un nodo fijo fuera del marco: usa el alto real de
   la pantalla y permite scrollear las cartas.
 - El **STAGE CLEAR** es un modal con cabecera fija, cuerpo scrolleable y
