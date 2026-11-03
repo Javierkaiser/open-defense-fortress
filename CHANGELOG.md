@@ -4,6 +4,60 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.12.6] — 2026-11-03
+
+### HUD: modernización de toda la interfaz restante
+
+- **Sistema visual de forja** extendido a selector de stages, Protocolo,
+  Récords, Créditos, Torretas/Bestiario/Progreso, cartas, perks, combo,
+  STAGE CLEAR, GAME OVER, HUD de combate, avisos y pantalla de carga.
+- Placas con esquina cortada, acentos por sección y botones/acciones
+  coherentes con el menú y la pausa de 1.12.4. Se mantienen los botones
+  redondos de pausa/velocidad/música/ultimate.
+- **Selector**: cabecera con kicker, filas de stage tipo mission strip,
+  candados SVG (se retiró el emoji `🔒`) y estados bloqueado/disponible
+  más legibles.
+- **Protocolo**: lectura de HEAT en dos columnas y texto corregido (∞ y
+  supervivencia sí aplican el Protocolo; el diario fuerza Heat 39).
+- **Torretas**: cards angulares, grilla de 2 columnas en móvil, candados
+  SVG y dock inferior rediseñado.
+- **Cartas/perks/combo**: fichas compactas con acento por rareza, sin
+  glass ni glow excesivo; overlay opaco en táctil.
+- **STAGE CLEAR / GAME OVER**: resúmenes en secciones y acciones con
+  jerarquía nueva (CTA principal + secundarias).
+- **HUD de combate**: paneles de stage/nivel/timer y score angulares;
+  controles redondos conservados.
+
+### Rotación de blobs
+
+- **Blob mediano (`miniBlob`)**: entra en `SPIN_TYPES` y rota en runtime
+  con 1 pose de atlas. Antes se horneaba en 8 fases y saltaba cada 0,67 s.
+- **Blob tanque (`blob`)**: parches, círculos internos y ojos se dibujan
+  vivos fuera del atlas (como las placas de la geoda); el pulso,
+  protuberancias y tentáculos siguen en el sprite.
+
+### Tests / versión
+
+- **1102 tests, 0 skip** (36 archivos).
+- Versión **1.12.6** / Android `versionCode 26`.
+
+## [1.12.5] — 2026-11-03
+
+### Performance
+
+- **Fondo estático sin planeta**: cielo, horizonte, luna, nebulosa,
+  decoración, halo de spawn y tinte se hornean una vez; se elimina
+  `_planetCache`.
+- **Atlas runtime de enemigos** (`enemy-sprites.js`): cuerpo en 8 fases,
+  dibujado con `drawImage`; HP, estelas, variantes, veneno y flashes
+  siguen vivos. Rotaciones continuas fuera del atlas para meteorito,
+  fragmento, espora, boulder, crystal y geoda.
+- Calidad **Auto** según dispositivo, blur DOM apagado en touch, render
+  throttle fuera de `PLAYING`, pool de partículas, niebla estática, shake
+  solo del mundo y barras del HUD con `transform: scaleX()`.
+- HUD: libera el DOM al entrar a jugar y pinta el bestiario al abrirlo.
+- **1099 tests** en su momento (sin bump de versión).
+
 ## [1.12.4] — 2026-11-02
 
 ### HUD: menú y pausa

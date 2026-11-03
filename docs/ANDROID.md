@@ -13,7 +13,7 @@ La firma AAB y Google Play quedan para la Etapa 3.
 | `minSdk` | 24 (Android 7) |
 | `compileSdk` / `targetSdk` | 36 (Android 16) |
 | Orientación | Portrait (con opt-out temporal para tablets) |
-| `versionCode` / `versionName` | 24 / 1.12.4 (`mobile/version.json`) |
+| `versionCode` / `versionName` | 26 / 1.12.6 (`mobile/version.json`) |
 | WebView mínimo | 111 (por `color-mix()` / `@container` / `dvh`) |
 
 ## Arquitectura

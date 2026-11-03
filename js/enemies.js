@@ -1881,6 +1881,8 @@ export class Enemy {
       );
       // Las placas de la geoda no viven en el sprite: órbita propia.
       if (this.type === 'geode') this._drawGeodePlates(ctx);
+      // 1.12.6: las capas rotantes del Blob tanque se dibujan vivas.
+      if (this.type === 'blob') this._drawBlobRotation(ctx);
       this._drawLocalOverlays(ctx, threat);
       ctx.restore();
       ctx.restore(); // fin de draw()
@@ -2136,18 +2138,6 @@ export class Enemy {
         ctx.arc(0, 0, this.r * pulse, 0, Math.PI * 2);
         ctx.fill();
         ctx.shadowBlur = 0;
-        // Parches ROJOS internos brillantes (v3.1, boss Stage 10): venas
-        // internas del virus visibles bajo la piel oscura.
-        for (let i = 0; i < 3; i++) {
-          const a = (Math.PI * 2 * i) / 3 + this.t * 0.35 + this.phase;
-          ctx.globalAlpha = 0.55 + 0.30 * Math.sin(this.t * 3 + i * 2);
-          ctx.fillStyle = d.body ?? '#C81E1E';
-          ctx.beginPath();
-          ctx.arc(Math.cos(a) * this.r * 0.34, Math.sin(a) * this.r * 0.34,
-            this.r * 0.20, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.globalAlpha = 1;
         // Protuberancias bulbosas periféricas (v3.1): bultos que respiran.
         ctx.fillStyle = d.dark ?? '#3A0C0C';
         for (let i = 0; i < 7; i++) {
@@ -2158,31 +2148,11 @@ export class Enemy {
             Math.sin(a) * this.r * pulse * 0.86, rr, 0, Math.PI * 2);
           ctx.fill();
         }
-        ctx.fillStyle = d.body;
-        for (let i = 0; i < 5; i++) {
-          const a = (Math.PI * 2 * i) / 5 + this.t * 0.6;
-          const rr = this.r * (0.32 + 0.1 * Math.sin(this.t * 3 + i * 1.7));
-          ctx.beginPath();
-          ctx.arc(Math.cos(a) * this.r * 0.55, Math.sin(a) * this.r * 0.55, rr, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        // CÚMULO DE OJOS blancos con pupila roja (v3.1, boss Stage 10).
-        const rE = Math.max(9, this.r * 0.42);
-        const eyeA = this.t * 0.5 + this.phase;
-        for (let i = 0; i < 5; i++) {
-          const a = eyeA + (Math.PI * 2 * i) / 5;
-          const ex = Math.cos(a) * rE * (i === 0 ? 0 : 0.62);
-          const ey = Math.sin(a) * rE * (i === 0 ? 0 : 0.62);
-          const er = i === 0 ? rE * 0.46 : rE * 0.24; // ojo central dominante
-          ctx.fillStyle = '#FFFFFF';
-          ctx.beginPath();
-          ctx.arc(ex, ey, er, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = '#E01818';
-          ctx.beginPath();
-          ctx.arc(ex, ey, er * 0.42, 0, Math.PI * 2);
-          ctx.fill();
-        }
+        // 1.12.6: las capas que giran (parches, círculos internos y ojos)
+        // viven FUERA del atlas. Hornearlas en 8 fases producía el mismo
+        // salto que meteorito/fragmento cada 0,67 s; el cuerpo, el pulso,
+        // las protuberancias y los tentáculos siguen en el sprite.
+        if (!this._bake) this._drawBlobRotation(ctx);
         // TENTÁCULOS cortos ondulantes en la base del blob (v3.1).
         ctx.strokeStyle = d.dark ?? '#3A0C0C';
         ctx.lineCap = 'round';
@@ -2346,8 +2316,59 @@ export class Enemy {
       case 'boulder': return this.t * 0.18 + this.phase * 0.1;
       case 'crystal': return Math.sin(this.t * 1.5 + this.phase) * 0.2;
       case 'geode': return this.t * 0.22 + this.phase * 0.2;
+      case 'miniBlob': return this.t * 0.5 + this.phase;
       default: return 0;
     }
+  }
+
+  /**
+   * 1.12.6 — Capas rotantes del Blob tanque. El cuerpo, el pulso, las
+   * protuberancias y los tentáculos viven en el atlas; los parches, los
+   * círculos internos y los ojos giran con `t` y se dibujan vivos para
+   * no saltar cada 0,67 s al reiniciar el flipbook de 8 fases.
+   */
+  _drawBlobRotation(ctx) {
+    const d = this.data;
+    const r = this.r;
+    ctx.save();
+    // Parches rojos internos brillantes.
+    for (let i = 0; i < 3; i++) {
+      const a = (Math.PI * 2 * i) / 3 + this.t * 0.35 + this.phase;
+      ctx.globalAlpha = 0.55 + 0.30 * Math.sin(this.t * 3 + i * 2);
+      ctx.fillStyle = d.body ?? '#C81E1E';
+      ctx.beginPath();
+      ctx.arc(Math.cos(a) * r * 0.34, Math.sin(a) * r * 0.34,
+        r * 0.20, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    // Círculos internos de la masa.
+    ctx.fillStyle = d.body;
+    for (let i = 0; i < 5; i++) {
+      const a = (Math.PI * 2 * i) / 5 + this.t * 0.6;
+      const rr = r * (0.32 + 0.1 * Math.sin(this.t * 3 + i * 1.7));
+      ctx.beginPath();
+      ctx.arc(Math.cos(a) * r * 0.55, Math.sin(a) * r * 0.55, rr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Cúmulo de ojos blancos con pupila roja.
+    const rE = Math.max(9, r * 0.42);
+    const eyeA = this.t * 0.5 + this.phase;
+    for (let i = 0; i < 5; i++) {
+      const a = eyeA + (Math.PI * 2 * i) / 5;
+      const ex = Math.cos(a) * rE * (i === 0 ? 0 : 0.62);
+      const ey = Math.sin(a) * rE * (i === 0 ? 0 : 0.62);
+      const er = i === 0 ? rE * 0.46 : rE * 0.24;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(ex, ey, er, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#E01818';
+      ctx.beginPath();
+      ctx.arc(ex, ey, er * 0.42, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
   }
 
   /**

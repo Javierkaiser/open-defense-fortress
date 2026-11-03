@@ -832,9 +832,12 @@ export class HUD {
    */
   _renderStageList(stages, endless = null, heat = null, survival = null) {
     return `
-      <section class="screen">
-        <div class="panel">
-          <h2 class="screen-title">SELECCIONAR STAGE</h2>
+      <section class="screen screen-select">
+        <div class="panel stage-panel">
+          <header class="forge-head">
+            <p class="forge-kicker">CAMPAÑA · ${STAGES.length} ETAPAS</p>
+            <h2 class="screen-title">SELECCIONAR STAGE</h2>
+          </header>
           ${buildStageList(stages, { familyOf: stageFamilyOf, endless, heat, survival })}
         </div>
       </section>`;
@@ -1108,14 +1111,16 @@ export class HUD {
   /** GAME OVER real (§2.10): score, stage alcanzado, kills. */
   _screenGameOver(d) {
     if (!d) {
-      return `<section class="screen"><div class="panel">
+      return `<section class="screen screen-gameover"><div class="panel">
+        <p class="forge-kicker">FIN DE LA RUN</p>
         <h2 class="screen-title danger"><img class="danger-icon" src="assets/sprites/ui_tinted/icon_boss_warning_red.png" alt="">LA BASE HA CAÍDO</h2>
         <button class="btn" data-action="menu">MENÚ</button>
       </div></section>`;
     }
     return `
-      <section class="screen">
+      <section class="screen screen-gameover">
         <div class="panel">
+          <p class="forge-kicker">FIN DE LA RUN</p>
           <h2 class="screen-title danger"><img class="danger-icon" src="assets/sprites/ui_tinted/icon_boss_warning_red.png" alt="">LA BASE HA CAÍDO</h2>
           <p class="hint">${esc(d.stageName)}</p>
           <dl class="summary">

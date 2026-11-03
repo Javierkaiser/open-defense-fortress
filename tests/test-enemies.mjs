@@ -523,13 +523,14 @@ test('atlas runtime: sin DOM devuelve null; con sprite, el cuerpo usa drawImage'
   };
   const ctx = dibujar(e);
   assert.equal(ctx.drawImages, 1, 'el cuerpo se pinta con UN drawImage');
-  assert.equal(ctx.arcs.length, 0, 'no se reconstruyen los arcos del cuerpo');
+  assert.ok(ctx.arcs.length >= 8,
+    'las capas rotantes del blob (parches/círculos/ojos) se dibujan vivas');
   resetEnemySprites();
 });
 
 test('atlas runtime: los spinners usan 1 fase y rotan en runtime', () => {
   // Spinners: el flipbook de rotación producía un salto cada 0,67 s.
-  for (const type of ['meteor', 'fragment', 'spore', 'boulder', 'crystal', 'geode']) {
+  for (const type of ['meteor', 'fragment', 'spore', 'boulder', 'crystal', 'geode', 'miniBlob']) {
     assert.equal(spritePhaseCount(type), 1, `${type} debe tener 1 pose`);
   }
   assert.equal(spritePhaseCount('blob'), 8, 'los cuerpos con pulso conservan 8 fases');
@@ -565,6 +566,24 @@ test('atlas runtime: los spinners usan 1 fase y rotan en runtime', () => {
   const gctx = dibujar(geode);
   assert.equal(gctx.rotations.length, 4,
     'geoda: 1 rotación de cuerpo + 3 placas orbitantes');
+
+  // El Blob mediano usa el polígono rotante del default: antes quedaba
+  // horneado en 8 fases y saltaba cada 0,67 s.
+  const mini = new Enemy('miniBlob', 270, { game, y: 600 });
+  mini.t = 1;
+  const miniAntes = mini._spriteSpin();
+  mini.t = 1.25;
+  assert.ok(Math.abs((mini._spriteSpin() - miniAntes) - 0.25 * 0.5) < 1e-9,
+    'miniBlob gira 0.5 rad/s de forma continua');
+  mini.t = 1;
+  mini._spriteOverride = {
+    canvas: { width: 64, height: 64 },
+    sx: 0, sw: 64, sh: 64, box: 64, phases: 1,
+  };
+  const mctx = dibujar(mini);
+  assert.equal(mctx.drawImages, 1);
+  assert.equal(mctx.rotations.length, 1, 'el Blob mediano rota en runtime');
+  assert.ok(Math.abs(mctx.rotations[0] - (1 * 0.5 + mini.phase)) < 1e-9);
 });
 
 // ============================================================

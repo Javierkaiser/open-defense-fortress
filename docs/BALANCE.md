@@ -527,6 +527,9 @@ legendarias, no la curva base.
   bajo el umbral para el atacante con execute. La economía pasa a ser de
   **farmeo**: el S50 no se alcanza en una pasada. Detalle en §"El bucle de
   farmeo".
+- **Ronda 1.12.6**: modernización de toda la interfaz restante con el
+  sistema de forja y fix de rotación de `miniBlob`/`blob`. Sin cambios de
+  lógica, dificultad ni recompensas.
 - **Ronda 1.12.4**: rediseño estético del menú principal y la pausa
   (consola de forja, tiles de acción y foco del título corregido). Sin
   cambios de lógica, dificultad ni recompensas.

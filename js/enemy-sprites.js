@@ -32,7 +32,7 @@ const PHASES = 8;
  * deformaciones/pulsos, no para transforms continuos.
  */
 const SPIN_TYPES = new Set([
-  'meteor', 'fragment', 'spore', 'boulder', 'crystal', 'geode',
+  'meteor', 'fragment', 'spore', 'boulder', 'crystal', 'geode', 'miniBlob',
 ]);
 
 /** Cantidad de fases del atlas para un tipo (1 = rotación en runtime). */

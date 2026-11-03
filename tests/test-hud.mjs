@@ -1494,7 +1494,35 @@ test('T1: cada fila tiene IDENTIDAD (punto de tema, insignia BOSS, récord)', ()
   assert.ok(html.includes('récord 012345'), 'el mejor récord se sigue mostrando');
   assert.ok(html.includes('data-stage="37"'), 'la fila conserva el data-stage');
   assert.ok(html.includes('disabled'), 'los stages bloqueados siguen deshabilitados');
-  assert.ok(html.includes('🔒'), 'el candado sigue avisando');
+  assert.ok(html.includes('próximamente'), 'el candado sigue avisando');
+  assert.ok(html.includes('class="lock"') && html.includes('<svg'),
+    'el candado usa el icono SVG de la UI, no un emoji');
+});
+
+test('1.12.6: el selector usa la placa de forja y el candado SVG', () => {
+  const hud = Object.create(HUD.prototype);
+  const html = hud._renderStageList(fakeStages(10));
+  assert.ok(html.includes('screen screen-select'), 'la pantalla lleva su clase propia');
+  assert.ok(html.includes('stage-panel'), 'el panel usa la placa de forja');
+  assert.ok(html.includes('CAMPAÑA · 50 ETAPAS'), 'el kicker contextual');
+  assert.ok(html.includes('próximamente'), 'los stages bloqueados avisan');
+  assert.ok(html.includes('<svg'), 'el candado es un icono SVG, no un emoji');
+});
+
+test('1.12.6: el Protocolo corrige el texto y usa cabecera de forja', () => {
+  const html = buildProtocolHtml({
+    total: 39, best: 0, preset: null, mods: {}, conds: [], presets: [],
+  });
+  assert.ok(html.includes('forge-kicker'), 'tiene kicker de sección');
+  assert.ok(html.includes('Se aplica a campaña, ∞ y supervivencia'),
+    'el ∞ y la supervivencia sí aplican el Protocolo');
+  assert.ok(html.includes('el diario fuerza Heat 39'), 'el diario tiene su propio Heat');
+});
+
+test('1.12.6: las cards bloqueadas de torretas usan candado SVG', () => {
+  const html = buildTorretasScreen(defaultMeta());
+  assert.ok(html.includes('meta-card-lock'), 'la card bloqueada conserva su estado');
+  assert.ok(html.includes('<svg'), 'el candado es un icono SVG');
 });
 
 test('T1: destacan la siguiente disponible y el mejor récord', () => {

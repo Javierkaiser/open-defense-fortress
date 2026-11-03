@@ -487,7 +487,7 @@ export function stageRowHtml(s, hl = {}) {
   const record = s?.bestScore != null
     ? `<small class="ok">récord ${String(Math.floor(s.bestScore)).padStart(6, '0')}</small>`
     : (s?.unlocked ? '<small class="ok">disponible</small>' : '');
-  const lock = s?.unlocked ? '' : '<small class="lock">🔒 próximamente</small>';
+  const lock = s?.unlocked ? '' : `<small class="lock">${UI_ICONS.candado} próximamente</small>`;
   const boss = s?.boss ? '<span class="stage-boss">BOSS</span>' : '';
   const flag = id === hl.nextId ? '<span class="stage-flag">▶</span>' : '';
   return `
@@ -859,6 +859,7 @@ export function protocolRowHtml(c, rank) {
 export function buildProtocolHtml(data) {
   if (!data || typeof data !== 'object') {
     return `
+      <p class="forge-kicker">DIFICULTAD · TODOS LOS MODOS</p>
       <h2 class="screen-title">PROTOCOLO DE ASEDIO</h2>
       <p class="hint">Protocolo no disponible: volvé a entrar desde el menú.</p>
       <button class="btn ghost" data-action="heat-close">VOLVER</button>`;
@@ -884,6 +885,7 @@ export function buildProtocolHtml(data) {
     .map((c) => protocolRowHtml(c, heatInt(mods[c.id])))
     .join('');
   return `
+    <p class="forge-kicker">DIFICULTAD · TODOS LOS MODOS</p>
     <h2 class="screen-title">PROTOCOLO DE ASEDIO</h2>
     <div class="protocol-head">
       <div class="protocol-total">
@@ -896,7 +898,7 @@ export function buildProtocolHtml(data) {
         ${presetId == null ? '<span class="protocol-custom">personalizado</span>' : ''}
       </div>
     </div>
-    <p class="hint protocol-hint">Cada rango suma heat y dificultad. Se aplica a las etapas de CAMPAÑA; el ∞ y el diario juegan sin Protocolo. Perder no baja el heat ni el récord.</p>
+    <p class="hint protocol-hint">Cada rango suma heat y dificultad. Se aplica a campaña, ∞ y supervivencia; el diario fuerza Heat 39 (sin Censura ni Arsenal). Perder no baja el heat ni el récord.</p>
     <div class="protocol-presets" role="group" aria-label="Presets del protocolo">${presetsHtml}</div>
     <div class="protocol-list">${rowsHtml}</div>
     <button class="btn ghost" data-action="heat-close">VOLVER</button>`;
@@ -1030,6 +1032,7 @@ export function buildRecordsHtml(data) {
     </div>`;
   if (!data || typeof data !== 'object') {
     return `
+      <p class="forge-kicker">PROGRESO · CINCO MODOS</p>
       <h2 class="screen-title">RÉCORDS</h2>
       <p class="hint">Récords no disponibles: volvé a entrar desde el menú.</p>
       ${volver}`;
@@ -1091,6 +1094,7 @@ export function buildRecordsHtml(data) {
   ].join('');
 
   return `
+    <p class="forge-kicker">PROGRESO · CINCO MODOS</p>
     <h2 class="screen-title">RÉCORDS</h2>
     <p class="hint">Los cinco modos, en un solo sitio. Perder nunca baja un récord.</p>
     <div class="records-grid">${rows}</div>
@@ -1225,6 +1229,7 @@ export function buildCreditsHtml() {
   }).join('');
 
   return `
+    <p class="forge-kicker">OPEN DEFENSE FORTRESS · 100 % OFFLINE</p>
     <h2 class="screen-title">CRÉDITOS Y LICENCIAS</h2>
     <p class="credits-lead">Open Defense Fortress es un juego 100 % offline: todo el arte,
       el audio y las tipografías viajan con el juego. Acá está quién hizo cada pieza y bajo
@@ -2022,7 +2027,7 @@ function buildLockedTowerCard(t, gold, unlockArmed) {
     <div class="meta-card locked">
       <span class="meta-card-name">${t.name}</span>
       <canvas class="meta-card-icon" width="84" height="72" data-meta-icon="${t.key}"></canvas>
-      <span class="meta-card-lock">BLOQUEADA · Coste ${cost}●</span>
+      <span class="meta-card-lock">${UI_ICONS.candado} BLOQUEADA · Coste ${cost}●</span>
       <button class="meta-unlock${armed ? ' armed' : ''}" data-meta-unlock="${t.key}"
         ${missing > 0 ? 'disabled' : ''}
         title="Desbloqueá ${attr(t.name)} con ${cost} de oro: queda disponible en las cartas de partida">${armed ? '¿SEGURO? ' : ''}${label}</button>

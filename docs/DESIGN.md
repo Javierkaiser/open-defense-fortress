@@ -331,6 +331,10 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
   RUN` y compacta la matriz de daño. El foco programático del encabezado no
   dibuja outline; los controles conservan anillo de foco. Movimiento
   escalonado con `prefers-reduced-motion` y sin sweep/sombras en calidad Baja.
+- **Resto de la UI (1.12.6)**: la misma placa de forja se aplica a selector,
+  Protocolo, Récords, Créditos, Torretas/Bestiario/Progreso, cartas, perks,
+  combo, STAGE CLEAR, GAME OVER, HUD de combate, avisos y boot. Candados SVG,
+  texto del Protocolo corregido y overlay de cartas opaco en táctil.
 - El escenario de overlays es un nodo fijo fuera del marco: usa el alto real de
   la pantalla y permite scrollear las cartas.
 - El **STAGE CLEAR** es un modal con cabecera fija, cuerpo scrolleable y
@@ -387,10 +391,11 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
   vivos. En Node (sin DOM) cae al dibujo procedural. En idle se
   pre-hornean todos los tipos no-jefe desde `main.js`.
 - **Rotaciones continuas fuera del atlas**: meteorito, fragmento, espora,
-  boulder, crystal y geoda se hornean en **1 pose** y giran con
-  `ctx.rotate` en runtime (`_spriteSpin`). Hornear la rotación en un
-  flipbook de 8 fases producía un salto visible cada 0,67 s. Las placas
-  de la geoda se dibujan vivas para conservar su órbita propia.
+  boulder, crystal, geoda y **Blob mediano** (`miniBlob`) se hornean en
+  **1 pose** y giran con `ctx.rotate` en runtime (`_spriteSpin`). Hornear
+  la rotación en un flipbook de 8 fases producía un salto visible cada
+  0,67 s. Las placas de la geoda y las capas rotantes del Blob tanque
+  (parches/círculos/ojos) se dibujan vivas fuera del sprite.
 - **Niebla estática** y **shake solo del mundo**: el fondo (cielo,
   estrellas) no se traduce; el mundo (plataforma, niebla, base, entidades
   y FX) sí. Se eliminó el smear de los bordes y el redibujado de niebla
@@ -422,7 +427,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1099 tests (1099 pass, 0 skip) en 36 archivos.
+- 1102 tests (1102 pass, 0 skip) en 36 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 
