@@ -259,7 +259,7 @@ export function buildDamageLegendHtml() {
       const mul = dmgMultiplier(d, f);
       const cls = mul > 1 ? 'leg-weak' : mul < 1 ? 'leg-resist' : '';
       const mark = mul > 1 ? '▲' : mul < 1 ? '▼' : '·';
-      return `<td class="${cls}">${mul.toFixed(1).replace('.', ',')}${mark}</td>`;
+      return `<td class="${cls}" data-label="${ENEMY_FAMILIES[f].name}">${mul.toFixed(1).replace('.', ',')}${mark}</td>`;
     }).join('');
     return `<tr><th><span class="leg-glyph" style="color:${DAMAGE_TYPES[d].color}">${DAMAGE_TYPES[d].glyph}</span>${DAMAGE_TYPES[d].name}</th>${cells}</tr>`;
   }).join('');

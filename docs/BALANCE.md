@@ -527,6 +527,9 @@ legendarias, no la curva base.
   bajo el umbral para el atacante con execute. La economía pasa a ser de
   **farmeo**: el S50 no se alcanza en una pasada. Detalle en §"El bucle de
   farmeo".
+- **Ronda 1.13.0**: legibilidad global (piso tipográfico de 15 px, reflow y
+  scroll en todas las pantallas, objetivos táctiles de 44–48 px). Sin cambios
+  de lógica, dificultad ni recompensas.
 - **Ronda 1.12.7**: legibilidad del modal de subida de nivel (tipografía,
   ancho de cartas y aire vertical). Sin cambios de lógica, dificultad ni
   recompensas.

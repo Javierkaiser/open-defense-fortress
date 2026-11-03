@@ -15,7 +15,7 @@
    STAGE deja de ser teal (era el mismo degradado que la barra de XP y
    no se distinguían); ahora es neutra y el teal es SÓLO el acento de
    la UI (mi nivel). ESCALA TIPOGRÁFICA: 21 tamaños en px → 6 tokens
-   (--text-xs..--text-2xl) con piso de 11 px. LOS BOTONES SON CSS: el
+   (--text-xs..--text-2xl) con piso de 15 px desde 1.13.0. LOS BOTONES SON CSS: el
    PNG button_rect_gloss_teal.png era el único resto del tema que no
    se reskineaba. Y un VELO COMPARTIDO (.overlay-veil) para los
    overlays (modal de cartas y panel de combos).
@@ -222,18 +222,18 @@
   /* Alias de la fuente de display (la usan #boot-error y .screen-title). */
   --font-display: var(--font-title);
 
-  /* ---------- dev-7 fase 45: ESCALA TIPOGRÁFICA ----------
-     Antes había 21 tamaños distintos en px (y 27 declaraciones por
-     debajo de 11 px, ilegibles en un teléfono de 390 px). Esta es la
-     escala corta: seis peldaños y nada más. El PISO es 11 px
-     (--text-xs): no queda ninguna declaración de font-size por
-     debajo. */
-  --text-xs: 11px;   /* micro-etiquetas: rareza, "NUEVO", frags, píldoras */
-  --text-sm: 12px;   /* texto secundario: descripciones, celdas, píldoras */
-  --text-md: 14px;   /* texto normal: botones, filas, cifras de apoyo */
-  --text-lg: 17px;   /* encabezados: nombre del stage, resumen, botones */
-  --text-xl: 22px;   /* CTA y títulos de pantalla */
-  --text-2xl: 30px;  /* la cifra grande del banner de nivel */
+  /* ---------- 1.13.0: ESCALA TIPOGRÁFICA ----------
+     La escala anterior arrancaba en 11 px y el pase de forja metió
+     decenas de tamaños crudos de 8-10 px. En un teléfono de 390 px eso
+     era ilegible. Ahora el PISO es 15 px (--text-xs): ningún texto
+     visible baja de ahí y las descripciones usan 16 px. Si una pantalla
+     no entra, scrollea o reflowa; no se achica la letra. */
+  --text-xs: 15px;   /* piso absoluto: micro-etiquetas, badges, legales */
+  --text-sm: 16px;   /* texto secundario: descripciones, celdas, píldoras */
+  --text-md: 18px;   /* texto normal: botones, filas, cifras de apoyo */
+  --text-lg: 21px;   /* encabezados: nombre del stage, resumen, botones */
+  --text-xl: 26px;   /* CTA y títulos de pantalla */
+  --text-2xl: 36px;  /* la cifra grande del banner de nivel */
 
   /* ---------- dev-7 fase 53: ESCALA DE TRACKING ----------
      56 declaraciones de letter-spacing con 12 valores distintos (.2 .3
@@ -638,13 +638,13 @@ html, body {
 [data-narrow] .hud-stage { order: 2; flex: 1 1 110px; }
 [data-narrow] .hud-lv { order: 3; min-width: 72px; }
 [data-narrow] .hud-timer { order: 4; }
-[data-narrow] .btn-round { width: 40px; height: 40px; }
+[data-narrow] .btn-round { width: 48px; height: 48px; }
 
 /* El score compacto en marco estrecho: el panel grande (372 px de los
    374 del marco) tapaba el arco de HP de la base y el domo. */
-[data-narrow] .hud-score { padding: 3px 9px 4px; gap: 6px; }
-[data-narrow] .score-label { display: none; }
-[data-narrow] .score-value { font-size: var(--text-xl); }
+[data-narrow] .hud-score { padding: 5px 11px 6px; gap: 8px; }
+[data-narrow] .score-label { display: inline; }
+[data-narrow] .score-value { font-size: var(--text-2xl); }
 
 /* Botones circulares oscuros 44px con icono teal (§4.4) — estética v3.1 B:
    borde teal #35E0C8 más presente, fondo #0F2A28 alpha e iconos definidos
@@ -932,7 +932,7 @@ html, body {
 /* dev-7 fase 44: en marco estrecho el HUD ocupa DOS filas (90 px) y la
    tira de estado llega a y=123: con los 88 px de arriba la barra de jefe
    la pisaba. En marco ancho (88 px) queda como estaba. */
-[data-narrow] #boss-bar { top: 136px; }
+[data-narrow] #boss-bar { top: 156px; }
 #boss-bar .boss-tag {
   font-family: var(--font-title);
   font-weight: 700;
@@ -1157,7 +1157,7 @@ html, body {
      corona): es el subtitulo display del titulo del juego y va en .55em
      para acompanar al `clamp()` del titulo. Con un peldano fijo se
      descuadraria en pantallas grandes. */
-  font-size: .55em;
+  font-size: max(15px, .55em);
   color: var(--hud-teal);
   text-shadow: 0 0 12px rgb(var(--hud-teal-rgb) / .55);
   letter-spacing: 8px;
@@ -1176,7 +1176,7 @@ html, body {
 .screen-title.danger { color: var(--boss-red); text-shadow: 0 0 14px rgb(var(--boss-red-rgb) / .55); }
 .screen-title.gold { color: var(--crit-gold); text-shadow: 0 0 14px rgb(var(--crit-gold-rgb) / .55); }
 
-.hint { color: var(--platform-light); font-size: var(--text-md); font-family: var(--font-mono); }
+.hint { color: var(--platform-light); font-size: var(--text-sm); font-family: var(--font-body); line-height: 1.45; }
 
 /* dev-7 fase 44 — el hint de TECLADO de la pantalla de pausa
    ("[P]/[Esc] continuar · [1][2][3] velocidad…") no sirve en un
@@ -1775,7 +1775,7 @@ html, body {
      - clamp() pone piso 180px para que nunca colapse en pantallas mínimas.
      La primera línea es el fallback (navegadores sin dvh/clamp). */
   max-height: 58vh;
-  max-height: clamp(180px, calc(100dvh - 330px), 58vh);
+  max-height: clamp(160px, calc(100dvh - 370px), 58vh);
   overflow-y: auto;
   overflow-x: hidden;
   touch-action: pan-y;
@@ -1827,13 +1827,13 @@ html, body {
   font-size: var(--text-xs);
   line-height: 1.35;
 }
-.credits-dl dt { color: rgb(var(--hud-teal-rgb) / .9); text-transform: uppercase; letter-spacing: .06em; font-size: 10px; padding-top: 2px; }
+.credits-dl dt { color: rgb(var(--hud-teal-rgb) / .9); text-transform: uppercase; letter-spacing: .06em; font-size: var(--text-xs); padding-top: 2px; }
 .credits-dl dd { margin: 0; color: rgba(214, 228, 232, .86); overflow-wrap: anywhere; }
-.credits-dl code { font-family: var(--font-mono); font-size: 10.5px; color: var(--crit-gold); }
+.credits-dl code { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--crit-gold); }
 /* Las URLs son TEXTO, no <a>: el juego no tiene ni un ancla y en el APK un
    link abriría un webview encima de la partida. `user-select: all` las hace
    copiables de un tirón. */
-.credits-url { font-family: var(--font-mono); font-size: 10.5px; color: rgb(var(--crit-gold-rgb) / .92); user-select: all; overflow-wrap: anywhere; }
+.credits-url { font-family: var(--font-mono); font-size: var(--text-xs); color: rgb(var(--crit-gold-rgb) / .92); user-select: all; overflow-wrap: anywhere; }
 .credits-row {
   display: flex;
   flex-wrap: wrap;
@@ -1851,9 +1851,9 @@ html, body {
 .credits-legal {
   margin: 8px 0 2px;
   font-family: var(--font-mono);
-  /* 9,5 px a propósito: acá van ~700 líneas de texto legal; con --text-xs
-     (11 px) el bloque se vuelve una pared ilegible en 390 px de ancho. */
-  font-size: 9.5px;
+  /* El texto legal usa el MISMO piso de 15 px que el resto. El bloque
+     scrollea; no se achica la letra para que entren más líneas. */
+  font-size: var(--text-xs);
   line-height: 1.45;
   white-space: pre-wrap;      /* el texto legal se lee verbatim, con sus saltos */
   overflow-wrap: anywhere;
@@ -1876,7 +1876,7 @@ html, body {
 @media (max-height: 640px) {
   .credits-panel .screen-title { font-size: var(--text-lg); }
   .credits-lead { font-size: var(--text-xs); line-height: 1.35; }
-  .credits-scroll { max-height: clamp(140px, calc(100dvh - 265px), 52vh); }
+  .credits-scroll { max-height: clamp(140px, calc(100dvh - 370px), 52vh); }
 }
 
 /* ---------- Botones (chaflán + glow teal) ----------
@@ -2432,10 +2432,10 @@ html, body {
 
 /* dev-7 fase 13: selector de temas en el MENÚ (theme.js) */
 .theme-picker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 8px;
+  width: 100%;
   margin: 10px 0 0;
 }
 /* dev-7 fase 44 — los swatches eran CÍRCULOS pastel: la única
@@ -2454,9 +2454,10 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  width: 58px;
-  padding: 3px 2px 4px;
+  gap: 5px;
+  width: auto;
+  min-width: 0;
+  padding: 5px 4px 7px;
   border-radius: var(--radius-m);
   border: 1.5px solid rgb(var(--hud-teal-rgb) / .45);
   cursor: pointer;
@@ -2521,6 +2522,7 @@ html, body {
   margin-top: 10px;
 }
 .quality-btn {
+  min-height: 44px;
   padding: 6px var(--space-4);
   font-family: var(--font-body);
   font-weight: 700;
@@ -3087,11 +3089,11 @@ html, body {
 
 /* Panel COMBO LIST (BUG-005) reutiliza el mismo modal */
 .combo-panel {
-  width: min(360px, 88%);
+  width: min(420px, 94%);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  max-height: 60vh;
+  max-height: 70vh;
   overflow-y: auto;
   touch-action: pan-y; /* deslizar con el dedo */
 }
@@ -3336,16 +3338,20 @@ html, body {
 /* ---------- Banner "¿Cómo subo de nivel?" (antes: DAÑO CRÍTICO falso) --- */
 .meta-banner {
   flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--space-1);
+  column-gap: 10px;
   padding: var(--space-3) var(--space-4) 9px;
   background: rgba(15, 42, 40, .72);
   border: 1px solid rgb(var(--hud-teal-rgb) / .4);
   border-radius: var(--radius-m);
   box-shadow: 0 0 14px rgb(var(--hud-teal-rgb) / .18), inset 0 0 14px rgba(15, 42, 40, .5);
 }
+.meta-banner-label,
+.meta-banner-val { grid-column: 1; text-align: left; }
+.meta-banner-toggle { grid-column: 2; grid-row: 1 / span 2; }
+.meta-banner-more { grid-column: 1 / -1; }
 .meta-banner-label {
   font-family: var(--font-body);
   font-weight: 700;
@@ -3378,8 +3384,8 @@ html, body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 44px;
+  height: 44px;
   flex: 0 0 auto;
   padding: 0;
   font-family: var(--font-title);
@@ -3444,15 +3450,16 @@ html, body {
 /* La sección de progreso: las mismas filas que usaba el panel. */
 .meta-section#meta-progreso .meta-def-row {
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 9px 10px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  padding: 10px 11px;
   border-bottom: 1px solid rgb(var(--hud-teal-rgb) / .18);
 }
 .meta-section#meta-progreso .meta-def-k {
   font-family: var(--font-body);
   font-weight: 700;
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   letter-spacing: var(--tracking-narrow);
   color: var(--platform-light);
 }
@@ -3461,7 +3468,9 @@ html, body {
   font-weight: 700;
   font-size: var(--text-md);
   color: var(--hud-teal);
-  text-align: right;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .meta-card {
   display: flex;
@@ -3607,7 +3616,7 @@ html, body {
 }
 .meta-upgrade {
   margin-top: 1px;
-  min-height: 24px; /* WCAG 2.2: objetivo táctil ≥ 24×24 px */
+  min-height: 44px; /* objetivo táctil cómodo */
   padding: 5px 9px 6px;
   font-family: var(--font-body);
   font-weight: 700;
@@ -3665,7 +3674,7 @@ html, body {
 }
 .meta-unlock {
   margin-top: 1px;
-  min-height: 24px; /* WCAG 2.2: objetivo táctil ≥ 24×24 px */
+  min-height: 44px; /* objetivo táctil cómodo */
   padding: 5px 9px 6px;
   font-family: var(--font-body);
   font-weight: 700;
@@ -3700,7 +3709,7 @@ html, body {
 .meta-perk-pick {
   display: inline-block;
   margin: 2px 0 0;
-  min-height: 24px; /* WCAG 2.2: objetivo táctil ≥ 24×24 px */
+  min-height: 44px;
   min-width: 24px;
   padding: var(--space-2) var(--space-3) 5px;
   font-family: var(--font-mono);
@@ -3719,7 +3728,7 @@ html, body {
 .meta-perk-pick:active { transform: translateY(1px); }
 .meta-perk-reset {
   margin-top: 2px;
-  min-height: 24px; /* WCAG 2.2: objetivo táctil ≥ 24×24 px */
+  min-height: 44px;
   min-width: 24px;
   padding: var(--space-2) var(--space-3) 5px;
   font-family: var(--font-mono);
@@ -3761,7 +3770,7 @@ html, body {
   flex: 1 1 0;
   max-width: 190px;
   min-width: 0;
-  min-height: 24px; /* WCAG 2.2: objetivo táctil ≥ 24×24 px */
+  min-height: 44px;
   padding: 12px 10px;
   font-family: var(--font-body);
   font-size: var(--text-sm);
@@ -3844,7 +3853,7 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
-  min-height: 24px; /* WCAG 2.2: objetivo táctil ≥ 24×24 px */
+  min-height: 44px;
   padding: 5px var(--space-1) var(--space-2);
   background: transparent;
   border: none;
@@ -4281,6 +4290,7 @@ html, body {
   justify-content: flex-end;
 }
 .meta-legend-toggle {
+  min-height: 44px;
   font-family: var(--font-body);
   font-weight: 700;
   font-size: var(--text-xs);
@@ -4290,7 +4300,6 @@ html, body {
   border: 1px solid rgba(53, 224, 200, .45);
   border-radius: var(--radius-s);
   padding: 6px 10px;
-  min-height: 24px; /* WCAG 2.2: objetivo táctil ≥ 24×24 px */
   cursor: pointer;
   transition: background .15s ease, color .15s ease;
 }
@@ -4316,6 +4325,7 @@ html, body {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: auto;
   padding-bottom: 72px; /* deja ver la nav inferior fija */
   touch-action: pan-y; /* deslizar con el dedo */
 }
@@ -4604,12 +4614,12 @@ html, body {
   margin: 0 0 2px;
   color: var(--hud-teal);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
   font-weight: 700;
-  letter-spacing: .2em;
-  line-height: 1.2;
+  letter-spacing: .1em;
+  line-height: 1.35;
   text-transform: uppercase;
-  opacity: .82;
+  opacity: .9;
 }
 .menu-rule {
   flex: 1;
@@ -4727,15 +4737,15 @@ html, body {
 }
 .menu-cta-sub,
 .pause-cta-sub {
-  overflow: hidden;
+  overflow: visible;
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: .14em;
-  line-height: 1.2;
-  text-overflow: ellipsis;
+  font-size: var(--text-xs);
+  letter-spacing: .08em;
+  line-height: 1.3;
+  text-overflow: clip;
   text-transform: uppercase;
-  white-space: nowrap;
-  opacity: .68;
+  white-space: normal;
+  opacity: .8;
 }
 .menu-cta-chevron,
 .pause-cta-chevron {
@@ -4794,6 +4804,7 @@ html, body {
 .menu-tile-icon svg { width: 17px; height: 17px; }
 .menu-tile-copy {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
@@ -4807,7 +4818,7 @@ html, body {
 .menu-tile-sub {
   color: var(--platform-light);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
   line-height: 1.25;
   letter-spacing: .02em;
 }
@@ -4854,9 +4865,9 @@ html, body {
   gap: 10px;
   color: var(--platform-light);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
   font-weight: 700;
-  letter-spacing: .2em;
+  letter-spacing: .1em;
   text-transform: uppercase;
 }
 .menu-section-head::after {
@@ -4874,9 +4885,9 @@ html, body {
 .menu-field-label {
   color: var(--platform-light);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
   font-weight: 700;
-  letter-spacing: .16em;
+  letter-spacing: .08em;
 }
 .menu-field .theme-picker {
   margin: 0;
@@ -4884,14 +4895,14 @@ html, body {
   justify-content: flex-start;
 }
 .menu-field .theme-swatch {
-  width: 50px;
-  padding: 2px 1px 3px;
+  width: auto;
+  padding: 5px 4px 7px;
 }
 .menu-field .theme-swatch-chip { height: 17px; }
-.menu-field .theme-swatch-name { font-size: 8px; }
+.menu-field .theme-swatch-name { font-size: var(--text-xs); }
 .menu-field .theme-picker-label {
   margin: 0;
-  font-size: 9px;
+  font-size: var(--text-xs);
 }
 .menu-field .quality-picker {
   margin: 0;
@@ -4914,7 +4925,7 @@ html, body {
   justify-content: center;
   gap: 6px 12px;
   margin: 0;
-  font-size: 10px;
+  font-size: var(--text-xs);
 }
 .menu-keys span {
   display: inline-flex;
@@ -4936,7 +4947,7 @@ kbd {
   padding: 0 4px;
   color: var(--platform-light);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
   font-weight: 700;
   line-height: 1;
   background: rgba(15, 20, 24, .8);
@@ -4967,11 +4978,11 @@ kbd {
   margin: 0;
   color: var(--hud-teal);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
   font-weight: 700;
-  letter-spacing: .2em;
+  letter-spacing: .1em;
   text-transform: uppercase;
-  opacity: .82;
+  opacity: .9;
 }
 .pause-status {
   display: flex;
@@ -4984,7 +4995,7 @@ kbd {
   padding: 3px 8px;
   color: var(--hud-teal);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: .1em;
   border: 1px solid rgb(var(--hud-teal-rgb) / .28);
@@ -5028,7 +5039,7 @@ kbd {
   margin: 0;
   color: var(--platform-light);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: .18em;
   text-transform: uppercase;
@@ -5083,6 +5094,7 @@ kbd {
 .pause-tile-icon svg { width: 15px; height: 15px; }
 .pause-tile-copy {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
@@ -5096,7 +5108,7 @@ kbd {
 .pause-tile-sub {
   color: var(--platform-light);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
   line-height: 1.2;
 }
 .pause-tile.is-armed,
@@ -5123,12 +5135,12 @@ kbd {
 }
 .pause-data .dmg-legend {
   margin: 0;
-  font-size: 10px;
+  font-size: var(--text-xs);
 }
 .pause-data .dmg-legend th,
 .pause-data .dmg-legend td { padding: 3px 2px; }
-.pause-data .dmg-legend thead th { font-size: 9px; }
-.pause-data .dmg-legend tbody th { font-size: 9px; }
+.pause-data .dmg-legend thead th { font-size: var(--text-xs); }
+.pause-data .dmg-legend tbody th { font-size: var(--text-xs); }
 .pause-settings {
   display: flex;
   flex-direction: column;
@@ -5143,14 +5155,14 @@ kbd {
   gap: 6px;
 }
 .pause-settings .theme-swatch {
-  width: 48px;
-  padding: 2px 1px 3px;
+  width: auto;
+  padding: 5px 4px 7px;
 }
 .pause-settings .theme-swatch-chip { height: 16px; }
-.pause-settings .theme-swatch-name { font-size: 8px; }
+.pause-settings .theme-swatch-name { font-size: var(--text-xs); }
 .pause-settings .theme-picker-label {
   margin: 0;
-  font-size: 9px;
+  font-size: var(--text-xs);
 }
 .pause-keys {
   display: flex;
@@ -5160,7 +5172,7 @@ kbd {
   margin: 0;
   color: rgba(159, 180, 200, .65);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
 }
 .pause-keys span {
   display: inline-flex;
@@ -5211,7 +5223,6 @@ kbd {
 @media (max-width: 420px) {
   .screen-menu { padding-inline: 12px; }
   .menu-shell { gap: 14px; }
-  .menu-field .theme-swatch { width: 46px; }
   .pause-panel { width: 100%; padding-inline: 14px; }
   .pause-grid { gap: 6px; }
   .pause-tile { min-height: 50px; padding: 7px 8px; }
@@ -5221,7 +5232,7 @@ kbd {
 @media (max-width: 360px) {
   .menu-tile { min-height: 58px; padding: 8px; }
   .menu-tile-sub,
-  .pause-tile-sub { font-size: 8px; }
+  .pause-tile-sub { font-size: var(--text-xs); }
   .menu-cta { min-height: 68px; gap: 10px; }
   .menu-cta-icon { width: 38px; height: 38px; }
   .pause-cta { min-height: 58px; }
@@ -5259,9 +5270,9 @@ kbd {
   margin: 0;
   color: var(--hud-teal);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
   font-weight: 700;
-  letter-spacing: .2em;
+  letter-spacing: .12em;
   line-height: 1.2;
   text-align: center;
   text-transform: uppercase;
@@ -5292,6 +5303,7 @@ kbd {
 
 /* Botones base: placas de mando, no slabs redondeados. */
 .btn {
+  min-height: 44px;
   border-radius: 0;
   clip-path: polygon(
     8px 0, 100% 0, 100% calc(100% - 8px),
@@ -5384,8 +5396,8 @@ kbd {
   border-bottom: 1px solid rgb(var(--hud-teal-rgb) / .16);
   color: var(--platform-light);
   font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: .18em;
+  font-size: var(--text-xs);
+  letter-spacing: .1em;
 }
 .stage-panel .stage-group-rows { gap: 6px; }
 
@@ -5416,7 +5428,7 @@ kbd {
   margin-left: auto;
   color: var(--platform-light);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
   letter-spacing: .06em;
   text-transform: uppercase;
 }
@@ -5437,11 +5449,11 @@ kbd {
   padding: 1px 5px;
   border-radius: 0;
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: var(--text-xs);
   letter-spacing: .08em;
   box-shadow: none;
 }
-.stage-panel .stage-flag { font-size: 9px; text-shadow: none; }
+.stage-panel .stage-flag { font-size: var(--text-xs); text-shadow: none; }
 .stage-panel .btn.stage.is-next {
   border-left-color: var(--hud-teal);
   border-color: rgb(var(--hud-teal-rgb) / .35);
@@ -5498,15 +5510,18 @@ kbd {
 .stage-protocol .card-kicker,
 .stage-survival .card-kicker {
   font-family: var(--font-mono);
-  font-size: 8px;
-  letter-spacing: .14em;
+  font-size: var(--text-xs);
+  letter-spacing: .08em;
 }
 .stage-endless .card-title,
 .stage-daily .card-title,
 .stage-protocol .card-title,
 .stage-survival .card-title {
-  font-size: var(--text-md);
-  line-height: 1.15;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: .02em;
+  line-height: 1.25;
   text-shadow: none;
 }
 .stage-endless .card-sub,
@@ -5514,7 +5529,7 @@ kbd {
 .stage-protocol .card-sub,
 .stage-survival .card-sub {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
   line-height: 1.3;
   color: var(--platform-light);
 }
@@ -5551,8 +5566,8 @@ kbd {
 }
 .protocol-presets {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
 }
 .protocol-preset {
   border-radius: 0;
@@ -5560,7 +5575,7 @@ kbd {
   background: rgba(10, 16, 20, .7);
   padding: 6px 6px;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
   letter-spacing: .03em;
 }
 .protocol-preset.active {
@@ -5589,14 +5604,14 @@ kbd {
   color: var(--platform-light);
 }
 .protocol-step {
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border-radius: 0;
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
   background: rgba(14, 24, 26, .9);
 }
 .protocol-pip { width: 9px; height: 9px; border-radius: 0; }
-.protocol-cost { font-size: 9px; }
+.protocol-cost { font-size: var(--text-xs); }
 
 /* ---------- RÉCORDS ---------- */
 .records-panel { width: min(560px, 100%); }
@@ -5614,10 +5629,10 @@ kbd {
   background: rgba(9, 14, 18, .72);
   padding: 9px 11px;
 }
-.record-row .card-kicker { font-family: var(--font-mono); font-size: 8px; letter-spacing: .14em; }
+.record-row .card-kicker { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: .08em; }
 .record-best { font-size: var(--text-lg); line-height: 1.1; }
-.record-detail { font-size: 9px; line-height: 1.3; }
-.record-next { margin-top: 6px; font-size: 9px; letter-spacing: .08em; }
+.record-detail { font-size: var(--text-xs); line-height: 1.3; }
+.record-next { margin-top: 6px; font-size: var(--text-xs); letter-spacing: .08em; }
 
 /* Acciones de pantallas (records, credits, clear/over) */
 .stage-actions {
@@ -5646,8 +5661,8 @@ kbd {
   padding-bottom: 4px;
   border-bottom: 1px solid rgba(159, 180, 200, .14);
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: .12em;
+  font-size: var(--text-xs);
+  letter-spacing: .08em;
   text-align: left;
 }
 .credits-attrib {
@@ -5662,14 +5677,17 @@ kbd {
 .credits-work { font-size: var(--text-md); line-height: 1.3; }
 .credits-dl {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 2px 8px;
+  grid-template-columns: 1fr;
+  gap: 2px;
   font-size: var(--text-sm);
 }
+.credits-dl dt { margin-top: 6px; }
+.credits-dl dt:first-of-type { margin-top: 0; }
+.credits-dl dd { margin-bottom: 2px; }
 .credits-dl dt {
   color: var(--platform-light);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
   letter-spacing: .06em;
 }
 .credits-dl dd { margin: 0; overflow-wrap: anywhere; }
@@ -5679,7 +5697,7 @@ kbd {
   border: 1px solid rgba(159, 180, 200, .16);
   background: rgba(9, 14, 18, .66);
 }
-.credits-legal-box summary { font-family: var(--font-mono); font-size: 10px; }
+.credits-legal-box summary { font-family: var(--font-mono); font-size: var(--text-xs); }
 
 /* ---------- TORRETAS / META ---------- */
 .screen-meta { padding: 10px 10px 0; gap: 8px; }
@@ -5706,7 +5724,7 @@ kbd {
   box-shadow: none;
 }
 .meta-player { color: var(--score-white); font-size: var(--text-sm); }
-.meta-rank-min { font-size: 9px; }
+.meta-rank-min { font-size: var(--text-xs); }
 .meta-legend-bar { margin: 0; }
 .meta-legend-toggle {
   border-radius: 0;
@@ -5714,7 +5732,7 @@ kbd {
   background: rgba(10, 18, 22, .85);
   border-color: rgb(var(--hud-teal-rgb) / .3);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
   letter-spacing: .1em;
 }
 .meta-banner {
@@ -5726,7 +5744,7 @@ kbd {
   box-shadow: none;
   padding: 8px 10px;
 }
-.meta-banner-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: .08em; }
+.meta-banner-label { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: .08em; }
 .meta-banner-val { font-size: 24px; }
 .meta-banner-toggle {
   border-radius: 0;
@@ -5743,9 +5761,9 @@ kbd {
 }
 .meta-power b { font-size: var(--text-md); text-shadow: none; }
 .meta-grid {
-  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
-  gap: 7px;
-  padding-bottom: 76px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+  padding-bottom: 86px;
 }
 .meta-card {
   border-radius: 0;
@@ -5774,18 +5792,18 @@ kbd {
   background: rgba(159, 180, 200, .14);
 }
 .meta-card-bar-fill { border-radius: 0; }
-.meta-card-frags { font-family: var(--font-mono); font-size: 9px; }
-.meta-card-dmg { font-size: 8px; }
-.meta-card-perk, .meta-card-perk-next { font-size: 9px; line-height: 1.3; }
-.meta-card-perk-tier { font-size: 8px; }
-.meta-card-need { font-size: 9px; color: var(--crit-gold); }
+.meta-card-frags { font-family: var(--font-mono); font-size: var(--text-xs); }
+.meta-card-dmg { font-size: var(--text-xs); }
+.meta-card-perk, .meta-card-perk-next { font-size: var(--text-xs); line-height: 1.3; }
+.meta-card-perk-tier { font-size: var(--text-xs); }
+.meta-card-need { font-size: var(--text-xs); color: var(--crit-gold); }
 .meta-card-lock {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   color: var(--crit-gold);
   font-family: var(--font-mono);
-  font-size: 8px;
+  font-size: var(--text-xs);
 }
 .meta-card-lock svg { width: 12px; height: 12px; }
 .meta-upgrade,
@@ -5793,7 +5811,7 @@ kbd {
   border-radius: 0;
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
   letter-spacing: .02em;
 }
 .meta-upgrade { background: rgba(12, 26, 28, .9); border-color: rgb(var(--hud-teal-rgb) / .34); box-shadow: none; }
@@ -5807,10 +5825,12 @@ kbd {
   border-radius: 0;
   color: var(--platform-light);
   font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: .03em;
-  min-height: 44px;
+  font-size: var(--text-xs);
+  letter-spacing: 0;
+  min-height: 48px;
+  padding-inline: 0;
 }
+.meta-tab span { letter-spacing: 0; }
 .meta-tab.active {
   background: rgba(17, 36, 38, .92);
   color: var(--hud-teal);
@@ -5840,7 +5860,7 @@ kbd {
   padding: 0 2px;
   color: var(--platform-light);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-xs);
   letter-spacing: .1em;
   text-transform: uppercase;
 }
@@ -5858,11 +5878,12 @@ kbd {
   padding: 5px 9px;
   color: var(--score-white);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-xs);
 }
 .own-tower b { font-weight: 700; }
-.own-tower i, .own-mastery { color: var(--crit-gold); font-size: 9px; }
+.own-tower i, .own-mastery { color: var(--crit-gold); font-size: var(--text-xs); }
 .combo-btn {
+  min-height: 44px;
   border-radius: 0;
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
   border: 1px solid rgb(var(--hud-teal-rgb) / .28);
@@ -5870,7 +5891,7 @@ kbd {
   color: var(--hud-teal);
   box-shadow: none;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-xs);
   letter-spacing: .05em;
   padding: 6px 11px;
 }
@@ -5923,25 +5944,25 @@ kbd {
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
   box-shadow: none;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
 }
 .card-lv-badge.is-legendary { width: auto; border-radius: 0; }
 .card-name {
   padding-right: 34px;
-  font-size: clamp(16px, 4.3vw, 20px);
+  font-size: var(--text-lg);
   line-height: 1.2;
 }
-.card-gems { font-size: 10px; letter-spacing: .08em; text-shadow: none; }
+.card-gems { font-size: var(--text-xs); letter-spacing: .08em; text-shadow: none; }
 .card-rarity-label {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
   letter-spacing: .1em;
 }
 .card-desc {
   margin-top: 1px;
   color: rgba(232, 255, 246, .92);
-  font-size: clamp(13px, 3.4vw, 15px);
+  font-size: var(--text-sm);
   font-weight: 600;
   line-height: 1.5;
 }
@@ -5949,11 +5970,11 @@ kbd {
   padding-top: 6px;
   border-top: 1px solid rgba(159, 180, 200, .14);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-xs);
   line-height: 1.45;
 }
-#card-choice .hint { margin-top: 2px; font-size: 11px; text-align: center; }
-.legendary-kicker { color: var(--crit-gold); font-size: 11px; }
+#card-choice .hint { margin-top: 2px; font-size: var(--text-xs); text-align: center; }
+.legendary-kicker { color: var(--crit-gold); font-size: var(--text-xs); }
 #card-choice[data-kind="legendary"] .card-title { color: var(--crit-gold); }
 
 @media (max-width: 430px) {
@@ -5982,11 +6003,11 @@ kbd {
   .card-choice-card { padding: 10px 12px; }
   .card-inner { padding-top: 12px; gap: 6px; }
   .card-synergy { padding-top: 4px; }
-  .card-head { font-size: 9px; }
+  .card-head { font-size: var(--text-xs); }
   .own-row { gap: 4px; }
-  .own-tower { padding: 4px 8px; font-size: 9px; }
-  .combo-btn { padding: 5px 9px; font-size: 9px; }
-  #card-choice .hint { font-size: 10px; }
+  .own-tower { padding: 4px 8px; font-size: var(--text-xs); }
+  .combo-btn { padding: 5px 9px; font-size: var(--text-xs); }
+  #card-choice .hint { font-size: var(--text-xs); }
 }
 
 /* ---------- PERK CHOICE ---------- */
@@ -6003,7 +6024,7 @@ kbd {
   padding: 12px 10px;
 }
 .perk-choice-btn b { font-size: var(--text-sm); line-height: 1.35; font-weight: 700; }
-.perk-choice-btn i { color: var(--crit-gold); font-size: 9px; }
+.perk-choice-btn i { color: var(--crit-gold); font-size: var(--text-xs); }
 .perk-choice-btn:hover { border-color: var(--crit-gold); box-shadow: 0 0 12px rgb(var(--crit-gold-rgb) / .18); }
 
 /* ---------- COMBO PANEL ---------- */
@@ -6021,15 +6042,24 @@ kbd {
   -webkit-backdrop-filter: none;
 }
 .combo-row {
+  flex-wrap: wrap;
+  row-gap: 4px;
   border-radius: 0;
   border: 1px solid rgba(159, 180, 200, .14);
   border-left: 2px solid rgb(var(--hud-teal-rgb) / .5);
   background: rgba(9, 14, 18, .7);
-  padding: 6px 9px;
+  padding: 8px 10px;
 }
-.combo-row b { font-size: var(--text-sm); }
-.combo-row small { font-family: var(--font-mono); font-size: 9px; }
-.combo-mods span { border-radius: 0; font-size: 9px; padding: 2px 7px; }
+.combo-row b {
+  flex: 1 1 100%;
+  font-size: var(--text-sm);
+}
+.combo-row small {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+.combo-mods span { border-radius: 0; font-size: var(--text-xs); padding: 2px 7px; }
 
 /* ---------- STAGE CLEAR / GAME OVER ---------- */
 .screen-clear .clear-panel {
@@ -6049,15 +6079,15 @@ kbd {
 .screen-clear .clear-section-title {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: .16em;
+  font-size: var(--text-xs);
+  letter-spacing: .08em;
   color: var(--hud-teal);
 }
 .screen-clear .clear-summary > div {
   padding: 4px 0;
   border-bottom: 1px solid rgba(159, 180, 200, .08);
 }
-.screen-clear .clear-summary dt { font-size: 9px; }
+.screen-clear .clear-summary dt { font-size: var(--text-xs); }
 .screen-clear .clear-summary dd { font-family: var(--font-num); font-size: var(--text-md); }
 .screen-clear .clear-actions { gap: 7px; }
 .screen-clear .clear-secondary { gap: 7px; }
@@ -6079,7 +6109,7 @@ kbd {
   padding: 5px 0;
   border-bottom: 1px solid rgba(159, 180, 200, .1);
 }
-.screen-gameover .summary dt { font-size: 9px; }
+.screen-gameover .summary dt { font-size: var(--text-xs); }
 .screen-gameover .summary dd { font-size: var(--text-md); }
 .screen-gameover .lost-box {
   width: 100%;
@@ -6093,8 +6123,8 @@ kbd {
 .screen-gameover .lost-box .lost-title {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: .12em;
+  font-size: var(--text-xs);
+  letter-spacing: .08em;
   text-align: left;
   color: var(--crit-gold);
 }
@@ -6105,7 +6135,7 @@ kbd {
   color: var(--boss-red);
 }
 .screen-gameover .lost-box .summary { margin: 0; }
-.screen-gameover .lost-box .summary dt { color: var(--platform-light); font-size: 9px; }
+.screen-gameover .lost-box .summary dt { color: var(--platform-light); font-size: var(--text-xs); }
 .screen-gameover .lost-box .summary dd { color: var(--score-white); }
 .screen-gameover > .panel > .btn { width: 100%; }
 
@@ -6156,7 +6186,7 @@ kbd {
   background: rgba(8, 14, 18, .78);
   box-shadow: none;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-xs);
   letter-spacing: .04em;
 }
 .hud-stat b { text-shadow: none; }
@@ -6169,8 +6199,8 @@ kbd {
   box-shadow: none;
   padding: 6px 12px;
 }
-.score-label { font-family: var(--font-mono); font-size: 8px; letter-spacing: .16em; }
-.score-value { font-size: 26px; text-shadow: none; }
+.score-label { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: .08em; }
+.score-value { font-size: var(--text-2xl); text-shadow: none; }
 .score-mult { border-radius: 0; }
 
 /* ---------- AVISOS ---------- */
@@ -6190,7 +6220,7 @@ kbd {
 .aviso--info { border-left-color: var(--hud-teal); }
 .aviso-title { font-family: var(--font-body); font-size: var(--text-md); letter-spacing: .04em; }
 .aviso-name { font-family: var(--font-title); letter-spacing: .06em; text-shadow: none; }
-.aviso-rule { font-family: var(--font-mono); font-size: 9px; letter-spacing: .04em; }
+.aviso-rule { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: .04em; }
 
 /* ---------- BOOT / CARGA / ERROR ---------- */
 .boot-loading-box {
@@ -6202,7 +6232,7 @@ kbd {
 .boot-loading-title { font-family: var(--font-title); letter-spacing: .08em; }
 .boot-loading-bar { border-radius: 0; background: rgba(159, 180, 200, .14); }
 .boot-loading-bar i { border-radius: 0; }
-.boot-loading-text { font-family: var(--font-mono); font-size: 10px; letter-spacing: .08em; }
+.boot-loading-text { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: .08em; }
 #boot-error .boot-error-box {
   border-radius: 0;
   clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
@@ -6213,11 +6243,64 @@ kbd {
 #boot-error h1 { font-family: var(--font-title); letter-spacing: .04em; }
 .boot-error-cmd { border-radius: 0; background: rgba(0, 0, 0, .32); }
 
-@media (max-width: 420px) {
+@media (max-width: 520px) {
   .records-grid { grid-template-columns: 1fr; }
-  .meta-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .meta-grid { grid-template-columns: 1fr; }
   .card-head, .own-row { width: 100%; }
-  .screen-gameover .lost-box { padding: 8px; }
+  .screen-gameover .lost-box { padding: 10px; }
+  /* Una sola dirección de scroll: la lista de condiciones crece y
+     scrollea la pantalla, no un panel dentro de otro. */
+  .protocol-list {
+    max-height: none;
+    overflow: visible;
+  }
+  /* El selector mantiene su lista con scroll propio, pero con menos
+     alto para que el panel entero entre en la pantalla. */
+  .stage-panel .stage-scroll,
+  .stage-panel .stage-list {
+    max-height: 38vh;
+  }
+}
+
+@media (max-width: 380px) {
+  .pause-grid { grid-template-columns: 1fr; }
+  /* La matriz pasa de tabla a fichas: cada tipo de daño muestra sus
+     cuatro enfrentamientos en líneas, sin scroll horizontal ni letra
+     diminuta. */
+  .pause-data .dmg-legend {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+  .pause-data .dmg-legend thead { display: none; }
+  .pause-data .dmg-legend tbody { display: block; }
+  .pause-data .dmg-legend tr {
+    display: block;
+    margin-bottom: 8px;
+    border: 1px solid rgba(159, 180, 200, .18);
+    border-left: 2px solid rgb(var(--hud-teal-rgb) / .5);
+    background: rgba(9, 14, 18, .68);
+  }
+  .pause-data .dmg-legend tbody th {
+    display: block;
+    padding: 7px 10px;
+    border-bottom: 1px solid rgba(159, 180, 200, .12);
+    font-size: var(--text-sm);
+    text-align: left;
+  }
+  .pause-data .dmg-legend td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 5px 10px;
+  }
+  .pause-data .dmg-legend td::before {
+    content: attr(data-label);
+    color: var(--platform-light);
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .card-choice-card { animation: none !important; }

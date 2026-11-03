@@ -339,6 +339,13 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
   1,5, títulos más grandes y cartas a todo el ancho en móvil (190 px máximo en
   escritorio). En pantallas de 360×640 se compacta solo el aire vertical para
   que las tres cartas entren sin scroll; la tipografía no se reduce.
+- **Legibilidad global (1.13.0)**: escala 15/16/18/21/26/36 y **piso absoluto
+  de 15 px** para cualquier texto visible. Se purgaron 76 tamaños crudos de
+  8–11 px y se redujo el tracking de las mayúsculas. Menú, pausa, selector,
+  Protocolo, Récords, Créditos, Torretas, HUD, cartas, perks, combo y
+  clear/game over reflowan o scrollean en vez de achicar letra. La matriz de
+  daño de la pausa se muestra como fichas verticales a 360 px; los controles
+  táctiles principales miden 44–48 px. `ci-checks` vigila el piso.
 - El escenario de overlays es un nodo fijo fuera del marco: usa el alto real de
   la pantalla y permite scrollear las cartas.
 - El **STAGE CLEAR** es un modal con cabecera fija, cuerpo scrolleable y

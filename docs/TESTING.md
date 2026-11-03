@@ -10,6 +10,12 @@ Estado actual: **1102 tests** (1102 pass, 0 skip, 0 fail) en **36 archivos**.
 
 Requisitos: Node 22 o superior.
 
+El piso tipográfico de **15 px** se valida además con los checks estáticos:
+
+```bash
+node .github/scripts/ci-checks.mjs
+```
+
 Para un archivo:
 
 ```bash
@@ -53,7 +59,8 @@ node --test tests/test-stages.mjs
 ## Qué **no** cubre
 
 - Rendering real de canvas (píxeles, glow, sprites).
-- DOM real, layout, CSS, scroll, safe areas.
+- DOM real, layout, CSS, scroll y safe areas (el piso de 15 px sí se
+  chequea en `ci-checks`; el resto es smoke manual).
 - Audio real (WebAudio / reproducción de OGG).
 - WebView, Android, Capacitor, lifecycle nativo.
 - El cableado `perk:proc` → sonido de `main.js` (solo se testea la señal).
@@ -81,32 +88,37 @@ Para eso hay **smoke manual** y una checklist Android (APK debug).
 
 1. `node scripts/serve.mjs 8080`.
 2. Abrir en Chrome a 390×844 (mobile emulation).
-3. Menú: comprobar CTA `JUGAR`, grilla de tiles, NG+ bloqueado con candado
-   y que el título **no** tenga recuadro de foco. Repetir a 360×640: debe
-   scrollear sin overflow horizontal.
-4. Selector: revisar filas de stage, candados SVG, modos y récords.
-5. Menú → JUGAR → Stage 1 → 60 s sin errores de consola.
-6. Pausa: comprobar `CONTINUAR`, grupo `SALIR DE LA RUN`, matriz de daño,
+3. **Legibilidad 1.13.0**: repetir el recorrido a 360×640, 390×844 y
+   1280×900. Ningún texto visible debe quedar por debajo de **15 px**; las
+   pantallas pueden scrollear, pero no debe haber scroll horizontal. Los
+   botones principales deben medir al menos **44 px**. A 360×640 la matriz
+   de daño de la pausa se muestra como fichas verticales.
+4. Menú: comprobar CTA `JUGAR`, grilla de tiles, NG+ bloqueado con candado
+   y que el título **no** tenga recuadro de foco. A 360×640 debe scrollear
+   sin overflow horizontal.
+5. Selector: revisar filas de stage, candados SVG, modos y récords.
+6. Menú → JUGAR → Stage 1 → 60 s sin errores de consola.
+7. Pausa: comprobar `CONTINUAR`, grupo `SALIR DE LA RUN`, matriz de daño,
    selector de tema y chips `kbd` en escritorio.
-7. Probar velocidad ×2, Ultimate, Black Hole, cartas y combo: el overlay de
+8. Probar velocidad ×2, Ultimate, Black Hole, cartas y combo: el overlay de
    cartas/perks debe ser opaco en táctil y las fichas deben leerse.
-8. Probar tema, calidad Alta/Baja, “Reset Global” y “Nueva Partida+” (con la
+9. Probar tema, calidad Alta/Baja, “Reset Global” y “Nueva Partida+” (con la
    campaña completa). Verificar que el STAGE CLEAR scrollee y que sus botones
    queden visibles a 360×640 y 390×844.
-9. Recorrer Protocolo, Récords, Créditos y Torretas/Bestiario/Progreso.
-10. Subir una torre a maestría 5 y comprobar el draft legendario (3/2/1), el
+10. Recorrer Protocolo, Récords, Créditos y Torretas/Bestiario/Progreso.
+11. Subir una torre a maestría 5 y comprobar el draft legendario (3/2/1), el
     badge `R2/2` de las doctrinas y la fila de drones con maestría.
-11. Elegir una carta de caza y confirmar que ninguna unidad sube nivel ni
+12. Elegir una carta de caza y confirmar que ninguna unidad sube nivel ni
     maestría (el multiplicador de familia sí debe aplicarse).
-12. Con la Rueda de Fuego y **Combustión Espontánea**, dejar enemigos lejanos:
+13. Con la Rueda de Fuego y **Combustión Espontánea**, dejar enemigos lejanos:
     debe apagarse como brasa humeante y reencenderse sobre el más avanzado.
-13. Abrir el desafío diario: la tarjeta debe decir `HEAT 39 · SIN CENSURA NI
+14. Abrir el desafío diario: la tarjeta debe decir `HEAT 39 · SIN CENSURA NI
     ARSENAL · BONO ×1,5`; al jugar deben quedar 3 cartas por oferta y 5 slots.
-14. Arrancar el diario, volver al menú y reabrir el selector: la tarjeta debe
+15. Arrancar el diario, volver al menú y reabrir el selector: la tarjeta debe
     quedar apagada con `JUGADO HOY · volvé mañana` y no debe abrir otra run.
-15. Probar el Black Hole con un racimo: debe aparecer sobre el grupo más
+16. Probar el Black Hole con un racimo: debe aparecer sobre el grupo más
     denso, no en una X random; revisar el dibujo en calidad Alta/Baja.
-16. Verificar que no haya requests de red en DevTools.
+17. Verificar que no haya requests de red en DevTools.
 
 ## Smoke Android (APK debug)
 

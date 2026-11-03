@@ -4,6 +4,39 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.13.0] — 2026-11-03
+
+### Legibilidad global
+
+- Nueva escala tipográfica con **piso absoluto de 15 px**: micro-etiquetas
+  15, secundario 16, cuerpo 18, títulos 21/26 y cifras 36. Se eliminaron
+  **76 declaraciones crudas de 8–11 px** que saltaban la escala.
+- Se prioriza la legibilidad sobre la densidad: cuando una pantalla no
+  entra, **scrollea o reflowa**; no se achica la letra.
+- **Menú y pausa**: temas en grilla (3+2 en móvil), ajustes y tiles más
+  grandes; la pausa usa scroll y la matriz de daño pasa a **fichas
+  verticales** a 360 px, sin scroll horizontal.
+- **Selector**: modos a todo el ancho, títulos de modo en tipografía de
+  cuerpo y lista con scroll propio; el panel entra en pantalla.
+- **Protocolo, Récords y Créditos**: presets y metadatos grandes, filas
+  apiladas y un solo scroll vertical; créditos con datos en columna.
+- **Torretas/Bestiario/Progreso**: cards a una columna en móvil, banner
+  con ayuda al costado, progreso en filas apiladas y nav de 48 px.
+- **HUD**: botones de 48 px, score con etiqueta visible a 36 px, stats y
+  timer a 15–18 px. Los controles redondos se conservan.
+- **Cartas, perks, combo y avisos**: textos secundarios a 15–16 px; el
+  combo muestra nombre y stats en dos líneas y entra completo.
+- **STAGE CLEAR / GAME OVER**: resúmenes y acciones a 15–18 px, con
+  scroll vertical cuando hace falta.
+- **Objetivos táctiles**: botones y filas principales de 44–48 px.
+- `ci-checks` ahora falla si aparece un `font-size` crudo menor a 15 px
+  o si `--text-xs` baja del piso.
+
+### Tests / versión
+
+- **1102 tests, 0 skip** (36 archivos).
+- Versión **1.13.0** / Android `versionCode 28`.
+
 ## [1.12.7] — 2026-11-03
 
 ### Legibilidad del modal de subida de nivel

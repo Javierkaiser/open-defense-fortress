@@ -8,6 +8,7 @@
 //   4. Que los assets referenciados en js/ existan (rutas de string de assets/).
 //   5. Que no haya archivos binarios grandes accidentales (> 1 MB sin ser assets
 //      declarados) ni artefactos de trabajo trackeados.
+//   6. Que CSS respete el piso tipográfico de 15 px (1.13.0).
 //
 // Uso:  node .github/scripts/ci-checks.mjs
 // Sale con código 1 si algo falla.
@@ -105,6 +106,31 @@ for (const file of allFiles) {
   }
 }
 notes.push(`${allFiles.length} archivos revisados`);
+
+// --- 6. Piso tipográfico -----------------------------------------------------
+// 1.13.0: ningún texto visible puede bajar de 15 px. El pase de forja
+// anterior metió decenas de font-size crudos de 8-10 px que saltaban la
+// escala; este check evita que vuelvan.
+const cssPath = join(ROOT, "css/style.css");
+if (!existsSync(cssPath)) {
+  errors.push("falta css/style.css");
+} else {
+  const css = readFileSync(cssPath, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const small = [...css.matchAll(/font-size:\s*(\d+(?:\.\d+)?)px/g)]
+    .filter((m) => Number(m[1]) < 15);
+  if (small.length > 0) {
+    const lines = small.slice(0, 5).map((m) => {
+      const line = css.slice(0, m.index).split("\n").length;
+      return `línea ${line}: ${m[0]}`;
+    });
+    errors.push(`css/style.css: ${small.length} font-size crudo < 15 px (${lines.join("; ")})`);
+  }
+  const xs = css.match(/--text-xs:\s*(\d+(?:\.\d+)?)px/);
+  if (!xs || Number(xs[1]) < 15) {
+    errors.push("css/style.css: --text-xs debe ser >= 15 px (piso tipográfico)");
+  }
+  notes.push(`tipografía: piso 15 px (${small.length} violaciones)`);
+}
 
 // --- Resultado ---------------------------------------------------------------
 for (const n of notes) console.log(`ok   ${n}`);
