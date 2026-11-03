@@ -1124,15 +1124,15 @@ test('fase 29: el color del proyectil NO le cambia el radio de impacto', () => {
   assert.equal(projectileRadius(misil), 6, 'el misil conserva su radio (6)');
 });
 
-test('fase 29: el haz del Láser se pinta con gradiente, núcleo de 1 px y glow bajo', () => {
+test('fase 29: el haz del Láser se pinta con gradiente, núcleo de 1 px y halo sin blur', () => {
   const ctx = trazaCtx();
   const fx = new LaserStaticFx(
     { engine: { _t: 0, emit() {}, sfxSafe() {} } }, 100, 400, 0, 45, TOWERS.laser,
   );
   fx.t = 0.1;
   fx.draw(ctx);
-  assert.equal(ctx.trazos.length, 2, 'el haz se pinta en dos trazos (manto + núcleo)');
-  const [manto, nucleo] = ctx.trazos;
+  assert.equal(ctx.trazos.length, 3, 'el haz se pinta en halo + manto + núcleo');
+  const [halo, manto, nucleo] = ctx.trazos;
   // El manto es un GRADIENTE longitudinal: se apaga en los dos extremos.
   assert.ok(manto.style && Array.isArray(manto.style.stops),
     'el manto debe pintarse con un degradé');
@@ -1146,9 +1146,10 @@ test('fase 29: el haz del Láser se pinta con gradiente, núcleo de 1 px y glow 
   // El núcleo es una línea de 1 px casi blanca EN el centro del haz.
   assert.equal(nucleo.width, 1, 'el núcleo del haz debe medir 1 px');
   assert.ok(nucleo.style.stops.length === 4, 'el núcleo también se apaga en los extremos');
-  // Glow bajo (6-12 px), no el halo masivo de antes.
-  assert.ok(manto.blur >= 6 && manto.blur <= 12,
-    `el glow del manto debe ser bajo (6-12 px), es ${manto.blur}`);
+  // 1.12.5: el glow es un trazo ancho translúcido, NO shadowBlur.
+  assert.ok(halo.width > manto.width, 'el halo es más ancho que el manto');
+  assert.equal(manto.blur, 0, 'el manto no usa shadowBlur');
+  assert.equal(nucleo.blur, 0, 'el núcleo no usa shadowBlur');
   // El ancho EFECTIVO de daño no se tocó: sigue siendo LASER_WIDTH (6 px).
   assert.equal(manto.width, 6, 'el ancho del rayo (hitbox de daño) sigue siendo 6 px');
 });
@@ -2098,7 +2099,7 @@ function mkTowerF66(type, enemies) {
 /** ctx2D de mentira que MIDE el manto del haz (la primera figura del frame). */
 function mantoCtx() {
   const ctx = {
-    puntos: [], mantoH0: 0, mantoGlow: 0,
+    puntos: [], mantoH0: 0, mantoAlpha: 0,
     save() {}, restore() {}, closePath() {}, arc() {}, stroke() {}, fillRect() {},
     clip() {}, ellipse() {}, setLineDash() {},
     moveTo(x, y) { ctx.puntos.push([x, y]); },
@@ -2107,7 +2108,8 @@ function mantoCtx() {
     fill() {
       if (ctx.mantoH0 || ctx.puntos.length < 4) return; // el manto es la 1ª figura
       ctx.mantoH0 = Math.abs(ctx.puntos[1][0] - ctx.puntos[0][0]) / 2;
-      ctx.mantoGlow = ctx.shadowBlur;
+      // 1.12.5: el brillo ya no es shadowBlur; el ramp sube el alpha.
+      ctx.mantoAlpha = ctx.globalAlpha;
     },
     createLinearGradient(x, y, ex, ey) {
       return { x, y, ex, ey, stops: [], addColorStop(o, c) { this.stops.push([o, c]); } };
@@ -2426,14 +2428,14 @@ test('fase 66: el ramp del haz SE VE (grosor y brillo crecen con el foco)', () =
     const fx = juego.log.efectos[0];
     const ctx = mantoCtx();
     fx.draw(ctx, 0.5);
-    return { ramp: fx.ramp, h0: ctx.mantoH0, glow: ctx.mantoGlow };
+    return { ramp: fx.ramp, h0: ctx.mantoH0, alpha: ctx.mantoAlpha };
   };
   const inicio = manto(0);
   const tope = manto(10);
   assert.equal(inicio.ramp, 1, 'sin foco el manto va a ×1');
   assert.equal(tope.ramp, TOWERS.beam.beamRampMax, 'y al tope del ramp a ×4,5');
   assert.ok(tope.h0 > inicio.h0, `el manto se ve MÁS GRUESO (${inicio.h0} → ${tope.h0} px de semi-ancho)`);
-  assert.ok(tope.glow > inicio.glow, `y con más glow (${inicio.glow} → ${tope.glow} px)`);
+  assert.ok(tope.alpha > inicio.alpha, `y con más brillo (${inicio.alpha} → ${tope.alpha} alpha)`);
 });
 
 test('fase 66: durante el cooldown el emisor del Beam se dibuja APAGADO', () => {

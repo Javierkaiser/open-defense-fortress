@@ -8,10 +8,11 @@
 import { Engine } from './engine.js';
 import { HUD } from './hud.js';
 import {
-  loadQuality, applyQualityToContext, applyQualityToDom, particleCapFor,
+  effectiveQuality, applyQualityToContext, applyQualityToDom, particleCapFor,
 } from './quality.js';
 import { NATIVE_EVENTS } from './native.js';
 import { Game } from './game.js';
+import { warmEnemySprites } from './enemy-sprites.js';
 
 export { Game };
 
@@ -25,7 +26,10 @@ const engine = new Engine(canvas);
 // dev-7 fase 19 (rendimiento — reportado lento en mobile/PC viejas):
 // aplica la calidad gráfica guardada ANTES del primer frame. engine.js
 // sigue sin importar nada — esto vive acá para no romper esa invariante.
-const qualityId = loadQuality();
+// 1.12.5: preferencia guardada > recomendación del dispositivo. En un
+// móvil de 4 GB / 4 núcleos arranca en Baja sin que el jugador tenga que
+// descubrir el selector; puede subir a Alta cuando quiera.
+const qualityId = effectiveQuality();
 // dev-7 fase 28: la calidad se aplica a TODOS los contexts del engine
 // (el visible y los 3 caches offscreen del fondo/niebla). Antes sólo
 // alcanzaba al visible, así que en calidad "baja" el planeta seguía
@@ -58,6 +62,18 @@ engine.onFatalError = (err) => {
 
 game.toMenu();   // BOOT → MENU
 engine.start();  // loop rAF corre desde ya (escena animada en menú)
+
+// 1.12.5 — pre-hornear el atlas de enemigos mientras el jugador está en
+// el menú. Así el primer spawn de cada tipo no paga el bake dentro del
+// frame de gameplay. Es idle: no bloquea el boot ni el menú.
+{
+  const warm = () => { try { warmEnemySprites(); } catch (_err) { /* opcional */ } };
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(warm, { timeout: 3000 });
+  } else {
+    setTimeout(warm, 1200);
+  }
+}
 
 // Audio: crear/reanudar el AudioContext en el PRIMER gesto del usuario
 // (política de autoplay; §audio.js init()).

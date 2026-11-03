@@ -562,6 +562,11 @@ export class HUD {
       if (name !== 'CARD_CHOICE') this.clearAvisos();
     }
     if (name === 'PLAYING') {
+      // 1.12.5: liberar la pantalla anterior. Si el jugador venía de
+      // TORRETAS quedaban ~996 nodos y 35 canvas ocultos retenidos toda
+      // la partida (0,63 MB de backing store). Al volver se re-renderiza.
+      if (typeof el.replaceChildren === 'function') el.replaceChildren();
+      else el.innerHTML = '';
       el.classList.add('hidden');
       this.setPlaying(true);
       return;
@@ -631,6 +636,9 @@ export class HUD {
           // CERRADA (es un toggle, no una prosa que ocupa 130 px).
           this._bannerMoreOpen = false;
           el.innerHTML = this._screenTorretas();
+          // 1.12.5: aplicar la sección ANTES de pintar iconos; así el
+          // bestiario oculto no paga sus 24 renders.
+          this._showMetaSection('torretas');
           this._paintMetaIcons();
           this._bindMetaNav();
           // dev-7 fase 41: re-aplica el estado del toggle de la leyenda
@@ -1182,21 +1190,32 @@ export class HUD {
   /** Dibuja los íconos canvas de las tarjetas (render REAL de la torre)
    *  y los del bestiario (render REAL del enemigo). */
   _paintMetaIcons() {
-    const canvases = this.overlayRoot?.querySelectorAll('[data-meta-icon]') ?? [];
-    for (const c of canvases) {
-      renderTowerIcon(c, c.dataset.metaIcon, {
-        themeId: loadTheme(),
-        skinId: loadSkin(),
-      });
+    const root = this.overlayRoot;
+    if (!root) return;
+    // 1.12.5: pintar SOLO la sección visible. Al entrar a TORRETAS, los
+    // 24 iconos del bestiario están ocultos y se pintaban igual (35
+    // canvas + 22 lecturas de localStorage por render). El bestiario se
+    // pinta la primera vez que se abre.
+    const grid = root.querySelector('#meta-grid');
+    if (!grid || !grid.classList.contains('hidden')) {
+      const themeId = loadTheme();
+      const skinId = loadSkin();
+      const canvases = root.querySelectorAll('[data-meta-icon]');
+      for (const c of canvases) {
+        renderTowerIcon(c, c.dataset.metaIcon, { themeId, skinId });
+      }
     }
     // dev-7 fase 40: los iconos del bestiario (el enemigo de verdad).
     // fase 65/68: las fichas de VARIANTE de élite pasan su id por
     // `data-bestiary-variant` para que el icono dibuje el rasgo (escudo,
-    // líneas de velocidad, aura de cura, placas...) — el mismo render que
+    // líneas de velocidad, aura de cura, placas...) - el mismo render que
     // en el campo, no un dibujo aparte.
-    const bestiario = this.overlayRoot?.querySelectorAll('[data-bestiary-icon]') ?? [];
-    for (const c of bestiario) {
-      renderEnemyIcon(c, c.dataset.bestiaryIcon, c.dataset.bestiaryVariant ?? null);
+    const bestiary = root.querySelector('#meta-bestiario');
+    if (bestiary && !bestiary.classList.contains('hidden')) {
+      const icons = root.querySelectorAll('[data-bestiary-icon]');
+      for (const c of icons) {
+        renderEnemyIcon(c, c.dataset.bestiaryIcon, c.dataset.bestiaryVariant ?? null);
+      }
     }
   }
 
@@ -1292,6 +1311,9 @@ export class HUD {
       if (x.dataset.action) return;
       x.classList.toggle('active', x.dataset.metaTab === name);
     });
+    // 1.12.5: el bestiario se pinta la PRIMERA vez que se abre (antes se
+    // pintaban sus 24 iconos ocultos al entrar a TORRETAS).
+    if (name === 'bestiario') this._paintMetaIcons();
   }
 
   /**

@@ -52,7 +52,12 @@ function makeCtx() {
     lineTo() {}, rect() {}, clip() {},
     ellipse() {}, arcTo() {}, roundRect() {},
     quadraticCurveTo() {}, bezierCurveTo() {}, setLineDash() {},
-    arc(x, y, r) { calls.arcs.push({ x, y, r, shadow: ctx.shadowBlur, stroke: ctx.strokeStyle }); },
+    arc(x, y, r) {
+      calls.arcs.push({
+        x, y, r, shadow: ctx.shadowBlur, stroke: ctx.strokeStyle,
+        width: ctx.lineWidth,
+      });
+    },
     fill() {},
     stroke() {
       calls.strokes++;
@@ -78,12 +83,14 @@ function makeCtx() {
   return ctx;
 }
 
-/** Cuenta los segmentos del anillo (radio ARC_R) vivos (con glow) y rotos. */
+/** Cuenta los segmentos del anillo (radio ARC_R) vivos y rotos. 1.12.5:
+ *  el brillo ya no se marca con shadowBlur (se eliminó del hot path);
+ *  los vivos usan el grosor base y los rotos, el 80 %. */
 function countSegments(ctx) {
   const seg = ctx.calls.arcs.filter((a) => Math.abs(a.r - ARC_R) < 0.5);
   return {
-    alive: seg.filter((a) => a.shadow > 0).length,
-    dead: seg.filter((a) => a.shadow === 0).length,
+    alive: seg.filter((a) => a.width >= 5).length,
+    dead: seg.filter((a) => a.width < 5).length,
   };
 }
 

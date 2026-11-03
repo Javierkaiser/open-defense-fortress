@@ -357,15 +357,14 @@ test('game.js: el modal de cartas/perk se cierra en TODO cambio de estado (BUG-0
 
 // ---------- Fondo: caches offscreen, nebulosa, terminador y halo de spawn ----------
 
-test('applyQualityTo: la calidad se aplica al ctx visible y a los 4 caches offscreen', () => {
+test('applyQualityTo: la calidad se aplica al ctx visible y a los 3 caches offscreen', () => {
   withFakeDocument(() => {
     const e = makeEngine();
     const seen = [];
     e.applyQualityTo((ctx) => seen.push(ctx), 'baja');
-    assert.equal(seen.length, 5, 'debe aplicar la calidad al ctx visible + los 4 caches');
+    assert.equal(seen.length, 4, 'debe aplicar la calidad al ctx visible + los 3 caches');
     assert.ok(seen.includes(e.ctx), 'falta el contexto visible');
     assert.ok(seen.includes(e._skyCache.ctx), 'falta el cache del cielo');
-    assert.ok(seen.includes(e._planetCache.ctx), 'falta el cache del planeta');
     assert.ok(seen.includes(e._fogCache.ctx), 'falta el cache de la niebla');
     assert.ok(seen.includes(e._deckCache.ctx), 'falta el cache del deck (fase 62)');
   });
@@ -374,16 +373,19 @@ test('applyQualityTo: la calidad se aplica al ctx visible y a los 4 caches offsc
 test('caches offscreen: existen y el fondo NO se redibuja en cada frame', () => {
   withFakeDocument(() => {
     const e = makeEngine();
-    for (const c of [e._skyCache, e._planetCache, e._fogCache]) {
+    for (const c of [e._skyCache, e._fogCache]) {
       assert.ok(c?.canvas, 'el cache no tiene canvas');
       assert.ok(c?.ctx, 'el cache no tiene contexto 2D');
     }
-    // Cielo+planeta: 1 refresh cada 3 frames (no en cada frame).
+    // 1.12.5: el fondo es estático. Se hornea UNA vez (dirty inicial) y
+    // no se vuelve a tocar hasta que cambie el tema o el layout.
     let skyRefreshes = 0;
     e._drawSky = () => { skyRefreshes++; };
     for (let i = 0; i < 9; i++) e._refreshBgCacheIfNeeded();
-    assert.ok(skyRefreshes < 9, `el fondo se redibuja cada frame (${skyRefreshes}/9)`);
-    assert.equal(skyRefreshes, 4, 'el cache del fondo debería refrescar 1 de cada 3 frames');
+    assert.equal(skyRefreshes, 1, `el fondo debería hornearse 1 vez, no ${skyRefreshes}/9`);
+    e._bgDirty = true;
+    e._refreshBgCacheIfNeeded();
+    assert.equal(skyRefreshes, 2, 'un cambio de tema/layout debe volver a hornearlo');
     // Niebla: mismo criterio (1 de cada 3).
     let fogRefreshes = 0;
     e._drawFogDirect = () => { fogRefreshes++; };

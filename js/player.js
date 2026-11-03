@@ -847,14 +847,13 @@ export class Fortress {
       ctx.fill();
     }
     // Núcleo sólido + chispa blanca en el centro
+    // 1.12.5: sin shadowBlur=12 por frame; las 4 capas concéntricas ya
+    // construyen el halo y el núcleo sólido se lee igual.
     ctx.globalAlpha = 0.55 + 0.30 * pulse;
-    ctx.shadowColor = tone.color;
-    ctx.shadowBlur = 12;
     ctx.fillStyle = tone.color;
     ctx.beginPath();
     ctx.arc(x, y, CORE_R, 0, Math.PI * 2);
     ctx.fill();
-    ctx.shadowBlur = 0;
     ctx.globalAlpha = 0.85;
     ctx.fillStyle = '#FFFFFF';
     ctx.beginPath();
@@ -889,7 +888,6 @@ export class Fortress {
     // Segmentos ROTOS: apagados, sin brillo (la parte ya perdida).
     if (alive < SHIELD_SEGMENTS) {
       ctx.strokeStyle = tone.dim;
-      ctx.shadowBlur = 0;
       ctx.lineWidth = SEG_LINE_W * 0.8;
       ctx.beginPath();
       for (let i = alive; i < SHIELD_SEGMENTS; i++) {
@@ -900,17 +898,24 @@ export class Fortress {
 
     // Segmentos VIVOS: color del estado + glow. En 'crit' laten.
     if (alive > 0) {
-      ctx.globalAlpha = frac < 0.25 ? 0.55 + 0.45 * Math.sin(t * 3.2) : 1;
+      const a = frac < 0.25 ? 0.55 + 0.45 * Math.sin(t * 3.2) : 1;
+      ctx.globalAlpha = a;
       ctx.strokeStyle = tone.color;
-      ctx.shadowColor = tone.color;
-      ctx.shadowBlur = 10;
+      // El ancho del segmento se fija ANTES del path para que el trazo
+      // base quede identificable (los tests cuentan vivos vs. rotos).
       ctx.lineWidth = SEG_LINE_W;
       ctx.beginPath();
       for (let i = 0; i < alive; i++) {
         this._segPath(ctx, x, y, i, step, inset);
       }
+      // 1.12.5: halo por trazo ancho translúcido (1 stroke extra) en vez
+      // de shadowBlur=10 por frame.
+      ctx.globalAlpha = a * 0.18;
+      ctx.lineWidth = SEG_LINE_W + 5;
       ctx.stroke();
-      ctx.shadowBlur = 0;
+      ctx.globalAlpha = a;
+      ctx.lineWidth = SEG_LINE_W;
+      ctx.stroke();
       ctx.globalAlpha = 1;
     }
 
@@ -956,8 +961,8 @@ export class Fortress {
     ctx.lineJoin = 'round';
     ctx.strokeStyle = 'rgba(2, 8, 6, 0.92)';
     ctx.strokeText(txt, x, y - 26);
-    ctx.shadowColor = tone.color;
-    ctx.shadowBlur = 8;
+    // 1.12.5: sin shadowBlur por frame; el contorno oscuro ya asegura
+    // lectura sobre cualquier fondo.
     ctx.fillStyle = tone.color;
     ctx.fillText(txt, x, y - 26);
     ctx.restore();

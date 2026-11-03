@@ -8,6 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   QUALITY_LEVELS, normalizeQuality, loadQuality, saveQuality,
+  autoQuality, effectiveQuality,
   applyQualityToContext, applyQualityToDom, particleCapFor,
 } from '../js/quality.js';
 import { fakeStorage } from './helpers/storage.mjs';
@@ -42,6 +43,25 @@ test('loadQuality/saveQuality: persisten a través del storage inyectado', () =>
 
 test('particleCapFor: baja < alta (menos partículas simultáneas)', () => {
   assert.ok(particleCapFor('baja') < particleCapFor('alta'));
+});
+
+test('autoQuality: gama baja (≤4 GB o ≤4 núcleos) → baja; el resto → alta', () => {
+  assert.equal(autoQuality({ deviceMemory: 2, hardwareConcurrency: 8 }), 'baja');
+  assert.equal(autoQuality({ deviceMemory: 8, hardwareConcurrency: 4 }), 'baja');
+  assert.equal(autoQuality({ deviceMemory: 8, hardwareConcurrency: 8 }), 'alta');
+  assert.equal(autoQuality({ deviceMemory: 4, hardwareConcurrency: 6 }), 'baja');
+});
+
+test('effectiveQuality: preferencia guardada > recomendación del dispositivo', () => {
+  const storage = fakeStorage();
+  // Sin preferencia: manda el dispositivo.
+  assert.equal(effectiveQuality(storage, { deviceMemory: 2, hardwareConcurrency: 2 }), 'baja');
+  assert.equal(effectiveQuality(storage, { deviceMemory: 8, hardwareConcurrency: 8 }), 'alta');
+  // Con preferencia explícita: se respeta aunque el dispositivo sea flojo.
+  saveQuality('alta', storage);
+  assert.equal(effectiveQuality(storage, { deviceMemory: 2, hardwareConcurrency: 2 }), 'alta');
+  saveQuality('baja', storage);
+  assert.equal(effectiveQuality(storage, { deviceMemory: 16, hardwareConcurrency: 16 }), 'baja');
 });
 
 test('applyQualityToContext: en "baja", shadowBlur queda en 0 pase lo que pase', () => {

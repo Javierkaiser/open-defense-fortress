@@ -39,6 +39,41 @@ export function loadQuality(storage = safeLocalStorage()) {
   }
 }
 
+/**
+ * 1.12.5 — Calidad RECOMENDADA para el dispositivo cuando el jugador
+ * todavía no eligió. El default histórico era 'alta' para todos; en un
+ * móvil de gama baja eso significa `shadowBlur` por software, blur DOM y
+ * 400 partículas, justo lo que hace que el juego vaya a 20-30 FPS.
+ *
+ * Heurística conservadora (no castiga a un flagship):
+ *   · deviceMemory <= 4 GB  → baja
+ *   · hardwareConcurrency <= 4 núcleos → baja
+ *   · puntero grueso solo no alcanza: una tablet buena sigue en alta.
+ *
+ * Es inyectable para tests (env) y no toca `window`/`navigator` sin guard.
+ */
+export function autoQuality(env = {}) {
+  const nav = typeof navigator !== 'undefined' ? navigator : null;
+  const mem = Number(env.deviceMemory ?? nav?.deviceMemory ?? 8);
+  const cores = Number(env.hardwareConcurrency ?? nav?.hardwareConcurrency ?? 8);
+  const lowMem = Number.isFinite(mem) && mem > 0 && mem <= 4;
+  const lowCores = Number.isFinite(cores) && cores > 0 && cores <= 4;
+  return (lowMem || lowCores) ? 'baja' : 'alta';
+}
+
+/**
+ * Calidad EFECTIVA al arrancar: preferencia guardada > recomendación del
+ * dispositivo > default. `loadQuality` se conserva con default 'alta'
+ * para no romper tests/consumidores que esperan ese contrato.
+ */
+export function effectiveQuality(storage = safeLocalStorage(), env = {}) {
+  try {
+    const saved = storage.getItem(KEY);
+    if (saved) return normalizeQuality(saved);
+  } catch (_err) { /* storage bloqueado: seguimos con la recomendación */ }
+  return autoQuality(env);
+}
+
 export function saveQuality(id, storage = safeLocalStorage()) {
   const q = normalizeQuality(id);
   try {

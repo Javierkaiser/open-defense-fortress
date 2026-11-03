@@ -744,8 +744,15 @@ export class Game {
   toTorretas() {
     this._clearBattlefield();
     this.meta = loadMeta();
+    // 1.12.5: si el estado CAMBIA, `setState` ya pinta la pantalla por el
+    // evento `state:changed`; llamar showScreen otra vez la construía DOS
+    // veces (medido: 27,9 ms y 2 pasadas de los 35 iconos). Solo se
+    // re-renderiza cuando ya estábamos en TORRETAS.
+    if (this.engine.state === 'TORRETAS') {
+      this.hud.showScreen('TORRETAS');
+      return;
+    }
     this.engine.setState('TORRETAS');
-    this.hud.showScreen('TORRETAS'); // setState no-op re-render (mismo estado)
   }
 
   toSelectStage() {
@@ -769,11 +776,13 @@ export class Game {
   toProtocol() {
     this._clearBattlefield();
     this.progressData = loadProgress();
+    // 1.12.5: mismo guard que toSelectStage: si el estado cambia, el
+    // evento state:changed pinta; solo re-renderizamos si ya estábamos.
+    if (this.engine.state === 'PROTOCOLO') {
+      this.hud.showScreen('PROTOCOLO');
+      return;
+    }
     this.engine.setState('PROTOCOLO');
-    // setState() es no-op con el mismo estado: re-render manual para que
-    // los rangos recién guardados se vean al instante (mismo patrón que
-    // toTorretas/toSelectStage).
-    this.hud.showScreen('PROTOCOLO');
   }
 
   /**
@@ -1560,10 +1569,11 @@ export class Game {
   toRecords() {
     this._clearBattlefield();
     this.progressData = loadProgress();
+    if (this.engine.state === 'RECORDS') {
+      this.hud.showScreen('RECORDS');
+      return;
+    }
     this.engine.setState('RECORDS');
-    // setState() es no-op con el mismo estado: re-render manual (mismo
-    // patrón que toSelectStage/toTorretas).
-    this.hud.showScreen('RECORDS');
   }
 
   /**
@@ -1574,10 +1584,11 @@ export class Game {
    */
   toCredits() {
     this._clearBattlefield();
+    if (this.engine.state === 'CREDITS') {
+      this.hud.showScreen('CREDITS');
+      return;
+    }
     this.engine.setState('CREDITS');
-    // setState() es no-op con el mismo estado: re-render manual (mismo
-    // patrón que toSelectStage/toTorretas/toRecords).
-    this.hud.showScreen('CREDITS');
   }
 
   // ---------- Economía de kills (§2.6/§2.7/§2.8) ----------

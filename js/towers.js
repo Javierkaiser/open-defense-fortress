@@ -796,8 +796,7 @@ export class Tower {
               ctx.globalCompositeOperation = 'lighter';
               ctx.globalAlpha = tt * 0.9;
               ctx.strokeStyle = accent;
-              ctx.shadowColor = accent;
-              ctx.shadowBlur = 12;
+              // 1.12.5: sin shadowBlur por impacto; `lighter` + partículas.
               ctx.lineWidth = 2.5;
               ctx.beginPath();
               ctx.arc(impact.x, impact.y, 8 + (1 - tt) * 34, 0, Math.PI * 2);
@@ -1097,7 +1096,12 @@ export class Tower {
     this.cooldownLeft -= dt;
     if (this.cooldownLeft <= 0) {
       this.fire(enemies, game, dt);
-      this.cooldownLeft = this.cooldown;
+      // 1.12.5: carry-over del residuo. Antes `= this.cooldown` descartaba
+      // el overshoot y el DPS dependía del framerate (medido: -8 % a
+      // dt=0.1). Sumar conserva la cadencia real; el clamp evita una
+      // ráfaga de catch-up si el frame fue enorme.
+      this.cooldownLeft += this.cooldown;
+      if (this.cooldownLeft < 0) this.cooldownLeft = 0;
     }
     this._tickShot();
   }
@@ -1277,16 +1281,16 @@ export class Tower {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     ctx.lineCap = 'round';
-    // Halo suave.
+    // Halo suave: trazo ancho translúcido (sin shadowBlur por frame).
     ctx.strokeStyle = color;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 8 + 10 * build;
+    const linkW = 1.4 + 2.2 * build;
     ctx.globalAlpha = 0.05 + 0.20 * build;
-    ctx.lineWidth = 1.4 + 2.2 * build;
+    ctx.lineWidth = linkW + 3;
     path(ctx);
     ctx.stroke();
+    ctx.lineWidth = linkW;
+    ctx.stroke();
     // Núcleo casi blanco, más fino.
-    ctx.shadowBlur = 0;
     ctx.strokeStyle = core;
     ctx.globalAlpha = 0.04 + 0.16 * build;
     ctx.lineWidth = 0.6 + 0.8 * build;
@@ -1296,8 +1300,6 @@ export class Tower {
     // llega a 1 (radio target.r + 8 al final).
     const ringR = (tgt.r ?? 10) + 8 + (1 - build) * 14 + Math.sin(t * 6) * 1.5;
     ctx.strokeStyle = color;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 6;
     ctx.globalAlpha = 0.06 + 0.22 * build;
     ctx.lineWidth = 1.1;
     ctx.beginPath();

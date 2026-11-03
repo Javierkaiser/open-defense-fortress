@@ -332,6 +332,14 @@ export const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 export const dist = (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1);
 export const rand = (min = 0, max = 1) => min + Math.random() * (max - min);
 
+/** `#RRGGBB` + alpha → `rgba(...)`. Para los sprites de glow del engine. */
+function hexA(hex, a) {
+  if (typeof hex !== 'string' || hex[0] !== '#') return hex;
+  const n = parseInt(hex.slice(1), 16);
+  if (!Number.isFinite(n)) return hex;
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+}
+
 // ------------------------------------------------------------
 // EventBus — comunicación desacoplada (§1.1)
 // ------------------------------------------------------------
@@ -527,16 +535,14 @@ export class Engine {
       } catch (_err) { /* matchMedia no disponible */ }
     }
 
-    // dev-7 fase 19 (pedido del usuario: "anda lento en mobile/PC vieja,
-    // aun en 2x"): _drawSky()/_drawPlanet() crean ~15 gradientes desde
-    // cero en CADA frame para un fondo que cambia muy poco (solo un par
-    // de pulsos sinusoidales lentos). Se cachean en 2 canvas offscreen y
-    // se refrescan cada pocos frames en vez de 60 veces por segundo — ver
+    // dev-7 fase 19 + 1.12.5: el fondo (cielo + degradé de horizonte +
+    // luna + nebulosa + decoración del tema) es ESTÁTICO. Se hornea UNA
+    // vez por tema/layout en un solo cache offscreen; ya no hay planeta
+    // ni refresco periódico (el planeta era el 90 % del costo del fondo:
+    // ~17 gradientes, 36 shadowBlur y 106 paths cada 3 frames). Ver
     // _refreshBgCacheIfNeeded() más abajo.
-    this._bgFrameSkip = 0;
     this._bgDirty = true;
     this._skyCache = this._makeOffscreen();
-    this._planetCache = this._makeOffscreen();
     // fase 62: el deck (plataforma) es estático salvo el layout, así que va
     // en su PROPIO cache — más chico que los del fondo (solo la franja de
     // la plataforma) y redibujado únicamente cuando el layout cambia.
@@ -555,6 +561,9 @@ export class Engine {
     // importa a propósito, sigue sin ninguna dependencia — lo aplica
     // quien construye el Engine, ver main.js).
     this._particleCap = CONFIG.MAX_PARTICLES;
+    // 1.12.5: sprites de glow 32×32 por color (reemplazan shadowBlur en
+    // balizas del deck y otros detalles del engine). Sin document → null.
+    this._glowCache = new Map();
 
     this.bus = new EventBus();
     this.state = 'BOOT';
@@ -565,6 +574,8 @@ export class Engine {
     // Reloj del loop + tiempo real acumulado (flicker/niebla)
     this._last = 0;
     this._t = 0;
+    this._lastRenderAt = 0;
+    this._renderNow = true;
     this._loopBound = this.loop.bind(this);
 
     // Entidades genéricas (torres/enemigos desde dev-2/dev-3) y
@@ -752,13 +763,30 @@ export class Engine {
    * @returns {boolean} true si el layout cambió
    */
   relayout() {
+    // 1.12.5: releer el DPR además del alto. Antes `this.dpr` se fijaba
+    // una sola vez en el constructor: mover la ventana a otro monitor o
+    // cambiar el zoom dejaba el buffer con la densidad vieja (borroso u
+    // oversampleado) hasta recargar.
+    const nextDpr = this._readDpr();
+    const dprChanged = nextDpr !== this.dpr;
+    if (dprChanged) this.dpr = nextDpr;
     const nh = this._frameLogicalHeight();
-    if (nh === LAYOUT.h) return false;
-    setLogicalHeight(nh);
+    const heightChanged = nh !== LAYOUT.h;
+    if (!heightChanged && !dprChanged) return false;
+    if (heightChanged) setLogicalHeight(nh);
     this._resizeBuffers();
-    this._rebuildDecor();
-    this.emit('layout:changed', { h: LAYOUT.h, delta: LAYOUT.delta });
+    if (heightChanged) this._rebuildDecor();
+    this._renderNow = true;
+    this.emit('layout:changed', { h: LAYOUT.h, delta: LAYOUT.delta, dpr: this.dpr });
     return true;
+  }
+
+  /** DPR efectivo (cap 2). Aislado para poder testearlo/inyectarlo. */
+  _readDpr() {
+    if (typeof window !== 'undefined' && window.devicePixelRatio) {
+      return Math.min(window.devicePixelRatio || 1, 2);
+    }
+    return 1;
   }
 
   /**
@@ -791,7 +819,7 @@ export class Engine {
     this.canvas.width = w * dpr;
     this.canvas.height = h * dpr;
     this.ctx.scale(dpr, dpr);
-    for (const c of [this._skyCache, this._planetCache, this._fogCache]) {
+    for (const c of [this._skyCache, this._fogCache]) {
       if (!c) continue;
       c.canvas.width = w * dpr;
       c.canvas.height = h * dpr;
@@ -886,16 +914,32 @@ export class Engine {
    */
   setSceneTint(color, alpha = 0) {
     const a = Number(alpha);
-    this._sceneTint = (color && Number.isFinite(a) && a > 0)
+    const next = (color && Number.isFinite(a) && a > 0)
       ? { color, alpha: Math.min(1, a) }
       : null;
+    const prev = this._sceneTint;
+    const changed = (prev?.color ?? null) !== (next?.color ?? null)
+      || (prev?.alpha ?? 0) !== (next?.alpha ?? 0);
+    this._sceneTint = next;
+    // 1.12.5: el tinte se hornea en el fondo y en el deck (antes era un
+    // fillRect soft-light de canvas completo POR FRAME). Si cambia, hay
+    // que rehornear; si es el mismo, no se toca nada.
+    if (changed) {
+      this._bgDirty = true;
+      this._deckDirty = true;
+      this._renderNow = true;
+    }
   }
 
   /** Cambia la paleta del stage (main.js en startStage, §2.9). */
   setTheme(name) {
-    if (THEMES[name]) this.theme = THEMES[name];
-    this._bgDirty = true; // dev-7 fase 19: fuerza redibujar el cache YA, sin esperar el próximo ciclo de refresh (evita 1 frame de fondo viejo)
-    this._fogDirty = true; // dev-7 fase 28: la niebla tiene su propio cache
+    const next = THEMES[name];
+    if (!next || next === this.theme) return; // no rehornear si es el mismo tema
+    this.theme = next;
+    this._bgDirty = true;  // rehornear el fondo estático (1 vez)
+    this._fogDirty = true; // la niebla tiene su propio cache
+    this._deckDirty = true; // el deck usa acentos del tema
+    this._renderNow = true;
   }
 
   /**
@@ -940,6 +984,56 @@ export class Engine {
   }
 
   /**
+   * Sprite de glow radial 32×32 por color (cacheado). Evita `shadowBlur`
+   * por frame en detalles como las balizas del deck. Devuelve null fuera
+   * del navegador; el llamador cae a un círculo plano.
+   */
+  _glowSprite(color) {
+    if (this._glowCache.has(color)) return this._glowCache.get(color);
+    let cv = null;
+    if (typeof document !== 'undefined' && typeof document.createElement === 'function') {
+      cv = document.createElement('canvas');
+      cv.width = 32;
+      cv.height = 32;
+      const g = cv.getContext('2d');
+      if (g) {
+        const grad = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+        grad.addColorStop(0, hexA(color, 1));
+        grad.addColorStop(0.35, hexA(color, 0.55));
+        grad.addColorStop(1, hexA(color, 0));
+        g.fillStyle = grad;
+        g.fillRect(0, 0, 32, 32);
+      }
+    }
+    this._glowCache.set(color, cv);
+    return cv;
+  }
+
+  /** Halo radial barato: 1 drawImage por color (sin shadowBlur). */
+  _drawGlow(ctx, x, y, r, color, alpha = 1) {
+    if (!(r > 0) || !(alpha > 0)) return;
+    const spr = this._glowSprite(color);
+    if (spr) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(spr, x - r, y - r, r * 2, r * 2);
+      ctx.restore();
+      return;
+    }
+    if (typeof ctx.createRadialGradient !== 'function') return;
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+    grad.addColorStop(0, hexA(color, alpha));
+    grad.addColorStop(1, hexA(color, 0));
+    ctx.save();
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  /**
    * Aplica un nivel de calidad gráfica a TODOS los contexts del engine
    * (dev-7 fase 28).
    *
@@ -956,48 +1050,43 @@ export class Engine {
     if (typeof applyQuality !== 'function') return;
     applyQuality(this.ctx, qualityId);
     applyQuality(this._skyCache?.ctx, qualityId);
-    applyQuality(this._planetCache?.ctx, qualityId);
     // dev-7 fase 28: el 3er cache (niebla) también es un contexto 2D
     // real — sin esto seguía con su shadowBlur nativo en calidad "baja".
     applyQuality(this._fogCache?.ctx, qualityId);
     // fase 62: el cache del deck, por el mismo motivo.
     applyQuality(this._deckCache?.ctx, qualityId);
     this._qualityId = qualityId;
+    // 1.12.5: los caches pudieron hornear sombras/glows con la calidad
+    // anterior. Marcarlos dirty evita que el deck/fondo queden con el
+    // `shadowBlur` viejo hasta un resize (bug de la fase 19).
+    this._bgDirty = true;
+    this._fogDirty = true;
+    this._deckDirty = true;
+    this._renderNow = true;
     // FASE 58: se guarda la función para poder reaplicarla después de
     // redimensionar el canvas (el resize resetea el contexto).
     this._qualityApply = applyQuality;
   }
 
-  /** Redibuja sky+planeta en sus cachés cada BG_REFRESH_EVERY frames (o
-   *  ya, si algo los invalidó — cambio de tema). El pulso sinusoidal de
-   *  fondo queda a ~20fps en vez de 60 — imperceptible (ciclos de varios
-   *  segundos), pero corta ~2/3 del costo de gradientes de esta parte. */
+  /** Redibuja el fondo estático SOLO cuando cambia el tema o el layout.
+   *  El fondo ya no tiene pulsos por frame ni planeta: es una sola capa
+   *  horneada (cielo + degradé + luna + nebulosa + decoración del tema).
+   *  Antes se refrescaba cada 3 frames y el planeta costaba ~5 ms por
+   *  refresco; ahora cuesta 0 en régimen. */
   _refreshBgCacheIfNeeded() {
-    if (!this._skyCache || !this._planetCache) return;
-    const BG_REFRESH_EVERY = 3;
-    this._bgFrameSkip = (this._bgFrameSkip + 1) % BG_REFRESH_EVERY;
-    if (!this._bgDirty && this._bgFrameSkip !== 0) return;
+    if (!this._skyCache || !this._bgDirty) return;
     this._bgDirty = false;
     const sctx = this._skyCache.ctx;
     sctx.clearRect(0, 0, CONFIG.CANVAS_W, CONFIG.CANVAS_H);
     this._drawSky(sctx);
-    const pctx = this._planetCache.ctx;
-    pctx.clearRect(0, 0, CONFIG.CANVAS_W, CONFIG.CANVAS_H);
-    if ((this.theme?.feature ?? 'rich') !== 'night') this._drawPlanet(pctx);
   }
 
-  /** Blit del cielo cacheado (dispara el refresh compartido con el planeta,
-   *  ver _refreshBgCacheIfNeeded — se llama antes en el orden de render()). */
+  /** Blit del fondo cacheado (estático: se rehace solo al cambiar tema o
+   *  layout). Se llama antes que las estrellas en render(). */
   _drawSkyCached(ctx) {
     this._refreshBgCacheIfNeeded();
     if (this._skyCache) ctx.drawImage(this._skyCache.canvas, 0, 0, CONFIG.CANVAS_W, CONFIG.CANVAS_H);
     else this._drawSky(ctx); // sin document (Node): dibuja directo, sin cache
-  }
-
-  /** Blit del planeta cacheado (el refresh ya lo disparó _drawSkyCached). */
-  _drawPlanetCached(ctx) {
-    if (this._planetCache) ctx.drawImage(this._planetCache.canvas, 0, 0, CONFIG.CANVAS_W, CONFIG.CANVAS_H);
-    else this._drawPlanet(ctx);
   }
 
   // ---------- Ciclo de vida ----------
@@ -1032,7 +1121,26 @@ export class Engine {
     // la protección del frame completo.
     try {
       this.update(dt, dtReal);
-      this.render();
+      // 1.12.5 — PRESUPUESTO DE RENDER POR ESTADO. El mundo se sigue
+      // simulando a 60 Hz, pero fuera de PLAYING no hace falta repintar
+      // 60 veces/s: el canvas está detrás de un overlay (menú/pausa/cartas)
+      // o el mundo está congelado. Esto corta el trabajo de canvas y, sobre
+      // todo, evita recalcular el `backdrop-filter` full-screen cada frame.
+      //   PLAYING                     → todos los frames
+      //   MENU/SELECT/TORRETAS/...    → 30 FPS
+      //   PAUSA/CARTAS/FIN DE RUN     → 15 FPS
+      let renderHz = 0;
+      if (this.state !== 'PLAYING') {
+        const slow = PAUSE_STATES.includes(this.state)
+          || this.state === 'STAGE_CLEAR' || this.state === 'GAME_OVER';
+        renderHz = slow ? 15 : 30;
+      }
+      if (renderHz === 0 || this._renderNow
+        || this._t - this._lastRenderAt >= 1 / renderHz) {
+        this.render();
+        this._lastRenderAt = this._t;
+        this._renderNow = false;
+      }
     } catch (err) {
       console.error('[engine] error en el frame:', err);
       if (!this._frameErrorShown) {
@@ -1084,6 +1192,7 @@ export class Engine {
     if (next === this.state) return;
     const prev = this.state;
     this.state = next;
+    this._renderNow = true; // el cambio de pantalla debe verse ya
     // Regla §1.2: PAUSED/CARD_CHOICE → timeScale 0; al volver a PLAYING
     // se restaura la velocidad elegida (x1/x1.5/x2). El freeze usa
     // setTimeScale(0) (x=0 no dispara el guarda de pausa) y la restauración
@@ -1143,8 +1252,20 @@ export class Engine {
    * Medido: el máximo real es 41 (stage 50), así que 300 es holgado.
    */
   addEntity(e) {
-    if (this.entities.length >= 300) this.entities.shift();
+    // dev-7 fase 28: tope defensivo. 1.12.5: ya NO se expulsa la entidad
+    // más vieja a ciegas: si el tope se llena, primero se recicla una
+    // entidad muerta; si no hay, un proyectil/FX nuevo se descarta antes
+    // que borrar un enemigo vivo (el bug latente: con 300 entidades, un
+    // enemigo desaparecía de `entities` pero seguía en `fortress.enemies`
+    // con dead=false, congelado en y=-40 y bloqueando el cierre de etapa).
+    if (this.entities.length >= 300) {
+      const dead = this.entities.findIndex((x) => x && x.dead);
+      if (dead >= 0) this.entities.splice(dead, 1);
+      else if (!(e && Number.isFinite(e.hpMax))) return null; // proyectil/FX
+      else if (this.entities.length >= 600) return null; // hard cap defensivo
+    }
     this.entities.push(e);
+    return e;
   }
   removeEntity(e) {
     const i = this.entities.indexOf(e);
@@ -1220,7 +1341,11 @@ export class Engine {
    * fuerte de uno flojo. Ahora el llamador pasa la magnitud relativa.
    */
   floatText(x, y, text, color = '#FFD24A', scale = 1) {
-    if (this.floats.length >= 60) this.floats.shift(); // presupuesto §4
+    // 1.12.5: 24 en vez de 60. Cada float es un strokeText + fillText con
+    // font/save/restore; con 60 concurrentes el coste de texto domina el
+    // juice. 24 sigue leyéndose y evita el spam visual.
+    const cap = this._floatCap ?? 24;
+    if (this.floats.length >= cap) this.floats.shift();
     this.floats.push({ x, y, text, color, age: 0, life: 0.9, scale });
   }
 
@@ -1396,39 +1521,18 @@ export class Engine {
       );
     }
 
+    // Fondo ESTÁTICO horneado (cielo + degradé + luna + nebulosa + tema).
+    // Ya no hay planeta ni refresh periódico: un solo drawImage.
     this._drawSkyCached(ctx);
     // v3 3c/7: modo night (fondo general) ↔ game según el tema activo
     this.stars.setMode((this.theme?.feature ?? 'rich') === 'night' ? 'night' : 'game');
     this.stars.draw(ctx);
-    // v3 3c/7: decoración de fondo DETRÁS del planeta (luna, cenizas, velos)
-    this._drawThemeBackdrop(ctx);
-    // night = fondo general: NO se dibuja planeta (estrellas protagonistas)
-    if ((this.theme?.feature ?? 'rich') !== 'night') this._drawPlanetCached(ctx);
-    // T3 — Halo del punto de spawn: resplandor MUY tenue en el borde
-    // superior (x = BASE_X), de donde entran los enemigos. Un solo
-    // gradiente radial por frame: avisa de dónde viene la amenaza sin
-    // distraer (va ENCIMA del planeta: el spawn es arriba del todo).
-    this._drawSpawnHalo(ctx);
+    // El halo de spawn ya vive horneado en el fondo estático.
     this._drawPlatform(ctx);
     this._drawFog(ctx);
-    // v3 3c/7: chispas del reactor orbitando el limbo (Stage 5)
-    if ((this.theme?.feature ?? 'rich') === 'core') this._drawCoreSparks(ctx);
 
-    // dev-7 fase 54 — EL TINTE DEL TEMA sobre el fondo YA DIBUJADO (cielo,
-    // nebulosa, estrellas, velos, planeta, plataforma y niebla). Va aquí, y
-    // no despues, a propósito: las ENTIDADES (base, torres, enemigos,
-    // proyectiles) se pintan en los siguientes bloques y quedan con sus
-    // colores semánticos intactos.
-    // Un `fillRect` con `soft-light` por frame: medido a 60 FPS con 400
-    // particulas y 3 enemigos, sin diferencia con el tinte puesto.
-    if (this._sceneTint) {
-      ctx.save();
-      ctx.globalCompositeOperation = 'soft-light';
-      ctx.globalAlpha = this._sceneTint.alpha;
-      ctx.fillStyle = this._sceneTint.color;
-      ctx.fillRect(0, 0, CONFIG.CANVAS_W, CONFIG.CANVAS_H);
-      ctx.restore();
-    }
+    // El tinte del tema ya está horneado en el fondo/deck (1.12.5): no
+    // hay fillRect `soft-light` full-canvas por frame.
 
     // Capa de aplicación (Fortress: cúpula + arco HP + torres) bajo las
     // entidades para que los proyectiles pasen por encima
@@ -1458,7 +1562,18 @@ export class Engine {
     ctx.fillStyle = g;
     ctx.fillRect(-12, -12, CONFIG.CANVAS_W + 24, CONFIG.CANVAS_H + 24);
 
-    // T1 — NEBULOSA: manchas frías (azul-violeta / cian) MUY suaves en la
+    // 1.12.5 — REEMPLAZO DEL PLANETA (opción A): el planeta era el 90 %
+    // del costo del fondo y un detalle estético. Ahora el fondo tiene un
+    // degradé de horizonte + una luna lejana, horneados UNA sola vez
+    // dentro de este cache. Sin planeta, sin refresco periódico.
+    this._drawBackdropStatic(ctx);
+
+    // Decoración estática por tema (luna del cementerio, cenizas del
+    // volcán dormido, aurora del reactor). Antes se dibujaba por frame;
+    // ahora queda horneada en el mismo cache.
+    this._drawThemeBackdrop(ctx);
+
+    // T1 - NEBULOSA: manchas frías (azul-violeta / cian) MUY suaves en la
     // mitad inferior del cielo, la franja que se leía como negro puro y
     // mataba la profundidad de la escena. El alpha es BAJO a propósito
     // (0.05-0.13): tiene que verse como BRUMA, no como una mancha de color.
@@ -1466,28 +1581,81 @@ export class Engine {
     // blitea antes que ellas (render(): _drawSkyCached → stars.draw).
     this._drawNebula(ctx);
 
-    // Resplandor cálido/frío alrededor del planeta
-    const { PLANET_CX: cx, PLANET_CY: cy, PLANET_R: r } = SCENE;
-    const glow = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r * 1.05);
-    glow.addColorStop(0, th.glowColor);
+    // Halo del punto de spawn: estático, horneado con el fondo. Antes era
+    // un gradiente radial POR FRAME; ahora cuesta 0 en régimen.
+    this._drawSpawnHalo(ctx);
+
+    // Tinte del tema: antes era un fillRect `soft-light` de canvas
+    // completo POR FRAME. Ahora se hornea con el fondo (y con el deck).
+    if (this._sceneTint) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'soft-light';
+      ctx.globalAlpha = this._sceneTint.alpha;
+      ctx.fillStyle = this._sceneTint.color;
+      ctx.fillRect(0, 0, CONFIG.CANVAS_W, CONFIG.CANVAS_H);
+      ctx.restore();
+    }
+  }
+
+  /**
+   * Fondo estático que reemplaza al planeta (1.12.5): una banda de
+   * horizonte con el color térmico del tema + un resplandor atmosférico
+   * muy suave + una luna lejana y discreta. Todo se hornea una vez por
+   * tema/layout; en régimen cuesta CERO por frame.
+   *
+   * La luna se omite en `graveyard` porque ese tema ya tiene su propia
+   * luna (`_gvMoon`, dibujada por `_drawThemeBackdrop`).
+   */
+  _drawBackdropStatic(ctx) {
+    const th = this.theme ?? THEMES.volcanic;
+    const W = CONFIG.CANVAS_W;
+    const H = CONFIG.CANVAS_H;
+    const hy = Math.round(H * 0.34); // horizonte visual (~300 px en 880)
+    const heat = th.heat ?? ['232, 100, 31', '180, 60, 20'];
+    const heatA = th.heatA ?? 1;
+
+    // Banda de horizonte: un degradé vertical MUY tenue que da profundidad
+    // sin competir con los enemigos ni con las torres.
+    const top = Math.max(0, hy - 180);
+    const bottom = Math.min(H, hy + 150);
+    const band = ctx.createLinearGradient(0, top, 0, bottom);
+    band.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    band.addColorStop(0.42, `rgba(${heat[0]}, ${(0.045 * heatA).toFixed(4)})`);
+    band.addColorStop(0.62, `rgba(${heat[1]}, ${(0.085 * heatA).toFixed(4)})`);
+    band.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = band;
+    ctx.fillRect(0, top, W, bottom - top);
+
+    // Resplandor atmosférico ancho, centrado en el horizonte (no en el
+    // planeta inexistente). Usa el glowColor del tema, que ya trae alpha.
+    const glowR = Math.max(260, Math.round(W * 0.72));
+    const glow = ctx.createRadialGradient(W / 2, hy, 20, W / 2, hy, glowR);
+    glow.addColorStop(0, th.glowColor ?? 'rgba(232, 100, 31, 0.18)');
+    glow.addColorStop(0.55, 'rgba(0, 0, 0, 0)');
     glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, CONFIG.CANVAS_W, CONFIG.CANVAS_H);
+    ctx.fillRect(0, Math.max(0, hy - glowR), W, Math.min(H, glowR * 2));
 
-    // Halos térmicos superpuestos (dev-6): luz cálida que se desvanece del
-    // borde inferior del planeta hacia el espacio intermedio (fiel a la
-    // diseño base: el cielo intermedio conserva un tono cálido/rojizo).
-    // v3 3c/7: el color/alfa del halo es POR TEMA (night → azul frío, bajo).
-    const th2 = this.theme ?? THEMES.volcanic;
-    const heatRGB = th2.heat ?? ['232, 100, 31', '180, 60, 20'];
-    const heatA = th2.heatA ?? 1;
-    const pulse = 0.75 + 0.25 * Math.sin(this._t * 1.6);
-    const heat = ctx.createRadialGradient(cx, cy + 60, r * 0.1, cx, cy + 120, r * 0.72);
-    heat.addColorStop(0, `rgba(${heatRGB[0]}, ${(0.16 * pulse * heatA).toFixed(4)})`);
-    heat.addColorStop(0.6, `rgba(${heatRGB[1]}, ${(0.07 * pulse * heatA).toFixed(4)})`);
-    heat.addColorStop(1, 'rgba(0, 0, 0, 0)');
-    ctx.fillStyle = heat;
-    ctx.fillRect(0, 0, CONFIG.CANVAS_W, CONFIG.CANVAS_H);
+    // Luna lejana: detalle de fondo, baja en contraste. Sin cráteres ni
+    // textura: un disco suave + halo. Cuesta 2 gradientes UNA vez.
+    if ((th.feature ?? 'rich') !== 'graveyard') {
+      const mx = Math.round(W * 0.81);
+      const my = Math.max(72, Math.round(hy * 0.36));
+      const mr = th.feature === 'night' ? 46 : 38;
+      const halo = ctx.createRadialGradient(mx, my, mr * 0.2, mx, my, mr * 1.9);
+      halo.addColorStop(0, 'rgba(200, 220, 255, 0.10)');
+      halo.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = halo;
+      ctx.fillRect(mx - mr * 1.9, my - mr * 1.9, mr * 3.8, mr * 3.8);
+      const disc = ctx.createRadialGradient(mx - mr * 0.3, my - mr * 0.3, mr * 0.1, mx, my, mr);
+      disc.addColorStop(0, 'rgba(235, 242, 255, 0.24)');
+      disc.addColorStop(0.7, 'rgba(190, 205, 230, 0.14)');
+      disc.addColorStop(1, 'rgba(120, 140, 170, 0.04)');
+      ctx.fillStyle = disc;
+      ctx.beginPath();
+      ctx.arc(mx, my, mr, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   /**
@@ -2243,6 +2411,15 @@ export class Engine {
     dctx.translate(0, -SCENE.PLATFORM_Y); // el cache empieza en PLATFORM_Y
     this._drawDeckStatic(dctx);
     dctx.restore();
+    // 1.12.5: el tinte del tema también se hornea en el deck.
+    if (this._sceneTint) {
+      dctx.save();
+      dctx.globalCompositeOperation = 'soft-light';
+      dctx.globalAlpha = this._sceneTint.alpha;
+      dctx.fillStyle = this._sceneTint.color;
+      dctx.fillRect(0, 0, CONFIG.CANVAS_W, this._deckHeight());
+      dctx.restore();
+    }
   }
 
   /** Alto del cache del deck (de la plataforma al borde inferior). */
@@ -2277,14 +2454,14 @@ export class Engine {
     const modules = TOWER_BAY.moduleX.slice(0, Math.max(0, this._deckSlots - 1));
     for (const mx of modules) {
       const bp = 0.5 + 0.5 * Math.sin(this._t * 2.4 + mx);
-      ctx.globalAlpha = 0.30 + 0.55 * bp;
-      ctx.shadowColor = '#FFC46A';
-      ctx.shadowBlur = 6;
-      ctx.fillStyle = '#FFC46A';
+      // 1.12.5: glow cacheado en vez de shadowBlur=6 (4 balizas/frame).
+      const a = 0.30 + 0.55 * bp;
+      this._drawGlow(ctx, mx, top + 20, 7, '#FFC46A', a);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = '#FFE2A8';
       ctx.beginPath();
-      ctx.arc(mx, top + 20, 1.9, 0, Math.PI * 2);
+      ctx.arc(mx, top + 20, 1.4, 0, Math.PI * 2);
       ctx.fill();
-      ctx.shadowBlur = 0;
     }
     ctx.globalAlpha = 1;
     // PULSO DE ENERGÍA: un latido cian que sale de la cúpula y recorre el
@@ -2738,8 +2915,8 @@ export class Engine {
       ctx.lineJoin = 'round';
       ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
       ctx.strokeText(f.text, f.x, f.y);
-      ctx.shadowColor = f.color;
-      ctx.shadowBlur = 10;
+      // 1.12.5: sin shadowBlur por float. Con 60 números en pantalla eran
+      // 60 blur passes/frame; el contorno oscuro ya garantiza lectura.
       ctx.fillStyle = f.color;
       ctx.fillText(f.text, f.x, f.y);
       ctx.restore();

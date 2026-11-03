@@ -8,6 +8,7 @@ import { pickOnHit } from './perks.js';
 import { applyProjectileHit } from './enemies.js';
 import { applyExplosionCombo } from './towers-core.js';
 import { CraterFx } from './towers-fx.js';
+import { drawGlow } from './tower-art.js';
 
 /** Bala recta: sube con ángulo fijo, muere fuera de pantalla.
  *  opts.pierce = enemigos que atraviesa antes de disiparse (§2.2 cartas
@@ -62,9 +63,9 @@ export class Bullet {
     // Estética v3 4/7 (diseño base): glow neón intenso + cola luminosa más
     // larga en las balas azules del abanico.
     ctx.globalCompositeOperation = 'lighter';
+    // 1.12.5: glow cacheado en vez de shadowBlur=14 por bala.
+    drawGlow(ctx, this.x, this.y, 10, this.color, 0.55);
     ctx.strokeStyle = this.color;
-    ctx.shadowColor = this.color;
-    ctx.shadowBlur = 14;
     ctx.lineWidth = 3;
     ctx.lineCap = 'round';
     ctx.beginPath();
@@ -72,7 +73,6 @@ export class Bullet {
     ctx.lineTo(this.x - this.vx * 0.035, this.y - this.vy * 0.035); // cola larga
     ctx.stroke();
     // Núcleo interior claro (look láser del diseño base)
-    ctx.shadowBlur = 0;
     ctx.strokeStyle = 'rgba(235, 252, 255, 0.85)';
     ctx.lineWidth = 1.2;
     ctx.beginPath();
@@ -186,13 +186,13 @@ export class MortarShell {
     g.shake(3, 200);
     g.addEffect({ life: 0.3, draw: (ctx, tt) => {
       ctx.save();
+      const rr = R * (1.15 - tt * 0.5);
+      drawGlow(ctx, this.x, this.y, rr, this.tint, tt * 0.35);
       ctx.globalAlpha = tt * 0.85;
       ctx.strokeStyle = this.tint;
-      ctx.shadowColor = this.tint;
-      ctx.shadowBlur = 14;
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(this.x, this.y, R * (1.15 - tt * 0.5), 0, Math.PI * 2);
+      ctx.arc(this.x, this.y, rr, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     } });
@@ -222,9 +222,9 @@ export class MortarShell {
 
   draw(ctx) {
     ctx.save();
+    // 1.12.5: glow cacheado en vez de shadowBlur=10 por obús.
+    drawGlow(ctx, this.x, this.y, 10, this.tint, 0.6);
     ctx.fillStyle = this.tint;
-    ctx.shadowColor = this.tint;
-    ctx.shadowBlur = 10;
     ctx.beginPath();
     ctx.arc(this.x, this.y, 4, 0, Math.PI * 2);
     ctx.fill();
@@ -347,20 +347,19 @@ export class HomingMissile {
 
   draw(ctx) {
     ctx.save();
+    // 1.12.5: glow cacheado en vez de shadowBlur=8 por misil.
+    drawGlow(ctx, this.x, this.y, 10, TOWERS.missile.accent, 0.5);
     ctx.translate(this.x, this.y);
     ctx.rotate(this.angle + Math.PI / 2);
     // dev-7 fase 29: el misil se pinta con el ACENTO de la torre
     // (naranja) y glow — antes era una gris clara y no decía de qué
     // torre había salido.
     ctx.fillStyle = TOWERS.missile.accent;
-    ctx.shadowColor = TOWERS.missile.accent;
-    ctx.shadowBlur = 8;
     ctx.beginPath();
     ctx.moveTo(0, -6); ctx.lineTo(2.5, 2); ctx.lineTo(0, 5); ctx.lineTo(-2.5, 2);
     ctx.closePath();
     ctx.fill();
     // Punta clara (núcleo de la ojiva)
-    ctx.shadowBlur = 0;
     ctx.fillStyle = '#FFE8CE';
     ctx.beginPath();
     ctx.moveTo(0, -6); ctx.lineTo(1.4, -1.5); ctx.lineTo(-1.4, -1.5);

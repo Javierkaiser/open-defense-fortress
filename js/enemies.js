@@ -32,6 +32,7 @@ import {
 } from './enemies-status.js';
 import { applyProjectileHit, projectileRadius } from './enemies-combat.js';
 import { onMechanicKill } from './tower-mechanics.js';
+import { enemySpriteFor, registerEnemyFactory } from './enemy-sprites.js';
 export {
   applyPoison, applySlow, applyMark, hasMark, projectileRadius, applyProjectileHit,
 };
@@ -377,6 +378,7 @@ export class Enemy {
     this.speedMul = 1;
     this._hiveT = 0;
     this._hiveSpeedMul = 1;
+    this._hiveAcc = 0; // 1.12.5: acumulador del aura (antes corría cada frame)
     this._spawnAcc = 0;
 
     // Geoda — las placas son parte del HP TOTAL, no un extra: cuerpo +
@@ -612,7 +614,10 @@ export class Enemy {
     // (×1,5) se lee al instante. Un golpe de debilidad (×0,5) va
     // atenuado + con el glifo del tipo.
     const engDmg = this.game?.engine;
-    if ((engDmg?.particles?.length ?? 0) < 330) {
+    // 1.12.5: el umbral era 330 hardcodeado aunque en calidad Baja el
+    // tope de partículas es 150. Ahora escala con el presupuesto real.
+    const floatGate = Math.round((engDmg?._particleCap ?? 400) * 0.82);
+    if ((engDmg?.particles?.length ?? 0) < floatGate) {
       const t = DAMAGE_TYPES[type];
       const weak = mul > 1;
       const resist = mul < 1;
@@ -776,13 +781,21 @@ export class Enemy {
    * radio. No se buffea a sí misma, no apila (toma el mayor) y el buff
    * expira solo cuando la cría sale del radio o muere el blob.
    */
-  _updateHiveAura() {
+  _updateHiveAura(dt) {
     const def = this.data.hiveAura;
     if (!def || this.dead) return;
     const list = this.game?.fortress?.enemies;
     if (!Array.isArray(list)) return;
     const radius = Math.max(1, def.radius ?? 120);
     const refresh = Math.max(0.05, def.refresh ?? 0.35);
+    // 1.12.5: el dato declara `refresh` pero el aura se recalculaba en
+    // CADA frame (O(blobs × enemigos)). Ahora se refresca a mitad de ese
+    // intervalo (la duración del buff es `refresh`, así no hay gaps) y se
+    // mantiene el coste O(B×E/0.175 s) en vez de O(B×E/frame).
+    const step = Number.isFinite(dt) ? dt : refresh;
+    this._hiveAcc = (this._hiveAcc ?? 0) + step;
+    if (this._hiveAcc < refresh * 0.5) return;
+    this._hiveAcc = 0;
     const mul = Math.max(1, def.speedMul ?? 1.2);
     const r2 = radius * radius;
     for (const e of list) {
@@ -1766,11 +1779,15 @@ export class Enemy {
 
   draw(ctx) {
     const d = this.data;
+    // 1.12.5 — bake: el generador de sprites llama a draw() sobre un
+    // canvas offscreen. Se saltan HP/trail/variantes/aura/veneno/flash:
+    // el sprite horneado es solo el CUERPO; el resto se dibuja vivo.
+    const bake = this._bake === true;
     ctx.save();
 
     // Barra de HP sobre enemigos GRANDES (blob/boss; jefes completos dev-5)
     const showBar = this.r >= 20;
-    if (showBar) {
+    if (showBar && !bake) {
       const w = this.r * 1.6;
       const frac = clamp(this.hpDisplay / this.hpMax, 0, 1);
       ctx.fillStyle = 'rgba(0,0,0,0.55)';
@@ -1784,36 +1801,38 @@ export class Enemy {
     // hp, daño, colisión ni el tiempo de llegada. El jefe hace sitio en
     // BOSS_HOVER_Y: su "base" es esa línea, no BASE_Y.
     const baseRef = this.isBoss ? bossHoverY() : baseImpactY();
-    const threat = threatPulse(threatFactor(this.y, baseRef, THREAT_SPAWN_Y));
+    const threat = bake ? 0 : threatPulse(threatFactor(this.y, baseRef, THREAT_SPAWN_Y));
 
     // --- T1: estela incandescente (cromas hacia atrás, SIN historial) ---
-    this._drawTrail(ctx);
+    if (!bake) this._drawTrail(ctx);
 
     // --- Oleadas dinámicas: rasgo de las VARIANTES de élite (spec "Variantes
     // legibles"): escudo, líneas de velocidad o pulso de vida. Es un pase de
     // LECTURA como los de arriba — no toca hp, daño, colisión ni llegada.
     // fase 68: `variants[]` — con doble afijo se dibujan LOS DOS rasgos.
-    for (const id of this.variants) {
-      if (id === 'escudado') this._drawShieldRing(ctx);
-      else if (id === 'rapido') this._drawSpeedStreaks(ctx);
-      else if (id === 'regenerador') this._drawRegenAura(ctx);
-      else if (id === 'acorazado') this._drawArmorPlates(ctx);
-      else if (id === 'tenaz') this._drawTenzChains(ctx);
-      else if (id === 'divisor') this._drawSplitPulse(ctx);
-      else if (id === 'sanador') this._drawHealAura(ctx);
+    if (!bake) {
+      for (const id of this.variants) {
+        if (id === 'escudado') this._drawShieldRing(ctx);
+        else if (id === 'rapido') this._drawSpeedStreaks(ctx);
+        else if (id === 'regenerador') this._drawRegenAura(ctx);
+        else if (id === 'acorazado') this._drawArmorPlates(ctx);
+        else if (id === 'tenaz') this._drawTenzChains(ctx);
+        else if (id === 'divisor') this._drawSplitPulse(ctx);
+        else if (id === 'sanador') this._drawHealAura(ctx);
+      }
     }
 
     // --- T3: el jefe se siente grande: halo + anillo de aviso ----------
-    if (this.isBoss) this._drawBossAura(ctx);
+    if (!bake && this.isBoss) this._drawBossAura(ctx);
 
     // dev-7 fase 30: VENENO activo (picadura del Dron Mosquitos). Un tinte
     // verde + burbujas: el jugador tiene que VER que el enemigo está
     // envenenado (y que por eso sigue perdiendo vida).
-    if ((this.poisonT ?? 0) > 0) this._drawPoison(ctx);
+    if (!bake && (this.poisonT ?? 0) > 0) this._drawPoison(ctx);
 
     // Estela de fuego DIBUJADA (dev-6): teardrop cálido tras la roca, visible
     // en el render aunque no haya partículas — fiel a los meteoros del diseño base.
-    if (d.trail1 && d.drawTrail !== false && this.vel > 20) {
+    if (!bake && d.trail1 && d.drawTrail !== false && this.vel > 20) {
       const w = this.r * 0.75;
       const len = this.r * (1.7 + 0.35 * Math.sin(this.t * 13 + this.phase));
       const tipY = this.y - len; // arriba (opuesto a la caída)
@@ -1838,6 +1857,30 @@ export class Enemy {
     const visKey = this.data.boss ? (this.data.visual ?? 'boss') : this.type;
     // --- T2: leve pulso de escala (±4 %) al acercarse a la base ---------
     const scale = 1 + 0.04 * Math.sin(this.t * 6 + this.phase) * threat;
+
+    // 1.12.5 — CAMINO RÁPIDO: cuerpo pre-horneado en `enemy-sprites.js`.
+    // Un drawImage reemplaza el switch procedural completo (decenas de
+    // paths/arcos/gradientes). Los overlays de estado se dibujan vivos.
+    const spr = bake
+      ? null
+      : (this._spriteOverride
+        ?? (this._forceProcedural ? null : enemySpriteFor(this)));
+    if (spr) {
+      const box = spr.box;
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.scale(scale, scale);
+      ctx.drawImage(
+        spr.canvas,
+        spr.sx, 0, spr.sw, spr.sh,
+        -box / 2, -box / 2, box, box,
+      );
+      this._drawLocalOverlays(ctx, threat);
+      ctx.restore();
+      ctx.restore(); // fin de draw()
+      return;
+    }
+
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.scale(scale, scale);
@@ -2290,8 +2333,22 @@ export class Enemy {
       }
     }
 
-    // Cepa: marca verde sobre el enjambre acelerado (coordenadas locales:
-    // el caso del switch ya trasladó el contexto al centro del enemigo).
+    // Overlays locales (Cepa, brillo de peligro, flash de daño/escudo).
+    // Viven en un helper para compartirlos con el camino de sprite.
+    this._drawLocalOverlays(ctx, threat);
+
+    ctx.restore(); // fin de la silueta
+    ctx.restore(); // fin del pulso de escala
+    ctx.restore(); // fin de draw()
+  }
+
+  /**
+   * Overlays que se dibujan con el contexto YA trasladado al centro del
+   * enemigo: marca de Cepa, brillo de peligro y flashes de daño/escudo.
+   * Se comparte entre el draw procedural y el camino de sprite.
+   */
+  _drawLocalOverlays(ctx, threat) {
+    // Cepa: marca verde sobre el enjambre acelerado.
     if ((this._hiveT ?? 0) > 0) {
       const y = -this.r - 9;
       ctx.fillStyle = '#9CFF7A';
@@ -2305,11 +2362,9 @@ export class Enemy {
       ctx.globalAlpha = 1;
     }
 
-    // --- T2: realce del núcleo incandescente (alfa +0.15 en zona caliente)
-    // El centro local (0,0) es el centro del enemigo: el translate del
-    // caso sigue vivo, así que el realce cae justo sobre el núcleo.
+    // Brillo del núcleo incandescente en zona caliente.
     if (threat > 0) {
-      const col = incandColor(d);
+      const col = incandColor(this.data);
       if (col) {
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
@@ -2322,7 +2377,7 @@ export class Enemy {
       }
     }
 
-    // Destello blanco al recibir daño (D1)
+    // Destello blanco al recibir daño (D1).
     if (this.flash > 0) {
       ctx.globalAlpha = this.flash * 0.75;
       ctx.fillStyle = '#FFFFFF';
@@ -2330,9 +2385,7 @@ export class Enemy {
       ctx.fill();
       ctx.globalAlpha = 1;
     }
-    // dev-7 fase 32: el destello de impacto toma el color del TIPO de
-    // daño (y es más fuerte si fue una fortaleza): el jugador ve de un
-    // vistazo si su torre pegó donde debía.
+    // Destello del TIPO de daño (fase 32).
     if (this._hitT > 0 && this._hitColor) {
       ctx.globalAlpha = Math.min(1, this._hitT / 0.16) * (this._hitWeak ? 0.55 : 0.32);
       ctx.fillStyle = this._hitColor;
@@ -2340,9 +2393,7 @@ export class Enemy {
       ctx.fill();
       ctx.globalAlpha = 1;
     }
-    // Oleadas dinámicas: el flash de la ROTURA del escudo (variante
-    // `escudado`) — el mismo lenguaje del destello de daño, con el color
-    // del escudo.
+    // Flash de rotura del escudo (variante escudado).
     if (this._shieldFlash > 0) {
       ctx.globalAlpha = this._shieldFlash * 0.6;
       ctx.fillStyle = VARIANT_COLORS.escudado;
@@ -2350,11 +2401,13 @@ export class Enemy {
       ctx.fill();
       ctx.globalAlpha = 1;
     }
-    ctx.restore(); // fin de la silueta
-    ctx.restore(); // fin del pulso de escala
-    ctx.restore(); // fin de draw()
   }
 }
+
+// 1.12.5 — el atlas runtime necesita crear instancias de Enemy para
+// hornear el cuerpo. Se registra acá (después de la clase) y el módulo
+// del atlas NO importa enemies.js: sin ciclo.
+registerEnemyFactory((type, opts) => new Enemy(type, 0, opts));
 
 // ------------------------------------------------------------
 // Colisiones proyectil↔enemigo (dev-3, tarea 3 de la card)

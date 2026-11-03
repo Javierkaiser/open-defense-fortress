@@ -30,6 +30,7 @@ import {
   ENEMY_TYPES, ENEMY_VARIANTS, Enemy, effectiveHpOf,
 } from '../js/enemies.js';
 import { renderEnemyIcon } from '../js/enemies-bestiary.js';
+import { enemySpriteFor, resetEnemySprites, warmEnemySprites } from '../js/enemy-sprites.js';
 import { DAMAGE_TYPE_IDS, dmgMultiplier } from '../js/damagetypes.js';
 import { CONFIG } from '../js/engine.js';
 
@@ -63,8 +64,9 @@ function mkCtx() {
     globalAlpha: 1, globalCompositeOperation: 'source-over',
     fillStyle: '', strokeStyle: '', lineWidth: 1, lineCap: 'butt',
     shadowColor: '', shadowBlur: 0,
-    arcs: [], strokes: 0,
+    arcs: [], strokes: 0, drawImages: 0,
     save: noop, restore: noop, translate: noop, rotate: noop, scale: noop,
+    drawImage() { this.drawImages += 1; },
     beginPath: noop, closePath: noop, moveTo: noop, lineTo: noop,
     quadraticCurveTo: noop, bezierCurveTo: noop,
     arc(_x, _y, r) { this.arcs.push(r); },
@@ -501,6 +503,25 @@ test('renderEnemyIcon acepta la variante: el icono del bestiario muestra el rasg
     'y muestra el aro del escudo');
   assert.equal(icono('meteor', 'inventada').ok, true, 'una variante desconocida no rompe');
   assert.equal(icono('no-existe', 'escudado').ok, false, 'un tipo desconocido sigue devolviendo false');
+});
+
+test('atlas runtime: sin DOM devuelve null; con sprite, el cuerpo usa drawImage', () => {
+  resetEnemySprites();
+  const game = mkGame();
+  // En Node no hay document: el juego cae al dibujo procedural.
+  assert.equal(enemySpriteFor(new Enemy('blob', 270, { game, y: 600 })), null);
+  assert.equal(warmEnemySprites(), 0, 'sin DOM no se hornea nada');
+  // El camino de sprite se puede ejercitar con un override (lo usa el
+  // juego real cuando el atlas ya está horneado).
+  const e = new Enemy('blob', 270, { game, y: 600 });
+  e._spriteOverride = {
+    canvas: { width: 64, height: 64 },
+    sx: 0, sw: 64, sh: 64, box: 40, phases: 8,
+  };
+  const ctx = dibujar(e);
+  assert.equal(ctx.drawImages, 1, 'el cuerpo se pinta con UN drawImage');
+  assert.equal(ctx.arcs.length, 0, 'no se reconstruyen los arcos del cuerpo');
+  resetEnemySprites();
 });
 
 // ============================================================

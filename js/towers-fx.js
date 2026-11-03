@@ -41,19 +41,39 @@ export function blackHolePoint(enemies, opts = {}) {
 
   // Candidato por enemigo: cuántos caen dentro del 90 % del radio. El
   // centroide del mejor grupo evita poner el vórtice sobre un borde.
+  // 1.12.5: antes era O(E²) y creaba un array por ancla (medido: 0.26 ms
+  // con 70 enemigos, 3.5 ms con 300, 11.6 ms con 600 POR CASTEO). Ahora:
+  //   · se muestrean como máximo 48 anclas (con ≤48 es exacto, igual que
+  //     antes); el racimo dominante se mantiene;
+  //   · se cuenta/suma en escalares, sin arrays intermedios;
+  //   · se compara distancia² en vez de Math.hypot.
+  const maxAnchors = 48;
+  const stride = Math.max(1, Math.ceil(list.length / maxAnchors));
+  const r2 = (radius * 0.9) * (radius * 0.9);
   let best = null;
-  for (const anchor of list) {
-    const group = list.filter(
-      (e) => Math.hypot(e.x - anchor.x, e.y - anchor.y) <= radius * 0.9,
-    );
-    const avgY = group.reduce((sum, e) => sum + e.y, 0) / group.length;
-    if (!best || group.length > best.group.length
-      || (group.length === best.group.length && avgY > best.avgY)) {
-      best = { group, avgY };
+  for (let ai = 0; ai < list.length; ai += stride) {
+    const anchor = list[ai];
+    let count = 0;
+    let sx = 0;
+    let sy = 0;
+    for (const e of list) {
+      const dx = e.x - anchor.x;
+      const dy = e.y - anchor.y;
+      if (dx * dx + dy * dy > r2) continue;
+      count += 1;
+      sx += e.x;
+      sy += e.y;
+    }
+    if (!count) continue;
+    const avgY = sy / count;
+    if (!best || count > best.count
+      || (count === best.count && avgY > best.avgY)) {
+      best = { count, sx, sy, avgY };
     }
   }
-  const cx = best.group.reduce((sum, e) => sum + e.x, 0) / best.group.length;
-  const cy = best.group.reduce((sum, e) => sum + e.y, 0) / best.group.length;
+  if (!best) return fallback;
+  const cx = best.sx / best.count;
+  const cy = best.sy / best.count;
   return {
     x: clamp(cx, 40, width - 40),
     y: clamp(cy, top, bottom),
@@ -197,9 +217,9 @@ export class BlackHoleFx {
     for (let i = 0; i < arms; i++) {
       ctx.globalAlpha = fade * (0.52 - i * 0.075);
       ctx.strokeStyle = i % 2 ? '#7F5CFF' : '#B48CFF';
+      // 1.12.5: sin shadowBlur=16 por brazo (4 brazos = 4 blur passes).
+      // El halo radial de abajo + `lighter` ya dan el glow del vórtice.
       ctx.lineWidth = Math.max(1.2, 2.8 - i * 0.35);
-      ctx.shadowColor = lowQ ? 'transparent' : '#B48CFF';
-      ctx.shadowBlur = lowQ ? 0 : 16;
       const dir = i % 2 ? -1 : 1;
       ctx.beginPath();
       ctx.ellipse(
@@ -216,8 +236,6 @@ export class BlackHoleFx {
     ctx.globalAlpha = fade;
     ctx.strokeStyle = '#EADFFF';
     ctx.lineWidth = lowQ ? 1.2 : 1.8;
-    ctx.shadowColor = lowQ ? 'transparent' : '#D8C4FF';
-    ctx.shadowBlur = lowQ ? 0 : 20;
     ctx.beginPath();
     ctx.arc(0, 0, this.radius * 0.21 * pulse, 0, Math.PI * 2);
     ctx.stroke();
@@ -241,7 +259,6 @@ export class BlackHoleFx {
       ctx.globalAlpha = fade * 0.42;
       ctx.strokeStyle = '#8F6BFF';
       ctx.lineWidth = 1.2;
-      ctx.shadowBlur = 0;
       for (const [r, a0] of [[0.46, 0.4], [0.62, 3.5]]) {
         ctx.beginPath();
         ctx.arc(0, 0, this.radius * r, a0 + this._spin * 0.5, a0 + this._spin * 0.5 + 1.15);
@@ -255,7 +272,6 @@ export class BlackHoleFx {
       ctx.globalAlpha = (1 - k) * 0.75 * fade;
       ctx.strokeStyle = '#D8C4FF';
       ctx.lineWidth = 2.4;
-      ctx.shadowBlur = lowQ ? 0 : 12;
       ctx.beginPath();
       ctx.arc(0, 0, this.radius * (0.18 + k * 0.95), 0, Math.PI * 2);
       ctx.stroke();
@@ -404,12 +420,17 @@ export class LaserStaticFx {
     // (se apaga en los dos extremos), núcleo claro de 1 px encima y glow
     // bajo (10 px). Solo es dibujo: el ancho de daño sigue siendo
     // LASER_WIDTH (6 px) y la duración, el mismo.
-    ctx.shadowColor = this.color;
-    ctx.shadowBlur = 10;
-    ctx.strokeStyle = beamGradient(ctx, this.x, this.y, this.ex, this.ey, this.color);
+    // 1.12.5: halo por trazo ancho translúcido en vez de shadowBlur=10/6.
+    const beam = beamGradient(ctx, this.x, this.y, this.ex, this.ey, this.color);
+    ctx.strokeStyle = beam;
     ctx.lineWidth = LASER_WIDTH;
-    ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.ex, this.ey); ctx.stroke();
-    ctx.shadowBlur = 6;
+    ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.ex, this.ey);
+    ctx.globalAlpha = 0.16 * fade;
+    ctx.lineWidth = LASER_WIDTH + 6;
+    ctx.stroke();
+    ctx.globalAlpha = 0.95 * fade;
+    ctx.lineWidth = LASER_WIDTH;
+    ctx.stroke();
     ctx.strokeStyle = beamGradient(ctx, this.x, this.y, this.ex, this.ey, this.core);
     ctx.lineWidth = LASER_CORE;
     ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.ex, this.ey); ctx.stroke();
@@ -535,14 +556,12 @@ export class CraterFx {
     ctx.globalAlpha = 0.60 + 0.30 * k;
     ctx.strokeStyle = this.color;
     ctx.lineWidth = 2.8;
-    ctx.shadowColor = this.color;
-    ctx.shadowBlur = 14;
+    // 1.12.5: el halo radial de arriba ya hace de glow; sin blur por frame.
     ctx.beginPath();
     ctx.arc(this.x, this.y, R * (0.96 + 0.035 * pulse), 0, Math.PI * 2);
     ctx.stroke();
 
     // 4) Anillo interior punteado que gira: lee como "zona activa".
-    ctx.shadowBlur = 0;
     ctx.globalAlpha = 0.32 + 0.25 * k;
     ctx.lineWidth = 1.3;
     ctx.setLineDash([5, 8]);
@@ -593,8 +612,7 @@ export class BeamFx {
     // dos extremos) y un glow bajo (10 px) en vez del plano de antes.
     // El ancho del manto (w0/w1) NO cambia por el color: es el mismo
     // hitbox visual (fase 66: solo lo mueven `extra` y el ramp).
-    ctx.shadowColor = this.color;
-    ctx.shadowBlur = 10 + 4 * (this.ramp - 1); // fase 66: el glow crece con el foco
+    // 1.12.5: el manto con gradiente ya da cuerpo; sin shadowBlur por haz.
     ctx.fillStyle = beamGradient(ctx, this.x, this.y, this.tx, this.ty, this.color);
     ctx.beginPath();
     ctx.moveTo(this.x + nx * h0, this.y + ny * h0);
@@ -604,7 +622,6 @@ export class BeamFx {
     ctx.closePath();
     ctx.fill();
     // Núcleo claro de 1 px en el centro del haz (energía concentrada)
-    ctx.shadowBlur = 6;
     ctx.strokeStyle = beamGradient(ctx, this.x, this.y, this.tx, this.ty, this.core);
     ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.tx, this.ty); ctx.stroke();
@@ -672,15 +689,14 @@ export class BoltFx {
   }
   draw(ctx, t) {
     // Halo de acento + núcleo claro, flicker de alpha
-    for (const [color, width, blur] of [
-      [this.colors.color, this.width, 12],
-      [this.colors.core, this.coreWidth, 0],
+    for (const [color, width] of [
+      [this.colors.color, this.width],
+      [this.colors.core, this.coreWidth],
     ]) {
       ctx.save();
       ctx.globalAlpha = (0.35 + 0.65 * t) * this.alpha;
       ctx.strokeStyle = color;
-      ctx.shadowColor = this.colors.color;
-      ctx.shadowBlur = blur;
+      // 1.12.5: el primer pase ya es el halo (width 5); sin blur.
       ctx.lineWidth = width;
       ctx.lineCap = 'round';
       ctx.beginPath();

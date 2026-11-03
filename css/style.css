@@ -2112,6 +2112,22 @@ html, body {
   -webkit-backdrop-filter: none !important;
 }
 
+/* 1.12.5 — En PUNTERO GRUESO (móvil/tablet) el velo ya es 87-91 % opaco:
+   el blur solo aporta un matiz y se recalcula en cada frame sobre el
+   canvas animado. En un teléfono de gama media es el efecto DOM más caro
+   del juego (el repo documenta 34 → 4,6 FPS sin GPU). Se apaga por
+   defecto en táctil; en escritorio se mantiene. El jugador puede forzar
+   "Alta" desde el selector, pero el velo opaco sigue siendo legible. */
+@media (pointer: coarse) {
+  .screen::before,
+  #card-choice,
+  #combo-panel,
+  .overlay-veil {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
 /* dev-7 fase 42: en calidad BAJA se apagan TAMBIÉN los glows y las
    animaciones. Apagar sólo el backdrop-filter no bajaba el coste real:
    los box-shadow/text-shadow se repintan en cada frame y las

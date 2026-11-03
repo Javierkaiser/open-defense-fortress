@@ -376,17 +376,40 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 ## 14. Performance
 
-- DPR máximo 2; caches de fondo/planeta/niebla/deck.
-- `shadowBlur` es el costo principal en Canvas 2D: calidad Baja lo anula.
+- DPR máximo 2; caches de niebla y deck. **El fondo es estático**: cielo +
+  degradé de horizonte + luna + nebulosa + decoración del tema se hornean
+  UNA vez por tema/layout en un solo cache (`_skyCache`). El planeta se
+  eliminó (1.12.5): era ~17 gradientes, 36 `shadowBlur` y 106 paths por
+  refresco. Ya no hay `_planetCache` ni refresco periódico.
+- **Atlas runtime de enemigos** (`js/enemy-sprites.js`): el cuerpo de cada
+  tipo se hornea en 8 fases (12 fps) usando el `draw` real y se pinta con
+  un `drawImage`. HP, estelas, variantes, veneno, flash y overlays siguen
+  vivos. En Node (sin DOM) cae al dibujo procedural. En idle se
+  pre-hornean todos los tipos no-jefe desde `main.js`.
+- `shadowBlur` sigue siendo caro: se eliminó de proyectiles, base, deck,
+  floats y haces; el arte de enemigos lo paga solo al hornear el atlas.
+  Calidad Baja lo anula en el resto.
 - Tope de partículas y recorte de partículas vivas al bajar de calidad.
-- El blur DOM de los overlays se apaga en Baja.
-- El juego corre a 60 fps en gama media; en gama baja se recomienda Baja.
+  Los floats de daño se limitan a 24 concurrentes.
+- El blur DOM de los overlays se apaga en Baja y, por defecto, en
+  `pointer: coarse` (móvil/tablet): el velo ya es 87–91 % opaco.
+- Calidad **Auto**: en dispositivos con ≤4 GB o ≤4 núcleos arranca en Baja;
+  una preferencia guardada siempre gana.
+- Fuera de `PLAYING` el canvas se repinta a 30 FPS (menús) o 15 FPS
+  (pausa/cartas/fin de run); la simulación sigue a 60 Hz.
+- Correcciones de rendimiento: carry-over de cooldown, tope de entidades
+  que ya no expulsa enemigos vivos, aura de Cepa con `refresh`, Black Hole
+  O(E²) muestreado, DPR releído en resize, caches invalidados al cambiar
+  calidad.
+- Medición de referencia (Chrome 156, Intel UHD 630, 540×880): 0/100/200
+  enemigos con atlas dan mediana 16.7 ms (60 FPS); antes 100 enemigos
+  daban 33–50 ms. En gama baja se recomienda Baja o Auto.
 
 ## 15. Testing
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1095 tests (1095 pass, 0 skip) en 36 archivos.
+- 1098 tests (1098 pass, 0 skip) en 36 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 
