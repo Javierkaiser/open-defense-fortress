@@ -4,6 +4,28 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.13.2] — 2026-11-04
+
+### HUD móvil y contraste
+
+- **Score compacto**: deja de ocupar el ancho de la pantalla y pasa a ser un
+  chip de 28 px, alineado a la derecha debajo del reloj. Se oculta el rótulo
+  `SCORE` en móvil; quedan el número y el multiplicador.
+- **Chips unificados**: Stage/Lv/reloj comparten altura (32 px) y una misma
+  placa neutra; Enemigos/DPS/score comparten altura (28 px) y estilo. Se
+  quitaron las franjas de color laterales y se redujeron los acentos a la
+  barra de XP, el icono del reloj y el multiplicador.
+- **DPS centrado** entre Enemigos (izquierda) y score (derecha).
+- **MEJORAR / DESBLOQUEAR**: recuperan el relleno teal/dorado con texto
+  oscuro; el pase de forja les había dejado fondo oscuro y texto oscuro.
+  Los estados deshabilitados también ganan contraste.
+- El HUD superior móvil baja de 146 a 131 px, dejando más campo visible.
+
+### Tests / versión
+
+- **1103 tests, 0 skip** (36 archivos).
+- Versión **1.13.2** / Android `versionCode 30`.
+
 ## [1.13.1] — 2026-11-04
 
 ### Balance de cartas

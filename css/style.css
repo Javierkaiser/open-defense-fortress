@@ -3634,7 +3634,7 @@ html, body {
 .meta-upgrade:active { transform: translateY(1px); }
 .meta-upgrade:disabled {
   background: rgba(28, 38, 44, .92);
-  color: rgba(159, 180, 200, .5);
+  color: rgba(200, 215, 230, .62);
   border-color: rgba(120, 140, 160, .3);
   box-shadow: none;
   cursor: not-allowed;
@@ -3699,7 +3699,7 @@ html, body {
 }
 .meta-unlock:disabled {
   background: rgba(28, 38, 44, .92);
-  color: rgba(159, 180, 200, .5);
+  color: rgba(200, 215, 230, .62);
   border-color: rgba(120, 140, 160, .3);
   box-shadow: none;
   cursor: not-allowed;
@@ -5814,8 +5814,16 @@ kbd {
   font-size: var(--text-xs);
   letter-spacing: .02em;
 }
-.meta-upgrade { background: rgba(12, 26, 28, .9); border-color: rgb(var(--hud-teal-rgb) / .34); box-shadow: none; }
-.meta-unlock { background: rgba(24, 20, 10, .7); border-color: rgb(var(--crit-gold-rgb) / .4); }
+/* 1.13.2: MEJORAR/DESBLOQUEAR conservan su relleno semántico (teal/dorado)
+   con texto oscuro. El pase de forja los había dejado con fondo oscuro y el
+   texto oscuro original: contraste casi nulo. */
+.meta-upgrade:hover:not(:disabled) {
+  box-shadow: 0 0 14px rgb(var(--hud-teal-rgb) / .55);
+  filter: brightness(1.05);
+}
+.meta-unlock:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
 .meta-nav {
   padding: 5px 6px calc(7px + env(safe-area-inset-bottom));
   background: linear-gradient(0deg, rgba(7, 12, 15, .98), rgba(7, 12, 15, .9));
@@ -6305,4 +6313,114 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   .card-choice-card { animation: none !important; }
 }
+
+/* ============================================================
+   1.13.2 — HUD móvil: chips unificados
+   ------------------------------------------------------------
+   En móvil, Stage/Lv/reloj comparten altura (32 px) y una sola
+   placa neutra; Enemigos/DPS/score comparten altura (28 px) y
+   estilo. El DPS queda centrado y el score a la derecha, debajo
+   del reloj. Los acentos de color quedan solo en la barra de XP,
+   el icono del reloj y el multiplicador de score.
+   ============================================================ */
+[data-narrow] .hud-stage,
+[data-narrow] .hud-lv,
+[data-narrow] .hud-timer,
+[data-narrow] .hud-status .hud-stat,
+[data-narrow] #hud-bottom .hud-score {
+  box-sizing: border-box;
+  border-radius: 0;
+  clip-path: polygon(
+    0 0, 100% 0, 100% calc(100% - 6px),
+    calc(100% - 6px) 100%, 0 100%
+  );
+  border: 1px solid rgba(159, 180, 200, .2);
+  background: rgba(7, 12, 15, .82);
+  box-shadow: none;
+}
+
+[data-narrow] .hud-stage,
+[data-narrow] .hud-lv {
+  height: 32px;
+  min-height: 32px;
+  max-height: 32px;
+  padding: 2px 8px;
+  gap: 2px;
+  justify-content: center;
+}
+[data-narrow] .hud-timer {
+  height: 32px;
+  min-height: 32px;
+  max-height: 32px;
+  padding: 0 8px;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+}
+[data-narrow] .hud-stage .bar,
+[data-narrow] .hud-lv .bar { height: 4px; }
+
+[data-narrow] .stage-name,
+[data-narrow] .lv-label {
+  font-size: var(--text-md);
+  line-height: 1;
+}
+[data-narrow] .stage-name,
+[data-narrow] .lv-label,
+[data-narrow] .hud-timer,
+[data-narrow] .hud-status .hud-stat b,
+[data-narrow] #hud-bottom .score-value {
+  color: var(--score-white);
+}
+
+/* Segunda fila: Enemigos a la izquierda, DPS centrado, score a la derecha. */
+[data-narrow] #hud-status {
+  position: relative;
+  width: 100%;
+}
+[data-narrow] .hud-status .hud-stat {
+  height: 28px;
+  padding: 2px 8px;
+  gap: 4px;
+  align-items: baseline;
+  font-size: var(--text-xs);
+}
+[data-narrow] .hud-status .hud-stat:nth-child(2) {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+}
+[data-narrow] .hud-status .hud-stat i { color: var(--platform-light); }
+[data-narrow] .hud-status .hud-stat b { font-size: var(--text-md); }
+
+[data-narrow] #hud-bottom {
+  top: calc(99px + env(safe-area-inset-top));
+  bottom: auto;
+  left: auto;
+  right: 8px;
+  padding: 0;
+  display: flex;
+  justify-content: flex-end;
+  z-index: 6;
+}
+[data-narrow] #hud-bottom .hud-score {
+  height: 28px;
+  min-height: 28px;
+  max-height: 28px;
+  padding: 2px 8px;
+  gap: 4px;
+  align-items: baseline;
+}
+[data-narrow] #hud-bottom .score-label { display: none; }
+[data-narrow] #hud-bottom .score-value {
+  font-size: var(--text-md);
+  line-height: 1.2;
+}
+[data-narrow] #hud-bottom .score-mult {
+  font-size: var(--text-xs);
+  line-height: 1.2;
+  color: var(--crit-gold);
+}
+[data-narrow] .hud-timer .hud-timer-icon { color: var(--hud-teal); }
 

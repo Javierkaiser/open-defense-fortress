@@ -345,7 +345,12 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
   Protocolo, Récords, Créditos, Torretas, HUD, cartas, perks, combo y
   clear/game over reflowan o scrollean en vez de achicar letra. La matriz de
   daño de la pausa se muestra como fichas verticales a 360 px; los controles
-  táctiles principales miden 44–48 px. `ci-checks` vigila el piso.
+  táctiles principales miden 44-48 px. `ci-checks` vigila el piso.
+- **HUD móvil (1.13.2)**: Stage/Lv/reloj comparten 32 px y una placa neutra;
+  Enemigos/DPS/score comparten 28 px. El DPS queda centrado, el score a la
+  derecha bajo el reloj y los rótulos de color se reducen a la barra de XP,
+  el icono del reloj y el multiplicador. MEJORAR/DESBLOQUEAR recuperan el
+  relleno semántico teal/dorado con texto oscuro.
 - El escenario de overlays es un nodo fijo fuera del marco: usa el alto real de
   la pantalla y permite scrollear las cartas.
 - El **STAGE CLEAR** es un modal con cabecera fija, cuerpo scrolleable y

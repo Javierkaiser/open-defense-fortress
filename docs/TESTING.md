@@ -93,6 +93,9 @@ Para eso hay **smoke manual** y una checklist Android (APK debug).
    pantallas pueden scrollear, pero no debe haber scroll horizontal. Los
    botones principales deben medir al menos **44 px**. A 360×640 la matriz
    de daño de la pausa se muestra como fichas verticales.
+   En el HUD móvil, Stage/Lv/reloj deben medir 32 px y Enemigos/DPS/score
+   28 px; el DPS debe quedar centrado y el score a la derecha. Comprobar que
+   **MEJORAR** y **DESBLOQUEAR** se lean en estados habilitado y deshabilitado.
 4. Menú: comprobar CTA `JUGAR`, grilla de tiles, NG+ bloqueado con candado
    y que el título **no** tenga recuadro de foco. A 360×640 debe scrollear
    sin overflow horizontal.
