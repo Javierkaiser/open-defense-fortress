@@ -298,8 +298,8 @@ export class Tower {
     // Multiplicadores de carta (cards.js §2.2): daño y cadencia.
     this.dmgMul = 1;
     this.cadMul = 1;
-    // v5 5c/5: velocidad de bala × carta Balas Hipersónicas (×1.25/stack,
-    // cap 2 → el Guardian vuela a 920 × 1.5625 ≈ 1437 px/s máximo).
+    // 1.13.1: velocidad de bala × carta Munición Hiperveloz Perforante
+    // (×1.25 una sola vez → el Guardian vuela a 920 × 1.25 = 1150 px/s).
     this.bulletSpeedMul = 1;
     // dev-7 fase 51: CANAL DE CARTAS — los mods de MECÁNICAS que esta
     // unidad gana en partida (rebote, perforación, explosión, slow,
@@ -403,13 +403,13 @@ export class Tower {
       * perkCadMul;
   }
 
-  /** Velocidad de bala EFECTIVA del Guardian (v5 5c/5): base TOWERS ×
-   *  Balas Hipersónicas (×1.25 por stack, cap 2 → ×1.5625). La usan
+  /** Velocidad de bala EFECTIVA del Guardian: base TOWERS ×
+   *  Munición Hiperveloz Perforante (×1.25 una vez). La usan
    *  fire()/_spawnBullet y el lead predictivo (el cálculo de impacto
    *  usa la MISMA velocidad a la que viajará la bala). */
   get bulletSpeedNow() {
     // dev-7 fase 10: bulletSpeedMul de perk propio (guardian tier 5),
-    // compuesto junto con el de cartas (Balas Hipersónicas).
+    // compuesto junto con el de la carta de munición.
     const perkSpeedMul = unitMods(this).bulletSpeedMul ?? 1;
     return TOWERS.guardian.bulletSpeed * (this.bulletSpeedMul ?? 1) * perkSpeedMul;
   }
@@ -1175,8 +1175,8 @@ export class Tower {
     }
 
   /** Una bala del volley del Guardian (dirigida/paralela/abanico) con el
-   *  daño efectivo de la torre, la penetración de Núcleos Perforantes y
-   *  los perks sistemáticos del Guardian (fase 17: bounce/pierce/slow/…). */
+   *  daño efectivo de la torre, la penetración de Munición Hiperveloz
+   *  Perforante y los perks sistemáticos del Guardian (fase 17). */
   _spawnBullet(x, y, ang, game) {
     const pm = unitMods(this);
     // 1.11.0 - Bastión Ejecutor: cada N proyectiles sale una bala reforzada
@@ -1192,7 +1192,7 @@ export class Tower {
     const execMul = execEmpowered ? (pm.execDmgMul ?? 2) : 1;
     game.engine.addEntity(new Bullet(x, y, ang, {
       damage: Math.round(this.damage * execMul),          // nivel × cartas
-      speed: this.bulletSpeedNow,                  // v5 5c/5: 920 × Balas Hipersónicas
+      speed: this.bulletSpeedNow,                  // 920 × carta de munición
       color: execEmpowered ? '#FFE58A' : projectileColor(this.type, this._skin()), // fase 29: azul del Guardian
       // OJO (fase 29): `radius` explícito para que el COLOR no mueva la
       // hitbox. `projectileRadius()` (js/enemies.js) elige el radio de

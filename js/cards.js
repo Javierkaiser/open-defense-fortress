@@ -312,7 +312,6 @@ function appsOf(cardId, game) {
     case 'dmg_forcefield': return findDrone(game, 'forcefield')?.exclusiveDmgApps ?? 0;
     // dev-7 fase 30: el contador de "Nido Ampliado" es del propio dron.
     case 'swarm_grow': return findDrone(game, 'wasps')?.swarmApps ?? 0;
-    case 'rapid_bullets': return findTower(game, 'guardian')?.rapidApps ?? 0;
     // dev-7 fase 30: `cadence_up` también la aplica el Dron Mosquitos (su
     // cooldown de picadura), así que el tope se cuenta sobre torres Y
     // drones: si sólo mirara las torres, la carta se seguiría ofreciendo
@@ -590,7 +589,7 @@ export function cardUnitTargets(card) {
   if (EXCLUSIVE_DMG_TOWER[card.id]) return [EXCLUSIVE_DMG_TOWER[card.id]];
   if (EXCLUSIVE_DMG_DRONE[card.id]) return [EXCLUSIVE_DMG_DRONE[card.id]];
   if (card.id === 'bullets_5' || card.id === 'dmg_guard'
-    || card.id === 'pierce_up' || card.id === 'rapid_bullets') {
+    || card.id === 'pierce_up') {
     return ['guardian'];
   }
   if (card.id === 'swarm_grow') return ['wasps'];
@@ -955,7 +954,7 @@ function applyBlackHoleCard(game, key, value) {
   if (key === 'horizon') f.blackHoleMods.horizon = 1;
   return true;
 }
-// CATÁLOGO (81 cartas, schema §5 dev-4)
+// CATÁLOGO (80 cartas, schema §5 dev-4)
 // {id, name, desc, weight, rarity, dmgType?, minStage?, tower?, apply(game)}
 // dev-7 fase 49 - `dmgType` lo declara la carta que MEJORA EL DAÑO de una
 // unidad (sale de TOWERS/DRONES, la tabla que usa el combate). El HUD lo
@@ -1288,33 +1287,20 @@ export const CATALOG = [
   {
     id: 'pierce_up',
     rarity: 'uncommon',
-    name: 'Núcleos Perforantes',
-    // dev-7: sin tope esta carta se ofrecía en cada level-up y el
-    // Guardian atravesaba enemigos sin límite. 1.8.0: una sola vez.
-    desc: 'Las balas del Guardian atraviesan +1 enemigo antes de disiparse.',
+    name: 'Munición Hiperveloz Perforante',
+    // 1.13.1: fusión de Núcleos Perforantes y Balas Hipersónicas en una
+    // sola carta. La velocidad es del PROYECTIL: no toca cadMul/cooldown.
+    // Sin tope esta carta se ofrecía en cada level-up y el Guardian
+    // atravesaba enemigos sin límite. 1.8.0: una sola vez.
+    desc: 'Las balas del Guardian atraviesan +1 enemigo y vuelan +25% más rápido. No acelera la cadencia de disparo.',
     weight: 7,
     apply: (g) => {
       const f = g.fortress;
       if ((f.pierceApps ?? 0) >= CAPS.pierce_up) return;
       f.pierceApps = (f.pierceApps ?? 0) + 1;
       f.pierce += 1;
-    },
-  },
-  {
-    // v5 5c/5 (corrección canónica JK 27-08): carta de PUNTERÍA — balas
-    // más rápidas = menos tiempo para esquivarlas (el lead del disparo se
-    // recalcula con la velocidad efectiva, así que gana coherencia).
-    id: 'rapid_bullets',
-    rarity: 'common',
-    name: 'Balas Hipersónicas',
-    desc: 'Las balas del Guardian vuelan +25% más rápido (mejora la puntería: menos tiempo para esquivarlas).',
-    weight: 8,
-    apply: (g) => {
       const gw = findTower(g, 'guardian');
-      if (gw && (gw.rapidApps ?? 0) < CAPS.rapid_bullets) {
-        gw.rapidApps = (gw.rapidApps ?? 0) + 1;
-        gw.bulletSpeedMul = (gw.bulletSpeedMul ?? 1) * 1.25;
-      }
+      if (gw) gw.bulletSpeedMul = (gw.bulletSpeedMul ?? 1) * 1.25;
     },
   },
 
@@ -1768,7 +1754,7 @@ export const CATALOG = [
     id: 'combo_shared_pierce',
     rarity: 'rare',
     name: 'Perforación Compartida',
-    desc: 'Los enemigos atravesados por Guardian o Gauss sangran 0,5% de su HP máximo por segundo durante 2 s. Requiere Núcleos Perforantes y Gauss.',
+    desc: 'Los enemigos atravesados por Guardian o Gauss sangran 0,5% de su HP máximo por segundo durante 2 s. Requiere Munición Hiperveloz Perforante y Gauss.',
     weight: 5,
     requiresCards: ['pierce_up'],
     requiresUnits: ['gauss'],

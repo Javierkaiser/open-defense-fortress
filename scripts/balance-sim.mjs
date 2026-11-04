@@ -521,18 +521,19 @@ export const CEILING_CARD_IDS = [
   'dmg_type_electric', 'dmg_type_drone',
   'cadence_up',     // todas las torres
   'dmg_guard',      // solo Guardian
-  'rapid_bullets',  // solo Guardian
+  'pierce_up',      // solo Guardian: +1 perforación y ×1.25 velocidad de bala
   'dmg_missile', 'dmg_beam', 'dmg_thunder', 'dmg_tesla', 'dmg_mortar', 'dmg_gauss',
 ];
 
 /** Estado de modificadores de las torres (para ver si una carta aún hace algo). */
 function modsSnapshot(game) {
-  return game.fortress.slots
+  const pierce = game.fortress.pierce ?? 0;
+  return `${pierce}|` + game.fortress.slots
     .filter(Boolean)
     .map((t) => [
       t.type, t.dmgMul ?? 1, t.cadMul ?? 1, t.bulletSpeedMul ?? 1,
       t.dmgAllApps ?? 0, t.cadApps ?? 0, t.guardDmgApps ?? 0,
-      t.rapidApps ?? 0, t.exclusiveDmgApps ?? 0,
+      t.exclusiveDmgApps ?? 0,
     ].join(':'))
     .join('|');
 }
@@ -702,7 +703,7 @@ const DAMAGE_CARDS = new Set([
   'dmg_mortar', 'dmg_gauss', 'dmg_laser', 'dmg_firewheel', 'dmg_wasps', 'dmg_forcefield',
   'dmg_type_ballistic', 'dmg_type_light', 'dmg_type_blast',
   'dmg_type_electric', 'dmg_type_drone',
-  'cadence_up', 'rapid_bullets', 'bullets_5',
+  'cadence_up', 'pierce_up', 'bullets_5',
   'hunt_rock', 'hunt_crystal', 'hunt_spore', 'hunt_virus',
   'tech_crit', 'tech_exec_missile', 'tech_explode', 'tech_bounce',
   'tech_stun_missile', 'tech_lifesteal',

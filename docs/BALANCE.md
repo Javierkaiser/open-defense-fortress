@@ -162,7 +162,7 @@ no sólo un multiplicador de daño:
   perks `extraCount`/`chainFork` suman mini rayos, no rayos principales. DPS
   nominal ≈40,6 a un blanco y ≈102 contra un principal + 3 vecinos. Se
   diferencia de la Tesla, que encadena saltos con falloff.
-- **109 cartas normales** (81 + 28 doctrinas) y **33 legendarias** fuera del
+- **108 cartas normales** (80 + 28 doctrinas) y **33 legendarias** fuera del
   catálogo. Casi todas las mejoras se eligen una sola vez (`CAPS = 1`); las
   doctrinas son la excepción (2 rangos) y `bullets_5` sigue siendo el level-up
   del Guardian. Las mejoras ofrecidas se relacionan con las unidades, tags y
@@ -527,6 +527,13 @@ legendarias, no la curva base.
   bajo el umbral para el atacante con execute. La economía pasa a ser de
   **farmeo**: el S50 no se alcanza en una pasada. Detalle en §"El bucle de
   farmeo".
+- **Ronda 1.13.1**: se fusionan **Núcleos Perforantes** y **Balas
+  Hipersónicas** en **Munición Hiperveloz Perforante** (poco común, peso 7):
+  +1 enemigo atravesado y +25% de velocidad de vuelo del proyectil, sin tocar
+  la cadencia. El catálogo queda en **108 cartas (80 + 28 doctrinas)**. La
+  fusión ahorra una elección; se mantiene la frecuencia de la vieja carta de
+  perforación. **Perforación Compartida** sigue requiriendo la carta fusionada
+  (`pierce_up`).
 - **Ronda 1.13.0**: legibilidad global (piso tipográfico de 15 px, reflow y
   scroll en todas las pantallas, objetivos táctiles de 44–48 px). Sin cambios
   de lógica, dificultad ni recompensas.

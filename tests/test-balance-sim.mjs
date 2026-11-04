@@ -99,13 +99,13 @@ test('TECHO: usa los multiplicadores VIGENTES de cards.js (no los obsoletos)', (
   assert.ok(Math.abs(gw.dmgMul - 1.1 * 1.2 * 1.6) < 1e-9, `dmgMul=${gw.dmgMul}`);
   // cadence_up (cards.js: ×0.9) — NO el ×0.85 obsoleto.
   assert.ok(Math.abs(gw.cadMul - 0.9) < 1e-9, `cadMul=${gw.cadMul}`);
-  // rapid_bullets (×1.25).
+  // pierce_up (×1.25 de velocidad de bala + 1 perforación).
   assert.ok(Math.abs(gw.bulletSpeedMul - 1.25) < 1e-9, `bulletSpeedMul=${gw.bulletSpeedMul}`);
+  assert.equal(game.fortress.pierce, 1);
   // Un contador por carta (one-shot): por eso salen del pool.
   assert.equal(gw.dmgAllApps, 1);
   assert.equal(gw.cadApps, 1);
   assert.equal(gw.guardDmgApps, 1);
-  assert.equal(gw.rapidApps, 1);
 });
 
 test('TECHO: una run con techo es más fuerte que la misma run sin techo', async () => {

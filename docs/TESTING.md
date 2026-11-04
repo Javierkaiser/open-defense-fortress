@@ -6,7 +6,7 @@
 node --test "tests/test-*.mjs"
 ```
 
-Estado actual: **1102 tests** (1102 pass, 0 skip, 0 fail) en **36 archivos**.
+Estado actual: **1103 tests** (1103 pass, 0 skip, 0 fail) en **36 archivos**.
 
 Requisitos: Node 22 o superior.
 
@@ -101,7 +101,9 @@ Para eso hay **smoke manual** y una checklist Android (APK debug).
 7. Pausa: comprobar `CONTINUAR`, grupo `SALIR DE LA RUN`, matriz de daño,
    selector de tema y chips `kbd` en escritorio.
 8. Probar velocidad ×2, Ultimate, Black Hole, cartas y combo: el overlay de
-   cartas/perks debe ser opaco en táctil y las fichas deben leerse.
+   cartas/perks debe ser opaco en táctil y las fichas deben leerse. La carta
+   **Munición Hiperveloz Perforante** debe dar +1 perforación y +25% de
+   velocidad de vuelo, sin cambiar la cadencia de disparo.
 9. Probar tema, calidad Alta/Baja, “Reset Global” y “Nueva Partida+” (con la
    campaña completa). Verificar que el STAGE CLEAR scrollee y que sus botones
    queden visibles a 360×640 y 390×844.

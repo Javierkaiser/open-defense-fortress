@@ -4,6 +4,25 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.13.1] — 2026-11-04
+
+### Balance de cartas
+
+- Se fusionan **Núcleos Perforantes** y **Balas Hipersónicas** en
+  **Munición Hiperveloz Perforante** (poco común, peso 7).
+- La carta suma **+1 enemigo atravesado** y **+25% de velocidad de vuelo**
+  del proyectil del Guardian. **No toca la cadencia de disparo**: no hay
+  `cadMul` ni cambio de `cooldown` por la carta.
+- `rapid_bullets` sale del catálogo y de `CAPS`; el combo **Perforación
+  Compartida** sigue dependiendo de `pierce_up`.
+- El catálogo queda en **108 cartas normales (80 + 28 doctrinas)**.
+- La velocidad de bala del Guardian queda con un solo stack (×1.25).
+
+### Tests / versión
+
+- **1103 tests, 0 skip** (36 archivos).
+- Versión **1.13.1** / Android `versionCode 29`.
+
 ## [1.13.0] — 2026-11-03
 
 ### Legibilidad global

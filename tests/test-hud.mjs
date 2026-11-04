@@ -1758,7 +1758,7 @@ test('fase 39: la rareza mide la POTENCIA de la carta (no el peso de sorteo)', (
       `${id} debería ser rara`);
   }
   // Y los ajustes puntuales son COMUNES.
-  for (const id of ['repair_500', 'rapid_bullets', 'swarm_grow']) {
+  for (const id of ['repair_500', 'swarm_grow']) {
     assert.equal(CATALOG.find((c) => c.id === id)?.rarity, 'common',
       `${id} debería ser común`);
   }

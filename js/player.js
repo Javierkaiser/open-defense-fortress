@@ -195,7 +195,7 @@ export class Fortress {
     this._frontCount = CONFIG.SLOTS.length;
 
     // Mejoras por CARTAS (cards.js v3-1/7): estado de modificadores.
-    this.pierce = 0;          // Núcleos Perforantes: atravesamientos extra
+    this.pierce = 0;          // Munición Hiperveloz Perforante: atravesamientos extra
     this.baseShields = 0;     // Escudo de Base: golpes bloqueados restantes
     this.orbitalDmgMul = 1;   // Impacto Orbital+: daño del ultimate ×mul
     // Arsenal extendido (v3-3/7, §2.3):

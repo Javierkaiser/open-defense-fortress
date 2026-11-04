@@ -1988,7 +1988,7 @@ test('fase 51: la carta de rebote hace que la BALA del Guardian rebote', () => {
   assert.equal(bala2.bounce, 1, 'con la carta la bala rebota (bounce=1)');
 });
 
-test('1.12.2: Núcleos Perforantes hace que la bala ATRAVIESE un enemigo más', () => {
+test('1.13.1: Munición Hiperveloz Perforante hace que la bala ATRAVIESE un enemigo más', () => {
   const g = mkGameE48([mkE48(270, 700)]);
   const t = new Tower('guardian', 270, 1);
   t.game = g;
@@ -2002,6 +2002,27 @@ test('1.12.2: Núcleos Perforantes hace que la bala ATRAVIESE un enemigo más', 
   t.fire(g2.fortress.enemies, g2, 0.016);
   const bala2 = g2.engine.entities.find((e) => e.constructor?.name === 'Bullet');
   assert.equal(bala2.pierce, 1, 'con la carta la bala perfora +1');
+});
+
+test('1.13.1: la carta fusionada acelera la bala, no la cadencia', () => {
+  const g = mkGameE48();
+  const t = new Tower('guardian', 270, 1);
+  t.game = g;
+  t.level = MAX_TOWER_LEVEL; // aísla el -2% de recarga que da subir de nivel
+  g.fortress.slots = [null, null, t];
+  const speed0 = t.bulletSpeedNow;
+  const cd0 = t.cooldown;
+  const cad0 = t.cadMul;
+  const card = CATALOG.find((c) => c.id === 'pierce_up');
+  assert.equal(card?.name, 'Munición Hiperveloz Perforante');
+  assert.equal(applyCard(card, g), card);
+  assert.equal(g.fortress.pierce, 1);
+  assert.equal(t.bulletSpeedMul, 1.25);
+  assert.ok(Math.abs(t.bulletSpeedNow - speed0 * 1.25) < 1e-9,
+    `bulletSpeedNow=${t.bulletSpeedNow}, base=${speed0}`);
+  assert.equal(t.cadMul, cad0, 'la carta no cambia el multiplicador de cadencia');
+  assert.equal(t.cooldown, cd0, 'la carta no cambia el cooldown');
+  assert.equal(applyCard(card, g), null, 'la 2ª aplicación es no-op');
 });
 
 test('1.9.0: el Misil suma los tres Remate (15%) y Cabeza Nuclear lo duplica (30%)', () => {

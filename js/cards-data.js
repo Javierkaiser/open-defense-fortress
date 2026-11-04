@@ -43,8 +43,7 @@ export const CAPS = {
   // Cantidad, cadencia y alcance.
   swarm_grow: 1,     // Nido Ampliado: +1 mosquito
   cadence_up: 1,     // Servos Acelerados
-  rapid_bullets: 1,  // Balas Hipersónicas
-  pierce_up: 1,      // Núcleos Perforantes
+  pierce_up: 1,      // Munición Hiperveloz Perforante
   // Economía y defensa.
   base_shield: 1,    // una carga del Escudo de Base
   ult_power: 1,      // Impacto Orbital+

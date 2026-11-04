@@ -74,7 +74,7 @@ openspec/specs/         specs de comportamiento
 | `towers-fx.js` | Black Hole, Láser, Beam, Bolt y cráter del Mortar. |
 | `towers-drones.js` | Drones orbitales: ignición, veneno y burbuja. |
 | `player.js` | `Fortress`: base, slots, drones, HP/escudo, Black Hole y render de la plataforma. |
-| `cards.js` | 109 cartas normales + 33 legendarias aparte, nivel/maestría, efectos, combos, ofertas y topes. |
+| `cards.js` | 108 cartas normales + 33 legendarias aparte, nivel/maestría, efectos, combos, ofertas y topes. |
 | `cards-data.js` | Topes, tags de unidad, técnicas y cazas de familia. |
 | `card-constants.js` | Multiplicadores compartidos por cartas y unidades futuras. |
 | `combo-mods.js` | Schema único de los flags de combos. |
@@ -263,7 +263,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 - **XP**: escala con el `hpMul` de la etapa; al subir de nivel se ofrece 1 de 3
   cartas. La campaña reparte ~20 cartas por etapa; el tope es 21 en campaña y
   31 en supervivencia.
-- **Cartas**: 109 normales (81 + 28 doctrinas) y 33 legendarias aparte.
+- **Cartas**: 108 normales (80 + 28 doctrinas) y 33 legendarias aparte.
   Pueden desbloquear torres/drones, mejorar una unidad, agregar mecánicas,
   combos con prerrequisitos de tags o dar bonuses globales. Desde 1.8.0 casi
   todas las mejoras se eligen una sola vez; las **doctrinas** son la excepción
@@ -438,7 +438,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1102 tests (1102 pass, 0 skip) en 36 archivos.
+- 1103 tests (1103 pass, 0 skip) en 36 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

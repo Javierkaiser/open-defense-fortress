@@ -7,7 +7,7 @@ Documentación y comentarios en **español**.
 ## Comandos
 
 ```bash
-node --test "tests/test-*.mjs"                # suite completa (1102 tests)
+node --test "tests/test-*.mjs"                # suite completa (1103 tests)
 node --test tests/test-stages.mjs           # un archivo
 node .github/scripts/ci-checks.mjs          # checks estáticos
 node --check js/main.js                    # sintaxis de un módulo
@@ -38,7 +38,7 @@ En Windows/PS 5.1 el glob `js/*.js` no se expande solo; usá
 - `js/tower-art.js` / `js/tower-skins.js` — rigs y render del arte; catálogo
   de skins por tema (presentación pura, sin tocar stats).
 - `js/player.js` — `Fortress`: base, slots, drones, HP, Black Hole.
-- `js/cards.js` — 109 cartas normales (81 + 28 doctrinas), 33 legendarias aparte, nivel/maestría y ofertas.
+- `js/cards.js` — 108 cartas normales (80 + 28 doctrinas), 33 legendarias aparte, nivel/maestría y ofertas.
 - `js/perks.js` — única implementación de perks en combate.
 - `js/meta.js`, `js/progress.js`, `js/score.js` — meta, persistencia y fórmulas.
 - `js/hud.js` — HUD y overlays DOM.

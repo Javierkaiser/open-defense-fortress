@@ -83,7 +83,7 @@ const REPEATABLE_CARDS = [
   'dmg_type_electric', 'dmg_type_drone',
   'dmg_missile', 'dmg_beam', 'dmg_thunder', 'dmg_tesla', 'dmg_mortar', 'dmg_gauss',
   'dmg_laser', 'dmg_firewheel', 'dmg_wasps', 'dmg_forcefield',
-  'cadence_up', 'rapid_bullets', 'pierce_up',
+  'cadence_up', 'pierce_up',
   'base_shield', 'ult_power',
   'repair_500', 'armor_plate',
   // dev-7 fase 30: "Nido Ampliado" (+1 mosquito del Dron Mosquitos).
@@ -150,10 +150,10 @@ test('CATALOG: toda carta tiene apply() y weight > 0', () => {
   }
 });
 
-test('CATALOG: 81 cartas + 28 doctrinas de la 1.12.2', () => {
-  assert.equal(CATALOG.length, 81 + DOCTRINE_CARDS.length);
-  assert.equal(CATALOG.length, 109);
-  assert.equal(REPEATABLE_CARDS.length, 69 + DOCTRINE_CARDS.length);
+test('CATALOG: 80 cartas + 28 doctrinas (1.13.1)', () => {
+  assert.equal(CATALOG.length, 80 + DOCTRINE_CARDS.length);
+  assert.equal(CATALOG.length, 108);
+  assert.equal(REPEATABLE_CARDS.length, 68 + DOCTRINE_CARDS.length);
   // Las legendarias NO viven en el catálogo normal: sólo en el draft.
   for (const c of LEGENDARY_CARDS) {
     assert.equal(CATALOG.some((x) => x.id === c.id), false, `${c.id} no debe estar en CATALOG`);
@@ -375,13 +375,21 @@ test('1.8.0: el relleno respeta offerCount y no reofrece cartas topadas', () => 
     'el relleno no supera el pool elegible ni el recorte del Protocolo');
 });
 
-test('applyCard: pierce_up suma 1 a fortress.pierce (una sola vez)', () => {
+test('1.13.1: pierce_up suma perforación y ×1.25 velocidad de bala (una sola vez)', () => {
   const game = makeGame({ towers: ['guardian'] });
+  const gw = findTower(game, 'guardian');
   const card = CATALOG.find((c) => c.id === 'pierce_up');
+  assert.equal(card.name, 'Munición Hiperveloz Perforante');
   assert.equal(applyCard(card, game), card);
   assert.equal(game.fortress.pierce, 1);
+  assert.equal(gw.bulletSpeedMul, 1.25);
+  assert.equal(gw.cadMul, 1, 'la carta no toca la cadencia');
   assert.equal(applyCard(card, game), null, 'la 2ª aplicación es no-op');
   assert.equal(game.fortress.pierce, 1);
+  assert.equal(gw.bulletSpeedMul, 1.25);
+  assert.equal(CATALOG.some((c) => c.id === 'rapid_bullets'), false,
+    'Balas Hipersónicas se fusionó en la carta nueva');
+  assert.equal(CAPS.rapid_bullets, undefined);
 });
 
 test('applyCard: unlock_missile coloca la torre (findTower la encuentra)', () => {
@@ -1077,7 +1085,6 @@ function toparTodo(f) {
     t.guardDmgApps = CAPS.dmg_guard;
     t.exclusiveDmgApps = CAPS.dmg_missile;
     t.cadApps = CAPS.cadence_up;
-    t.rapidApps = CAPS.rapid_bullets;
     t.level = MAX_TOWER_LEVEL;                    // bullets_5 fuera por estado
     t.cardApps = t.cardApps ?? {};
     for (const c of CATALOG) {
