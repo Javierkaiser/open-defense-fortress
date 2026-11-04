@@ -4,6 +4,29 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.16.1] — 2026-11-04
+
+### Ajustes visuales de HUD y cartas
+
+- **Score de PC**: baja de 36 a **21 px** (`--text-lg`), con label y
+  multiplicador a 15 px, padding `4px 9px`, gap 6 px y fondo más translúcido.
+  En móvil se conserva el score compacto de 18 px. El panel deja de tapar la
+  torre izquierda.
+- **Mejora de Nivel**: en PC las cards pasan a **tres filas horizontales**
+  (grid `1fr 140px`), con nombre/descripción a la izquierda y la rareza como
+  **pill al pie derecho**. En móvil se mantiene la card vertical.
+- La etiqueta de rareza queda al final del HTML de la card (después de la
+  descripción y la sinergia), también en móvil.
+- **Chips de Stage/Lv/reloj**: altura común de **48 px** en PC (antes 43 / 47
+  / 34 px); en móvil siguen los 32 px del bloque `[data-narrow]`.
+- Tests de HUD para el tamaño del score, el breakpoint horizontal, el orden
+  de la rareza y la altura de los chips.
+
+### Tests / versión
+
+- **1172 tests, 0 skip** (39 archivos).
+- Versión **1.16.1** / Android `versionCode 35`.
+
 ## [1.16.0] — 2026-11-04
 
 ### Ultimate: Bombardeo Orbital 2.0

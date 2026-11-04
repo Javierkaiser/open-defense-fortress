@@ -4274,3 +4274,55 @@ test('1.16.0: el banner del bombardeo orbital usa la variante dorada', () => {
     assert.ok(css.includes('.aviso--ultimate'), 'falta el estilo .aviso--ultimate');
   });
 });
+
+// ============================================================
+// 1.16.1 — ajustes visuales del score y del modal de cartas
+// ============================================================
+
+test('1.16.1: el score de PC baja a 21 px y el panel queda compacto', () => {
+  const reglas = [...css.matchAll(/\.score-value\s*\{([^}]*)\}/g)].map((m) => m[1]);
+  assert.ok(reglas.length >= 2, 'hay reglas de score para PC y móvil');
+  assert.ok(reglas.every((r) => !/36px|--text-2xl/.test(r)),
+    'el score ya no puede volver al tamaño de 36 px');
+  assert.ok(reglas.some((r) => r.includes('var(--text-lg)')),
+    'el score de PC usa --text-lg (21 px)');
+  const panel = css.match(/#hud-bottom \.hud-score\s*\{([^}]*)\}/);
+  assert.ok(panel, 'falta la regla del panel de score');
+  assert.ok(/padding:\s*4px 9px/.test(panel[1]), 'padding compacto del panel');
+  assert.ok(/background:\s*rgba\(7, 12, 15, \.72\)/.test(panel[1]),
+    'el fondo deja ver un poco más el campo');
+});
+
+test('1.16.1: las cards se leen en filas horizontales en PC', () => {
+  const media = css.indexOf('@media (min-width: 431px)');
+  assert.ok(media >= 0, 'falta el breakpoint de PC para las filas horizontales');
+  const bloque = css.slice(media);
+  assert.ok(bloque.includes('grid-template-columns: minmax(0, 1fr) 140px'),
+    'la card horizontal reserva la columna de rareza');
+  assert.ok(bloque.includes('flex-direction: column'),
+    'la fila de cards pasa a una lista vertical');
+  assert.ok(bloque.includes('--card-accent-rgb'),
+    'el glow usa el RGB de la rareza, no un hex inválido');
+  assert.ok(bloque.includes('white-space: nowrap'),
+    'la pill de rareza no se parte en dos líneas');
+});
+
+test('1.16.1: la rareza queda al pie de la card (después de la descripción)', () => {
+  withFakeDocument(() => {
+    const hud = fakeHudLive();
+    hud.showCardChoice(OFFER);
+    const html = hud.cardModal.innerHTML;
+    const primera = html.match(/<button class="card-choice-card[\s\S]*?<\/button>/)?.[0] ?? '';
+    assert.ok(primera.includes('card-rarity-label'), 'la card conserva su rareza');
+    assert.ok(primera.indexOf('card-desc') < primera.indexOf('card-rarity-label'),
+      'la rareza tiene que ir después de la descripción');
+  });
+});
+
+test('1.16.1: Stage, Lv y reloj comparten altura en PC', () => {
+  const bloque = css.slice(css.lastIndexOf('@media (min-width: 431px)'));
+  assert.ok(/\.hud-stage,\s*\.hud-lv,\s*\.hud-timer\s*\{[^}]*height:\s*48px/.test(bloque),
+    'los tres chips tienen que fijar la misma altura en PC');
+  assert.ok(bloque.includes('justify-content: center'),
+    'el contenido se centra en la altura común');
+});

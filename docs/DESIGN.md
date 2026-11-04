@@ -365,6 +365,15 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 - HUD superior: pausa, velocidad, combo, música, stage + progreso, nivel + XP,
   timer, Ultimate y Black Hole.
 - HUD inferior: score + multiplicador.
+- **Score de PC (1.16.1)**: 21 px (`--text-lg`), label y multiplicador a
+  15 px y panel compacto; en móvil sigue en 18 px. La cifra conserva la
+  jerarquía del HUD sin tapar la torre izquierda.
+- **Chips de datos (1.16.1)**: Stage, Lv y reloj comparten **48 px** de
+  altura en PC (antes 43 / 47 / 34); en móvil el bloque `[data-narrow]` los
+  mantiene en 32 px.
+- **Cards de nivel (1.16.1)**: en PC se leen como **tres filas
+  horizontales** (nombre/descripción a la izquierda y rareza al pie derecho);
+  en móvil se mantienen verticales. La rareza queda al final del HTML.
 - Overlays: menú, selector, pausa, fin de stage, game over, cartas, perks,
   combo, torretas, protocolo y récords.
 - **Menú y pausa (1.12.4)**: consola de forja con CTA principal, tiles de
@@ -484,7 +493,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1157 tests (1157 pass, 0 skip) en 38 archivos.
+- 1172 tests (1172 pass, 0 skip) en 39 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

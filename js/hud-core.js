@@ -1964,9 +1964,9 @@ export class HUD {
               ${typeBadge}
             </span>
             <i class="card-gems" title="${r.label}">${rarityGems(r.tier)}</i>
-            <span class="card-rarity-label">${r.label}</span>
             <span class="card-desc">${esc(desc)}</span>
             ${synergy ? `<span class="card-synergy">${esc(synergy)}</span>` : ''}
+            <span class="card-rarity-label">${r.label}</span>
           </span>
         </button>`;
     }).join('');

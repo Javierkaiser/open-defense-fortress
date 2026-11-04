@@ -644,7 +644,7 @@ html, body {
    374 del marco) tapaba el arco de HP de la base y el domo. */
 [data-narrow] .hud-score { padding: 5px 11px 6px; gap: 8px; }
 [data-narrow] .score-label { display: inline; }
-[data-narrow] .score-value { font-size: var(--text-2xl); }
+[data-narrow] .score-value { font-size: var(--text-md); }
 
 /* Botones circulares oscuros 44px con icono teal (§4.4) — estética v3.1 B:
    borde teal #35E0C8 más presente, fondo #0F2A28 alpha e iconos definidos
@@ -860,19 +860,17 @@ html, body {
 .score-label {
   font-family: var(--font-body);
   font-weight: 700;
-  font-size: var(--text-md);
+  font-size: var(--text-xs);
   letter-spacing: var(--tracking-caps);
   color: var(--platform-light);
   text-shadow: 0 1px 3px rgba(0, 0, 0, .9);
 }
 .score-value {
   font-family: var(--font-mono);
-  /* dev-7 fase 45: 36 px queda FUERA de la escala a propósito: es la
-     cifra grande del score, el elemento con más presencia del HUD, y
-     bajarla a --text-2xl (30 px) le quitaría el aire de la referencia.
-     Igual que .card-title (Orbitron) y .game-title / .screen-title
-     (clamp), es una excepción documentada, no un descuido. */
-  font-size: 36px; /* v3.1 B: presencia grande tipo referencia, mono 36px */
+  /* 1.16.1: 21 px conserva la jerarquía del score (sigue siendo el
+     número más grande del HUD) sin que el panel tape la torre izquierda
+     en PC. El piso tipográfico de 15 px no se toca. */
+  font-size: var(--text-lg);
   color: var(--score-white);
   text-shadow:
     0 0 14px rgba(255, 255, 255, .55),
@@ -884,7 +882,7 @@ html, body {
      puntuación usa la tabular → el "×1.5" bailaba al cambiar. Ahora
      usa --font-num (Exo2 con cifras tabulares, la pila de arriba). */
   font-weight: 700;
-  font-size: var(--text-md);
+  font-size: var(--text-xs);
   color: var(--crit-gold);
   text-shadow: 0 0 8px rgb(var(--crit-gold-rgb) / .6);
 }
@@ -6025,6 +6023,12 @@ kbd {
     max-width: none;
     flex: 0 0 auto;
   }
+  /* 1.16.1: la rareza ahora vive al pie también en la card vertical. */
+  #card-choice .card-choice-card .card-rarity-label {
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(159, 180, 200, .14);
+  }
 }
 
 /* Móviles bajos (360×640): las tres cartas apiladas no entran con el
@@ -6042,6 +6046,110 @@ kbd {
   .own-tower { padding: 4px 8px; font-size: var(--text-xs); }
   .combo-btn { padding: 5px 9px; font-size: var(--text-xs); }
   #card-choice .hint { font-size: var(--text-xs); }
+}
+
+/* ============================================================
+   1.16.1 — CARDS HORIZONTALES EN PC
+   ------------------------------------------------------------
+   En escritorio las tres opciones se leen como filas anchas: nombre
+   y descripción a la izquierda, rareza al pie derecho. En móvil
+   (<= 430 px) se conservan las cards verticales de arriba para no
+   apretar el texto.
+   ============================================================ */
+@media (min-width: 431px) {
+  #card-choice .cards-row {
+    flex-direction: column;
+    gap: 8px;
+    width: min(560px, 100%);
+    max-width: 100%;
+  }
+  #card-choice .card-choice-card {
+    --card-accent: var(--hud-teal);
+    --card-accent-rgb: var(--hud-teal-rgb);
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: none;
+    min-height: 0;
+    padding: 10px 14px;
+    display: flex;
+    clip-path: none;
+    border: 1px solid rgba(159, 180, 200, .16);
+    border-left: 3px solid var(--card-accent);
+    border-bottom: 1px solid var(--card-accent);
+    background: linear-gradient(90deg, rgba(16, 28, 31, .97), rgba(8, 12, 16, .99));
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .28);
+  }
+  #card-choice .card-choice-card.rarity-common {
+    --card-accent: var(--platform-light);
+    --card-accent-rgb: 159 180 200;
+  }
+  #card-choice .card-choice-card.rarity-uncommon {
+    --card-accent: var(--hud-teal);
+    --card-accent-rgb: var(--hud-teal-rgb);
+  }
+  #card-choice .card-choice-card.rarity-rare {
+    --card-accent: var(--rarity-rare);
+    --card-accent-rgb: var(--rarity-rare-rgb);
+  }
+  #card-choice .card-choice-card.rarity-legendary {
+    --card-accent: var(--crit-gold);
+    --card-accent-rgb: var(--crit-gold-rgb);
+  }
+  #card-choice .card-choice-card .card-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 140px;
+    grid-template-rows: auto auto auto auto;
+    column-gap: 18px;
+    row-gap: 4px;
+    width: 100%;
+    height: auto;
+    flex: none;
+    padding-top: 0;
+    text-align: left;
+  }
+  #card-choice .card-choice-card .card-title-row {
+    grid-column: 1;
+    grid-row: 1;
+    display: block;
+    padding-right: 44px;
+  }
+  #card-choice .card-choice-card .card-gems {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: start;
+  }
+  #card-choice .card-choice-card .card-desc {
+    grid-column: 1;
+    grid-row: 3;
+    margin-top: 2px;
+  }
+  #card-choice .card-choice-card .card-synergy {
+    grid-column: 1;
+    grid-row: 4;
+    padding-top: 5px;
+  }
+  #card-choice .card-choice-card .card-rarity-label {
+    grid-column: 2;
+    grid-row: 1 / span 4;
+    align-self: end;
+    justify-self: end;
+    margin: 0;
+    padding: 3px 8px;
+    border: 1px solid var(--card-accent);
+    background: rgba(159, 180, 200, .06);
+    white-space: nowrap;
+  }
+  #card-choice .card-choice-card .card-name {
+    font-size: var(--text-lg);
+  }
+  #card-choice .card-choice-card:hover,
+  #card-choice .card-choice-card:focus-visible {
+    transform: translateX(2px);
+    box-shadow:
+      0 8px 24px rgba(0, 0, 0, .38),
+      0 0 16px rgb(var(--card-accent-rgb) / .16);
+    outline: none;
+  }
 }
 
 /* ---------- PERK CHOICE ---------- */
@@ -6227,15 +6335,16 @@ kbd {
 #hud-bottom .hud-score {
   border-radius: 0;
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%);
-  border: 1px solid rgb(var(--hud-teal-rgb) / .2);
+  border: 1px solid rgb(var(--hud-teal-rgb) / .28);
   border-left: 2px solid var(--crit-gold);
-  background: rgba(7, 12, 15, .82);
+  background: rgba(7, 12, 15, .72);
   box-shadow: none;
-  padding: 6px 12px;
+  padding: 4px 9px;
+  gap: 6px;
 }
 .score-label { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: .08em; }
-.score-value { font-size: var(--text-2xl); text-shadow: none; }
-.score-mult { border-radius: 0; }
+.score-value { font-size: var(--text-lg); text-shadow: none; }
+.score-mult { border-radius: 0; font-size: var(--text-xs); }
 
 /* ---------- AVISOS ---------- */
 .aviso {
@@ -6454,4 +6563,26 @@ kbd {
   color: var(--crit-gold);
 }
 [data-narrow] .hud-timer .hud-timer-icon { color: var(--hud-teal); }
+
+/* 1.16.1 — en PC los tres chips de datos comparten altura. Stage y Lv
+   son columnas (label + barra) y el reloj es una línea: sin una altura
+   fija quedaban 43 / 47 / 34 px y la fila se veía desalineada. En móvil
+   el bloque [data-narrow] ya los fija en 32 px. */
+@media (min-width: 431px) {
+  .hud-stage,
+  .hud-lv,
+  .hud-timer {
+    height: 48px;
+    min-height: 48px;
+    max-height: 48px;
+    box-sizing: border-box;
+  }
+  .hud-stage,
+  .hud-lv { justify-content: center; }
+  .hud-timer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
 
