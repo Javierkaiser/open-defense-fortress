@@ -70,8 +70,10 @@ class EngineStub {
   floatText() {}
 }
 
-function playStage(stageId, maxSeconds, seed, extraTowers = []) {
-  if (seed !== undefined) Math.random = makeRng(seed); // run determinista
+function playStage(stageId, maxSeconds, seed = 1, extraTowers = []) {
+  // Siempre determinista: un smoke con `Math.random` libre es flaky y con
+  // el +25 % de HP del jefe (fase 78) el margen de S1 se volvió visible.
+  Math.random = makeRng(seed);
   const engine = new EngineStub();
   const game = { engine, stageId, lv: 1, xp: 0, score: 0, streak: 0, mult: 1, kills: 0, timer: 0, _leaks: 0 };
   game.fortress = new Fortress(game);

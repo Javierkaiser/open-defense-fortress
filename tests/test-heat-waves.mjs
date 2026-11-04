@@ -22,7 +22,7 @@ import {
 } from '../js/waves.js';
 import { WaveManager } from '../js/waves-manager.js';
 import { ENEMY_TYPES, ENEMY_VARIANTS } from '../js/enemies.js';
-import { scaleFor } from '../js/stages.js';
+import { scaleFor, BOSS_HP_MUL } from '../js/stages.js';
 import { heatMods } from '../js/heat.js';
 
 /** Semillas del director (misma forma que test-stages/test-endless-waves). */
@@ -234,17 +234,21 @@ test('fase 69 · Doble élite: los grupos publican variants[] de 2 ids válidos'
 // ============================================================
 // 7. JEFE — bossHpMul + escolta de élites
 // ============================================================
+// Fase 78: el HP del jefe lleva además el +25 % global (BOSS_HP_MUL) que
+// ahora vive en bossScaleForStage (js/stages.js): el Protocolo se compone
+// SOBRE esa curva, no en lugar de ella.
 
 test('fase 69 · Jefes: HP × bossHpMul y 2 élites de escolta por rango', () => {
   const tipo = bossForStage(50);
   const hpBase = ENEMY_TYPES[tipo].hp;
-  const hpEscalado = Math.round(hpBase * (1 + 0.15 * (50 - 1)));
+  const hpEscalado = Math.round(hpBase * BOSS_HP_MUL * (1 + 0.15 * (50 - 1)));
 
   const sinJefes = stubGame();
   const wm0 = new WaveManager(50);
   wm0._spawnBoss(sinJefes);
   assert.equal(sinJefes.fortress.enemies.length, 1, 'sin Protocolo no hay escolta');
-  assert.equal(sinJefes.fortress.enemies[0].hpMax, hpEscalado, 'el jefe de la fase 67');
+  assert.equal(sinJefes.fortress.enemies[0].hpMax, hpEscalado,
+    'sin Protocolo: la curva del jefe × el +25 % de la fase 78');
   assert.equal(wm0.bossRef, sinJefes.fortress.enemies[0]);
 
   for (const [rango, escolta] of [[1, 2], [2, 4]]) {
@@ -252,7 +256,9 @@ test('fase 69 · Jefes: HP × bossHpMul y 2 élites de escolta por rango', () =>
     const wm = new WaveManager(50, { runMods: heatMods({ jefes: rango }) });
     wm._spawnBoss(game);
     const [boss, ...escorts] = game.fortress.enemies;
-    const esperado = Math.round(hpBase * (1 + 0.15 * (50 - 1)) * (1 + 0.1 * rango));
+    const esperado = Math.round(
+      hpBase * BOSS_HP_MUL * (1 + 0.15 * (50 - 1)) * (1 + 0.1 * rango),
+    );
     assert.equal(boss.hpMax, esperado, `jefes ${rango}: HP ×${1 + 0.1 * rango}`);
     assert.equal(boss.hp, esperado, 'la vida arranca llena');
     assert.equal(escorts.length, escolta, `jefes ${rango}: ${escolta} escoltas`);

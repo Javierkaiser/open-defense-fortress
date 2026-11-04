@@ -33,8 +33,16 @@ import {
 import { applyProjectileHit, projectileRadius } from './enemies-combat.js';
 import { onMechanicKill } from './tower-mechanics.js';
 import { enemySpriteFor, registerEnemyFactory } from './enemy-sprites.js';
+// fase 78 — MECÁNICAS FIRMA DE LOS JEFES (lluvia, devorar, resurrección,
+// placas y metamorfosis). El módulo NO importa este archivo: recibe el
+// jefe por parámetro (ver la cabecera de enemies-boss.js).
+import {
+  BOSS_MECH_COLORS, initBossKit, tickBossKit, setBossExpose, bossExposeMul,
+  bossReviveSpec, onBossPlateBroken, onBossMorph, bossMechLabel, drawBossKit,
+} from './enemies-boss.js';
 export {
   applyPoison, applySlow, applyMark, hasMark, projectileRadius, applyProjectileHit,
+  bossMechLabel,
 };
 
 /** Lado del canvas del icono del bestiario. */
@@ -388,12 +396,14 @@ export class Enemy {
     this.plateMax = 0;
     this.plateHp = 0;
     this.platesLeft = 0;
+    this.plateCount = 0; // fase 78: total declarado (la barra muestra "2/3")
     this.bodyMax = this.hpMax; // tope de cura del cuerpo (geoda: hpMax - placas)
     this._plateSpeedMul = plateDef?.speedMulPerBreak ?? 1;
     if (plateDef) {
       const n = Math.max(1, Math.trunc(plateDef.count ?? 3));
       const fracEach = Math.max(0.01, Math.min(0.45, plateDef.hpFracEach ?? 0.15));
       this.platesLeft = n;
+      this.plateCount = n;
       this.plateMax = Math.max(1, Math.round(this.hpMax * fracEach));
       this.plateHp = this.plateMax;
       this.bodyMax = Math.max(1, this.hpMax - this.plateMax * n);
@@ -413,6 +423,10 @@ export class Enemy {
     // daño y su regeneración) y la escolta que lo cura.
     this._phase = null;
     this.escortOf = null;                // si es esbirro, el jefe al que sirve
+    // fase 78 — FAMILIA ACTIVA (la metamorfosis del híbrido la cambia) y
+    // estado de las mecánicas firma del jefe (ver enemies-boss.js).
+    this._familyOverride = null;
+    initBossKit(this);
 
     // Oleadas dinámicas — estado de las VARIANTES (ver ENEMY_VARIANTS). El
     // escudo es un pool FINITO y PLANO que absorbe antes que el hp, se rompe
@@ -487,6 +501,16 @@ export class Enemy {
   }
 
   get isBoss() { return !!this.data.boss; }
+
+  /**
+   * fase 78 — FAMILIA VIGENTE del enemigo.
+   *
+   * La matriz tipo × familia (js/damagetypes.js) y las cartas de caza
+   * (familyHuntMul) leen ESTO, no `data.family`: la Abominación Híbrida
+   * cambia de familia en cada fase (roca → cristal → virus → roca) y el
+   * daño que entra tiene que seguirla. Sin override devuelve la del tipo.
+   */
+  get activeFamily() { return this._familyOverride ?? this.data.family ?? null; }
 
   /**
    * Primer afijo (compatibilidad): el render, los iconos y los tests viejos
@@ -583,12 +607,16 @@ export class Enemy {
     if (this.dead || !Number.isFinite(n) || n <= 0) return false;
     // dev-7 fase 32: el multiplicador de tipo (familia del enemigo).
     const type = dmgType ?? dmgTypeFor(_kind);
-    const family = this.data.family ?? null;
+    // fase 78: la familia ACTIVA (la metamorfosis del jefe puede cambiarla).
+    const family = this.activeFamily;
     // dev-7 fase 47: la REGLA DE LA FASE del jefe se multiplica con la
     // matriz (familia): en una fase el jefe puede ser vulnerable a un
     // tipo (×1,5) y resistente a otro (×0,5). Aquí es el único punto
     // donde se aplica el daño.
-    const mul = dmgMultiplier(type, family) * this._phaseTypeMul(type);
+    // fase 78: la VENTANA DE EXPOSICIÓN (placa rota / bocado del Blob Rey)
+    // suma su multiplicador al neto. No apila: la maneja enemies-boss.js.
+    const mul = dmgMultiplier(type, family) * this._phaseTypeMul(type)
+      * bossExposeMul(this, type);
     // fase 74.2 — combos de frío: los enemigos ralentizados son frágiles
     // a ciertos tipos (Cero Absoluto → luz; Onda Glacial → explosión).
     const combo = this.game?.fortress?.comboMods;
@@ -635,11 +663,7 @@ export class Enemy {
       this._hitT = 0.16;
       this._hitWeak = mul > 1;
     }
-    if (this.hp <= 0) {
-      this.hp = 0;
-      this.die();
-      return true; // kill
-    }
+    if (this.hp <= 0) return this._resolveHpDepleted();
     return false;
   }
 
@@ -657,6 +681,64 @@ export class Enemy {
     this._spawnDeathMinions();
     this.explode();
     this.game?.engine?.emit('enemy:killed', this);
+  }
+
+  /**
+   * fase 78 — ÚNICO camino de muerte de un enemigo.
+   *
+   * Antes había DOS (`takeDamage` y el tick de veneno) que llamaban a
+   * `die()` por separado: una resurrección de jefe sólo funcionaba con
+   * golpes, no con DoT. Ahora ambos pasan por acá y la resurrección
+   * (`_tryBossRevive`) se evalúa ANTES de morir.
+   *
+   * @returns {boolean} true si el enemigo MURIÓ (false si revivió)
+   */
+  _resolveHpDepleted() {
+    if (this.dead) return false;
+    if (this._tryBossRevive()) return false;
+    this.hp = 0;
+    this.die();
+    return true;
+  }
+
+  /**
+   * fase 78 — RESURRECCIÓN CONDICIONADA de los jefes (`bossMech.revive`).
+   *
+   * El Blob Necrótico "no cae": si al llegar a 0 HP le quedan al menos
+   * `minEscorts` esbirros vivos, vuelve con `hpFrac` del máximo y se come
+   * la escolta. NO dispara `enemy:killed` (no paga score/XP/ultimate) ni
+   * `stage:cleared`: `checkBossDead` sigue viendo al jefe vivo.
+   *
+   * La condición sale de `bossReviveSpec` (enemies-boss.js); acá sólo se
+   * aplica el efecto.
+   *
+   * @returns {boolean} true si revivió
+   */
+  _tryBossRevive() {
+    const spec = bossReviveSpec(this);
+    if (!spec) return false;
+    this._revived = true;
+    this.hp = Math.max(1, Math.round(this.hpMax * spec.hpFrac));
+    const eng = this.game?.engine;
+    const list = this.game?.fortress?.enemies;
+    if (Array.isArray(list)) {
+      for (const e of list) {
+        if (!e || e === this || e.dead || e.escortOf !== this) continue;
+        e.dead = true;
+        eng?.spawnParticles?.(e.x, e.y, BOSS_MECH_COLORS.revive, 8, {
+          speedMin: 30, speedMax: 140, lifeMin: 0.2, lifeMax: 0.5,
+          sizeMin: 1.5, sizeMax: 3,
+        });
+      }
+    }
+    eng?.floatText?.(this.x, this.y - this.r - 18, '¡NO CAE!', '#C77DFF', 1.3);
+    eng?.shake?.(5, 420);
+    this._announceBossMech('revive', {
+      title: 'NO CAE',
+      name: `RESUCITA CON EL ${Math.round(spec.hpFrac * 100)} %`,
+      rule: 'MATÁ LA ESCOLTA ANTES DEL GOLPE FINAL',
+    }, false);
+    return true;
   }
 
   /**
@@ -966,13 +1048,16 @@ export class Enemy {
       // bajo el mínimo de 1), o sea una inmunidad escondida al veneno.
       this._absorbDamage(this.poisonDps * tick, { armor: false });
       if (this.hp <= 0) {
-        this.hp = 0;
-        this.die();
-        // fase 75: un enemigo muerto por veneno no sigue moviéndose,
-        // no cuenta fuga y un jefe no dispara fases después de morir.
-        this.poisonT = 0;
-        this.poisonDps = 0;
-        return;
+        // fase 78: el veneno pasa por el MISMO camino de muerte que un
+        // golpe (resurrección incluida). Antes llamaba a die() directo y
+        // el Blob Necrótico no revivía si lo mataba un DoT.
+        if (this._resolveHpDepleted()) {
+          // fase 75: un enemigo muerto por veneno no sigue moviéndose,
+          // no cuenta fuga y un jefe no dispara fases después de morir.
+          this.poisonT = 0;
+          this.poisonDps = 0;
+          return;
+        }
       }
       if (this.poisonT <= 0) {
         this.poisonT = 0;
@@ -1074,6 +1159,8 @@ export class Enemy {
     if (this.isBoss) this._updateBossPhases();
     // dev-7 fase 47: mientras su escolta esté viva, el jefe se regenera.
     if (this.isBoss) this._updateBossRegen(dt);
+    // fase 78: mecánicas firma (lluvia / devorar / resurrección lista).
+    if (this.isBoss) this._updateBossKit(dt);
     // Oleadas dinámicas: la variante `regenerador` se cura MIENTRAS vive
     // (independiente de la regeneración de fase del jefe: conviven).
     if (this._regenFrac) this._updateVariantRegen(dt);
@@ -1178,7 +1265,11 @@ export class Enemy {
     const frac = Math.min(rate, BOSS_REGEN_CAP);
     const heal = this.hpMax * frac * dt;
     if (heal <= 0) return;
-    this.hp = Math.min(this.hpMax, this.hp + heal);
+    // fase 78: con PLACAS el cuerpo tiene su propio tope (bodyMax): la
+    // regen no puede "curar" una placa que está entera.
+    const cap = this.bodyMax ?? this.hpMax;
+    if (this.hp >= cap) return;
+    this.hp = Math.min(cap, this.hp + heal);
     // Feedback: la vida vuelve y el jugador tiene que verlo (un float
     // verde cada 0,4 s, no en cada frame).
     this._regenAcc = (this._regenAcc ?? 0) + dt;
@@ -1190,6 +1281,156 @@ export class Enemy {
       );
     }
   }
+  /**
+   * fase 78 — tick de las mecánicas FIRMA del jefe (enemies-boss.js).
+   *
+   * Sólo corre durante el ASEDIO (el jefe ya está en su Y): durante la
+   * bajada el jefe no hace llover ni devora. El módulo devuelve acciones
+   * (lluvia / devorar / pare) y este método las aplica sobre el mundo.
+   *
+   * @param {number} dt
+   */
+  _updateBossKit(dt) {
+    if (this.dead || !(dt > 0) || !this._bossKit) return;
+    if (this.y < bossHoverY()) return; // sólo en asedio
+    const actions = tickBossKit(this, dt);
+    for (const a of actions) this._applyBossAction(a);
+  }
+
+  /**
+   * fase 78 — aplica UNA acción del kit. Acá vive el IO (spawn, cura,
+   * partículas, aviso); las reglas están en enemies-boss.js.
+   *
+   * @param {{kind:string}} a
+   */
+  _applyBossAction(a) {
+    if (!a || this.dead) return;
+    const eng = this.game?.engine;
+    const list = this.game?.fortress?.enemies;
+    if (a.kind === 'rain') {
+      const spec = this._bossKit?.rain;
+      if (!spec || !ENEMY_TYPES[spec.type]) return;
+      if (!Array.isArray(list) || !eng || typeof eng.addEntity !== 'function') return;
+      // La lluvia escala con el jefe (boss.scale incluye el ×1,25 y el
+      // Heat) para que no sea gratis en S50 ni en Supervivencia.
+      const hpMul = Math.max(0.1, (this.scale?.hpMul ?? 1) * spec.hpMul);
+      for (const px of a.xList ?? []) {
+        const x = clamp(px, 24, CONFIG.CANVAS_W - 24);
+        const e = new Enemy(spec.type, x, {
+          game: this.game, y: SPAWN_Y, straight: true,
+          scale: { hpMul, velMul: spec.velMul },
+          scoreMul: spec.scoreMul, fromSpawn: true,
+        });
+        e.spawnedBy = this;
+        e.escortOf = this;
+        eng.addEntity(e);
+        list.push(e);
+      }
+      this._announceBossMech('rain', {
+        title: '¡LLUVIA DE ESCOMBROS!',
+        name: 'EL JEFE LLAMA A SU ESCOLTA',
+        rule: 'LOS ESCOMBROS CAEN EN COLUMNAS',
+      });
+      eng.shake?.(2, 160);
+      return;
+    }
+    if (a.kind === 'devour') {
+      const targets = Array.isArray(a.targets)
+        ? a.targets.filter((e) => e && !e.dead) : [];
+      if (!targets.length) return;
+      const cap = this.bodyMax ?? this.hpMax;
+      const heal = Math.round(this.hpMax * (a.hpFrac ?? 0) * targets.length);
+      if (heal > 0 && this.hp < cap) this.hp = Math.min(cap, this.hp + heal);
+      for (const e of targets) {
+        // Consumir NO es una baja: no paga score/XP/ultimate y no cuenta
+        // fuga. El jugador que no limpia la escolta pierde el botín.
+        e.dead = true;
+        eng?.spawnParticles?.(e.x, e.y, this.data.glow ?? '#C77DFF', 8, {
+          speedMin: 30, speedMax: 140, lifeMin: 0.2, lifeMax: 0.55,
+          sizeMin: 1.4, sizeMax: 3,
+        });
+      }
+      this._consumedEscorts = (this._consumedEscorts ?? 0) + targets.length;
+      this._devourFlash = 0.6;
+      if (a.expose) setBossExpose(this, a.expose);
+      const ex = this._bossKit?.devour?.expose;
+      let rule = '';
+      if (ex) {
+        const info = DAMAGE_TYPES[ex.weakTo];
+        const mulTxt = String(Math.round(ex.mul * 100) / 100).replace('.', ',');
+        rule = 'EXPUESTO: ' + (info?.name ?? ex.weakTo).toUpperCase() + ' ×' + mulTxt;
+      }
+      this._announceBossMech('devour', {
+        title: 'EL JEFE DEVORA',
+        name: 'SU ESCOLTA SE CONVIERTE EN VIDA',
+        rule,
+      });
+      eng?.shake?.(3, 220);
+      return;
+    }
+    if (a.kind === 'empty') {
+      const spec = this._bossKit?.devour;
+      if (!spec?.spawnWhenEmpty || !ENEMY_TYPES[a.type]) return;
+      if (!Array.isArray(list) || !eng || typeof eng.addEntity !== 'function') return;
+      const x = clamp(this.x + rand(-40, 40), 24, CONFIG.CANVAS_W - 24);
+      const e = new Enemy(a.type, x, {
+        game: this.game, y: this.y, fromSpawn: true,
+        scoreMul: 0.1, scale: this.scale,
+      });
+      e.spawnedBy = this;
+      e.escortOf = this;
+      this._emptySpawns = (this._emptySpawns ?? 0) + 1;
+      eng.addEntity(e);
+      list.push(e);
+      eng.spawnParticles?.(this.x, this.y + this.r * 0.2, this.data.glow ?? '#C77DFF', 8, {
+        speedMin: 20, speedMax: 90, gravity: -10,
+        lifeMin: 0.25, lifeMax: 0.55, sizeMin: 1.2, sizeMax: 2.8,
+      });
+    }
+  }
+
+  /**
+   * fase 78 — aviso de una mecánica. `once` evita spamear la pila del HUD
+   * con lluvia/devorar; las placas avisan cada rotura (3 por pelea).
+   *
+   * @param {string} kind
+   * @param {object} payload {title,name,rule}
+   * @param {boolean} [once]
+   */
+  _announceBossMech(kind, payload, once = true) {
+    if (!kind) return;
+    this._kitSeen ??= {};
+    if (once && this._kitSeen[kind]) return;
+    this._kitSeen[kind] = true;
+    this.game?.engine?.emit?.('boss:mechanic', { kind, ...payload, boss: this });
+  }
+
+  /**
+   * fase 78 — TELETRANSPORTE de la metamorfosis: el jefe reaparece en otra
+   * columna del campo (evade el foco y se lee como "cambió de forma").
+   * Resetea las anclas de deriva/barrido para que no vuelva solo.
+   */
+  _bossBlink() {
+    const margin = Math.min(CONFIG.CANVAS_W / 2, this.r + 12);
+    const minX = margin;
+    const maxX = Math.max(minX, CONFIG.CANVAS_W - margin);
+    const nx = clamp(rand(minX, maxX), minX, maxX);
+    const ox = this.x;
+    this.x = nx;
+    this.entryX = nx;
+    this.baseX = nx;
+    this._sweepAcc = 0;
+    this._wander = 0;
+    const eng = this.game?.engine;
+    for (const px of [ox, nx]) {
+      eng?.spawnParticles?.(px, this.y, BOSS_MECH_COLORS.morph, 14, {
+        speedMin: 40, speedMax: 180, lifeMin: 0.2, lifeMax: 0.55,
+        sizeMin: 1.4, sizeMax: 3.2,
+      });
+    }
+    eng?.shake?.(3, 200);
+  }
+
 
   /**
    * Oleadas dinámicas — reparte `n` de daño entre el ESCUDO (variante
@@ -1311,6 +1552,21 @@ export class Enemy {
   _breakPlate() {
     const mul = this._plateSpeedMul ?? 1;
     if (Number.isFinite(mul) && mul > 1) this.vel *= mul;
+    // fase 78 — CORAZA DE PLACAS: la rotura abre la ventana de EXPOSICIÓN
+    // (y su aviso). Sin `plateExpose` no hace nada (geoda). Se aplica
+    // aunque no haya engine: el estado de combate no es decorativo.
+    const plate = onBossPlateBroken(this);
+    if (plate) {
+      const info = DAMAGE_TYPES[plate.weakTo];
+      const mulTxt = String(Math.round(plate.mul * 100) / 100).replace('.', ',');
+      const secTxt = String(Math.round(plate.seconds * 10) / 10).replace('.', ',');
+      this._announceBossMech('plate', {
+        title: '¡CORAZA ROTA!',
+        name: 'QUEDAN ' + plate.left + ' PLACAS',
+        rule: 'EXPUESTO ' + secTxt + ' s · ' + (info?.name ?? plate.weakTo).toUpperCase() + ' ×' + mulTxt,
+      }, false);
+      this.game?.engine?.shake?.(3, 220);
+    }
     const eng = this.game?.engine;
     if (!eng) return;
     const col = this.data.crystal ?? this.data.body ?? '#FF6A6A';
@@ -1417,15 +1673,32 @@ export class Enemy {
         this._phaseList = [];
       }
     }
+    // fase 78: el umbral se mide sobre el HP VISIBLE (cuerpo + placas).
+    // Con placas, `hp` arranca en bodyMax (70 % del total) y medir con
+    // `hp` dispararía la fase de 0,6 en el instante del spawn.
     while (this._phaseIdx < this._phaseList.length
-      && this.hp <= this.hpMax * this._phaseList[this._phaseIdx].atFrac) {
+      && this.hpDisplay <= this.hpMax * this._phaseList[this._phaseIdx].atFrac) {
       const ph = this._phaseList[this._phaseIdx];
       this._phaseIdx += 1;
       this.vel *= ph.velMul ?? 1;
       // dev-7 fase 47: la fase vigente (la regla de tipo y la
       // regeneración la leen de aquí).
       this._phase = ph;
+      // fase 78 — METAMORFOSIS: la familia activa cambia con la fase. Se
+      // fija ANTES de emitir para que el aviso del HUD lea la nueva.
+      if (typeof ph.family === 'string' && ph.family) {
+        this._familyOverride = ph.family;
+        this.family = ph.family;
+      }
+      // fase 78: el kit de metamorfosis marca el pulso y, si el dato lo
+      // pide, teletransporta al jefe a otra columna (evade el foco).
+      if (this._bossKit?.morph) {
+        const blink = onBossMorph(this);
+        if (blink) this._bossBlink();
+      }
       this.game?.engine?.emit('boss:phase2', this); // nombre canónico dev-3
+      // El cambio de fase se siente: un shake corto (antes sólo el aviso).
+      this.game?.engine?.shake?.(4, 320);
       this._summon(ph.shed, true);
       this._summon(ph.spawn, false);
     }
@@ -1824,6 +2097,12 @@ export class Enemy {
 
     // --- T3: el jefe se siente grande: halo + anillo de aviso ----------
     if (!bake && this.isBoss) this._drawBossAura(ctx);
+    // fase 78: el kit de la mecánica (placas, exposición, resurrección,
+    // bocado y metamorfosis) se dibuja DESPUÉS del cuerpo: la boca del
+    // devorar vive DENTRO de la silueta y, si va antes, el fill opaco del
+    // cuerpo la tapa. Se llama al final de cada camino (sprite/procedural).
+    // Nunca en el bake y tampoco en el ICONO del bestiario: esa caja se
+    // encuadra para el cuerpo y los aros del kit se recortarían.
 
     // dev-7 fase 30: VENENO activo (picadura del Dron Mosquitos). Un tinte
     // verde + burbujas: el jugador tiene que VER que el enemigo está
@@ -1885,6 +2164,8 @@ export class Enemy {
       if (this.type === 'blob') this._drawBlobRotation(ctx);
       this._drawLocalOverlays(ctx, threat);
       ctx.restore();
+      // fase 78: kit SOBRE el cuerpo (la boca del devorar queda visible).
+      if (!bake && !this._icon && this.isBoss) drawBossKit(ctx, this);
       ctx.restore(); // fin de draw()
       return;
     }
@@ -2299,6 +2580,8 @@ export class Enemy {
 
     ctx.restore(); // fin de la silueta
     ctx.restore(); // fin del pulso de escala
+    // fase 78: kit SOBRE el cuerpo (la boca del devorar queda visible).
+    if (!bake && !this._icon && this.isBoss) drawBossKit(ctx, this);
     ctx.restore(); // fin de draw()
   }
 

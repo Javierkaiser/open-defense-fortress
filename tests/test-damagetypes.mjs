@@ -325,8 +325,12 @@ test('1.8.0: el aviso de fase declara el neto real (familia × fase)', () => {
   const blindado = bestiaryCards().find((c) => c.type === 'armoredBlob').html;
   assert.ok(blindado.includes('×0,25'), 'PLACAS debe mostrar el neto ×0,25');
   assert.ok(!/Explosión ×0,5/.test(blindado), 'no puede quedar el ×0,5 falso');
+  // fase 78: el híbrido declara la familia de cada fase, así que el neto se
+  // mide contra ESA familia (cristal/virus/roca) y no contra la base. El
+  // ×0,75 de "balístico contra roca" ya no corresponde a ninguna fase.
   const hibrido = bestiaryCards().find((c) => c.type === 'hybridBoss').html;
-  assert.ok(hibrido.includes('×0,75'), 'HÍBRIDO debe mostrar el neto ×0,75');
+  assert.ok(hibrido.includes('×0,5'), 'HÍBRIDO: la fase virus resiste el balístico ×0,5');
+  assert.ok(hibrido.includes('×1,5'), 'HÍBRIDO: las fases premian luz/eléctrico ×1,5');
 });
 
 test('1.9.0: el bestiario marca a los jefes como inmunes al remate', () => {
@@ -546,6 +550,54 @@ test('fase 50: las 4 cartas de caza existen, tienen tope 1 y son de familia', ()
   // Las 4 familias tienen su carta (una por familia).
   const familias = new Set(ids.map((id) => id.replace('hunt_', '')));
   assert.equal(familias.size, 4, 'una carta por familia');
+});
+
+
+// ============================================================
+// fase 78 — LA FAMILIA ACTIVA (METAMORFOSIS DEL HÍBRIDO)
+//
+// Cada fase del híbrido declara su propia familia y el combate lee la
+// VIGENTE (Enemy.activeFamily). En el bestiario el aviso de fase lo dice
+// ("AHORA ES CRISTAL") y el neto se calcula contra ESA familia, que es la
+// que combate (mostrarlo contra la base mentiría en la fase cambiada).
+// ============================================================
+
+test('fase 78: el híbrido declara la familia de cada fase (cristal → virus → roca)', () => {
+  const fases = ENEMY_TYPES.hybridBoss.phases ?? [];
+  assert.equal(fases.length, 3, 'el híbrido tiene 3 fases');
+  assert.deepEqual(fases.map((p) => p.family), ['crystal', 'virus', 'rock'],
+    'la rotación de familias de las fases');
+  for (const p of fases) {
+    assert.ok(ENEMY_FAMILIES[p.family], `${p.name}: familia desconocida (${p.family})`);
+  }
+  // La familia BASE no se toca: la fase 1 es la que la cambia.
+  assert.equal(ENEMY_TYPES.hybridBoss.family, 'rock');
+});
+
+test('fase 78: el bestiario avisa la familia de cada fase del híbrido', () => {
+  const hibrido = bestiaryCards().find((c) => c.type === 'hybridBoss');
+  assert.ok(hibrido, 'el híbrido debe tener tarjeta en el bestiario');
+  for (const nombre of ['CRISTAL', 'VIRUS', 'ROCA']) {
+    assert.ok(hibrido.html.includes(`AHORA ES ${nombre}`),
+      `falta el aviso "AHORA ES ${nombre}" en la ficha del híbrido`);
+  }
+  // El neto de cada regla se mide contra la familia DE LA FASE: luz sobre
+  // cristal ×1,5, balístico resistido por virus ×0,5 y eléctrico sobre
+  // roca ×1,5. El ×0,75 de "luz contra roca" ya no aparece: esa cuenta
+  // era la de la familia base y no la del combate.
+  assert.ok(hibrido.html.includes('×1,5'), 'las fases que premian luz/eléctrico muestran ×1,5');
+  assert.ok(hibrido.html.includes('×0,5'), 'la fase virus resiste el balístico ×0,5');
+  assert.ok(!hibrido.html.includes('×0,75'), 'el neto se mide contra la familia de la fase');
+});
+
+test('fase 78: la regla de la fase 1 premia la luz sobre el cristal (×1,5)', () => {
+  const rule = bossPhaseRule({ weakTo: 'light' }, 'crystal');
+  assert.ok(rule, 'la fase declara la regla');
+  assert.equal(rule.net, 1.5, 'luz ×1,0 (cristal) × ×1,5 (fase) = ×1,5');
+  assert.equal(rule.weak, true, 'la luz es la fortaleza de esta fase');
+  // La MISMA regla contra la familia base (roca) da ×0,75: la familia
+  // vigente es lo que hace la diferencia (y lo que avisa el bestiario).
+  assert.equal(bossPhaseRule({ weakTo: 'light' }, 'rock').net, 0.75);
 });
 
 // ============================================================

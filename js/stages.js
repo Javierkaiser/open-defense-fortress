@@ -71,7 +71,8 @@ export function isBossStage(id) {
  * scaleFor(stage) → {hpMul, velMul} — §2.4/§2.9. Curva corta (1..5,
  * balance base simulado) + curva LARGA v6 para la campaña de 50:
  * crecimiento suave y rejugable con el meta de 100 niveles. Los bosses
- * NO escalan por esta vía (su escala propia vive en waves.js _spawnBoss).
+ * NO escalan por esta vía: su curva propia vive en `bossScaleForStage()`
+ * (fase 78, más abajo).
  *
  * dev-7 fase 7 (bug real, ver docs/BALANCE.md "Plan integral §4"): la curva
  * larga arrancaba SIEMPRE desde la base (1 + 0.11×(stage−1)), lo que en
@@ -123,6 +124,49 @@ export function scaleFor(stage) {
     hpMul: hpAtFive + 0.14 * (stage - 5),
     velMul: velAtFive + 0.02 * (stage - 5),
   };
+}
+
+// ============================================================
+// fase 78 — CURVA DE HP DE LOS JEFES (+25 % global)
+// ============================================================
+// Los jefes NO escalan con `scaleFor`: tienen su propia curva. Antes esa
+// curva vivía como POST-multiplicador en `WaveManager._spawnBoss` (sobre el
+// `hpMax` ya construido); ahora es UNA sola fuente acá y se pasa como
+// `scale` al constructor de `Enemy`, así el `hpMax` REAL nace definitivo
+// —que es lo que habilita que las placas/escudo de la fase 78 se calculen
+// sobre el HP definitivo—. Incluye además el +25 % pedido en la fase 78,
+// que sube a los cinco jefes por igual.
+//
+// Composición con el Protocolo/Heat: `runMods.bossHpMul` (+20 % por rango de
+// Jefes en js/heat.js) se multiplica sobre esta misma curva.
+
+/** Multiplicador GLOBAL de HP de los jefes (fase 78: +25 % sobre la curva). */
+export const BOSS_HP_MUL = 1.25;
+
+/**
+ * Escala de HP propia de un JEFE de `stage` (los jefes NO usan `scaleFor`,
+ * ver el bloque de arriba).
+ *
+ * Curva: `BOSS_HP_MUL × (1 + 0,15 × (stage − 1)) × heatBossHpMul` — el +15 %
+ * de HP por etapa que los jefes ya tenían (S10 ≈ ×2,35 … S50 ≈ ×8,35) con el
+ * +25 % global de la fase 78 incluido, y opcionalmente el multiplicador del
+ * Protocolo. La VELOCIDAD no escala (`velMul: 1`): el jefe se mueve con la
+ * `vel` de su ficha.
+ *
+ * Entradas tolerantes (un dato roto NUNCA manda el HP a 0/NaN): un stage
+ * inválido (0, negativo, NaN) cae a 1, y un `heatBossHpMul` inválido o ≤ 0
+ * cae a 1 (sin Heat).
+ *
+ * @param {number} stage etapa de la run (1..50 en campaña; 51+ en ∞)
+ * @param {number} [heatBossHpMul=1] multiplicador de HP del Protocolo
+ *   (`runMods.bossHpMul`; 1 sin Heat)
+ * @returns {{hpMul: number, velMul: number}} escala para el constructor de `Enemy`
+ */
+export function bossScaleForStage(stage, heatBossHpMul = 1) {
+  const s = Math.max(1, Math.trunc(Number(stage) || 1));
+  const raw = Number(heatBossHpMul);
+  const heat = Number.isFinite(raw) && raw > 0 ? raw : 1;
+  return { hpMul: BOSS_HP_MUL * (1 + 0.15 * (s - 1)) * heat, velMul: 1 };
 }
 
 export const BASE_HP_BY_STAGE = Object.fromEntries(STAGES.map((s) => [s.id, s.baseHp]));

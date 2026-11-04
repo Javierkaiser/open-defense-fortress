@@ -9,7 +9,7 @@ import { Engine, CONFIG, SCENE } from './engine.js';
 import { HUD, fortressDps, findStageHighlights } from './hud.js';
 import { Fortress, ULT_BOSS_CHARGES, BLACK_HOLE_BOSS_CHARGES } from './player.js';
 import { TOWERS, GUARDIAN_SLOT } from './towers.js';
-import { collideProjectiles } from './enemies.js';
+import { collideProjectiles, bossMechLabel } from './enemies.js';
 import { WaveManager } from './waves-manager.js';
 import { waveGroups } from './waves.js';
 import {
@@ -1906,7 +1906,12 @@ export class Game {
       leaks: this._leaks,
       boss: bossLive ? {
         name: boss.data.name,
-        hpFrac: boss.hpMax > 0 ? boss.hp / boss.hpMax : 0,
+        // fase 78: el HP VISIBLE (cuerpo + placas vivas) para que la barra
+        // no arranque por debajo del máximo por las placas de la geoda, y
+        // la etiqueta de la mecánica firma (PLACAS 2/3 · VA A RESUCITAR ·
+        // EXPUESTO) que el HUD pinta junto al nombre.
+        hpFrac: boss.hpMax > 0 ? (boss.hpDisplay ?? boss.hp) / boss.hpMax : 0,
+        mech: bossMechLabel(boss),
         // dev-7 fase 28: el "×10" era INVENTADO (§2.4/D11 lo copiaba
         // del juego, pero aquí no existe tal multiplicador).
         // La recompensa real de un stage es la misma que en cualquier

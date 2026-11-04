@@ -354,6 +354,12 @@ export function bossPhaseRule(phase, family) {
  * Las FASES de un jefe en una línea, con el neto real de cada regla
  * (matriz × fase) y, en el jefe del Stage 1 (campos planos), su umbral y
  * aceleración. '' si el tipo no es un jefe con fases.
+ *
+ * fase 78: si la fase declara su propia `family` (la metamorfosis del
+ * híbrido), el encabezado lo avisa con el nombre de la familia en
+ * mayúsculas ("AHORA ES CRISTAL") y el neto de la regla se calcula contra
+ * ESA familia, que es la que combate: mostrar el neto contra la base
+ * mentiría justo en la fase en la que el jefe cambió de forma.
  */
 function bestiaryPhasesHtml(d) {
   const phases = Array.isArray(d.phases) && d.phases.length
@@ -366,9 +372,15 @@ function bestiaryPhasesHtml(d) {
   const parts = [];
   for (const p of phases) {
     const at = typeof p.atFrac === 'number' ? p.atFrac : p.phaseHpFrac;
-    const head = [p.name ?? 'FASE', typeof at === 'number' ? `al ${Math.round(at * 100)} %` : null]
+    // fase 78: la fase puede cambiar la FAMILIA del jefe (metamorfosis del
+    // híbrido). Cuando lo hace, el aviso lo dice para que el jugador sepa
+    // que la matriz de daño cambió en medio de la pelea.
+    const fam = p.family && ENEMY_FAMILIES[p.family] ? ENEMY_FAMILIES[p.family].name : null;
+    const head = [p.name ?? 'FASE', typeof at === 'number' ? `al ${Math.round(at * 100)} %` : null,
+      fam ? `AHORA ES ${fam.toUpperCase()}` : null]
       .filter(Boolean).join(' ');
-    const rule = bossPhaseRule(p, d.family ?? null);
+    // El neto se mide contra la familia VIGENTE de la fase (si la declara).
+    const rule = bossPhaseRule(p, p.family ?? d.family ?? null);
     if (rule) {
       parts.push(`${head}: ${rule.name} ×${mulText(rule.net)}`);
     } else if (typeof p.phaseVelMul === 'number') {

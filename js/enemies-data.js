@@ -140,12 +140,22 @@ export const ENEMY_TYPES = {
     role: 'boss', debut: 1,
     name: 'BOSS', bestiaryName: 'Meteorito Colosal',
     hp: 3250, vel: 22, score: 500, r: 85,
-    desc: 'Meteorito gigante con deriva lenta: al 50 % de vida acelera ×1,4 y suelta 6 fragmentos.',
-    counter: 'Balístico ×1,5 y foco sostenido: la luz le hace la mitad.',
+    desc: 'Meteorito gigante con deriva lenta: al 50 % de vida acelera ×1,4 y suelta 6 fragmentos. Ya en asedio hace llover escombros cada pocos segundos.',
+    counter: 'Balístico ×1,5 y foco sostenido: la luz le hace la mitad. La lluvia se limpia con la primera línea; no dejes que te coma el DPS del jefe.',
     boss: true, executeImmune: true, phaseHpFrac: 0.5, phaseVelMul: 1.4, phaseShedCount: 6,
     drift: { amp: 90, freq: 0.25 }, // deriva lenta lateral tras entrar
     body: '#0A0A0A', crack: '#FFDD55', glow: '#FF9A3D',
     trail1: '#FF9A3D', trail2: '#FFD24A', // dev-6: estela masiva del diseño base
+    // fase 78 — MECÁNICA FIRMA (ver js/enemies-boss.js).
+    // LLUVIA DE ESCOMBROS: mientras asedia, inyecta oleadas chicas de
+    // fragmentos en columnas al azar. Es el tutorial de "el jefe llama
+    // refuerzos" y la única mecánica de jefe basada en tiempo, no en HP.
+    bossMech: {
+      rain: {
+        every: 8, first: 6, type: 'fragment', count: 3,
+        maxAlive: 6, hpMul: 1.5, velMul: 1.1, scoreMul: 0.1,
+      },
+    },
   },
 };
 
@@ -161,20 +171,33 @@ ENEMY_TYPES.blobBoss = {
   hp: 3500, vel: 20, score: 700, r: 78,
   family: 'virus', role: 'boss', debut: 10, // fase 32: familia de daño (ver js/damagetypes.js)
   boss: true, executeImmune: true, visual: 'blob',
-  desc: 'Blob virus de dos fases: al 66 % entra en FURIA (escupe 6 esporas) y al 33 % en ENJAMBRE (8 más).',
-  counter: 'Cambiá de tipo según la fase (FURIA premia la luz, ENJAMBRE castiga la explosión) y matá la escolta: la regeneración sale de ella.',
+  desc: 'Blob virus de dos fases: al 66 % entra en FURIA (escupe 6 esporas) y al 33 % en ENJAMBRE (8 más). Mientras asedia DEVORA a su propia escolta para curarse y queda expuesto al hacerlo.',
+  counter: 'Cambiá de tipo según la fase (FURIA premia la luz, ENJAMBRE castiga la explosión) y matá la escolta: sin esbirros no hay bocado ni regeneración. Durante el bocado la luz le pega ×1,5.',
   drift: { amp: 80, freq: 0.28 },
   body: '#C81E1E', dark: '#3A0C0C', glow: '#FF5577',
   // dev-7 fase 47: cada fase tiene NOMBRE (el aviso del HUD), una REGLA
   // por tipo de dano (weakTo = x1,5 / resist = x0,5) y la REGENERACION
   // por esbirro vivo de la escolta (fraccion del HP maximo por segundo).
   // El jugador tiene que leer al jefe y cambiar de torre.
+  // fase 78: la regen pasiva baja (0,005/0,006) para hacerle sitio a
+  // DEVORAR, que es la sustentación ACTIVA y se puede negar matando la
+  // escolta.
   phases: [
     { atFrac: 0.66, velMul: 1.2, name: 'FURIA',
-      weakTo: 'light', regen: 0.008, shed: { type: 'spore', count: 6 } },
+      weakTo: 'light', regen: 0.005, shed: { type: 'spore', count: 6 } },
     { atFrac: 0.33, velMul: 1.4, name: 'ENJAMBRE',
-      resist: 'blast', regen: 0.010, shed: { type: 'spore', count: 8 } },
+      resist: 'blast', regen: 0.006, shed: { type: 'spore', count: 8 } },
   ],
+  // fase 78 — DEVORAR: cada 6 s se come hasta 3 escoltas vivas en 180 px
+  // (+1,5 % de HP por escolta, tope de 6 en toda la pelea) y queda
+  // EXPUESTO 2,5 s a la luz ×1,5. Sin escolta pare una espora y no cura.
+  bossMech: {
+    devour: {
+      every: 6, first: 4, radius: 180, maxEscorts: 3, hpFrac: 0.015,
+      maxConsumed: 6, spawnWhenEmpty: 'spore', maxEmpty: 4,
+      expose: { seconds: 2.5, weakTo: 'light', mul: 1.5 },
+    },
+  },
 };
 
 /** Blob mediano — acompañante del jefe del Stage 3 (no es jefe). */
@@ -193,8 +216,8 @@ ENEMY_TYPES.graveBlob = {
   hp: 4625, vel: 19, score: 800, r: 82,
   family: 'virus', role: 'boss', debut: 20, // fase 32: familia de daño
   boss: true, executeImmune: true, visual: 'blob',
-  desc: 'Blob necrótico de 3 fases: escombros al 75 %, 2 blobs al 50 % y una última lluvia al 25 %.',
-  counter: 'Cada fase premia un tipo distinto y LEGION castiga el dron; matá la escolta para cortar la regeneración.',
+  desc: 'Blob necrótico de 3 fases: escombros al 75 %, 2 blobs al 50 % y una última lluvia al 25 %. No se queda muerto: si al caer le quedan esbirros vivos, resucita con el 30 % y se los come.',
+  counter: 'Cada fase premia un tipo distinto y LEGION castiga el dron; matá la escolta para cortar la regeneración. Antes del golpe final, limpiá los mini blobs: sin dos esbirros vivos no hay resurrección.',
   drift: { amp: 70, freq: 0.26 },
   body: '#8A2BE2', dark: '#2A0A3A', glow: '#C77DFF',
   phases: [
@@ -205,6 +228,12 @@ ENEMY_TYPES.graveBlob = {
     { atFrac: 0.25, velMul: 1.45, name: 'ÚLTIMO ALLETO',
       weakTo: 'ballistic', regen: 0.010, shed: { type: 'fragment', count: 8 } },
   ],
+  // fase 78 — NO CAE: la primera vez que su HP llega a 0 con ≥2 escoltas
+  // vivas, resucita con el 30 % y se come la escolta. Sin escolta, muere
+  // como cualquier otro jefe. La baja/XP/clear NO se paga al resucitar.
+  bossMech: {
+    revive: { hpFrac: 0.30, minEscorts: 2 },
+  },
 };
 
 /** Ciudad nocturna: blob gigante blindado + esporas veloces al 60%/30%. */
@@ -213,16 +242,24 @@ ENEMY_TYPES.armoredBlob = {
   hp: 5750, vel: 18, score: 900, r: 88,
   family: 'rock', role: 'boss', debut: 30, // fase 32: blindado de roca
   boss: true, executeImmune: true, visual: 'armored',
-  desc: 'Coloso de roca blindada: suelta 10 esporas al 60 % y un blob cuando abre la coraza (30 %).',
-  counter: 'El balístico ×1,5 siempre; contra la roca el área pega la mitad. Al abrir la coraza, el eléctrico paga.',
+  desc: 'Coloso de roca blindada: suelta 10 esporas al 60 % y un blob cuando abre la coraza (30 %). Tres placas de roca absorben el daño antes que el cuerpo; cada rotura lo acelera y lo deja expuesto.',
+  counter: 'El balístico ×1,5 y los golpes grandes (Gauss, Mortero) para romper placas; contra la roca el área pega la mitad. Cada placa rota lo expone 3 s al eléctrico ×1,5.',
   drift: { amp: 64, freq: 0.24 },
   body: '#37474F', dark: '#10181C', glow: '#90CAF9',
+  // fase 78 — CORAZA DE PLACAS. Reusa el plates de la geoda: las
+  // placas son parte del HP total (no extra), absorben antes que el
+  // cuerpo y cada rotura acelera al jefe. plateExpose abre la ventana
+  // de contrajuego: 3 s de x1,5 al electrico por placa rota.
+  plates: { count: 3, hpFracEach: 0.10, speedMulPerBreak: 1.06 },
   phases: [
     { atFrac: 0.6, velMul: 1.2, name: 'PLACAS',
       resist: 'blast', regen: 0.008, shed: { type: 'spore', count: 10 } },
     { atFrac: 0.3, velMul: 1.35, name: 'CORAZA ABIERTA',
       weakTo: 'electric', regen: 0.012, spawn: { type: 'blob', count: 1 } },
   ],
+  bossMech: {
+    plateExpose: { seconds: 3, weakTo: 'electric', mul: 1.5 },
+  },
 };
 
 /** Núcleo volcánico: METEORITO-BLOB híbrido con 3 fases (§2.9). */
@@ -231,19 +268,25 @@ ENEMY_TYPES.hybridBoss = {
   hp: 7000, vel: 20, score: 1000, r: 92,
   family: 'rock', role: 'boss', debut: 40, // fase 32: cuerpo de meteoro
   boss: true, executeImmune: true, visual: 'meteor',
-  desc: 'Meteorito-blob de 3 fases: 5 meteoritos al 66 %, 2 blobs al 33 % y 8 fragmentos al 15 %.',
-  counter: 'Cuerpo de roca: el balístico ×1,5 (salvo en HÍBRIDO) y la luz/explosión pierden la mitad. Cortá la escolta.',
+  desc: 'Meteorito-blob de 3 fases: 5 meteoritos al 66 %, 2 blobs al 33 % y 8 fragmentos al 15 %. Cada fase cambia su FAMILIA (roca → cristal → virus → roca) y con ella la matriz de daño; al cambiar se teletransporta.',
+  counter: 'Leé el aviso de fase: roca pide balístico, cristal eléctrico y virus luz. El tipo que servía antes puede pegarle la mitad. Cortá la escolta.',
   drift: { amp: 76, freq: 0.27 },
   body: '#0A0A0A', crack: '#FFDD55', glow: '#FF4444',
   trail1: '#FF9A3D', trail2: '#FFD24A', // estela masiva como el meteorito
+  // fase 78 — METAMORFOSIS: cada fase declara su FAMILIA (family) y el
+  // daño que entra la lee (Enemy.activeFamily). La rotación roca →
+  // cristal → virus → roca obliga a cambiar de tipo a mitad de pelea.
   phases: [
-    { atFrac: 0.66, velMul: 1.2, name: 'METAMORFOSIS',
+    { atFrac: 0.66, velMul: 1.2, name: 'METAMORFOSIS', family: 'crystal',
       weakTo: 'light', regen: 0.008, shed: { type: 'meteor', count: 5 } },
-    { atFrac: 0.33, velMul: 1.35, name: 'HÍBRIDO',
+    { atFrac: 0.33, velMul: 1.35, name: 'HÍBRIDO', family: 'virus',
       resist: 'ballistic', regen: 0.012, spawn: { type: 'blob', count: 2 } },
-    { atFrac: 0.15, velMul: 1.5, name: 'APOCALIPSIS',
-      weakTo: 'blast', regen: 0.010, shed: { type: 'fragment', count: 8 } },
+    { atFrac: 0.15, velMul: 1.5, name: 'APOCALIPSIS', family: 'rock',
+      weakTo: 'electric', regen: 0.010, shed: { type: 'fragment', count: 8 } },
   ],
+  bossMech: {
+    morph: { blink: true },
+  },
 };
 
 /**

@@ -35,7 +35,10 @@ function enemyIconBox(data, variant = null) {
   const hasTrail = !!data.trail1 && data.drawTrail !== false;
   // Los enjambres dibujan cuerpos alrededor del centro y la geoda placas
   // orbitantes: la caja del icono tiene que incluir ese arte, no sólo `r`.
-  const artPad = data.plates ? 1.65 : data.swarmArt ? 1.65 : 1.2;
+  // fase 78: el Coloso Blindado también declara `plates`, pero sus aros
+  // salen de drawBossKit, que NO corre en el icono; padear por `plates`
+  // lo achicaría sin arte que encuadrar.
+  const artPad = data.plates && !data.boss ? 1.65 : data.swarmArt ? 1.65 : 1.2;
   const aura = r * Math.max(variant ? 1.6 : 1.2, artPad); // holgura lateral y de abajo
   const halfW = aura;                          // polígono + tentáculos + aro
   const bottom = aura;

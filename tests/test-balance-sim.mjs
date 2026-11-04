@@ -336,8 +336,13 @@ test('FASE 59.2: el jefe NO cuenta para el presupuesto de bajas', async () => {
   assert.ok(r.waveKills <= Math.ceil(r.enemies * 0.9) + 1,
     `el presupuesto no se respeta: ${r.waveKills} bajas de ${r.enemies} enemigos`);
   // Si el jefe murió, su baja está en `kills` pero NO en `waveKills`.
+  // Fase 78: en S1 el jefe LLUEVE escombros durante el asedio. Esas crías son
+  // `fromSpawn` (escolta del jefe): sus bajas van a `spawnKills`, no a
+  // `waveKills`. Por eso la única baja fuera del presupuesto es la del jefe y
+  // la cuenta es kills − 1 (jefe) − spawnKills (lluvia/crías).
   assert.ok(r.kills > r.waveKills, 'el jefe tiene que morir aunque el presupuesto esté agotado');
-  assert.equal(r.waveKills, r.kills - 1, 'el jefe es la única baja fuera del presupuesto');
+  assert.equal(r.waveKills, r.kills - 1 - r.spawnKills,
+    'el jefe y las crías de mecánicas son las bajas fuera del presupuesto');
 });
 
 test('FASE 59.3: los perks se gatean por el nivel (el bug de --perks=optimal)', () => {

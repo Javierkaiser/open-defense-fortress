@@ -37,7 +37,7 @@ mediciones, ver [BALANCE.md](BALANCE.md); para la suite, [TESTING.md](TESTING.md
 ```text
 index.html              canvas + HUD DOM + overlays
 css/style.css           HUD, pantallas, temas, responsive
-js/                     24 módulos ES
+js/                     56 módulos ES
 assets/                 fuentes, SFX y sprites usados
 tests/                  node:test
 scripts/                serve, balance-sim, probe-waves, probes
@@ -64,6 +64,7 @@ openspec/specs/         specs de comportamiento
 | `heat.js` | Protocolo: 11 condiciones, presets, `heatMods()`, recompensas e hitos. |
 | `enemies.js` | `Enemy`: comportamiento, movimiento y render. |
 | `enemies-data.js` | Tipos, jefes, 7 variantes de élite y HP efectivo. |
+| `enemies-boss.js` | Mecánicas firma de los jefes (lluvia, devorar, resurrección, placas y metamorfosis): reglas puras y pase de dibujo; expone el estado que lee la barra del jefe (`bossMechLabel`). |
 | `enemies-status.js` | Veneno/quemadura, slow por fuente y marcas temporales. |
 | `enemies-combat.js` | Colisión y daño de proyectiles (CCD, crítico, rebote, perforación). |
 | `enemies-bestiary.js` | Icono real del enemigo para el bestiario. |
@@ -201,8 +202,24 @@ Tipos base históricos: meteorito, fragmento, cristal, espora y blob.
 Jefes por etapa: meteorito gigante, blob virus, blob necrótico, blindado,
 híbrido y primordial.
 
+**Mecánica firma (fase 78)**: cada jefe la declara en `bossMech` y ninguna
+es una inmunidad. Los cinco jefes del catálogo:
+
+| Jefe (tipo) | Etapas | Mecánica firma | Contra |
+|---|---|---|---|
+| Meteorito Colosal (`boss`) | S1 | Lluvia de escombros: 3 fragmentos en columnas, primera a los 6 s y luego cada 8 s (tope 6 vivos) | Balístico ×1,5 y foco sostenido; la luz le hace la mitad. Limpiar la lluvia con la primera línea. |
+| Blob Rey (`blobBoss`) | S10 | Devorar: cada 6 s se come hasta 3 escoltas en 180 px (+1,5 % de HP por escolta, tope 6) y queda 2,5 s expuesto a la luz ×1,5 | Matar la escolta: sin esbirros no hay bocado. Durante el bocado la luz pega ×1,5. |
+| Blob Necrótico (`graveBlob`) | S20 | Resurrección: si cae con ≥2 escoltas vivas vuelve una vez con el 30 % del HP y se las come | Limpiar los mini blobs antes del golpe final: sin 2 esbirros no resucita. |
+| Coloso Blindado (`armoredBlob`) | S30 | Placas: 3 × 10 % del HP total, absorben antes que el cuerpo; cada rotura lo acelera ×1,06 y lo expone 3 s al eléctrico ×1,5 | Balístico ×1,5 y golpes grandes (Gauss, Mortero) para romper placas; contra la roca el área pega la mitad. |
+| Abominación Híbrida (`hybridBoss`) | S40 · S50 (Híbrido Primordial) | Metamorfosis: roca → cristal → virus → roca (al 66 %, 33 % y 15 %) con blink y familia activa | Leer el aviso: roca pide balístico, cristal eléctrico y virus luz. Cortar la escolta. |
+
 **HP (1.8.0)**: +25 % al HP base de los 17 tipos. El presupuesto de las olas
 no se compensó: la dificultad neta sube y se mide con `balance-sim`.
+
+**HP de jefe (fase 78)**: ×1,25 sobre el HP base del jefe, compuesto con el
++15 % por etapa y con el Protocolo (`bossHpMul`):
+`HP = round(hpBase × 1,25 × (1 + 0,15·(etapa − 1)) × bossHpMul)`. El jefe de
+S1 pasa de 3.250 a 4.063 y el de S50 de 58.450 a 73.063.
 
 **7 variantes de élite** (afijos): escudado, veloz, divisor, sanador,
 regenerador, acorazado y tenaz. Toda élite paga `scoreMul` (score y XP). Las
@@ -458,7 +475,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1115 tests (1115 pass, 0 skip) en 37 archivos.
+- 1157 tests (1157 pass, 0 skip) en 38 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

@@ -4164,9 +4164,95 @@ test('fase 72: el CSS tiene el panel, el área scrolleable y el bloque CC BY', (
   assert.ok(sc.includes('max-height'), 'el panel no puede empujar el VOLVER fuera del marco');
 });
 
+// ============================================================
+// fase 78 — LAS MECÁNICAS FIRMA DEL JEFE SE LEEN EN EL HUD
+//
+// El enemigo emite `boss:mechanic` con el texto ya armado (lluvia,
+// devorar, resurrección, placas) y `bossMechLabel()` resume el estado
+// vigente (PLACAS 2/3 · VA A RESUCITAR · EXPUESTO). El HUD lo pinta en
+// la pila de avisos y en la etiqueta .boss-mech de la barra.
+// ============================================================
 
+test('fase 78: showBossMechanic apila el aviso de la mecánica en la pila común', () => {
+  withFakeDocument(() => {
+    const hud = fakeHudLive();
+    const host = fakeHost();
+    hud.root = { parentElement: host };
 
+    const aviso = hud.showBossMechanic({
+      kind: 'plate',
+      title: 'PLACAS DE CRISTAL',
+      name: 'ROMPÉ LAS 3 PLACAS',
+      rule: 'EXPUESTO: LUZ ×1,5',
+      boss: {},
+    });
+    assert.ok(aviso, 'el aviso se crea');
+    assert.ok(aviso.className.includes('aviso--fase'),
+      'una mecánica nueva es una regla nueva: usa la placa de FASE');
+    assert.ok(aviso.innerHTML.includes('PLACAS DE CRISTAL'), aviso.innerHTML);
+    assert.ok(aviso.innerHTML.includes('ROMPÉ LAS 3 PLACAS'), aviso.innerHTML);
+    assert.ok(aviso.innerHTML.includes('EXPUESTO: LUZ ×1,5'), aviso.innerHTML);
+    assert.equal(host.children[0].id, 'avisos', 'va a la pila común');
+    assert.equal(host.children[0].childNodes.length, 1, 'y no duplica la pila');
 
+    // Un payload sin título no pinta una placa vacía.
+    assert.equal(hud.showBossMechanic(), null);
+    assert.equal(hud.showBossMechanic({ name: 'SIN TÍTULO' }), null);
+    assert.equal(host.children[0].childNodes.length, 1, 'los avisos inválidos no se apilan');
+  });
+});
 
+test('fase 78: el aviso de fase lee la familia ACTIVA y anuncia la nueva', () => {
+  withFakeDocument(() => {
+    const hud = fakeHudLive();
+    const host = fakeHost();
+    hud.root = { parentElement: host };
+    hud.audio = { sfx: () => {} };
+    // El Híbrido mutó a cristal (`activeFamily` manda sobre `data.family`):
+    // la luz de la fase pega ×1,5 real, no el ×0,75 de la roca.
+    hud.showBossPhase(
+      { name: 'METAMORFOSIS', weakTo: 'light', family: 'crystal' },
+      { activeFamily: 'crystal', data: { family: 'rock' } },
+    );
+    const html = host.children[0].childNodes.at(-1).innerHTML;
+    assert.ok(html.includes('AHORA ES CRISTAL'), `anuncia la familia nueva: ${html}`);
+    assert.ok(html.includes('×1,5'), `y el neto de la familia activa: ${html}`);
+    assert.ok(html.includes('AHORA ES CRISTAL · AHORA RECIBE ×1,5 DE LUZ'),
+      `las dos partes van separadas por " · ": ${html}`);
+  });
+});
 
+test('fase 78: buildBossBarHtml reserva el hueco [data-boss-mech] junto al nombre', () => {
+  const html = buildBossBarHtml();
+  assert.ok(html.includes('class="boss-mech"'), 'falta la etiqueta .boss-mech');
+  assert.ok(html.includes('data-boss-mech'), 'falta el hueco [data-boss-mech]');
+  const tag = html.match(/<span class="boss-tag">[\s\S]*?<\/span>/)[0];
+  assert.ok(tag.includes('data-boss-mech'),
+    'la mecánica se lee DENTRO de .boss-tag, junto al nombre');
+  assert.ok(html.indexOf('data-boss-name') < html.indexOf('data-boss-mech'),
+    'va después del nombre del jefe');
+});
 
+test('fase 78: renderBossBar escribe la mecánica firma y la limpia sin mecánica', () => {
+  withFakeDocument(() => {
+    const hud = fakeHudLive();
+    hud.renderBossBar({ name: 'X', hpFrac: 0.5, rewardMul: 2, mech: 'PLACAS 2/3' });
+    assert.ok(hud.el.bossMech, 'la barra cachea [data-boss-mech]');
+    assert.equal(hud.el.bossMech.textContent, 'PLACAS 2/3',
+      'la mecánica se lee en la barra');
+    // Sin mecánica el nodo queda vacío (el CSS lo oculta con :empty).
+    hud.renderBossBar({ name: 'X', hpFrac: 0.4, rewardMul: 2 });
+    assert.equal(hud.el.bossMech.textContent, '');
+    // Al ocultar la barra se olvida el texto: la próxima vez se reescribe.
+    hud.renderBossBar({ name: 'X', hpFrac: 0.3, rewardMul: 2, mech: 'EXPUESTO' });
+    hud.hideBossBar();
+    assert.equal(hud._lastBossMech, '');
+    assert.equal(hud.el.bossMech.textContent, '',
+      'el nodo no puede conservar la mecánica del jefe anterior');
+    // El caso real: S30 (PLACAS) → S40 (Híbrido, sin etiqueta). El cache
+    // vacío no puede impedir que se limpie el texto viejo.
+    hud.renderBossBar({ name: 'Abominación Híbrida', hpFrac: 0.5, rewardMul: 2 });
+    assert.equal(hud.el.bossMech.textContent, '',
+      'la barra del Híbrido no puede heredar "PLACAS 2/3"');
+  });
+});

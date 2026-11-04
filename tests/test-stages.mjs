@@ -6,7 +6,10 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { STAGES, BASE_HP_BY_STAGE, scaleFor, isBossStage, LEAK_HP_FRAC, leakDamageFor } from '../js/stages.js';
+import {
+  STAGES, BASE_HP_BY_STAGE, scaleFor, isBossStage, LEAK_HP_FRAC, leakDamageFor,
+  BOSS_HP_MUL, bossScaleForStage,
+} from '../js/stages.js';
 import {
   STAGE_WAVES, generateStageWaves, campaignWaves, campaignWavesForRun, OPEN_T, waveGroups, waveTypes, waveCount, openingHpBudget,
   bossNameForStage, bossForStage, SWARM_TYPES, openingSwarmForStage,
@@ -1062,6 +1065,73 @@ test('fase 46: el jefe que entra en la arena se llama como su stage', () => {
     assert.equal(boss.data.hp, ENEMY_TYPES[boss.type].hp, `S${id}: el HP base no cambia`);
     assert.equal(ENEMY_TYPES.boss.name, 'BOSS',
       'ENEMY_TYPES no se renombra (la ficha global queda intacta)');
+  }
+});
+
+// ============================================================
+// fase 78 — HP FINAL DE LOS JEFES (+25 % con UNA sola fuente)
+// ============================================================
+// La curva de HP de los jefes NO sale de scaleFor: vive en
+// bossScaleForStage() (js/stages.js) e incluye el +25 % de la fase 78.
+// Ahora entra como `scale` al constructor de Enemy, así el hpMax REAL
+// —el que usan la barra, las placas/escudo y la fuga— nace ya escalado
+// (antes era un post-multiplicador dentro de _spawnBoss).
+
+/** Compara floats con tolerancia: el +15 % por stage no es exacto en binario. */
+const cerca = (actual, esperado, msg) => assert.ok(Math.abs(actual - esperado) < 1e-9,
+  `${msg}: ${actual} ≠ ${esperado}`);
+
+test('fase 78: BOSS_HP_MUL es +25 % exacto y la curva de jefe lo incluye', () => {
+  assert.equal(BOSS_HP_MUL, 1.25);
+  const s1 = bossScaleForStage(1);
+  assert.equal(s1.hpMul, 1.25, 'S1: sólo el +25 % global');
+  assert.equal(s1.velMul, 1, 'la velocidad del jefe NO escala');
+  cerca(bossScaleForStage(10).hpMul, 1.25 * 2.35, 'S10: ×2,35 de curva × +25 %');
+  cerca(bossScaleForStage(50).hpMul, 1.25 * 8.35, 'S50: la curva de +15 % por stage');
+  assert.equal(bossScaleForStage(50).hpMul, 10.4375);
+});
+
+test('fase 78: bossScaleForStage compone con el Heat (runMods.bossHpMul)', () => {
+  const heat = 1.2; // Jefes rango 2 en js/heat.js
+  cerca(bossScaleForStage(1, heat).hpMul, 1.25 * heat, 'S1 con Heat');
+  cerca(bossScaleForStage(10, heat).hpMul, 1.25 * 2.35 * heat, 'S10 con Heat');
+  cerca(bossScaleForStage(50, heat).hpMul, 10.4375 * heat, 'S50 con Heat');
+  assert.equal(bossScaleForStage(50, 1).hpMul, 10.4375, 'sin Heat (×1) no cambia');
+});
+
+test('fase 78: bossScaleForStage tolera entradas inválidas', () => {
+  for (const stage of [0, -5, NaN, undefined, null, 'x']) {
+    assert.deepEqual(bossScaleForStage(stage), { hpMul: BOSS_HP_MUL, velMul: 1 },
+      `stage ${String(stage)} → se trata como S1`);
+  }
+  for (const heat of [NaN, undefined, null, 0, -1, 'x', Infinity]) {
+    assert.equal(bossScaleForStage(50, heat).hpMul, 1.25 * 8.35,
+      `heatBossHpMul ${String(heat)} → sin Heat`);
+  }
+});
+
+test('fase 78: WaveManager._spawnBoss deja el hpMax FINAL en cada stage de jefe', () => {
+  // Valores FINALES de campaña (sin Heat) pedidos en la fase 78.
+  const HP_FINAL = { 1: 4063, 10: 10281, 20: 22258, 30: 38453, 40: 59938, 50: 73063 };
+  for (const id of [1, 10, 20, 30, 40, 50]) {
+    const game = stubGame();
+    const wm = new WaveManager(id);
+    wm._spawnBoss(game);
+    assert.equal(game.fortress.enemies.length, 1, `S${id}: entra sólo el jefe`);
+    const boss = game.fortress.enemies[0];
+    const tipo = bossForStage(id);
+    assert.equal(boss.type, tipo, `S${id}: es el jefe de su etapa`);
+    // La ÚNICA fuente: hpMax = HP base × bossScaleForStage (nada más).
+    assert.equal(boss.hpMax, Math.round(ENEMY_TYPES[tipo].hp * bossScaleForStage(id).hpMul),
+      `S${id}: hpMax = ENEMY_TYPES.hp × bossScaleForStage`);
+    // Y el valor concreto del pedido, con la vida llena. OJO: con PLACAS
+    // (S30) el `hp` del cuerpo arranca en `bodyMax` — las placas son parte
+    // del HP total, así que la vida llena se mide sobre el HP VISIBLE.
+    assert.equal(boss.hpMax, HP_FINAL[id], `S${id}: ${HP_FINAL[id]} HP finales`);
+    assert.equal(boss.hpDisplay, boss.hpMax, `S${id}: arranca con la vida llena`);
+    // No quedó un ×1,25 duplicado ni la escala de oleada normal.
+    assert.equal(boss.hpMax, Math.round(ENEMY_TYPES[tipo].hp * (1 + 0.15 * (id - 1)) * BOSS_HP_MUL),
+      `S${id}: la curva de jefe × +25 %, sin doble escalado`);
   }
 });
 

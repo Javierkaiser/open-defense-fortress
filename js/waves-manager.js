@@ -4,7 +4,7 @@
 
 import { CONFIG, SPAWN_Y } from './engine.js';
 import { Enemy } from './enemies.js';
-import { scaleFor } from './stages.js';
+import { scaleFor, bossScaleForStage } from './stages.js';
 import { STAGE_WAVES } from './waves-data.js';
 import {
   waveSchedule, campaignWavesForRun, waveGroups,
@@ -412,29 +412,30 @@ export class WaveManager {
     this.bossSpawned = true;
     const list = game?.fortress?.enemies;
     if (!list) return;
-    // v6: en la campaña de 50 stages los jefes ESCALAN +15% HP por stage
-    // (stage 10 ≈ ×2.35, stage 50 ≈ ×8.35) para seguir siendo el hito
-    // de cada década con el meta de 100 niveles.
+    // fase 78: los jefes NO usan `scaleFor` de la etapa. Su HP sale de
+    // `bossScaleForStage` (ÚNICA fuente, js/stages.js): la curva propia de
+    // +15 % por stage (S10 ≈ ×2,35 … S50 ≈ ×8,35), el +25 % global de la
+    // fase 78 y el `bossHpMul` del Protocolo (+20 % por rango de Jefes).
+    // Antes la curva era un POST-multiplicador acá; ahora la escala entra al
+    // constructor, así el hpMax REAL nace definitivo y las placas/escudo de
+    // la fase 78 se calculan sobre él.
     // 3e/7: entra por una X aleatoria variada (zona ≠ la del jefe anterior)
     // con barrido lateral alternado (vive en enemies.js vía sweepDir).
     const entry = nextBossEntry(this.rng, this._bossState);
     // fase 70: en supervivencia el jefe lo fija la run (bossKind/bossName);
     // en campaña y ∞ es el de la etapa, como siempre.
-    const boss = new Enemy(this._bossKind(), entry.x,
-      { game, y: -120, sweepDir: entry.sweepDir });
+    const boss = new Enemy(this._bossKind(), entry.x, {
+      game, y: -120, sweepDir: entry.sweepDir,
+      scale: bossScaleForStage(this.stage, this.runMods?.bossHpMul),
+    });
     // dev-7 fase 46: el jefe se presenta con el NOMBRE PROPIO de su
     // stage (lo leen la barra de jefe y el aviso de jefe). Se copia la
     // ficha del tipo con ese nombre: ENEMY_TYPES es compartida, mutarla
     // renombraría a todos los enemigos de ese tipo.
     const nombreJefe = this._bossName();
     if (nombreJefe) boss.data = { ...boss.data, name: nombreJefe };
-    // fase 69 (Protocolo/Jefes): el HP del jefe escala con `bossHpMul`
-    // (+20 % por rango). Sin Protocolo el multiplicador es 1 y la cuenta
-    // es EXACTAMENTE la de la fase 67.
-    boss.hpMax = Math.round(
-      boss.hpMax * (1 + 0.15 * Math.max(0, this.stage - 1)) * (this.runMods?.bossHpMul ?? 1),
-    );
-    boss.hp = boss.hpMax;
+    // fase 78: el hpMax ya viene escalado del constructor (la cuenta vive en
+    // `bossScaleForStage`, no acá: una sola fuente). No se toca a mano.
     game.engine.addEntity(boss);
     list.push(boss);
     this.bossRef = boss;

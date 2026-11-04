@@ -4,6 +4,78 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.15.1] — 2026-11-04
+
+### Correcciones de la revisión de Jefes 2.0
+
+- **HUD**: `hideBossBar()` limpia la etiqueta `.boss-mech`; el Híbrido (sin
+  etiqueta) ya no hereda el "PLACAS n/3" del Coloso Blindado.
+- **Canvas**: el kit del jefe (placas, exposición, resurrección, bocado y
+  metamorfosis) se dibuja DESPUÉS del cuerpo; la boca del devorar deja de
+  quedar tapada por el fill opaco del blob.
+- **Bestiario**: el Coloso Blindado conserva el encuadre de su icono; el
+  padding de placas orbitantes sólo aplica a los tipos que las dibujan en el
+  icono (la geoda).
+- **Docs**: 1157 tests en 38 archivos, Android `versionCode 33`; la nota de
+  balance aclara que la lluvia del S1 y la espora del devorar pueden fugar.
+- **Smoke**: `test-integration` usa semilla determinista por defecto; el smoke
+  de S1 ya no depende de `Math.random` libre.
+
+### Tests / versión
+
+- **1157 tests, 0 skip** (38 archivos); `test-enemies-boss` sube a 29 tests
+  con la regresión del orden de dibujo.
+- Versión **1.15.1** / Android `versionCode 33`.
+
+## [1.15.0] — 2026-11-04
+
+### Jefes 2.0 — mecánicas firma y +25 % de HP
+
+- Nuevo módulo **`js/enemies-boss.js`**: reglas puras y pase de dibujo de las
+  mecánicas firma de los jefes. Los kits se declaran en
+  `ENEMY_TYPES.<tipo>.bossMech` y las fases pueden declarar `family`.
+- **Meteorito Colosal (S1) — LLUVIA DE ESCOMBROS**: a los 6 s de asedio (y cada
+  8 s) inyecta 3 `fragment` en columnas al azar, con tope de 6 vivos.
+- **Blob Rey (S10) — DEVORAR**: cada 6 s se come hasta 3 escoltas (+1,5 % de HP
+  por escolta, tope de 6 en la pelea) y queda **EXPUESTO** 2,5 s a la luz ×1,5;
+  sin escolta pare una espora (tope 4). Su regen pasiva de fase baja a
+  0,005/0,006.
+- **Blob Necrótico (S20) — NO CAE**: si llega a 0 HP con ≥2 escoltas vivas,
+  resucita UNA vez con el 30 % y se las come. La muerte por **veneno** ahora
+  pasa por el mismo camino (antes esquivaba la resurrección).
+- **Coloso Blindado (S30) — CORAZA DE PLACAS**: 3 placas ×10 % del HP total
+  (dentro del HP, no extra); cada rotura lo acelera ×1,06 y lo expone 3 s al
+  eléctrico ×1,5. Los umbrales de fase se miden sobre el HP visible.
+- **Abominación Híbrida (S40/S50) — METAMORFOSIS**: cada fase cambia la FAMILIA
+  (roca → cristal → virus → roca) y teletransporta al jefe. La matriz de daño,
+  las cartas de caza (`familyHuntMul`) y el aviso del HUD usan la familia
+  activa; el bestiario muestra la familia de cada fase y su neto real.
+- **HP de jefe +25 %**: `bossScaleForStage()` en `js/stages.js` es la única
+  fuente (`BOSS_HP_MUL × (1 + 0,15·(etapa−1)) × bossHpMul`). `_spawnBoss` le
+  pasa la escala al constructor de `Enemy` (antes era un post-multiplicador),
+  así las placas y el escudo se calculan sobre el HP definitivo. S1 pasa de
+  3.250 a **4.063** y S50 de 58.450 a **73.063**.
+- **HUD**: evento `boss:mechanic` para las activaciones (sin spam: lluvia y
+  devorar una vez, placas por rotura, resurrección una vez) y etiqueta de
+  estado en la barra del jefe (`PLACAS n/3`, `VA A RESUCITAR`, `EXPUESTO`,
+  oculta en marcos angostos). El aviso de fase declara la familia nueva y su
+  neto real; la barra usa el HP visible.
+- **Specs**: nueva `openspec/specs/gameplay/boss-mechanics/spec.md`;
+  `enemy-roster` exige que la ficha del jefe documente su mecánica y su
+  contrajuego. `docs/DESIGN.md` y `docs/BALANCE.md` describen la tabla y la
+  fórmula.
+
+### Tests / versión
+
+- **1156 tests, 0 skip** (38 archivos), incluido el nuevo
+  `tests/test-enemies-boss.mjs` (28 tests) y el test de interacción de la
+  resurrección en `test-enemies.mjs`.
+- Balance medido (10 semillas, `--mode=inteligente`, contra 1.14.0): el win %,
+  el HP final y las fugas de las etapas de jefe **no cambian** (el jefe es un
+  chequeo de DPS final y no fuga); la duración de la etapa sube 2–8 s por el
+  +25 %. Detalle en `docs/BALANCE.md`.
+- Versión **1.15.0** / Android `versionCode 32`.
+
 ## [1.14.0] — 2026-11-04
 
 ### Variedad de entrada del director de olas

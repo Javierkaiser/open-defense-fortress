@@ -65,7 +65,9 @@ El meta tiene tres políticas (`--meta`):
   S1 arranca en 2000; S50 en 25 500.
 - **HP enemigo**: escala con `scaleFor(stage)`; la pendiente es 0,14 por etapa.
 - **Velocidad enemiga**: +0,02 por etapa.
-- **Jefes**: S1, 10, 20, 30, 40 y 50. El HP del jefe escala con la etapa.
+- **Jefes**: S1, 10, 20, 30, 40 y 50. El HP del jefe escala con la etapa
+  (×1 + 0,15·(etapa−1)) y desde la fase 78 lleva además un **×1,25 global**
+  (ver "Jefes (fase 78)").
 - **XP**: `xpForKill()` escala con el `hpMul` de la etapa. El **score** se
   mantiene plano por etapa (la leaderboard es por etapa).
 - **Precio de nivel**: `(60 + 45·(n-1)) × levelScaleForStage(s)`, con
@@ -89,6 +91,50 @@ El meta tiene tres políticas (`--meta`):
 La varianza es alta: con 5 semillas, IV/V pueden verse 10–15 puntos arriba o
 abajo. La banda objetivo es heat 5 ≈ 80–90 %, heat 10 ≈ 55–70 %, heat 20 ≈
 20–35 %.
+
+## Jefes (fase 78)
+
+- **HP de jefe**: `HP = round(hpBase × 1,25 × (1 + 0,15·(etapa − 1)) × bossHpMul)`.
+  La fórmula vive en `bossScaleForStage()` (`js/stages.js`) y es la ÚNICA
+  fuente: `WaveManager._spawnBoss` le pasa la escala al constructor de
+  `Enemy` (antes el ×(1+0,15·(etapa−1)) era un post-multiplicador). Campaña,
+  ∞ y Supervivencia la comparten, y el dial de Jefes del Protocolo
+  (`bossHpMul`) se compone encima.
+- **Mecánica firma**: cada tipo declara su kit en
+  `ENEMY_TYPES.<tipo>.bossMech` (lluvia en S1, devorar en S10, resurrección
+  en S20, placas en S30 y metamorfosis en S40/S50). Las reglas y el dibujo
+  viven en `js/enemies-boss.js`; el contrajuego está en `desc`/`counter` y
+  en la spec `openspec/specs/gameplay/boss-mechanics/spec.md`.
+
+| Etapa | Jefe | hp base | Antes | Después (+25 %) |
+|---|---|---:|---:|---:|
+| 1 | Meteorito Colosal | 3 250 | 3 250 | **4 063** |
+| 10 | Blob Rey | 3 500 | 8 225 | **10 281** |
+| 20 | Blob Necrótico | 4 625 | 17 806 | **22 258** |
+| 30 | Coloso Blindado | 5 750 | 30 762 | **38 453** |
+| 40 | Abominación Híbrida | 7 000 | 47 950 | **59 938** |
+| 50 | Híbrido Primordial | 7 000 | 58 450 | **73 063** |
+
+Medido con `--mode=inteligente` (10 semillas) contra la 1.14.0, en las mismas
+semillas: **el win %, el HP final y las fugas de las etapas de jefe NO
+cambian** con la política medida (el jefe es un chequeo de DPS final; las
+crías nuevas —lluvia del S1 y espora del devorar— pueden fugar si no se
+limpian); lo que sube es la DURACIÓN de la etapa por el +25 %:
+
+| Meta | Etapa | Win (antes → después) | Duración (s) |
+|---|---:|---:|---:|
+| Nvl.75 | 10 | 100 % → 100 % | 166 → 168 |
+| Nvl.75 | 20 | 90 % → 90 % | 170 → 171 |
+| Nvl.75 | 30 | 70 % → 70 % | 149 → 151 |
+| Nvl.75 | 40 | 100 % → 100 % | 180 → 188 |
+| Nvl.75 | 50 | 80 % → 80 % | 168 → 176 |
+| Nvl.87 | 50 | 100 % → 100 % | 190 → 197 |
+
+S1 no se mueve (157 s en ambos escenarios: su jefe es el más chico). En
+Supervivencia la oleada media tampoco cambia (17,2 con 5 semillas), porque los
+jefes no fugan y la run se decide por las olas. El RITMO de la pelea (ventanas
+de exposición, devorar, resurrección y metamorfosis) se valida con smoke
+manual: el simulador mide la etapa, no la pelea del jefe.
 
 ## Director de olas
 

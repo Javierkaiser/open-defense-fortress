@@ -13,7 +13,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyPerkDamage, onHitOpts, pickOnHit, effectiveExecuteThreshold, isExecuteImmune } from '../js/perks.js';
+import { applyPerkDamage, onHitOpts, pickOnHit, effectiveExecuteThreshold, isExecuteImmune, familyHuntMul } from '../js/perks.js';
 import { applyProjectileHit, Enemy, threatFactor } from '../js/enemies.js';
 import { dmgMultiplier } from '../js/damagetypes.js';
 
@@ -497,4 +497,31 @@ test('T3: el jefe conserva su barra de HP, su fase y su halo de aviso', () => {
   mini.draw(ctx2);
   assert.ok(!ctx2.arcs.some((r) => r > mini.r * 1.2),
     'el sub-jefe NO debe llevar el halo del jefe');
+});
+
+// ============================================================
+// fase 78 — LA CAZA SIGUE LA FAMILIA ACTIVA (metamorfosis del jefe)
+//
+// familyHuntMul lee `enemy.activeFamily` (el getter de Enemy), no
+// `data.family`: la Abominación Híbrida cambia de familia en cada fase
+// (roca → cristal → virus → roca) y la carta de caza tiene que seguirla.
+// ============================================================
+
+test('fase 78: familyHuntMul usa la familia ACTIVA, no la del tipo', () => {
+  // Un enemigo con data.family "rock" pero cuya fase lo volvió cristal:
+  // la carta de caza que aplica es la de CRISTAL (la vigente).
+  const enemigo = { data: { family: 'rock' }, activeFamily: 'crystal' };
+  assert.equal(familyHuntMul({ famCrystalMul: 2 }, enemigo), 2,
+    'debe aplicar la caza de cristal (la familia vigente)');
+  assert.equal(familyHuntMul({ famRockMul: 2 }, enemigo), 1,
+    'la caza de roca NO aplica: la metamorfosis lo volvió cristal');
+  // Compatibilidad: sin getter se cae en data.family y después en family.
+  assert.equal(familyHuntMul({ famRockMul: 2 }, { data: { family: 'rock' } }), 2);
+  assert.equal(familyHuntMul({ famRockMul: 2 }, { family: 'rock' }), 2);
+  // Las guardas de siempre siguen devolviendo ×1.
+  assert.equal(familyHuntMul(null, enemigo), 1);
+  assert.equal(familyHuntMul({ famCrystalMul: 2 }, null), 1);
+  assert.equal(familyHuntMul({ famCrystalMul: 2 }, { activeFamily: null }), 1);
+  assert.equal(familyHuntMul({ famCrystalMul: 0 }, enemigo), 1,
+    'un multiplicador inválido no rompe el combate');
 });

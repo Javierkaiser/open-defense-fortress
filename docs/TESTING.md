@@ -6,7 +6,7 @@
 node --test "tests/test-*.mjs"
 ```
 
-Estado actual: **1115 tests** (1115 pass, 0 skip, 0 fail) en **37 archivos**.
+Estado actual: **1157 tests** (1157 pass, 0 skip, 0 fail) en **38 archivos**.
 
 Requisitos: Node 22 o superior.
 
@@ -32,6 +32,7 @@ node --test tests/test-stages.mjs
 | Torres, targeting, disparo, daño, drones | `test-towers.mjs` |
 | Escala de DPS, Tesla exenta, DoT de drones | `test-dps-scale.mjs` |
 | Enemigos, variantes de élite, muerte, escolta | `test-enemies.mjs` |
+| Mecánicas firma de los jefes (lluvia, devorar, resurrección, placas, metamorfosis) | `test-enemies-boss.mjs` |
 | Fortaleza, slots, HP, escudo, Black Hole | `test-player.mjs` |
 | Cartas y ofertas | `test-cards.mjs`, `test-card-rework.mjs` |
 | Perks (remate, lifesteal, explosión) | `test-perks.mjs` |

@@ -1530,11 +1530,15 @@ export function buildStatusStripHtml() {
  * NOMBRE del jefe (propio de cada stage) va en el <b data-boss-name>,
  * que el HUD rellena en renderBossBar() con el nombre real.
  *
+ * fase 78: junto al nombre va el hueco de la MECÁNICA FIRMA del jefe
+ * (<i data-boss-mech>): "PLACAS 2/3", "VA A RESUCITAR", "EXPUESTO". Lo
+ * rellena renderBossBar() con bossMechLabel(); vacío lo oculta el CSS.
+ *
  * @returns {string} HTML de la barra de jefe
  */
 export function buildBossBarHtml() {
   return `
-      <span class="boss-tag"><img src="assets/sprites/ui_tinted/icon_boss_warning_red.png" alt=""><b class="boss-tag-name" data-boss-name>JEFE</b></span>
+      <span class="boss-tag"><img src="assets/sprites/ui_tinted/icon_boss_warning_red.png" alt=""><b class="boss-tag-name" data-boss-name>JEFE</b><i class="boss-mech" data-boss-mech></i></span>
       <span class="bar boss-hp" role="progressbar" aria-label="Vida del jefe" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span class="boss-hp-fill"></span></span>
       <span class="boss-mult-label">RECOMPENSA</span><span class="boss-mult"></span>`;
 }

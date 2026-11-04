@@ -124,8 +124,10 @@ sin decimales en el HUD.
 
 Cada tipo de enemigo MUST tener una silueta propia y una ficha de bestiario
 con nombre, familia, stats, descripción de su mecánica y contrapartida. Los
-jefes MUST mostrar su nombre de campaña (no un genérico "BOSS"). El aviso de
-fase MUST declarar el multiplicador NETO (familia × fase), no uno aislado.
+jefes MUST mostrar su nombre de campaña (no un genérico "BOSS") y MUST
+documentar su mecánica firma y su contrajuego en la ficha del bestiario y en
+los avisos (ambos ya existen). El aviso de fase MUST declarar el
+multiplicador NETO (familia × fase), no uno aislado.
 Los enjambres MUST usar un arte procedural barato (paths batcheados, sin
 `shadowBlur` por cuerpo).
 
@@ -141,3 +143,9 @@ Los enjambres MUST usar un arte procedural barato (paths batcheados, sin
 - **WHEN** se abre el bestiario
 - **THEN** cada enemigo (no solo los tanques) muestra su `desc` y su
   `counter` tomados de `ENEMY_TYPES`, sin `undefined` ni `NaN`
+
+#### Scenario: El bestiario documenta el kit del jefe
+
+- **WHEN** se abre el bestiario
+- **THEN** cada jefe muestra su mecánica firma y su contrajuego en su ficha
+  (la `desc` y el `counter` del tipo), sin `undefined` ni `NaN`

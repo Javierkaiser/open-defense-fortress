@@ -933,6 +933,9 @@ html, body {
    tira de estado llega a y=123: con los 88 px de arriba la barra de jefe
    la pisaba. En marco ancho (88 px) queda como estaba. */
 [data-narrow] #boss-bar { top: 156px; }
+/* fase 78: en marco angosto no hay sitio para la mecánica junto al nombre;
+   la barra de HP y el nombre ya cuentan lo urgente. */
+[data-narrow] #boss-bar .boss-mech { display: none; }
 #boss-bar .boss-tag {
   font-family: var(--font-title);
   font-weight: 700;
@@ -950,6 +953,18 @@ html, body {
   height: 15px;
   filter: drop-shadow(0 0 4px rgb(var(--boss-red-rgb) / .9));
 }
+/* fase 78 — MECÁNICA FIRMA del jefe ("PLACAS 2/3" · "VA A RESUCITAR" ·
+   "EXPUESTO") junto al nombre. Es un DATO de estado, no un rótulo: va en
+   --text-xs (15 px, el piso tipográfico) y en el gris de plataforma para
+   no competir con el rojo del nombre. Vacía no ocupa caja. */
+#boss-bar .boss-mech {
+  font-size: var(--text-xs);
+  color: var(--platform-light);
+  opacity: .85;
+  font-style: normal;
+  white-space: nowrap;
+}
+#boss-bar .boss-mech:empty { display: none; }
 @keyframes boss-tag-blink {
   50% { opacity: .55; }
 }

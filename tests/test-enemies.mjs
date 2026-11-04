@@ -388,6 +388,58 @@ test('regenerador: la variante convive con la regeneración por fases del jefe (
 });
 
 // ============================================================
+// Fase 78 — el jefe que RESUCITA (Blob Necrótico) y sus fases/regen
+// ============================================================
+//
+// La resurrección vive en js/enemies-boss.js y se testea entera en
+// tests/test-enemies-boss.mjs. Acá queda la INTERACCIÓN con la maquinaria que
+// ya tenía el Enemy: el golpe letal no puede adelantar fases ni regen, y una
+// vez de pie otra vez el jefe tiene que seguir comportándose como siempre
+// (fases una sola vez, regen topada, HP nunca por encima del máximo).
+
+test('fase 78: resucitar no dispara fases en el golpe y la regen posterior sigue topada', () => {
+  const game = mkGame();
+  const siegeY = CONFIG.TOWER_Y - 220; // Y de asedio del jefe (enemies.js)
+  const boss = new Enemy('graveBlob', 270, { game, y: siegeY });
+  game.fortress.enemies.push(boss);
+  for (const dx of [-60, 60]) {
+    const esc = new Enemy('spore', boss.x + dx, { game, y: siegeY });
+    esc.escortOf = boss;
+    game.fortress.enemies.push(esc);
+  }
+  boss.hp = 1;
+  assert.equal(boss.takeDamage(1e9, 'ballistic'), false, 'el golpe letal revive al jefe');
+  assert.equal(boss._revived, true);
+  assert.equal(boss.hp, Math.round(boss.hpMax * 0.3));
+  // El golpe lethal NO adelanta fases: la fase se dispara recién en el update.
+  assert.equal(boss._phaseIdx, 0, 'revivir no dispara fases por sí solo');
+  assert.equal(boss._phase, null);
+  assert.equal(game.log.emits.filter(([n]) => n === 'boss:phase2').length, 0);
+  assert.equal(game.log.emits.filter(([n]) => n === 'enemy:killed').length, 0);
+  // El primer update sí cruza los umbrales que el 30 % dejó atrás (0,75 y 0,5),
+  // cada uno UNA sola vez.
+  boss.update(0.5);
+  assert.equal(boss._phaseIdx, 2, 'cruza las dos fases de una vez (hpDisplay = 30 %)');
+  assert.equal(boss._phase?.name, 'LEGION', 'la fase vigente es la última cruzada');
+  assert.equal(game.log.emits.filter(([n]) => n === 'boss:phase2').length, 2);
+  // La regen por escolta sigue topada en el techo global (2,5 %/s del máximo):
+  // el ejército convocado al resucitar no puede volverlo inmortal.
+  const hp0 = boss.hp;
+  boss.update(1);
+  assert.equal(game.log.emits.filter(([n]) => n === 'boss:phase2').length, 2,
+    'las fases ya disparadas no se repiten');
+  assert.ok(boss.hp > hp0, 'la escolta convocada lo cura');
+  assert.ok(boss.hp - hp0 <= boss.hpMax * 0.025 + 1e-6,
+    `la regen pasó el techo del 2,5 %/s: +${boss.hp - hp0} de ${boss.hpMax}`);
+  assert.ok(boss.hp <= boss.hpMax, 'y el HP nunca pasa del máximo');
+  // Un segundo letal ya no revive: el jefe muere como cualquier otro.
+  boss.hp = 1;
+  assert.equal(boss.takeDamage(1e9, 'ballistic'), true);
+  assert.equal(boss.dead, true);
+  assert.equal(game.log.emits.filter(([n]) => n === 'enemy:killed').length, 1);
+});
+
+// ============================================================
 // Ninguna variante es inmune (spec: nada de "lock & key")
 // ============================================================
 

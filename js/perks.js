@@ -140,13 +140,18 @@ const MAX_CHAIN_DEPTH = 3;
  * matriz de tipos (que ya pondera por familia) y con la regla de fase
  * del jefe.
  *
+ * fase 78: la familia que manda es la VIGENTE (Enemy.activeFamily), no la
+ * del tipo. La metamorfosis del jefe híbrido la cambia en cada fase
+ * (roca → cristal → virus → roca), así que la caza tiene que seguirla. Los
+ * enemigos sin getter (dummies de test) caen en data.family / family.
+ *
  * @param {object} mods los mods de la unidad (perks + cartas)
  * @param {object} enemy el enemigo que va a recibir el dano
  * @returns {number} el multiplicador (1 si no hay carta de caza)
  */
 export function familyHuntMul(mods, enemy) {
   if (!mods || !enemy) return 1;
-  const fam = enemy.data?.family ?? enemy.family ?? null;
+  const fam = enemy.activeFamily ?? enemy.data?.family ?? enemy.family ?? null;
   if (!fam) return 1;
   const key = `fam${fam[0].toUpperCase()}${fam.slice(1)}Mul`;
   const v = mods[key];

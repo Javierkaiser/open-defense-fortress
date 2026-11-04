@@ -260,6 +260,10 @@ export class HUD {
     // la regla nueva: a qué tipo le pega más). El evento ya lo emitía el
     // enemigo desde la fase 28, pero nadie lo escuchaba.
     this.engine?.on?.('boss:phase2', (enemy) => this.showBossPhase(enemy?._phase, enemy));
+    // fase 78: las MECÁNICAS FIRMA del jefe (lluvia, devorar, resurrección,
+    // placas) tienen su propio evento con el texto ya armado; el HUD las
+    // anuncia en la misma pila de avisos que el cambio de fase.
+    this.engine?.on?.('boss:mechanic', (data) => this.showBossMechanic(data));
     // oleadas-dinámicas: el director anuncia el ARQUETIPO que ESTÁ
     // entrando ("¡CONVOY!"). Sin preview de la próxima ola (decisión del
     // usuario): lo único que se avisa es lo que ya está en el campo.
@@ -2287,18 +2291,28 @@ export class HUD {
    * la fase y, con ella, la regla.
    *
    * @param {object|null} phase la fase nueva (enemigos.js: phases[])
-   * @param {object|null} [enemy] el jefe que cambió de fase (para el neto)
+   * @param {object|null} [enemy] el jefe que cambió de fase (su familia
+   *   VIGENTE, activeFamily, decide el neto)
    */
   showBossPhase(phase, enemy = null) {
     if (!phase || !phase.name) return;
+    // fase 78: la familia VIGENTE es la que pega de verdad. La metamorfosis
+    // del Híbrido la cambia (`activeFamily`); `data.family` es sólo el punto
+    // de partida del tipo de enemigo.
+    const family = enemy?.activeFamily ?? enemy?.data?.family ?? null;
     // v1.8.0: el aviso declara el multiplicador NETO (familia × fase). Antes
     // decía "VULNERABLE ×1,5" aunque la familia del jefe resistiera ese tipo
     // y el neto real fuera ×0,75: el texto contradecía al combate.
-    const rule = bossPhaseRule(phase, enemy?.data?.family ?? null);
+    const rule = bossPhaseRule(phase, family);
     const fmt = (n) => String(Math.round(n * 100) / 100).replace('.', ',');
     let regla = '';
+    // fase 78: las fases que MUTAN (Híbrido) declaran la familia nueva. Sin
+    // este anuncio el jugador leía "×1,5" sin saber contra qué familia pegaba.
+    const fam = phase.family ? ENEMY_FAMILIES[phase.family] : null;
+    if (fam) regla = `AHORA ES ${fam.name.toUpperCase()}`;
     if (rule) {
-      regla = `AHORA RECIBE \u00d7${fmt(rule.net)} DE ${esc(rule.name.toUpperCase())}`;
+      const recibir = `AHORA RECIBE \u00d7${fmt(rule.net)} DE ${esc(rule.name.toUpperCase())}`;
+      regla += regla ? ` \u00b7 ${recibir}` : recibir;
     }
     if (phase.regen) {
       regla += regla ? ' \u00b7 SE REGENERA CON SU ESCOLTA' : 'SE REGENERA CON SU ESCOLTA';
@@ -2311,6 +2325,28 @@ export class HUD {
       rule: regla,
       ms: BOSS_PHASE_MS,
       sound: 'warning',
+    });
+  }
+
+  /**
+   * fase 78 — AVISO de una MECÁNICA FIRMA del jefe.
+   *
+   * El enemigo emite `boss:mechanic` con el texto ya armado (kinds: rain |
+   * devour | revive | plate). El HUD sólo lo muestra en la pila común y con
+   * la placa de FASE: una mecánica nueva es una regla nueva que el jugador
+   * tiene que leer una vez (y el campo queda tapado lo mínimo).
+   *
+   * @param {object} [o] payload del evento: {kind, title, name, rule, boss}
+   * @returns {Element|null} el aviso, o null si el payload no trae título
+   */
+  showBossMechanic(o = {}) {
+    if (!o?.title) return null;
+    return this.showAviso({
+      variant: 'fase',
+      title: o.title,
+      name: o.name,
+      rule: o.rule,
+      ms: BOSS_PHASE_MS,
     });
   }
 
@@ -2332,17 +2368,22 @@ export class HUD {
     // dev-7 fase 46: el <b data-boss-name> de la etiqueta .boss-tag es
     // donde se escribe el NOMBRE del jefe (propio de cada stage).
     this.el.bossName = div.querySelector('[data-boss-name]');
+    // fase 78: etiqueta de la MECÁNICA FIRMA del jefe ("PLACAS 2/3",
+    // "VA A RESUCITAR", "EXPUESTO"). Se escribe sólo cuando cambia.
+    this.el.bossMech = div.querySelector('[data-boss-mech]');
     // dev-7 fase 43: la etiqueta de RECOMPENSA acompaña al "×2": a secas
     // el jugador lo leía como multiplicador de DAÑO. El CSS decide si hay
     // sitio para el texto (en un marco angosto lo oculta).
     this._lastBossPct = -1;
     this._lastBossName = '';
+    this._lastBossMech = '';
     this._bossHidden = true; // evita re-escribir la clase cada frame
   }
 
   /**
    * snapshot del jefe activo o null:
-   * {name, hpFrac(0..1), rewardMul(≥10)} — lo llama main.update().
+   * {name, hpFrac(0..1), rewardMul(≥10), mech(string|null)} — lo llama main.update().
+   * `mech` es la etiqueta de la mecánica firma (bossMechLabel en enemies.js).
    */
   renderBossBar(bossInfo) {
     if (!bossInfo || !(bossInfo.hpFrac > 0)) { this.hideBossBar(); return; }
@@ -2374,6 +2415,13 @@ export class HUD {
           `Recompensa ×${bossInfo.rewardMul ?? 10}: la primera vez que limpiás este stage vale el doble`);
       }
     }
+    // fase 78: estado de la MECÁNICA FIRMA del jefe ('' cuando no hay).
+    // La escritura se cachea: el DOM no se toca si el texto no cambió.
+    const mech = String(bossInfo.mech ?? '').trim();
+    if (mech !== this._lastBossMech) {
+      this._lastBossMech = mech;
+      if (this.el.bossMech) this.el.bossMech.textContent = mech;
+    }
     if (this._bossHidden) {
       this._bossHidden = false;
       this.el.boss.classList.remove('hidden');
@@ -2382,6 +2430,11 @@ export class HUD {
 
   hideBossBar() {
     this._lastBossPct = -1;
+    // fase 78: al ocultarse la barra se olvida la mecánica y se limpia el
+    // nodo. Sin esto, el cache vuelve a '' y la próxima barra SIN mecánica
+    // no escribe: quedaría pegado el "PLACAS 2/3" del jefe anterior.
+    this._lastBossMech = '';
+    if (this.el.bossMech) this.el.bossMech.textContent = '';
     if (!this.el.boss) return;
     if (this._bossHidden) return;
     this._bossHidden = true;

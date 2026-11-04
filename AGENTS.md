@@ -7,7 +7,7 @@ Documentación y comentarios en **español**.
 ## Comandos
 
 ```bash
-node --test "tests/test-*.mjs"                # suite completa (1115 tests)
+node --test "tests/test-*.mjs"                # suite completa (1157 tests)
 node --test tests/test-stages.mjs           # un archivo
 node .github/scripts/ci-checks.mjs          # checks estáticos
 node --check js/main.js                    # sintaxis de un módulo
@@ -34,6 +34,8 @@ En Windows/PS 5.1 el glob `js/*.js` no se expande solo; usá
 - `js/survival.js` — supervivencia: olas infinitas, atrición, jefes.
 - `js/heat.js` — Protocolo: condiciones, presets, mods, recompensas.
 - `js/enemies.js` — tipos, enjambres/tanques, mecánicas y 7 variantes de élite.
+- `js/enemies-boss.js` — mecánicas firma de los jefes (lluvia, devorar,
+  resurrección, placas y metamorfosis) y su lectura en canvas/HUD.
 - `js/towers.js` — 8 torres + 3 drones.
 - `js/tower-mechanics.js` — identidad firma por unidad y hooks de mecánicas
   (supresión, fusión, juicio, ion, cráter, riel, corte, ignición, veneno, burbuja).
