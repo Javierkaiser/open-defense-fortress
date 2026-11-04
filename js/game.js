@@ -84,6 +84,9 @@ export class Game {
     this.kills = 0;
     this._leaks = 0;
     this.waveManager = null; // se crea en startStage()
+    // fase 77: estado de entrada del jefe compartido por los managers de
+    // una misma run (zona/sweep). Se resetea al arrancar una run nueva.
+    this._bossEntryState = { zone: -1, sweep: 1 };
     this._ended = false;     // evita carreras STAGE_CLEAR ↔ GAME_OVER
 
     // CARD_CHOICE (v3-1/7, BUG-001): oferta pendiente de LEVEL UP.
@@ -628,7 +631,7 @@ export class Game {
       credits: () => this.toCredits(),
       resume: () => this.resume(),
       'select-stage': () => this.toSelectStage(),
-      'next-stage': () => this.startStage((this.stageId ?? 1) + 1),
+      'next-stage': () => this.startStage((this.stageId ?? 1) + 1, { keepBossState: true }),
       // fase 67: el reintento conserva la semilla de la run (`_runOpts`); si
       // no, reintentar el diario rerolearía la composición del día.
       // fase 70: en supervivencia rejuega la MISMA semilla (ver startSurvival).
@@ -863,7 +866,8 @@ export class Game {
    * y las cartas.
    *
    * @param {number} stageId 1..∞
-   * @param {{seed?:number, daily?:string, heatMods?:object|null}} [opts]
+   * @param {{seed?:number, daily?:string, heatMods?:object|null,
+   *   keepBossState?:boolean}} [opts]
    */
   startStage(stageId, opts = {}) {
     const def = stageDef(stageId);
@@ -889,6 +893,11 @@ export class Game {
     // El reintento rejuega la MISMA dificultad: si el jugador edita el
     // Protocolo a mitad de run, retry no puede cambiarle la vara.
     this._runOpts = { seed: opts.seed, daily: opts.daily, heatMods: heatProtocol };
+    // La entrada del jefe es estado de RUN, no de stage: next-stage lo
+    // conserva para que dos jefes seguidos no repitan zona/sweep.
+    this._bossEntryState = opts.keepBossState && this._bossEntryState
+      ? this._bossEntryState
+      : { zone: -1, sweep: 1 };
     this.stageId = def.id;
     this.stageName = def.name;
     this.engine.setTheme(def.theme);          // paleta del stage (§2.9)
@@ -958,6 +967,7 @@ export class Game {
       // fase 69: Vigor/Prisa/Leva/Élites/Jefes/Doble élite viven en el
       // director de olas; acá sólo se le pasa el protocolo ya resuelto.
       runMods,
+      bossState: this._bossEntryState,
     });
     this.waveManager.onBossDead(() => this.engine.emit('stage:cleared', { stage: def.id }));
     // v6: los stages SIN jefe (2..9, 11..) terminan al completar las olas.
@@ -1049,6 +1059,7 @@ export class Game {
     // fase 70: el reintento rejuega la MISMA run (las olas son deterministas
     // por semilla), igual que el diario. `survival: true` marca el modo.
     this._runOpts = { seed: this.survivalSeed };
+    this._bossEntryState = { zone: -1, sweep: 1 };
     this.stageId = SURVIVAL.baseStage; // stage virtual de la oleada 0 (curva del S1)
     this.stageName = 'Supervivencia';
     this.engine.setTheme(survivalTheme(1));
@@ -1095,6 +1106,7 @@ export class Game {
       powerMul: metaDmgMul('guardian', this.meta),
       seed: this.survivalSeed,
       runMods,
+      bossState: this._bossEntryState,
       survival: true,
       extend: (wm) => this._extendSurvival(wm),
     });

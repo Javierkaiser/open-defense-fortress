@@ -7,7 +7,7 @@ Documentación y comentarios en **español**.
 ## Comandos
 
 ```bash
-node --test "tests/test-*.mjs"                # suite completa (1103 tests)
+node --test "tests/test-*.mjs"                # suite completa (1115 tests)
 node --test tests/test-stages.mjs           # un archivo
 node .github/scripts/ci-checks.mjs          # checks estáticos
 node --check js/main.js                    # sintaxis de un módulo
@@ -27,6 +27,8 @@ En Windows/PS 5.1 el glob `js/*.js` no se expande solo; usá
   partículas, input, render.
 - `js/waves.js` — director de olas: presupuesto de HP, presión, biomas,
   variantes y `waveSchedule`; `WaveManager` vive en `waves-manager.js`.
+  La variedad de entrada vive en `waves-formation.js` y el azar
+  reproducible de olas/spawn en `waves-rng.js`.
 - `js/stages.js` — 50 etapas de campaña, HP de base, temas, jefes.
 - `js/endless.js` — ∞ (51+), profundidad, hitos, desafío diario.
 - `js/survival.js` — supervivencia: olas infinitas, atrición, jefes.

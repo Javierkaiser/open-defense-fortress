@@ -53,9 +53,11 @@ openspec/specs/         specs de comportamiento
 | `main.js` | BOOT del navegador: crea Engine/HUD/Game, aplica calidad/tema y cablea el lifecycle. |
 | `game.js` | `Game`: FSM, economía de la run, wiring de eventos y ciclo de partida (testeable sin DOM). |
 | `engine.js` | Loop rAF+dt, canvas, `CONFIG`/`SCENE`, helpers (`clamp`, `dist`, `rand`), fondo, partículas, input, render y `EventBus`. |
-| `waves.js` | Director de olas: presupuesto de HP, presión, biomas, variantes, `waveSchedule`, composición y `pending[]`. |
+| `waves.js` | Director de olas: presupuesto de HP, presión, biomas, variantes, `waveSchedule`, composición y vestido por run (`campaignWavesForRun`). |
 | `waves-manager.js` | `WaveManager`, entrada de jefes y cola de spawns. |
 | `waves-data.js` | Tablas manuales de olas de la campaña (stages 1..5), data pura. |
+| `waves-formation.js` | Formaciones de entrada (V, arco, ola, racimo, columnas, pinza, espiral…), franjas y posiciones puras. |
+| `waves-rng.js` | PRNG mulberry32, `hashSeed` y ruido determinista por índice para olas, spawn y jefe. |
 | `stages.js` | 50 etapas de campaña: nombre, tema, HP de base, desbloqueo, jefe. |
 | `endless.js` | Modo infinito (51+): `stageDef`, profundidad, hitos, recompensas y desafío diario. |
 | `survival.js` | Supervivencia: olas infinitas, presupuesto lineal, jefes cada 5, temas y recompensas. |
@@ -238,6 +240,19 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
   cristal (S30–39) y roca con mezcla (S40–50); décadas consecutivas no
   comparten dominante y cada familia tiene su década.
 - **Crystal garantizado**: 1 por descarga, descontado del presupuesto.
+- **Variedad de entrada (fase 77)**: `waves-formation.js` parametriza la
+  forma de cada grupo (espejo, sesgo, dispersión, jitter y profundidad
+  mínima) y el micro-escalonado a partir de `(etapa, semilla)`. Conserva
+  la FAMILIA del patrón y la franja del arquetipo: cambiar la cobertura
+  movía las bajas de la etapa (medido con balance-sim). El catálogo
+  completo de formas queda disponible con `explore: true`.
+- **Spawn determinista**: `waves-rng.js` alimenta posiciones, formaciones
+  y entrada del jefe; la misma semilla reproduce el mismo spawn y dos
+  runs se ven distintas. El jitter de velocidad sigue el RNG de combate.
+- **Tablas manuales por run**: S1–S5 conservan tiempos, tipos, cuentas,
+  patrón y franja, pero `campaignWavesForRun()` clona la tabla y
+  randomiza los parámetros de la formación y el micro-ritmo.
+  `STAGE_WAVES` queda intacta como referencia.
 - **Escalonado**: `stagger`/`delay`/`lane` por grupo + `waveSchedule()` pura.
 - **Scheduler**: `WaveManager` usa una cola `pending[]`; el aviso de jefe la
   vacía y la etapa no cierra con pendientes.
@@ -443,7 +458,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1103 tests (1103 pass, 0 skip) en 36 archivos.
+- 1115 tests (1115 pass, 0 skip) en 37 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

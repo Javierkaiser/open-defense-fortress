@@ -10,17 +10,20 @@
 // Recibe referencias por parámetro — jamás importa hud/cards/main.
 // ============================================================
 
-import { CONFIG, rand } from './engine.js';
 // dev-7 fase 27: ENEMY_TYPES se usa para acotar el pool de la apertura por
 // MATABILIDAD real (hp/vel base de cada tipo) — ver openingPoolForStage().
-// waves.js ya importaba de enemies.js (Enemy), así que no es un ciclo nuevo.
-import { Enemy, ENEMY_TYPES } from './enemies.js';
+// waves.js NO importa engine.js: el director es composición pura y el
+// spawner (waves-manager.js) es el que conoce canvas y entidades.
+import { ENEMY_TYPES } from './enemies.js';
 // El modelo de la apertura lee el DPS REAL del Guardian de la tabla canónica
 // (y su dial de presentación), no una copia de los números.
 import { TOWERS, dpsScaleFor } from './towers-data.js';
 import { isBossStage, scaleFor } from './stages.js';
 import { STAGE_WAVES } from './waves-data.js';
 export { STAGE_WAVES };
+import { mulberry32, hashSeed, range as rndRange } from './waves-rng.js';
+import { LANES, makeFormation } from './waves-formation.js';
+export { LANES };
 
 /** Duración de WARNING antes de que entre el boss (§2.5/D10). */
 export const WARNING_SECONDS = 2;
@@ -172,16 +175,6 @@ export function bossNameForStage(id) {
 // pesados intercalados; SIEMPRE determinístico por (stage, seed),
 // con seed nueva por run (el mismo stage varía entre partidas).
 // ------------------------------------------------------------
-
-function mulberry32(seed) {
-  let a = seed >>> 0;
-  return function () {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 // ------------------------------------------------------------
 // Fase 27 — OLAS MIXTAS: una descarga con varios tipos y
@@ -1232,17 +1225,127 @@ export function assignVariant(groups, stage, rnd = Math.random, opts = {}) {
 }
 
 // ------------------------------------------------------------
-// ESCALONADO: campos de grupo + agendado PURO (§Decisión 3)
+// FASE 77 — VARIEDAD DE ENTRADA POR RUN
+//
+// La composición ya era aleatoria por semilla, pero la FORMA de entrar
+// era casi fija: las mismas geometrías, los mismos espaciados y (en 1..5)
+// la misma tabla en cada partida. Este bloque agrega una capa de "vestido"
+// que no toca tipos, cuentas, franjas ni HP:
+//   · cada grupo recibe una FORMACIÓN (waves-formation.js) con espejo,
+//     dispersión y jitter propios de la ola;
+//   · se conserva la FAMILIA del patrón y la franja del arquetipo (medido:
+//     cambiarlas mueve la cobertura de las torres y baja las bajas);
+//   · las tablas manuales 1..5 se clonan y se visten por run;
+//   · el escalonado fino evita que un grupo entero nazca en un frame.
+//
+// Toda la aleatoriedad sale de hashSeed(seed, stage, ola, grupo): el
+// RNG de composición NO se consume, así que el HP por etapa no se mueve.
 // ------------------------------------------------------------
 
-/** Franjas de spawn (fracción del ancho del canvas). */
-export const LANES = {
-  full: [0, 1],            // todo el ancho (franja del grupo, como la fase 27)
-  izq: [0, 0.42],          // tercio izquierdo
-  centro: [0.29, 0.71],    // franja central
-  der: [0.58, 1],          // tercio derecho
-  angosta: [0.40, 0.60],   // franja angosta del goteo
-};
+/** RNG independiente para una ola (no consume el stream de composición). */
+function waveVarietyRng(seed, stage, waveIndex, salt = 0) {
+  return mulberry32(hashSeed(seed, stage, waveIndex, salt));
+}
+
+/**
+ * Agrega formación y micro-escalonado a olas YA generadas. No toca
+ * type, count, t ni el arquetipo: el balance queda igual.
+ */
+function attachWaveVariety(waves, seed, stage) {
+  waves.forEach((wave, wi) => {
+    const opening = wave.t < OPEN_T;
+    const rnd = waveVarietyRng(seed, stage, wi, 0x9a55);
+    for (const g of waveGroups(wave)) {
+      if (g.type === 'boss' || g.pattern === 'boss') continue;
+      if (g.type === 'crystal') {
+        g.pattern = 'vee';
+        g.formation = makeFormation(rnd, 'vee', { opening, crystal: true });
+      } else {
+        const formation = makeFormation(rnd, g.pattern ?? FAV_PATTERN[g.type] ?? 'line', {
+          opening,
+          type: g.type,
+        });
+        g.formation = formation;
+        if (!opening) g.pattern = formation.kind;
+      }
+      if (!Number.isFinite(g.stagger) && (g.count ?? 1) > 1) {
+        g.stagger = round2(opening ? 0.04 + rnd() * 0.10 : 0.04 + rnd() * 0.16);
+      }
+    }
+  });
+}
+
+/**
+ * Clona y viste una tabla manual (1..5): conserva tiempos, tipos,
+ * cuentas, patrón y franja, y randomiza los parámetros de la formación
+ * y el micro-escalonado. La primera ola mantiene el enjambre en vee; el
+ * crystal conserva su patrón y su XP.
+ */
+function dressManualWaves(table, stage, seed) {
+  const rnd = waveVarietyRng(seed, stage, 0x51ed);
+  return table.map((baseWave, wi) => {
+    const wave = { ...baseWave, groups: waveGroups(baseWave).map((g) => ({ ...g })) };
+    const opening = wave.t < OPEN_T;
+    const isBoss = wave.groups.some((g) => g.type === 'boss' || g.pattern === 'boss');
+    if (!isBoss) {
+      const arch = wave.archetype ? WAVE_ARCHETYPES[wave.archetype] : null;
+      for (let moldIdx = 0; moldIdx < wave.groups.length; moldIdx++) {
+        const g = wave.groups[moldIdx];
+        const formation = makeFormation(rnd, g.pattern ?? 'line', { opening, type: g.type });
+        if (g.type === 'crystal' || (opening && wi === 0)) formation.kind = 'vee';
+        g.formation = formation;
+        // La tabla manual conserva su PATRÓN y su FRANJA: la geometría
+        // histórica es la que validó el balance de S1..S5. Lo que cambia
+        // por run es el espejo, el espaciado, el jitter y el micro-ritmo.
+        if (opening && wi === 0) g.pattern = 'vee';
+        const tpl = arch?.groups[Math.min(moldIdx, arch.groups.length - 1)];
+        const count = Math.max(1, g.count ?? 1);
+        if (count > 1) {
+          const stagger = tpl?.stagger
+            ? rndRange(rnd, tpl.stagger[0], tpl.stagger[1])
+            : (opening ? 0.05 + rnd() * 0.12 : 0.04 + rnd() * 0.16);
+          g.stagger = round2(stagger);
+        } else {
+          delete g.stagger;
+        }
+        const delay = !opening && tpl?.delay
+          ? rndRange(rnd, tpl.delay[0], tpl.delay[1])
+          : (!opening ? rnd() * 0.28 : 0);
+        if (delay > 0.02) g.delay = round2(delay);
+        else delete g.delay;
+      }
+    }
+    return wave;
+  });
+}
+
+/**
+ * Tabla que JUEGA una run: idéntica a campaignWaves en composición,
+ * patrón y franja, pero con los parámetros de la formación (espejo,
+ * dispersión, jitter) y el micro-ritmo randomizados de forma
+ * determinista por (etapa, semilla).
+ *
+ * S1..S5 se clonan para no mutar las tablas canónicas: STAGE_WAVES
+ * sigue siendo la referencia de tests, sonda y balance.
+ *
+ * @param {number} id
+ * @param {number} seed
+ * @param {object} [opts]
+ * @returns {Array<object>}
+ */
+export function campaignWavesForRun(id, seed, opts = {}) {
+  const stage = Math.max(1, Math.trunc(Number(id) || 1));
+  const seed32 = seed >>> 0;
+  const table = STAGE_WAVES[stage];
+  if (table) return dressManualWaves(table, stage, seed32);
+  const waves = generateStageWaves(stage, seed, opts);
+  attachWaveVariety(waves, seed32, stage);
+  return waves;
+}
+
+// ------------------------------------------------------------
+// ESCALONADO: campos de grupo + agendado PURO (§Decisión 3)
+// ------------------------------------------------------------
 
 /**
  * JITTER de velocidad por enemigo (fase 65): ±7 %. Dentro del mismo tipo
@@ -2166,11 +2269,13 @@ export function generateStageWaves(id, seed, opts = {}) {
 }
 
 /**
- * Tabla de olas que juega la CAMPAÑA para una etapa: las 1..5 usan su
- * tabla manual (decorada con arquetipo/stagger) y 6..50 el generador
- * procedural. Es la única fuente de verdad para el `WaveManager` y para
- * las herramientas de medición: evita que la sonda mida un bioma
- * generado que la campaña real nunca juega en S1–S5.
+ * Tabla CANÓNICA de una etapa: las 1..5 devuelven su tabla manual tal
+ * cual y 6+ el generador procedural. Es la referencia estable para
+ * tests, sonda y balance.
+ *
+ * El `WaveManager` NO usa esta función: usa `campaignWavesForRun()`, que
+ * conserva composición, patrón y franja y randomiza los parámetros de la
+ * formación y el micro-ritmo por run.
  *
  * @param {number} id etapa
  * @param {number} [seed] semilla del generador (sólo 6..50)
@@ -2181,20 +2286,3 @@ export function campaignWaves(id, seed, opts = {}) {
   const stage = Math.max(1, Math.trunc(Number(id) || 1));
   return STAGE_WAVES[stage] ?? generateStageWaves(stage, seed, opts);
 }
-
-const SPAWN_Y = -50; // Y de spawn sobre el borde superior (§1.4)
-
-/**
- * Ancho del CONO de tiro de la apertura (fase 27). Los enemigos de la
- * apertura caen dentro de este ancho alrededor del centro (x = BASE_X),
- * que es donde el Guardian (única torre al arrancar) puede acertar.
- * Antes la apertura usaba el `vee` centrado en 270 y funcionaba; al
- * fragmentar las descargas en franjas, los enemigos se alejaron del cono
- * y el Guardian dejó de acertar (medido: 3 000 disparos → 8 kills).
- */
-// ------------------------------------------------------------
-// v3 3e/7 — entrada VARIADA del jefe (§spec 3e): X aleatoria por zonas
-// (izquierda / centro / derecha) que NUNCA repite la zona del jefe anterior
-// y barrido lateral con dirección alternada entre jefes. Estado module-level
-// para que la garantía atraviese los stages (un WaveManager por stage).
-// ------------------------------------------------------------

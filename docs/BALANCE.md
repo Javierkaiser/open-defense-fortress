@@ -109,6 +109,12 @@ waveBudget = densidad × budgetFit × presión × 33 HP × densityMul
   era una lotería del 28–31 %; el crystal es la fuente de XP más importante.
 - **Escalonado**: `stagger`/`delay`/`lane` por grupo, `waveSchedule()` pura y
   jitter de velocidad ±7 % (fuera de la apertura).
+- **Variedad de entrada (fase 77)**: el espejo, la dispersión, el jitter
+  y el micro-ritmo salen de `(etapa, semilla)`; la FAMILIA del patrón y la
+  franja del arquetipo se conservan para no mover la cobertura de las
+  torres. Las tablas 1..5 se visten por run sin cambiar tiempos, tipos,
+  cuentas, patrón ni franja. El HP por etapa NO cambia: la capa de
+  presentación no toca la composición.
 - **Cola**: `WaveManager` usa `pending[]`; el aviso de jefe la vacía y la etapa
   no cierra con pendientes.
 - **Variantes**: 3–4 % de los enemigos; ~70 % de las descargas llevan una. En

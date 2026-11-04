@@ -138,14 +138,41 @@ Los primeros `OPEN_T` segundos de una etapa MUST conservar sus garantías: al me
 - **WHEN** se inspeccionan los enemigos de la apertura
 - **THEN** ninguno tiene variante de élite
 
+### Requirement: Variedad de entrada por run
+
+La FORMA de entrar de cada descarga MUST variar por run sin mover la composición ni el HP de la etapa. Cada grupo del tramo clásico MUST declarar una formación (line, vee, wall, burst-diag, rain, mixed-arc, mixed-spread, arc, wave, cluster, columns, diamond, flanks o spiral) y un micro-escalonado derivados de (etapa, semilla). La campaña MUST conservar la FAMILIA del patrón y la franja del arquetipo: cambiar la cobertura de las torres mueve las bajas medidas. El catálogo completo de formas MUST existir y MUST poder pedirse con `explore: true` para diseño/pruebas. Las tablas manuales 1..5 MUST conservar sus tiempos, tipos, cuentas, patrón y franja, pero PUEDEN clonarse y vestirse por run; su primera ola MUST seguir siendo un enjambre en vee y su crystal MUST seguir en vee.
+
+#### Scenario: Dos runs de la misma etapa se ven distintas
+
+- **WHEN** se generan las olas de la misma etapa con dos semillas distintas
+- **THEN** cambian el espejo, la dispersión, el jitter o el micro-ritmo de las formaciones
+- **AND** los tipos, las cuentas por ola, las franjas y el HP total no cambian
+
+#### Scenario: La tabla manual no se muta
+
+- **WHEN** se juega una run de S1–S5
+- **THEN** `STAGE_WAVES` conserva exactamente sus tiempos, tipos, cuentas, patrones y franjas
+- **AND** la copia de la run es la que lleva los parámetros de formación y el escalonado nuevos
+
+#### Scenario: La apertura no cambia su modelo
+
+- **WHEN** se inspecciona un enemigo de la apertura
+- **THEN** su formación no agrega profundidad vertical (Y = SPAWN_Y)
+- **AND** su X cae dentro del cono del Guardian
+
 ### Requirement: Determinismo y jitter acotado
 
-La generación de olas MUST ser determinista para el mismo par (etapa, semilla). El jitter de velocidad por enemigo MUST ser de ±10 % como máximo y MUST NOT aplicarse en la apertura.
+La generación de olas MUST ser determinista para el mismo par (etapa, semilla). El jitter de velocidad por enemigo MUST ser de ±10 % como máximo y MUST NOT aplicarse en la apertura. La posición, la formación y la entrada del jefe MUST derivarse de la misma semilla de la run y MUST NOT depender de estado de módulo entre runs; el jitter de velocidad conserva el RNG de combate (críticos, derivas, stuns) para que las comparaciones de balance sigan siendo válidas.
 
 #### Scenario: Misma semilla, misma tabla
 
 - **WHEN** se genera dos veces la misma etapa con la misma semilla
 - **THEN** las dos tablas de olas son idénticas
+
+#### Scenario: Misma semilla, mismo spawn
+
+- **WHEN** se corren dos managers de la misma etapa con la misma semilla
+- **THEN** los enemigos aparecen con el mismo tipo, X e Y en el mismo instante
 
 #### Scenario: El jitter no rompe la apertura
 

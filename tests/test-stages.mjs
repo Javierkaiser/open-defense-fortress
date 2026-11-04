@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { STAGES, BASE_HP_BY_STAGE, scaleFor, isBossStage, LEAK_HP_FRAC, leakDamageFor } from '../js/stages.js';
 import {
-  STAGE_WAVES, generateStageWaves, campaignWaves, OPEN_T, waveGroups, waveTypes, waveCount, openingHpBudget,
+  STAGE_WAVES, generateStageWaves, campaignWaves, campaignWavesForRun, OPEN_T, waveGroups, waveTypes, waveCount, openingHpBudget,
   bossNameForStage, bossForStage, SWARM_TYPES, openingSwarmForStage,
   WAVE_ARCHETYPES, ARCHETYPE_NAMES, archetypeOf, pickArchetype, waveSchedule, composeWave,
   poolForStage, campaignPoolForStage, waveBudget, pressure, variantsForStage, assignVariant,
@@ -1840,11 +1840,11 @@ test('fase 65: la etapa no cierra mientras queden spawns pendientes', () => {
 test('fase 65: el scheduler es determinista (misma secuencia en dos corridas)', () => {
   const run = () => {
     const game = stubGame();
-    const wm = new WaveManager(20);
+    const wm = new WaveManager(20, { seed: 555 });
     const real = Math.random;
     Math.random = fixedRnd(2027);   // también siembra el jitter del spawn
     try {
-      wm.queue = [...generateStageWaves(20, 555)];
+      wm.queue = [...campaignWavesForRun(20, 555)];
       wm.t = 0;
       const out = [];
       for (let i = 0; i < 1500; i++) {
@@ -1957,8 +1957,8 @@ test('fase 70: regresión — la campaña sigue generando su cola y cerrando', (
   const wm = new WaveManager(50, { seed: 2027 });
   assert.equal(wm.survival, false, 'sin survival el manager es el de siempre');
   assert.ok(wm.queue.length > 0, 'el S50 genera su cola entera');
-  assert.deepEqual(wm.queue, generateStageWaves(50, 2027),
-    'la cola es exactamente la del director (sin cambios)');
+  assert.deepEqual(wm.queue, campaignWavesForRun(50, 2027),
+    'la cola es exactamente la tabla que juega la run');
   assert.equal(wm.extend, null);
   assert.equal(wm.extendNow(), false, 'sin hook no hay primer bloque que inyectar');
   assert.equal(wm.survivalWave, 0);

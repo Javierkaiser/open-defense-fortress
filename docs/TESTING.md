@@ -6,7 +6,7 @@
 node --test "tests/test-*.mjs"
 ```
 
-Estado actual: **1103 tests** (1103 pass, 0 skip, 0 fail) en **36 archivos**.
+Estado actual: **1115 tests** (1115 pass, 0 skip, 0 fail) en **37 archivos**.
 
 Requisitos: Node 22 o superior.
 
@@ -28,6 +28,7 @@ node --test tests/test-stages.mjs
 |---|---|
 | Motor, loop, FSM, helpers, caches | `test-engine.mjs` |
 | Etapas, HP de base, olas, director, jefes, variantes | `test-stages.mjs` |
+| Variedad de entrada por run, formaciones y spawn determinista | `test-wave-variety.mjs` |
 | Torres, targeting, disparo, daño, drones | `test-towers.mjs` |
 | Escala de DPS, Tesla exenta, DoT de drones | `test-dps-scale.mjs` |
 | Enemigos, variantes de élite, muerte, escolta | `test-enemies.mjs` |

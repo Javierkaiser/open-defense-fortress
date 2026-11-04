@@ -2,43 +2,54 @@
 // waves-manager.js — WaveManager y entrada de jefes
 // =============================================================================
 
-import { CONFIG, SPAWN_Y, rand } from './engine.js';
+import { CONFIG, SPAWN_Y } from './engine.js';
 import { Enemy } from './enemies.js';
 import { scaleFor } from './stages.js';
 import { STAGE_WAVES } from './waves-data.js';
 import {
-  waveSchedule, campaignWaves, generateStageWaves, waveGroups,
+  waveSchedule, campaignWavesForRun, waveGroups,
   bossNameForStage, bossForStage, archetypeOf, WARNING_SECONDS,
-  OPEN_T, WAVE_ARCHETYPES, poolForStage, LANES, VEL_JITTER,
-  assignVariant, variantsForStage, pickVariant,
+  OPEN_T, WAVE_ARCHETYPES, poolForStage, VEL_JITTER,
+  variantsForStage, pickVariant,
 } from './waves.js';
-
-/** Ancho del cono de tiro de la apertura (fase 27). */
-const CONE_W = 240;
+import { CONE_W, makeFormation, formationPosition, openingPosition, laneBounds } from './waves-formation.js';
+import { mulberry32, hashSeed } from './waves-rng.js';
 
 export const BOSS_ENTRY_ZONES = [
   [0.08, 0.22],   // izquierda
   [0.40, 0.60],   // centro
   [0.78, 0.92],   // derecha
 ];
-let _lastBossZone = -1;
-let _lastCenterSweep = 1; // alterna SOLO entre entradas centrales consecutivas
-
-/** Próxima entrada de jefe: {x, sweepDir, zone}. Zona ≠ la anterior (nunca
- * 2 entradas iguales seguidas) y barrido hacia adentro del campo (las
- * esquinas barren hacia el centro; la central alterna dirección cada vez). */
-export function nextBossEntry() {
+/**
+ * Próxima entrada de jefe: {x, sweepDir, zone}. Zona distinta de la
+ * anterior (nunca 2 entradas iguales seguidas) y barrido hacia adentro
+ * del campo (las esquinas barren hacia el centro; la central alterna
+ * dirección cada vez).
+ *
+ * El estado vive en `state` (el WaveManager tiene el suyo): antes eran
+ * variables de MÓDULO, así que una run dependía de las anteriores y el
+ * desafío diario no era reproducible. `rnd` permite sembrarlo.
+ *
+ * @param {() => number} [rnd]
+ * @param {{zone?:number, sweep?:number}} [state]
+ */
+export function nextBossEntry(rnd = Math.random, state = null) {
+  const s = state && typeof state === 'object' ? state : { zone: -1, sweep: 1 };
+  const prevZone = Number.isInteger(s.zone) ? s.zone : -1;
   const options = BOSS_ENTRY_ZONES
     .map((zone, i) => ({ zone, i }))
-    .filter(({ i }) => i !== _lastBossZone);
-  const pick = options[(Math.random() * options.length) | 0];
-  _lastBossZone = pick.i;
+    .filter(({ i }) => i !== prevZone);
+  const pick = options[Math.min(options.length - 1, Math.max(0, (rnd() * options.length) | 0))];
+  s.zone = pick.i;
   let sweepDir;
   if (pick.i === 0) sweepDir = 1;          // izquierda → barre al centro
   else if (pick.i === 2) sweepDir = -1;    // derecha → barre al centro
-  else { _lastCenterSweep = -_lastCenterSweep; sweepDir = _lastCenterSweep; }
+  else {
+    s.sweep = (s.sweep === 1 ? -1 : 1);
+    sweepDir = s.sweep;
+  }
   const [a, b] = pick.zone;
-  return { x: CONFIG.CANVAS_W * (a + Math.random() * (b - a)), sweepDir, zone: pick.i };
+  return { x: CONFIG.CANVAS_W * (a + rnd() * (b - a)), sweepDir, zone: pick.i };
 }
 
 // ------------------------------------------------------------
@@ -52,6 +63,7 @@ export class WaveManager {
    *   powerMul?: number, seed?: number, runMods?: object|null,
    *   survival?: boolean, extend?: ((wm: WaveManager) => unknown)|null,
    *   bossKind?: string|null, bossName?: string|null,
+   *   bossState?: {zone?:number, sweep?:number},
    * }} [opts]
    *   `powerMul` = multiplicador de
    *   meta del jugador (js/meta.js metaDmgMul del Guardian). La apertura
@@ -75,6 +87,20 @@ export class WaveManager {
     // v6: stages 1..5 usan sus tablas manuales; 6..50 el generador
     // procedural con seed POR RUN (más random, JK 28-08).
     const seed = Number.isFinite(opts.seed) ? opts.seed >>> 0 : (Math.random() * 1e9) | 0;
+    // Fase 77: el SEED de la run queda expuesto y alimenta un stream
+    // PROPIO para la posición/formación del spawn y la entrada del jefe.
+    // La composición usa el suyo dentro de waves.js: un cambio en el
+    // vestido no puede mover el HP de la etapa. El jitter de VELOCIDAD
+    // sigue usando Math.random para conservar el orden histórico del
+    // stream global que también consumen críticos, derivas y stuns.
+    this.seed = seed;
+    this.rng = mulberry32(hashSeed(seed, stage, 0x5ea5));
+    // La entrada del jefe se comparte entre los managers de una misma run:
+    // Game pasa el mismo objeto por opts.bossState. Así la zona/sweep no se
+    // reinicia al cambiar de stage y sigue sin repetir la anterior.
+    this._bossState = opts.bossState && typeof opts.bossState === 'object'
+      ? opts.bossState
+      : { zone: -1, sweep: 1 };
     // fase 70: SUPERVIVENCIA. El hook `extend` empuja el bloque siguiente
     // (main lo cablea con survivalWaveChunk) y es lo ÚNICO que mantiene
     // viva la run: por eso la cola arranca vacía y la inyecta `extendNow()`.
@@ -83,7 +109,9 @@ export class WaveManager {
     this.survivalWave = 0;  // última oleada NORMAL despachada (HUD)
     this.bossKind = opts.bossKind ?? null;
     this.bossName = opts.bossName ?? null;
-    this.queue = this.survival ? [] : [...campaignWaves(stage, seed, opts)];
+    // Fase 77: `campaignWavesForRun` conserva la composición de
+    // `campaignWaves` y randomiza la entrada (1..5 incluidos).
+    this.queue = this.survival ? [] : [...campaignWavesForRun(stage, seed, opts)];
     // fase 65: SPAWNS DIFERIDOS. Al despachar una descarga, su agenda
     // (waveSchedule: puro y determinista) se encola acá y update() la
     // suelta cuando llega cada instante. Sin escalonado, todos los
@@ -307,95 +335,61 @@ export class WaveManager {
   _spawnGroup(group, gi, gn, game, list, isOpening = false, onlyIndex = null) {
     const count = Math.max(1, group.count ?? 1);
     const pattern = group.pattern ?? 'rain';
-    // Franja horizontal del grupo: la EXPLÍCITA del arquetipo (fase 65:
-    // `lane` = izq / centro / der / angosta / full) o, si no la trae, el
-    // reparto del canvas entre los grupos de la descarga (con 1 grupo la
-    // franja es toda la pantalla — comportamiento histórico intacto).
-    //
-    // EXCEPCIÓN (fase 27) — la APERTURA: todos los grupos caen DENTRO del
-    // cono del Guardian (x ≈ CONFIG.BASE_X = 270), no en franjas separadas.
-    // El Guardian dispara en abanico desde el centro y su objetivo se elige
-    // por Y (el más avanzado), NO por X: si el enemigo elegido está a 200 px
-    // de lado, la bala con spread de 14° falla y no le acierta. Medido: con
-    // las franjas, el Guardian disparaba 3 000 balas en S30 y mataba 8
-    // enemigos de 171 — el jugador nunca subía de nivel.
-    // En la apertura los grupos se reparten alrededor del cono (el más
-    // rápido al centro, que es el primero al que apunta la torre).
-    const laneSpec = group.lane ? LANES[group.lane] : null;
-    const laneW = laneSpec
-      ? CONFIG.CANVAS_W * (laneSpec[1] - laneSpec[0])
-      : (isOpening ? CONE_W : CONFIG.CANVAS_W / gn);
-    const laneX0 = laneSpec
-      ? CONFIG.CANVAS_W * laneSpec[0]
-      : (isOpening
-        ? CONFIG.BASE_X - CONE_W / 2 + (CONE_W / gn) * gi
-        : (CONFIG.CANVAS_W / gn) * gi);
-    // Desfase vertical por grupo: evita que todos entren en la misma Y
-    // (la "placa" uniforme de antes).
+    // Fase 77: la GEOMETRÍA vive en waves-formation.js. El grupo trae su
+    // formación precalculada (determinista por ola/grupo); si no la trae
+    // —olas armadas a mano en tests o herramientas— se crea acá con el
+    // stream del manager. La formación respeta la franja y, en la
+    // apertura, el cono del Guardian.
+    let formation = group.formation;
+    if (!formation) {
+      formation = makeFormation(this.rng, pattern, {
+        opening: isOpening,
+        type: group.type,
+      });
+      // Se GUARDA en el grupo: con spawns diferidos (_spawnGroup recibe un
+      // `onlyIndex`) la formación tiene que ser la misma para cada enemigo
+      // del grupo, no una nueva por llamada.
+      group.formation = formation;
+    }
+    const bounds = laneBounds(group.lane, gi, gn, {
+      width: CONFIG.CANVAS_W,
+      opening: isOpening,
+      coneW: CONE_W,
+      baseX: CONFIG.BASE_X,
+    });
+    // Desfase vertical por grupo: separa las columnas de una descarga.
     const yOff = gn > 1 ? (gi * 46) % 120 : 0;
     const from = onlyIndex ?? 0;
     const to = onlyIndex ?? count - 1;
 
     for (let i = from; i <= to; i++) {
-      let x;
-      switch (pattern) {
-        case 'line': x = laneX0 + ((i + 0.5) / count) * laneW; break;
-        case 'vee': {
-          // V centrada en la franja del grupo. El paso se limita para que
-          // no se salga de la franja (y del canvas) cuando hay muchos
-          // enemigos: paso = min(46, ancho útil / count).
-          const step = Math.min(46, (laneW - 20) / Math.max(1, count));
-          const half = (count - 1) / 2;
-          x = laneX0 + laneW / 2 + (i - half) * step;
-          break;
-        }
-        case 'wall': { // dos columnas laterales sincronizadas (dev-5)
-          const col = i % 2 === 0 ? laneX0 + 90 : laneX0 + laneW - 90;
-          x = col + ((i / 2) | 0) * 26 * (i % 4 < 2 ? 1 : -1);
-          break;
-        }
-        case 'burst-diag':
-          // Diagonal dentro de la FRANJA del grupo (fase 27): si no, el
-          // grupo invadiría la franja del vecino y las descargas se pisarían.
-          x = laneX0 + 10 + ((i * 97) % Math.max(1, Math.floor(laneW - 20)));
-          break;
-        case 'mixed-arc': {
-          // Arco disperso: los enemigos se reparten por un arco (no una
-          // línea recta) — se ve más orgánico que la hilera.
-          const t = count > 1 ? i / (count - 1) : 0.5;
-          x = laneX0 + laneW * (0.5 + Math.cos(t * Math.PI - Math.PI / 2) * 0.5);
-          break;
-        }
-        case 'mixed-spread': {
-          // Nube dispersa: X y Y al azar dentro de la franja.
-          x = laneX0 + rand(20, Math.max(21, laneW - 20));
-          break;
-        }
-        case 'rain':
-        default:
-          x = laneX0 + rand(Math.min(40, laneW / 2), Math.max(laneW / 2 + 1, laneW - 40));
-          break;
-      }
-      // dev-7 fase 27: red de seguridad — ningún enemigo puede nacer
-      // fuera del canvas (las franjas son angostas cuando hay 3 grupos).
-      x = Math.max(4, Math.min(CONFIG.CANVAS_W - 4, x));
-      // fase 68: doble afijo. `group.variants` es la fuente cuando el
-      // director pidió 2; con 1 afijo el grupo sólo trae `variant` y se
-      // deriva acá (el constructor prioriza el array si es un array).
+      // La APERTURA conserva la geometría histórica (modelo de
+      // matabilidad/XP del Guardian); el resto de la etapa usa la
+      // formación randomizada.
+      const pos = isOpening
+        ? openingPosition(group.pattern ?? formation.kind, i, count, bounds, formation.seed)
+        : formationPosition(formation, i, count, bounds, { width: CONFIG.CANVAS_W });
+      // fase 68: doble afijo. group.variants es la fuente cuando el
+      // director pidió 2; con 1 afijo el grupo sólo trae variant.
       const variants = group.variants ?? (group.variant ? [group.variant] : []);
-      const e = new Enemy(group.type, x, {
-        game, y: SPAWN_Y - yOff, scale: this.scale, variant: group.variant, variants,
+      const e = new Enemy(group.type, pos.x, {
+        game,
+        // dy es altura EXTRA sobre el spawn: nunca acerca al enemigo a la
+        // base (eso acortaría la caída y movería el balance).
+        y: SPAWN_Y - yOff - pos.dy,
+        scale: this.scale,
+        variant: group.variant,
+        variants,
       });
-      if (pattern === 'burst-diag') e.phase = 0; // diagonal sincronizada
-      // 'mixed-spread' dispersa también en Y (no solo en X).
-      if (pattern === 'mixed-spread') e.y = SPAWN_Y - yOff - rand(0, 90);
+      if (formation.kind === 'burst-diag') e.phase = 0; // diagonal sincronizada
       // fase 65: JITTER de velocidad por enemigo (±7 %): dentro del mismo
       // tipo conviven velocidades, así que la hilera no entra en bloque.
       // NUNCA en la apertura: su modelo de matabilidad calcula el ttk con
-      // la velocidad EXACTA del tipo (y con el jitter el tope por enemigo
-      // dejaría de ser cierto). Es multiplicativo, así que compone con el
-      // `velMul` de la variante de élite.
-      if (!isOpening) e.vel *= 1 + (rand(0, 1) * 2 - 1) * VEL_JITTER;
+      // la velocidad EXACTA del tipo. El jitter usa Math.random a propósito:
+      // conserva el orden histórico del stream global que también consumen
+      // críticos, derivas y stuns, así las comparaciones de balance no
+      // cambian. La POSICIÓN y la formación usan el stream derivado por seed.
+      if (!isOpening) e.vel *= 1 + (Math.random() * 2 - 1) * VEL_JITTER;
       game.engine.addEntity(e);
       list.push(e);
     }
@@ -423,7 +417,7 @@ export class WaveManager {
     // de cada década con el meta de 100 niveles.
     // 3e/7: entra por una X aleatoria variada (zona ≠ la del jefe anterior)
     // con barrido lateral alternado (vive en enemies.js vía sweepDir).
-    const entry = nextBossEntry();
+    const entry = nextBossEntry(this.rng, this._bossState);
     // fase 70: en supervivencia el jefe lo fija la run (bossKind/bossName);
     // en campaña y ∞ es el de la etapa, como siempre.
     const boss = new Enemy(this._bossKind(), entry.x,
@@ -470,7 +464,7 @@ export class WaveManager {
     const allowed = variantsForStage(this.stage);
     for (let i = 0; i < count; i++) {
       const type = pool[i % pool.length];
-      const variant = allowed.length ? pickVariant(allowed, rand(0, 1)) : undefined;
+      const variant = allowed.length ? pickVariant(allowed, this.rng()) : undefined;
       const dx = (i % 2 === 0 ? -1 : 1) * (40 + 26 * Math.floor(i / 2));
       const ex = Math.max(4, Math.min(CONFIG.CANVAS_W - 4, x + dx));
       const e = new Enemy(type, ex, { game, y: -100, scale: this.scale, variant });
@@ -491,4 +485,3 @@ export class WaveManager {
 }
 
 function clamp01(v) { return Math.max(0, Math.min(1, v)); }
-

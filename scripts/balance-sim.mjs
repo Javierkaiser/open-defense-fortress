@@ -30,9 +30,9 @@
 // Mismo patrón que scripts/probe-s6.mjs (línea ~132).
 //
 // Cada run carga además una instancia FRESCA de js/waves.js (import con
-// query): el módulo guarda a nivel de archivo la zona de entrada del jefe
-// (nextBossEntry → _lastBossZone), así que reutilizar la instancia haría
-// que un stage dependiera de los stages corridos antes en el mismo proceso.
+// query) para aislar cualquier estado de módulo (las tablas manuales se
+// decoran una sola vez al cargar). La entrada del jefe ya NO es estado de
+// módulo: vive en cada WaveManager y se siembra con el seed de la run.
 //
 // ------------------------------------------------------------
 // ULTIMATE / BLACK HOLE (fase 26)
@@ -973,8 +973,7 @@ function armKillBudget(game, budget) {
 }
 
 // Contador de runs: cada run carga una instancia FRESCA de js/waves.js
-// (ver runStage) — el import estático no sirve porque waves.js guarda
-// estado a nivel de módulo (la zona de entrada del jefe: nextBossEntry).
+// (ver runStage) para aislar el estado de módulo del director.
 let runCounter = 0;
 
 /**
@@ -1013,11 +1012,9 @@ export async function runStage(stageId, mode = DEFAULT_MODE, seed = 1, opts = {}
   Math.random = rngWorld; // ← TODO el azar del juego sale de aquí
 
   try {
-    // Instancia FRESCA de waves.js por run: el módulo guarda a nivel de
-    // archivo la zona de entrada del jefe (nextBossEntry → _lastBossZone),
-    // así que reutilizar la instancia haría que el stage N dependiera de
-    // los stages corridos antes (no reproducible al comparar dos órdenes
-    // de corrida distintos).
+    // Instancia FRESCA de waves.js por run para aislar el estado de
+    // módulo del director. La entrada del jefe ya es por-manager (seed),
+    // así que la run es reproducible aunque se reutilice la instancia.
     const runQuery = ++runCounter;
     const wavesMod = await import(`../js/waves.js?run=${runQuery}`);
     const managerMod = await import(`../js/waves-manager.js?run=${runQuery}`);

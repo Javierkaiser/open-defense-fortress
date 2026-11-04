@@ -7,7 +7,11 @@
 // ANTES/DESPUÉS de un cambio de director, y el que fija la guarda del
 // presupuesto de HP (±10 % por etapa).
 //
-//   node scripts/probe-waves.mjs [--seeds=20] [--stages=1,5,6,10,20,30,40,50] [--full]
+//   node scripts/probe-waves.mjs [--seeds=20] [--stages=1,5,6,10,20,30,40,50] [--full] [--run]
+//
+// `--run` mide la tabla que JUEGA la run (`campaignWavesForRun`: formaciones,
+// franjas y micro-ritmo randomizados por semilla). Sin el flag mide la tabla
+// CANÓNICA (`campaignWaves`), que es la referencia estable de tests/balance.
 //
 // `--stages` acepta listas y rangos hasta la etapa 200 (`--stages=51-60`,
 // `--stages=50,51,55,60`): el modo infinito (fase 67) se mide con el mismo
@@ -26,6 +30,10 @@ const args = Object.fromEntries(process.argv.slice(2).map((a) => a.replace(/^--/
 const SEEDS = Number(args.seeds ?? 20);
 const FAMILIAS = args.familias === '' || args.familias === 'true' || args.familias === '1';
 const FULL = args.full === '' || args.full === 'true' || args.full === '1';
+const RUN = args.run === '' || args.run === 'true' || args.run === '1';
+/** Tabla a medir: la canónica o la que juega la run. */
+const wavesOf = RUN && typeof W.campaignWavesForRun === 'function'
+  ? W.campaignWavesForRun : W.campaignWaves;
 const STAGES = FULL
   ? Array.from({ length: 50 }, (_, i) => i + 1)
   // Mismo parser que el sim (rangos + etapas 51..200 del modo infinito).
@@ -120,7 +128,7 @@ function metricsOf(waves, stage) {
 function stageRow(stage) {
   const runs = [];
   for (let s = 0; s < SEEDS; s++) {
-    runs.push(metricsOf(W.campaignWaves(stage, 1000 + s * 7919 + stage), stage));
+    runs.push(metricsOf(wavesOf(stage, 1000 + s * 7919 + stage), stage));
   }
   const avg = (k) => runs.reduce((a, r) => a + r[k], 0) / runs.length;
   const waves = runs[0].waves;
@@ -174,7 +182,7 @@ if (FAMILIAS) {
   console.log('|---|---|---|---|---|---|---|');
   for (const s of STAGES) {
     const runs = [];
-    for (let k = 0; k < SEEDS; k++) runs.push(metricsOf(W.campaignWaves(s, 1000 + k * 7919 + s), s));
+    for (let k = 0; k < SEEDS; k++) runs.push(metricsOf(wavesOf(s, 1000 + k * 7919 + s), s));
     const keys = ['rock', 'crystal', 'spore', 'virus'];
     const avg = Object.fromEntries(keys.map((f) => [f, Math.round(
       runs.reduce((a, r) => a + (r.famPct[f] ?? 0), 0) / runs.length,

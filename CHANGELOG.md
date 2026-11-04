@@ -4,6 +4,31 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.14.0] — 2026-11-04
+
+### Variedad de entrada del director de olas
+
+- Nuevos módulos **`waves-formation.js`** (formaciones, franjas y posiciones
+  puras) y **`waves-rng.js`** (mulberry32, `hashSeed` y ruido determinista).
+- Cada grupo recibe una formación (espejo, sesgo, dispersión, jitter y
+  micro-escalonado) derivada de `(etapa, semilla)`. La campaña conserva la
+  familia del patrón y la franja del arquetipo.
+- `campaignWavesForRun()` viste la tabla que juega la run; `campaignWaves()`
+  queda como referencia canónica. Las tablas manuales 1..5 se clonan sin
+  mutar `STAGE_WAVES`; el vestido no altera la franja de los grupos
+  generados (el crystal conserva la suya).
+- La entrada del jefe usa un estado de run compartido entre stages: no repite
+  zona ni dirección de barrido entre jefes consecutivos y sigue siendo
+  determinista por semilla.
+- El spawn diferido reutiliza la formación del grupo y las posiciones son
+  independientes del orden de liberación.
+- `probe-waves --run` ahora diferencia la tabla de run también en 6..50.
+
+### Tests / versión
+
+- **1115 tests, 0 skip** (37 archivos).
+- Versión **1.14.0** / Android `versionCode 31`.
+
 ## [1.13.2] — 2026-11-04
 
 ### HUD móvil y contraste

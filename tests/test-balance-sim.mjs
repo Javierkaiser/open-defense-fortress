@@ -47,9 +47,9 @@ test('DETERMINISMO: la misma (stage, seed) da las mismas métricas', async () =>
 });
 
 test('DETERMINISMO: también en los stages con jefe', async () => {
-  // waves.js guarda a nivel de módulo la zona de entrada del jefe
-  // (nextBossEntry): sin una instancia fresca por run, la segunda run del
-  // mismo stage en el mismo proceso salía distinta.
+  // La entrada del jefe ya es por-manager y se siembra con el seed de la
+  // run; este test fija que dos corridas iguales en el mismo proceso sean
+  // idénticas (antes dependía del estado de módulo).
   const a = await runStage(1, 'greedy', 99);
   const b = await runStage(1, 'greedy', 99);
   assert.deepEqual(a, b);
