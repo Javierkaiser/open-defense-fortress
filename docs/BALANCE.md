@@ -587,6 +587,12 @@ legendarias, no la curva base.
   margen; no hizo falta tocar `craterDps`.
 - Cráter del Mortar (1.8.0): el splash sigue en 150 px y el cráter persistente
   baja al **80 % (120 px)**. El daño del cráter no cambia, solo su cobertura.
+- **Nerf 1.16.2**: Thunderstroke **1,6 → 2,0 s** (−20 % de DPS; 40,6 → 32,5
+  nominal, 30,5 → 24,4 con dial); Mortar **2,2 → 2,6 s** (−15 % directo;
+  20,5 → 17,3 nominal, 15,3 → 13,0 con dial), cráter **120 → 97,5 px** y
+  **3 → 2,2 s**, y vuelo del obús fijado en **1,6 s** para desacoplarlo del
+  cooldown. En el sim forzado (5 semillas) no hay colapso: ambos pierden una
+  semilla en S30 y mantienen S10/S20; S50 sigue en 0 %.
 - Renombre (1.5.3): Avispas → Mosquitos es sólo texto/flavor; no cambia
   stats, cartas ni balance.
 - Limpieza de cartas (1.5.4): se quitaron `xp_boost` y `score_gain`; el

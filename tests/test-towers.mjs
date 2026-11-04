@@ -1713,9 +1713,25 @@ test('fase 76.2: el Mortar conserva la config del cráter al disparar', () => {
   assert.ok(shell.crater, 'el cráter viaja en el obús (no lo filtra pickOnHit)');
   assert.equal(shell.crater.dps, TOWERS.mortar.mech.dps);
   assert.equal(shell.crater.time, TOWERS.mortar.mech.duration);
-  // Ronda 1.8.0: el cráter es más chico que el splash (×0,8).
+  // 1.16.2: el cráter es más chico que el splash (×0,65).
   assert.equal(shell.crater.radius, shell.blastR * TOWERS.mortar.craterMul);
-  assert.equal(shell.crater.radius, 120);
+  assert.equal(shell.crater.radius, TOWERS.mortar.blastR * TOWERS.mortar.craterMul);
+});
+
+test('1.16.2: nerf de Thunderstroke y Mortar (cadencia y cráter)', () => {
+  assert.equal(TOWERS.thunderstroke.cooldown, 2.0,
+    'Thunderstroke: 1,6 → 2,0 s');
+  assert.equal(TOWERS.mortar.cooldown, 2.6,
+    'Mortar: 2,2 → 2,6 s');
+  assert.equal(TOWERS.mortar.craterMul, 0.65,
+    'el cráter baja al 65 % del splash');
+  assert.equal(TOWERS.mortar.mech.duration, 2.2,
+    'el cráter dura 2,2 s');
+  assert.equal(TOWERS.mortar.flightTime, 1.6,
+    'el vuelo del obús es independiente del cooldown');
+  const shell = new MortarShell(100, 500, null, null, 45, 150, null);
+  assert.equal(shell.duration, TOWERS.mortar.flightTime,
+    'subir el cooldown no puede alargar el vuelo');
 });
 
 test('fase 76.2: al detonar, el Mortar agrega un CraterFx visible', () => {
@@ -1732,14 +1748,16 @@ test('fase 76.2: al detonar, el Mortar agrega un CraterFx visible', () => {
   assert.ok(crater, 'el impacto debe dejar un CraterFx en el campo');
   assert.equal(crater.dps, 12 * dpsScaleFor('mortar'));
   assert.equal(crater.life, 3);
-  assert.equal(crater.radius, 120, 'ronda 1.8.0: el cráter es 0,8 × el splash');
+  assert.equal(crater.radius, 150 * TOWERS.mortar.craterMul,
+    'el cráter es craterMul × el splash efectivo');
   assert.equal(crater.slow, 0.1);
 });
 
 test('fase 76.2: el cráter dibuja un anillo visible sin romper el frame', () => {
   const game = { engine: { _t: 0 }, fortress: { enemies: [] } };
   const crater = new CraterFx(game, 0, 0, { dps: 8, life: 3, slow: 0.1 });
-  assert.equal(crater.radius, 120, 'el default sale de blastR × craterMul');
+  assert.equal(crater.radius, TOWERS.mortar.blastR * TOWERS.mortar.craterMul,
+    'el default sale de blastR × craterMul');
   const calls = [];
   const ctx = {
     save() {}, restore() {}, beginPath() {},
@@ -1751,19 +1769,20 @@ test('fase 76.2: el cráter dibuja un anillo visible sin romper el frame', () =>
   assert.ok(calls.includes('arc'), 'el dibujo usa el radio del área');
 });
 
-test('ronda 1.8.0: borde del cráter — a 119 px pega y a 121 px no', () => {
+test('1.16.2: borde del cráter — pega justo dentro y no justo fuera', () => {
+  const R = TOWERS.mortar.blastR * TOWERS.mortar.craterMul;
   const mkDummy = (x) => ({
     x, y: 0, r: 0, hp: 100, hpMax: 100, dead: false, slowFactor: 1, stun: 0,
     takeDamage(n) { this.hp -= n; return false; },
   });
-  const dentro = mkDummy(119);
-  const fuera = mkDummy(121);
+  const dentro = mkDummy(R - 1);
+  const fuera = mkDummy(R + 1);
   const game = { engine: { _t: 0 }, fortress: { enemies: [dentro, fuera] } };
-  // Sin `radius`: el cráter del Mortero mide 0,8 × 150 = 120 px.
+  // Sin `radius`: el cráter del Mortero mide 0,65 × 150 = 97,5 px.
   const crater = new CraterFx(game, 0, 0, { dps: 20, life: 3, slow: 0.1 });
   crater.update(0.3);
-  assert.ok(dentro.hp < 100, 'a 119 px el cráter hace daño');
-  assert.equal(fuera.hp, 100, 'a 121 px el cráter no toca');
+  assert.ok(dentro.hp < 100, `a ${R - 1} px el cráter hace daño`);
+  assert.equal(fuera.hp, 100, `a ${R + 1} px el cráter no toca`);
 });
 
 test('ronda 1.8.0: el splash del Mortero sigue llegando a 149 px', () => {
@@ -1783,7 +1802,7 @@ test('ronda 1.8.0: el splash del Mortero sigue llegando a 149 px', () => {
   assert.equal(fuera.hp, fuera.hpMax, 'a 151 px el splash no llega');
 });
 
-test('ronda 1.8.0: areaMul escala splash y cráter juntos (cráter = 0,8 × splash)', () => {
+test('1.16.2: areaMul escala splash y cráter juntos (cráter = 0,65 × splash)', () => {
   setPerks({});
   const target = mkAlvo(270, 500);
   const game = mkGameEnemies([target]);

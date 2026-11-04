@@ -4,6 +4,25 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.16.2] — 2026-11-04
+
+### Nerf de Thunderstroke y Mortar
+
+- **Thunderstroke**: cooldown **1,6 → 2,0 s** (−20 % de DPS). Daño, área,
+  mini rayos y stun no cambian.
+- **Mortar**: cooldown **2,2 → 2,6 s** (−15 % de DPS directo).
+- **Cráter del Mortar**: radio **×0,8 → ×0,65** (120 → 97,5 px) y duración
+  **3 → 2,2 s**. El splash del impacto sigue en 150 px.
+- **Vuelo del obús**: se desacopla del cooldown en `flightTime: 1,6 s`; antes
+  `cooldown × 0,72`, así que el nerf de cadencia no vuelve más lento el
+  proyectil.
+- Tests de contrato actualizados y test nuevo de vuelo/cráter.
+
+### Tests / versión
+
+- **1173 tests, 0 skip** (39 archivos).
+- Versión **1.16.2** / Android `versionCode 36`.
+
 ## [1.16.1] — 2026-11-04
 
 ### Ajustes visuales de HUD y cartas

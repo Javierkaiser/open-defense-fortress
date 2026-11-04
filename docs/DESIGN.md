@@ -168,7 +168,7 @@ MENU ⇄ CREDITS
 | Beam | Foco térmico de un blanco | Ramp de foco + `melt` (hasta 3 stacks); robo de vida y slow |
 | Thunderstroke | Tormenta de control | Stun que marca `judgment` (+15 % eléctrico) y estallido de área |
 | Tesla | Conducción local | Cadena con `ion` (+10 % eléctrico) y bifurcación |
-| Mortar | Artillería de zona | Cráter persistente que quema y frena, con anillo ámbar visible; el cráter cubre el 80 % del radio del splash |
+| Mortar | Artillería de zona | Cráter persistente de 2,2 s que quema y frena, con anillo ámbar visible; el cráter cubre el 65 % del radio del splash |
 | Gauss | Riel anti-blindaje | Marca `rail`: las OTRAS torres hacen +10 % balístico |
 | Láser | Corte estático | Marca `cut`: +8 % de daño de cualquier fuente; penetra la línea |
 
@@ -493,7 +493,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1172 tests (1172 pass, 0 skip) en 39 archivos.
+- 1173 tests (1173 pass, 0 skip) en 39 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

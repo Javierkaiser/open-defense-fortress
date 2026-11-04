@@ -112,7 +112,9 @@ export const TOWERS = {
     // a los vecinos. `areaR`/`areaFrac`/`areaTargets`/`areaStun` son ese
     // estallido; los perks extraCount/chainFork suman mini rayos, no
     // rayos principales.
-    cooldown: 1.6, damage: 65, stun: 0.2,
+    // 1.16.2 — nerf de cadencia: 1,6 → 2,0 s (−20 % de DPS). El rayo
+    // principal y los mini rayos conservan daño, área y stun.
+    cooldown: 2.0, damage: 65, stun: 0.2,
     areaR: 130, areaFrac: 0.5, areaTargets: 3, areaStun: 0.1,
     detectHalfWidth: Infinity,
     color: '#B48CFF', coreColor: '#FFFFFF',
@@ -157,16 +159,21 @@ export const TOWERS = {
     // 110 sólo entraban los enemigos a ≤122 px del blanco (radio + r del
     // enemigo): dos enemigos separados 150 px (lo normal en una oleada)
     // veían cómo el obús mataba a UNO solo.
-    cooldown: 2.2, damage: 45, blastR: 150,
-    // ronda 1.8.0: el CRÁTER (zona que queda ardiendo) es más chico que el
-    // splash del impacto. El splash sigue en `blastR`; el cráter, en
+    // 1.16.2 — nerf de cadencia: 2,2 → 2,6 s. El splash sigue en 150 px;
+    // el cráter baja a 0,65 × 150 = 97,5 px y a 2,2 s.
+    cooldown: 2.6, damage: 45, blastR: 150,
+    // El CRÁTER (zona que queda ardiendo) es más chico que el splash del
+    // impacto. El splash sigue en `blastR`; el cráter, en
     // `blastR * craterMul`. El daño del cráter no cambia, solo su radio.
-    craterMul: 0.8,
+    craterMul: 0.65,
+    // El vuelo del obús NO se deriva de la cadencia: un nerf de cooldown no
+    // tiene que volver más lento el proyectil (ver MortarShell).
+    flightTime: 1.6,
     speed: 300, bodyColor: '#16181D', accent: '#FFD24A',
     detectHalfWidth: Infinity, // artillería anti-área: apunta a TODO el campo
     // Identidad: negación de zona. El impacto deja un cráter que quema y
-    // frena durante 3 s; los perks alargan/refuerzan ese cráter.
-    mech: { id: 'crater', dps: 8, duration: 3, slow: 0.10 },
+    // frena durante 2,2 s; los perks alargan/refuerzan ese cráter.
+    mech: { id: 'crater', dps: 8, duration: 2.2, slow: 0.10 },
   },
   gauss: {
     name: 'Gauss',

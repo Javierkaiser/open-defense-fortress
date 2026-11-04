@@ -115,7 +115,10 @@ export class MortarShell {
     // Arco: sube rápido y cae sobre el blanco (parábola temporal t∈[0,1])
     this.sx = x; this.sy = y;
     this.t = 0;
-    this.duration = TOWERS.mortar.cooldown * 0.72; // ~1.6 s de vuelo
+    // 1.16.2: el vuelo es su propia stat. Antes salía del cooldown
+    // (`cooldown * 0.72`), así que subir la cadencia también hacía caer el
+    // obús más tarde. `flightTime` desacopla las dos cosas.
+    this.duration = TOWERS.mortar.flightTime ?? TOWERS.mortar.cooldown * 0.72;
     this.damage = damage ?? TOWERS.mortar.damage;
     this.blastR = blastR ?? TOWERS.mortar.blastR; // v6 perk: radio +15%
     // Ronda 1.8.0: si el cráter no trae radio propio (forma vieja con

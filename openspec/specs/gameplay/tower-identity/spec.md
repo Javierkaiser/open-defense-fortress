@@ -158,9 +158,9 @@ al barrido y emitir partículas y `drone:fire`.
 
 ### Requirement: El cráter del Mortar es visible
 
-El impacto del Mortar MUST crear un `CraterFx` con un radio igual al **80 %
+El impacto del Mortar MUST crear un `CraterFx` con un radio igual al **65 %
 del radio efectivo de la explosión** (el splash sigue usando el 100 %), un
-anillo ámbar visible y una duración igual a la configurada.
+anillo ámbar visible y una duración de **2,2 s**.
 MUST seguir haciendo daño y aplicando slow a todo enemigo que entre en el
 radio mientras viva.
 

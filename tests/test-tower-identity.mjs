@@ -243,7 +243,8 @@ test('identidad: el Cráter del Mortar quema y frena dentro de su radio', () => 
   const fuera = dummy({ x: 500, y: 0 });
   const game = { engine: { _t: 0 }, fortress: { enemies: [dentro, fuera] } };
   const crater = new CraterFx(game, 0, 0, { dps: 20, life: 3, slow: 0.1 });
-  assert.equal(crater.radius, 120, 'ronda 1.8.0: 0,8 × blastR 150');
+  assert.equal(crater.radius, TOWERS.mortar.blastR * TOWERS.mortar.craterMul,
+    '1.16.2: 0,65 × blastR 150');
   crater.update(0.3);
   assert.ok(dentro.hp < 100, 'el cráter hace daño dentro del radio');
   assert.equal(fuera.hp, 100, 'el cráter no toca fuera del radio');
