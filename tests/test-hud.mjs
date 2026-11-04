@@ -4256,3 +4256,21 @@ test('fase 78: renderBossBar escribe la mecánica firma y la limpia sin mecánic
       'la barra del Híbrido no puede heredar "PLACAS 2/3"');
   });
 });
+
+test('1.16.0: el banner del bombardeo orbital usa la variante dorada', () => {
+  withFakeDocument(() => {
+    const hud = fakeHudLive();
+    const host = fakeHost();
+    hud.root = { parentElement: host };
+
+    const aviso = hud.showUltimateFired();
+    assert.ok(aviso, 'el aviso se crea');
+    assert.ok(aviso.className.includes('aviso--ultimate'),
+      'el lanzamiento del ultimate tiene su propia variante');
+    assert.ok(aviso.innerHTML.includes('BOMBARDEO ORBITAL'), aviso.innerHTML);
+    assert.ok(aviso.innerHTML.includes('OBJETIVO FIJADO'), aviso.innerHTML);
+    assert.ok(aviso.innerHTML.includes('icon_ultimate_gold.png'),
+      'usa el icono del ultimate');
+    assert.ok(css.includes('.aviso--ultimate'), 'falta el estilo .aviso--ultimate');
+  });
+});

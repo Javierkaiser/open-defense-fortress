@@ -1954,6 +1954,13 @@ export class Game {
     this.engine.setTimeScale(0);
   }
 
+  /**
+   * API pública mínima para que una entidad pida hit-stop (el remate del
+   * bombardeo orbital lo usa). Mantiene `_hitStop` encapsulado.
+   * @param {number} ms
+   */
+  hitStop(ms) { this._hitStop(ms); }
+
   /** Restaura el tiempo tras un hit-stop (llamado en cada frame). */
   _updateHitStop() {
     if (!this._hitStopUntil) return;

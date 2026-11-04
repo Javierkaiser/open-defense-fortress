@@ -272,6 +272,9 @@ export class HUD {
     // AVISOS de la partida como el del jefe: pasan por la misma pila.
     this.engine?.on?.('ultimate:ready', () => this.showUltimateReady('ultimate'));
     this.engine?.on?.('blackhole:ready', () => this.showUltimateReady('blackhole'));
+    // 1.16.0: el bombardeo orbital anuncia su lanzamiento con un banner
+    // corto (el canvas ya muestra el designador y los impactos).
+    this.engine?.on?.('ultimate:fired', () => this.showUltimateFired());
 
     this._bindButtons();
 
@@ -2198,6 +2201,22 @@ export class HUD {
       title: esBH ? '\u00a1BLACK HOLE LISTO!' : '\u00a1ULTIMATE LISTO!',
       name: accion,
       ms: 1800,
+    });
+  }
+
+  /**
+   * 1.16.0 — Banner del BOMBARDEO ORBITAL. Es un aviso de partida más:
+   * la variante `ultimate` lo pinta dorado y el icono es el del ultimate.
+   *
+   * @returns {Element|null}
+   */
+  showUltimateFired() {
+    return this.showAviso({
+      variant: 'ultimate',
+      title: 'BOMBARDEO ORBITAL',
+      name: 'OBJETIVO FIJADO',
+      icon: 'assets/sprites/ui_tinted/icon_ultimate_gold.png',
+      ms: 1500,
     });
   }
 

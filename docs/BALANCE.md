@@ -136,6 +136,29 @@ jefes no fugan y la run se decide por las olas. El RITMO de la pelea (ventanas
 de exposición, devorar, resurrección y metamorfosis) se valida con smoke
 manual: el simulador mide la etapa, no la pelea del jefe.
 
+## Ultimate: Bombardeo Orbital (1.16.0)
+
+`node scripts/balance-sim.mjs --mode=inteligente --meta=trajectory --seeds=5`
+contra 1.15.1, con las mismas semillas:
+
+| Etapa | Win antes → después | Duración (s) | Disparos/run |
+|---|---:|---:|---:|
+| 1 | 100 % → 100 % | 183 → 183 | — |
+| 10 | 20 % → 20 % | 104 → 103 | — |
+| 20 | 0 % → **20 %** | 87 → 105 | — |
+| 30 | 0 % → **20 %** | 76 → 96 | — |
+| 40 | 0 % → **20 %** | 92 → 113 | — |
+| 50 | 0 % → 0 % | 74 → 74 | — |
+| **Total** | — | — | **1,60 → 2,23** |
+
+El +20 % de S20/S30/S40 es **una semilla de cinco**, no un cambio de banda:
+S50 sigue en 0 % y S10 no se mueve. El ultimate ahora impacta en la `y` real
+de los enemigos y limpia el racimo, así que el sim lo dispara más seguido
+(2,23 por run). El límite `bossMul = 0,5` se aplica a todos los impactos; aun
+así el jefe recibe una fracción del daño (la matriz de familias sigue
+mandando). Si en una medición con más semillas S20/S30/S40 suben de banda,
+el dial a tocar es `ORBITAL.damage` o `bossMul`, no el targeting.
+
 ## Director de olas
 
 `waves.js` reparte un **presupuesto de HP**, no una lista fija:

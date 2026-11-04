@@ -11,15 +11,21 @@
 // Recibe referencias por parámetro — jamás importa hud/cards/main.
 // ============================================================
 
-import { CONFIG, SCENE, clamp, rand, TOWER_BAY } from './engine.js';
+import { CONFIG, SCENE, clamp, TOWER_BAY } from './engine.js';
 import {
   Tower, TOWERS, Drone, MAX_DRONES, DRONES,
   BlackHoleFx, blackHolePoint, BLACK_HOLE,
 } from './towers.js';
+import {
+  ORBITAL, ORBITAL_IMPACT_TIMES, ORBITAL_COLORS,
+  orbitalCenter, orbitalStrikePoint, orbitalFinisherPoint,
+  orbitalDamageFor, orbitalRadiusFor, orbitalIsFinisher,
+  applyOrbitalDamage, drawOrbitalDesignator, drawOrbitalWarning,
+  drawOrbitalImpact,
+} from './ultimate.js';
 // fase 60: la caja del ENCAJE de los slots vacíos sale del pad de las
 // torres (misma geometría para vacío y ocupado).
 import { TOWER_PAD, TOWER_VISUAL_SCALE } from './tower-art.js';
-import { applyProjectileHit } from './enemies.js';
 import { healBase } from './base-heal.js';
 import { createComboMods } from './combo-mods.js';
 import {
@@ -116,7 +122,8 @@ export function shieldSegments(hp, maxHp, count = SHIELD_SEGMENTS) {
 // pasivo). 40 kills llenan el medidor; un boss suma cargas extra.
 export const ULT_KILLS = 40;
 export const ULT_BOSS_CHARGES = 15;
-const ORBITAL = { count: 12, duration: 2.5, damage: 90, radius: 80 };
+// El bombardeo (ORBITAL) vive en js/ultimate.js: radio de alfombra, patrón,
+// daño limitado a jefes y helpers de dibujo.
 
 // BLACK HOLE (v4 4b/5): medidor 0..1 con la MISMA mecánica que el
 // ultimate — SOLO kills. Mitad de costo que el orbital (es situacional):
@@ -236,8 +243,13 @@ export class Fortress {
     this.enemies = [];
 
     // Ultimate (dev-4, §2.8): carga SOLO por kills — sin cooldown pasivo.
+    // 1.16.0: el bombardeo agenda avisos e impactos sobre un racimo; el
+    // estado vive acá y el daño se aplica en _updateOrbital (no en un fx).
     this._orbitalTimer = 0;   // s restantes de la lluvia activa
-    this._spawnedOrbitals = 0;
+    this._orbitalElapsed = 0;
+    this._orbitalNext = 0;
+    this._orbitalPending = [];
+    this._orbitalCenter = null;
     // fase 75: el engine dibuja tantas bahías como la Fortress activa.
     // Una run nueva sin Arsenal vuelve a 5; `dropLastSlot` baja a 4.
     this.game?.engine?.setDeckSlotCount?.(this._frontCount);
@@ -556,24 +568,43 @@ export class Fortress {
     }
   }
 
-  /** ¿Puede dispararse ahora? (carga completa y sin lluvia activa). */
+  /**
+   * ¿Puede dispararse ahora? Carga completa y sin bombardeo activo.
+   * 1.16.0: el guard de `_orbitalTimer` evita reiniciar la lluvia y perder
+   * los impactos pendientes (el balance-sim ya lo comprobaba por fuera).
+   */
   canFireUltimate() {
-    return this.ultReady && this.ultCharge >= 1;
+    return this.ultReady && this.ultCharge >= 1 && (this._orbitalTimer ?? 0) <= 0;
   }
 
   /**
-   * ORBITAL STRIKE: programa 12 impactos durante 2.5 s en X aleatorias,
-   * 90 de daño en r=80 cada uno + shake/flash. Reinicia la carga.
+   * BOMBARDEO ORBITAL (1.16.0): fija el racimo más denso, lanza el
+   * designador y agenda 11 impactos + remate. El daño NO se aplica acá:
+   * `_updateOrbital` lo hace cuando vence cada impacto, así el balance-sim
+   * headless sigue midiendo el ultimate (no actualiza `engine.effects`).
+   *
    * @returns {boolean} false si no estaba lista
    */
   fireUltimate(game = this.game) {
     if (!this.canFireUltimate()) return false;
     this.ultReady = false;
     this.ultCharge = 0;
+    const enemies = game?.fortress?.enemies;
+    const center = orbitalCenter(enemies);
+    this._orbitalCenter = center;
     this._orbitalTimer = ORBITAL.duration;
-    this._spawnedOrbitals = 0;
+    this._orbitalElapsed = 0;
+    this._orbitalNext = 0;
+    this._orbitalPending = [];
     const eng = game?.engine;
-    eng?.emit('ultimate:fired', {});
+    const lowQ = eng?._qualityId === 'baja';
+
+    // Designador del racimo: se ve desde el lanzamiento hasta el remate.
+    eng?.addEffect({
+      life: ORBITAL.duration,
+      draw: (ctx, t) => drawOrbitalDesignator(ctx, center, t, lowQ),
+    });
+    eng?.emit('ultimate:fired', { center: { ...center } });
     eng?.shake(6, 500);
     eng?.addEffect({ life: 0.5, draw: (ctx, t) => { // flash blanco global
       ctx.save();
@@ -589,8 +620,8 @@ export class Fortress {
     eng?.addEffect({ life: 0.7, draw: (ctx, t) => {
       ctx.save();
       ctx.globalAlpha = t * 0.9;
-      ctx.strokeStyle = '#FFD24A';
-      ctx.shadowColor = '#FFD24A';
+      ctx.strokeStyle = ORBITAL_COLORS.gold;
+      ctx.shadowColor = ORBITAL_COLORS.gold;
       ctx.shadowBlur = 18;
       ctx.lineWidth = 4 + 6 * (1 - t);
       ctx.beginPath();
@@ -598,59 +629,101 @@ export class Fortress {
       ctx.stroke();
       ctx.restore();
     } });
-    eng?.spawnParticles(bx, by, '#FFD24A', 26, {
+    eng?.spawnParticles(bx, by, ORBITAL_COLORS.gold, 26, {
       speedMin: 120, speedMax: 380, gravity: -20,
       lifeMin: 0.4, lifeMax: 0.9, sizeMin: 2, sizeMax: 5,
     });
-    eng?.spawnParticles(bx, by, '#FFFFFF', 14, {
+    eng?.spawnParticles(bx, by, ORBITAL_COLORS.white, 14, {
       speedMin: 80, speedMax: 230, lifeMin: 0.2, lifeMax: 0.5, sizeMin: 1, sizeMax: 3,
     });
     return true;
   }
 
-  /** Tick de la lluvia orbital: spawnea impactos programados y los aplica. */
+  /**
+   * Agenda y aplica el bombardeo. Cada impacto se elige `ORBITAL.warning`
+   * antes de vencer (avisos visuales) y se aplica cuando llega su hora.
+   * El centro se re-evalúa en cada impacto: si la horda se mueve, la
+   * alfombra la sigue en vez de golpear donde estaba al lanzar.
+   */
   _updateOrbital(dt, enemies) {
-    if (this._orbitalTimer <= 0) return;
+    if (!(dt > 0) || this._orbitalTimer <= 0) return;
+    const list = Array.isArray(enemies)
+      ? enemies : (this.game?.fortress?.enemies ?? []);
+    const eng = this.game?.engine;
+    const lowQ = eng?._qualityId === 'baja';
+    this._orbitalElapsed += dt;
     this._orbitalTimer -= dt;
-    // Impacto k ocurre al cruzar t_k = D·k/N (k=0 ya, el último a ~2.29 s)
-    while (this._spawnedOrbitals < ORBITAL.count
-      && this._orbitalTimer <= ORBITAL.duration
-        * ((ORBITAL.count - this._spawnedOrbitals) / ORBITAL.count)) {
-      const x = rand(50, CONFIG.CANVAS_W - 50);
-      const strike = { x };
-      this._spawnedOrbitals += 1;
-      // Impacto: explosión + daño en área inmediato (§2.8)
-      const eng = this.game?.engine;
-      if (eng) {
-        eng.spawnParticles(x, rand(120, 420), '#FFD24A', 16, {
-          speedMin: 60, speedMax: 240, lifeMin: 0.3, lifeMax: 0.7,
-          sizeMin: 2, sizeMax: 5,
+
+    // 1) Avisos: se fija el target antes del impacto.
+    while (this._orbitalNext < ORBITAL_IMPACT_TIMES.length) {
+      const at = ORBITAL_IMPACT_TIMES[this._orbitalNext];
+      if (this._orbitalElapsed < at - ORBITAL.warning) break;
+      const index = this._orbitalNext;
+      const final = orbitalIsFinisher(index);
+      const center = orbitalCenter(list);
+      this._orbitalCenter = center;
+      const point = final
+        ? orbitalFinisherPoint(list, center)
+        : orbitalStrikePoint(list, center, index);
+      this._orbitalPending.push({
+        at, index, x: point.x, y: point.y, final,
+      });
+      const radius = orbitalRadiusFor(index);
+      eng?.addEffect({
+        life: ORBITAL.warning,
+        draw: (ctx, t) => drawOrbitalWarning(ctx, {
+          x: point.x, y: point.y, radius, final,
+        }, t, lowQ),
+      });
+      this._orbitalNext += 1;
+    }
+
+    // 2) Impactos vencidos: daño + lectura (haz, anillos, ceniza, juice).
+    if (!Array.isArray(this._orbitalPending)) this._orbitalPending = [];
+    for (let i = this._orbitalPending.length - 1; i >= 0; i--) {
+      const strike = this._orbitalPending[i];
+      if (!strike || this._orbitalElapsed < strike.at) continue;
+      const final = strike.final === true;
+      const radius = orbitalRadiusFor(strike.index);
+      const damage = orbitalDamageFor(strike.index, this.orbitalDmgMul ?? 1);
+      applyOrbitalDamage(list, {
+        x: strike.x, y: strike.y, damage, radius, bossMul: ORBITAL.bossMul,
+      });
+      eng?.addEffect({
+        life: final ? 1.6 : 1.1,
+        draw: (ctx, t) => drawOrbitalImpact(ctx, {
+          x: strike.x, y: strike.y, radius, final,
+        }, t, lowQ),
+      });
+      const gold = final ? (lowQ ? 14 : 26) : (lowQ ? 5 : 10);
+      const white = final ? (lowQ ? 7 : 14) : (lowQ ? 2 : 5);
+      eng?.spawnParticles?.(strike.x, strike.y, ORBITAL_COLORS.gold, gold, {
+        speedMin: 50, speedMax: final ? 320 : 240, gravity: 80,
+        lifeMin: 0.2, lifeMax: final ? 0.9 : 0.6, sizeMin: 1.3, sizeMax: final ? 4.5 : 3.2,
+      });
+      eng?.spawnParticles?.(strike.x, strike.y, ORBITAL_COLORS.white, white, {
+        speedMin: 40, speedMax: final ? 260 : 180, gravity: 20,
+        lifeMin: 0.15, lifeMax: 0.45, sizeMin: 1, sizeMax: 2.6,
+      });
+      if (final) {
+        eng?.spawnParticles?.(strike.x, strike.y, ORBITAL_COLORS.ember, lowQ ? 6 : 12, {
+          speedMin: 60, speedMax: 300, gravity: -20,
+          lifeMin: 0.3, lifeMax: 0.8, sizeMin: 1.4, sizeMax: 3.6,
         });
-        eng.shake(3, 180);
-        eng.addEffect({ life: 0.35, draw: (ctx, t) => {
+      }
+      eng?.shake?.(final ? 9 : 2.5, final ? 420 : 120);
+      this.game?.audio?.sfx?.(final ? 'explosion' : 'kill');
+      if (final) {
+        this.game?.hitStop?.(55);
+        eng?.addEffect({ life: 0.28, draw: (ctx, t) => {
           ctx.save();
-          ctx.globalAlpha = t * 0.85;
-          ctx.strokeStyle = '#FFD24A';
-          ctx.shadowColor = '#FFD24A';
-          ctx.shadowBlur = 14;
-          ctx.lineWidth = 3;
-          ctx.beginPath(); // columna del rayo orbital + anillo de impacto
-          ctx.moveTo(strike.x, 30);
-          ctx.lineTo(strike.x, 300 + (1 - t) * 140);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.arc(strike.x, 330 + (1 - t) * 110, ORBITAL.radius * (1.15 - t * 0.55), 0, Math.PI * 2);
-          ctx.stroke();
+          ctx.globalAlpha = t * 0.28;
+          ctx.fillStyle = ORBITAL_COLORS.white;
+          ctx.fillRect(-20, -20, CONFIG.CANVAS_W + 40, CONFIG.CANVAS_H + 40);
           ctx.restore();
         } });
       }
-      applyProjectileHit(
-        { x: strike.x, y: 340,
-          damage: ORBITAL.damage * (this.orbitalDmgMul ?? 1),
-          splashR: ORBITAL.radius, dead: false },
-        Array.isArray(enemies) ? enemies : [],
-        ORBITAL.radius,
-      );
+      this._orbitalPending.splice(i, 1);
     }
   }
 

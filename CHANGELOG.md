@@ -4,6 +4,37 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.16.0] — 2026-11-04
+
+### Ultimate: Bombardeo Orbital 2.0
+
+- El ultimate deja de caer en una banda fija de `y=340` con `x` aleatoria:
+  busca el **racimo más denso** con el mismo algoritmo que el Black Hole y
+  cubre una alfombra de 230 px sobre todo el campo jugable.
+- **11 impactos + remate**: cada impacto re-centra el racimo y se pega al
+  enemigo vivo más cercano; el remate pega `×2,5` de daño y `×1,5` de radio.
+- **Límite explícito a jefes**: `×0,5` al daño (no es inmunidad). La matriz
+  de familias, la armadura, el escudo y las placas siguen aplicándose.
+- `canFireUltimate()` bloquea el solapamiento de dos bombardeos.
+- **Estética**: designador sobre el racimo, avisos con retícula y columna,
+  haces, anillos, ceniza persistente, flash/onda de choque, shake e hitstop
+  en el remate. Calidad Baja recorta partículas y anillos.
+- **HUD**: banner dorado `BOMBARDEO ORBITAL` / `OBJETIVO FIJADO` con el
+  icono del ultimate.
+- **Audio**: `ultimate` al lanzar, `kill` por impacto y `explosion` en el
+  remate.
+- Nuevo módulo `js/ultimate.js` y spec
+  `openspec/specs/gameplay/ultimate/spec.md`.
+- Balance (5 semillas, `--meta=trajectory`): el ultimate pasa de 1,60 a 2,23
+  disparos por run; S1 100 %→100 %, S10 20 %→20 %, S20/S30/S40 0 %→20 %,
+  S50 0 %→0 %. Detalle en `docs/BALANCE.md`.
+
+### Tests / versión
+
+- **1168 tests, 0 skip** (39 archivos), incluido
+  `tests/test-ultimate.mjs` (10 tests).
+- Versión **1.16.0** / Android `versionCode 34`.
+
 ## [1.15.1] — 2026-11-04
 
 ### Correcciones de la revisión de Jefes 2.0

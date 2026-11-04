@@ -37,7 +37,7 @@ mediciones, ver [BALANCE.md](BALANCE.md); para la suite, [TESTING.md](TESTING.md
 ```text
 index.html              canvas + HUD DOM + overlays
 css/style.css           HUD, pantallas, temas, responsive
-js/                     56 módulos ES
+js/                     57 módulos ES
 assets/                 fuentes, SFX y sprites usados
 tests/                  node:test
 scripts/                serve, balance-sim, probe-waves, probes
@@ -77,6 +77,7 @@ openspec/specs/         specs de comportamiento
 | `towers-fx.js` | Black Hole, Láser, Beam, Bolt y cráter del Mortar. |
 | `towers-drones.js` | Drones orbitales: ignición, veneno y burbuja. |
 | `player.js` | `Fortress`: base, slots, drones, HP/escudo, Black Hole y render de la plataforma. |
+| `ultimate.js` | Bombardeo orbital: racimo, alfombra de impactos, remate, límite a jefes y helpers de dibujo. |
 | `cards.js` | 108 cartas normales + 33 legendarias aparte, nivel/maestría, efectos, combos, ofertas y topes. |
 | `cards-data.js` | Topes, tags de unidad, técnicas y cazas de familia. |
 | `card-constants.js` | Multiplicadores compartidos por cartas y unidades futuras. |
@@ -350,6 +351,14 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
   una X aleatoria. El mini BH de Singularidad sigue naciendo en la
   explosión. El dibujo suma halo, horizonte pulsante, brazos espirales,
   arcos de lente y chispas; en calidad Baja se recorta.
+- **Bombardeo Orbital (1.16.0)**: el ultimate usa el **mismo buscador de
+  racimo** que el Black Hole, pero con una alfombra de 230 px y todo el
+  campo (incluida la base). Agenda 11 impactos en espiral de ángulo áureo
+  y un remate; cada impacto se pega al enemigo vivo más cercano a su punto
+  del patrón. El daño a jefes se limita a `×0,5` (no es inmunidad). La
+  lectura suma designador, retículas, haces, anillos, ceniza, flash, shake
+  e hitstop; en calidad Baja se recortan partículas y anillos. Contrato en
+  `openspec/specs/gameplay/ultimate/spec.md`.
 
 ## 11. HUD y responsive
 

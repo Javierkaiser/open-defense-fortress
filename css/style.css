@@ -4464,6 +4464,17 @@ html, body {
 .aviso--info {
   border-color: rgb(var(--hud-teal-rgb) / .55);
 }
+/* 1.16.0 — el lanzamiento del bombardeo orbital: la misma pila de avisos,
+   pero dorada y con el icono del ultimate. */
+.aviso--ultimate {
+  border-color: rgb(var(--crit-gold-rgb) / .65);
+  box-shadow: 0 0 18px rgb(var(--crit-gold-rgb) / .30), inset 0 0 12px rgba(0, 0, 0, .5);
+}
+.aviso--ultimate .aviso-title { color: var(--crit-gold); }
+.aviso--ultimate .aviso-name { color: var(--platform-light); }
+.aviso--ultimate .aviso-icon {
+  filter: drop-shadow(0 0 8px rgb(var(--crit-gold-rgb) / .9));
+}
 
 /* La cabecera: el icono (opcional) + el rótulo. */
 .aviso-head {
@@ -6241,6 +6252,11 @@ kbd {
   background: linear-gradient(180deg, rgba(40, 10, 12, .97), rgba(10, 6, 8, .98));
 }
 .aviso--info { border-left-color: var(--hud-teal); }
+.aviso--ultimate {
+  border-color: rgb(var(--crit-gold-rgb) / .55);
+  border-left-color: var(--crit-gold);
+  background: linear-gradient(180deg, rgba(42, 30, 8, .97), rgba(12, 9, 4, .98));
+}
 .aviso-title { font-family: var(--font-body); font-size: var(--text-md); letter-spacing: .04em; }
 .aviso-name { font-family: var(--font-title); letter-spacing: .06em; text-shadow: none; }
 .aviso-rule { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: .04em; }
