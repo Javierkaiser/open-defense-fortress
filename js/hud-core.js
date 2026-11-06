@@ -106,6 +106,9 @@ import {
   CARD_RARITIES,
   cardRarity,
   CARD_PICK_DEBOUNCE_MS,
+  CARD_OPEN_GUARD_MS,
+  cardUnitLabel,
+  cardRequiresText,
   buildCreditsHtml,
   readMetaScroll,
   restoreMetaScroll,
@@ -245,6 +248,12 @@ export class HUD {
     this._cardOfferId = null;
     this._cardPickedIds = [];
     this._lastCardPickAt = null;
+    // 1.17.1 — el modal de level-up elige SÓLO con puntero:
+    //  · `_cardOpenedAt` bloquea los primeros CARD_OPEN_GUARD_MS;
+    //  · `_pointerCard` guarda la carta que recibió el pointerdown; sin
+    //    ese gesto, el click (teclado o programático) no elige nada.
+    this._cardOpenedAt = 0;
+    this._pointerCard = null;
 
     // T8 — tira de estado de batalla (enemigos / DPS): segunda fila del
     // HUD, creada junto con el HUD.
@@ -1688,11 +1697,31 @@ export class HUD {
     div.setAttribute('role', 'dialog');
     div.setAttribute('aria-modal', 'true');
     div.setAttribute('aria-label', 'Selección de mejora');
+    // 1.17.1 — el foco inicial entra al DIÁLOGO, no a la primera carta:
+    // con el foco en un <button>, Espacio/Enter lo activaban y se elegía
+    // una mejora sin querer (el jugador venía usando Espacio para el
+    // ultimate). `tabindex="-1"` lo hace enfocable sin entrar al Tab.
+    div.setAttribute('tabindex', '-1');
     host.appendChild(div);
-    // Tap en carta → evento canónico 'card:pick' (main.js aplica y sigue)
+    // 1.17.1 — SELECCIÓN SÓLO POR PUNTERO. El `pointerdown` sobre una
+    // carta "arma" el gesto; el `click` sólo elige si hay un gesto armado
+    // sobre ESA carta y no pasó más de 1 s. Un click sintetizado por
+    // teclado (o por código) no tiene pointerdown y no elige nada.
+    div.addEventListener('pointerdown', (ev) => {
+      const card = ev.target?.closest?.('[data-card-id]') ?? null;
+      this._pointerCard = card
+        ? { id: card.dataset.cardId, at: Date.now() }
+        : null;
+    });
+    // Tap con puntero → evento canónico 'card:pick' (main.js aplica y sigue)
     div.addEventListener('click', (ev) => {
       const card = ev.target.closest('[data-card-id]');
       if (!card) return;
+      // 1.17.1 — sin gesto de puntero no hay pick (teclado/programático).
+      const gesto = this._pointerCard;
+      this._pointerCard = null;
+      if (!gesto || gesto.id !== card.dataset.cardId
+        || Date.now() - gesto.at > 1000) return;
       // T4 — la carta ya se eligió: no se puede volver a tapar.
       if (card.classList.contains('dealt-out')) return;
       // T4 — anti-doble-toque: dos toques seguidos sobre la MISMA oferta
@@ -1705,6 +1734,8 @@ export class HUD {
         pickedIds: this._cardPickedIds,
         offerId: this._cardOfferId,
         cardId: card.dataset.cardId,
+        openedAt: this._cardOpenedAt,
+        minAgeMs: CARD_OPEN_GUARD_MS,
       });
       if (!ok) return;
       // Marca la carta: se atenúa (CSS .dealt-out) y deja de capturar toques.
@@ -1714,8 +1745,9 @@ export class HUD {
       this.engine.emit('card:pick', { cardId: card.dataset.cardId });
     });
     // Teclado dentro del modal: Esc cierra SOLO el modal de perk (el de
-    // cartas no se puede cerrar sin elegir, o la run queda trabada) y Tab
-    // queda atrapado dentro del diálogo (focus trap).
+    // cartas no se puede cerrar sin elegir, o la run queda trabada), Tab
+    // queda atrapado dentro del diálogo (focus trap) y Espacio/Enter
+    // sobre una CARTA no la eligen (1.17.1: click-only).
     div.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape') {
         if (this._modalKind !== 'perk') return;
@@ -1724,6 +1756,12 @@ export class HUD {
         ev.stopPropagation();
         ev.preventDefault();
         this.hideCardChoice();
+        return;
+      }
+      if ((ev.key === ' ' || ev.key === 'Enter')
+        && ev.target?.closest?.('[data-card-id]')) {
+        ev.preventDefault();
+        ev.stopPropagation();
         return;
       }
       if (ev.key === 'Tab') this._trapModalFocus(ev);
@@ -1841,7 +1879,10 @@ export class HUD {
     const first = list[0];
     const last = list[list.length - 1];
     const active = typeof document !== 'undefined' ? document.activeElement : null;
-    const inside = !!active && modal.contains(active);
+    // 1.17.1 — el contenedor del diálogo lleva el foco inicial: se trata
+    // como "fuera" para que Tab/Shift+Tab entren al primer/último control
+    // en vez de escaparse del modal.
+    const inside = !!active && active !== modal && modal.contains(active);
     if (ev.shiftKey) {
       if (!inside || active === first) {
         ev.preventDefault();
@@ -1939,6 +1980,13 @@ export class HUD {
           : c.doctrine ? `R${Math.min(rank + 1, c.ranks?.length ?? 2)}/${c.ranks?.length ?? 2}`
             : '+1';
       const badgeCls = isUnlock ? ' is-new' : isLegendary ? ' is-legendary' : '';
+      // 1.17.1 — A QUÉ UNIDAD PERTENECE LA CARTA. El chip va SIEMPRE: es la
+      // respuesta a "¿esto mejora a quién?". Para las globales muestra
+      // `GLOBAL · TODAS` y para los combos las dos unidades.
+      const u = cardUnitLabel(c);
+      // 1.17.1 — línea de REQUISITO derivada de los `requires*` (sólo si
+      // la descripción no lo dice ya).
+      const requires = cardRequiresText(c);
       // dev-7 fase 49: el GLIFO del TIPO DE DAÑO de la carta, con su
       // color. Los datos son los de DAMAGE_TYPES (js/damagetypes.js) y
       // el tipo lo declara la propia carta (`card.dmgType`, en cards.js):
@@ -1959,12 +2007,14 @@ export class HUD {
         <button class="card-choice-card rarity-${r.cls}" data-card-id="${c.id}" style="--deal-delay:${i * 120}ms">
           <span class="card-inner">
             <span class="card-lv-badge${badgeCls}">${badge}</span>
+            <span class="card-unit" data-unit-kind="${u.kind}">${esc(u.label)}</span>
             <span class="card-title-row">
               <span class="card-name">${esc(c.name)}</span>
               ${typeBadge}
             </span>
             <i class="card-gems" title="${r.label}">${rarityGems(r.tier)}</i>
             <span class="card-desc">${esc(desc)}</span>
+            ${requires ? `<span class="card-requires">${esc(requires)}</span>` : ''}
             ${synergy ? `<span class="card-synergy">${esc(synergy)}</span>` : ''}
             <span class="card-rarity-label">${r.label}</span>
           </span>
@@ -1996,9 +2046,14 @@ export class HUD {
     this._setModalLabel(isLegendaryDraft
       ? `Legendaria para ${meta?.unitName ?? meta?.unitType ?? 'la unidad'} — elegí 1 de ${n}`
       : `Mejora de nivel — elegí 1 de ${n} ${n === 1 ? 'mejora' : 'mejoras'}`);
-    const firstCard = this.cardModal.querySelector('[data-card-id]');
-    if (firstCard && typeof firstCard.focus === 'function') {
-      try { firstCard.focus(); } catch (_err) { /* sin foco */ }
+    // 1.17.1 — guard de apertura: un click que ya venía en vuelo (el mismo
+    // gesto que disparó el level-up) no puede elegir por el jugador.
+    this._cardOpenedAt = Date.now();
+    this._pointerCard = null;
+    // 1.17.1 — el foco entra al DIÁLOGO, no a la primera carta: con el foco
+    // en un <button>, Espacio/Enter lo activaban (bug del level-up).
+    if (typeof this.cardModal.focus === 'function') {
+      try { this.cardModal.focus(); } catch (_err) { /* sin foco */ }
     }
     // SFX de revelado (D7); el flip lo hace CSS con --deal-delay
     try { this.audio.sfx('card'); } catch (_err) { /* sin ctx aún */ }

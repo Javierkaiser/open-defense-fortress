@@ -4,6 +4,40 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.17.1] — 2026-11-06
+
+### Modal de level-up: la carta se elige sólo con click
+
+- **Espacio ya no elige una carta**: el `keydown` global ignora Espacio (y
+  Enter) en `CARD_CHOICE`. Antes caía al default del navegador, que activaba
+  el `<button>` de la primera carta enfocada: se aplicaba una mejora sin
+  querer al usar la tecla del ultimate.
+- **Selección sólo por puntero**: la carta se "arma" con `pointerdown` y el
+  `click` sólo elige si el gesto fue sobre esa misma carta (≤1 s). Un click
+  sintetizado por teclado o por código no elige nada.
+- **Foco inicial en el diálogo**, no en la primera carta; el focus trap sigue
+  ciclando con Tab.
+- **Guard de apertura** de 180 ms (`CARD_OPEN_GUARD_MS`): un click que ya
+  venía en vuelo al abrir la oferta no elige.
+
+### Cartas: a qué unidad pertenecen y textos más claros
+
+- **Chip de unidad** en cada carta: `TORRE · MORTAR`, `DRON · MOSQUITOS`,
+  `NUEVA TORRE · GAUSS`, `NUEVO DRON · …`, `COMBO · MISSILE + MORTAR`,
+  `TIPO · LUZ` y `GLOBAL · TODAS` (`cardUnitLabel`).
+- **Línea "Requiere: …"** derivada de `requiresUnits`/`requiresTags`/
+  `requiresBlackHole` cuando la descripción no la menciona
+  (`cardRequiresText`).
+- **Descripciones reescritas**: 19 técnicas, 28 doctrinas, 12 del catálogo y
+  5 legendarias. Se eliminó la jerga interna (`ramp`, `homing`, `stacks`,
+  `proc`, `ttk`) y se agregaron números donde faltaban.
+- Spec nueva `openspec/specs/gameplay/level-up-choice/spec.md`.
+
+### Tests / versión
+
+- **1201 tests, 0 skip** (41 archivos). Nuevo `tests/test-level-up.mjs`.
+- Versión **1.17.1** / Android `versionCode 38`.
+
 ## [1.17.0] — 2026-11-06
 
 ### Ritmo de olas sin espacios muertos

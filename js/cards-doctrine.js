@@ -55,7 +55,7 @@ export const DOCTRINE_CARDS = [
   // Beam (1)
   doctrine(
     'doc_beam_lens', 'beam', 'Doctrina: Lente Térmica',
-    { desc: '+0,15 de ramp por segundo', mods: { beamRampPerSecAdd: 0.15 } },
+    { desc: '+0,15 de foco por segundo', mods: { beamRampPerSecAdd: 0.15 } },
     { desc: '+10 % de daño del haz', mods: { dmgMul: 1.1 } },
   ),
 
@@ -108,13 +108,13 @@ export const DOCTRINE_CARDS = [
   // Gauss (3)
   doctrine(
     'doc_gauss_rail', 'gauss', 'Doctrina: Riel',
-    { desc: '+5 % de crítico', mods: { critChanceAdd: 0.05 } },
+    { desc: '+5 % de probabilidad de crítico', mods: { critChanceAdd: 0.05 } },
     { desc: '+10 % de daño', mods: { dmgMul: 1.1 } },
   ),
   doctrine(
     'doc_gauss_tungsten', 'gauss', 'Doctrina: Tungsteno',
     { desc: '+10 % de daño', mods: { dmgMul: 1.1 } },
-    { desc: '+5 % de crítico', mods: { critChanceAdd: 0.05 } },
+    { desc: '+5 % de probabilidad de crítico', mods: { critChanceAdd: 0.05 } },
   ),
   doctrine(
     'doc_gauss_cannon', 'gauss', 'Doctrina: Cañón',
@@ -142,8 +142,8 @@ export const DOCTRINE_CARDS = [
   // Rueda de Fuego (3)
   doctrine(
     'doc_firewheel_flame', 'firewheel', 'Doctrina: Llama',
-    { desc: '+1 de daño por segundo de burn', mods: { burnDpsAdd: 1 } },
-    { desc: '+0,3 s de burn', mods: { burnTimeAdd: 0.3 } },
+    { desc: '+1 de daño por segundo de quemadura', mods: { burnDpsAdd: 1 } },
+    { desc: '+0,3 s de quemadura', mods: { burnTimeAdd: 0.3 } },
   ),
   doctrine(
     'doc_firewheel_orbit', 'firewheel', 'Doctrina: Órbita',
@@ -153,7 +153,7 @@ export const DOCTRINE_CARDS = [
   doctrine(
     'doc_firewheel_fuel', 'firewheel', 'Doctrina: Combustible',
     { desc: '+2 de DPS del barrido', mods: { dpsAdd: 2 } },
-    { desc: '+2 de daño por segundo de burn', mods: { burnDpsAdd: 2 } },
+    { desc: '+2 de daño por segundo de quemadura', mods: { burnDpsAdd: 2 } },
   ),
 
   // Mosquitos (2)
@@ -177,7 +177,7 @@ export const DOCTRINE_CARDS = [
   doctrine(
     'doc_forcefield_thorns', 'forcefield', 'Doctrina: Espinas',
     { desc: '+1,5 de daño por segundo de espinas', mods: { thornDps: 1.5 } },
-    { desc: '+1,5 HP/s de regeneración por enemigo', mods: { bubbleRegen: 1.5 } },
+    { desc: '+1,5 HP/s de regeneración por enemigo atrapado', mods: { bubbleRegen: 1.5 } },
   ),
 
   // 1.12.1 - doctrinas de compensación: estas 5 unidades se quedaban sin
@@ -194,8 +194,8 @@ export const DOCTRINE_CARDS = [
   ),
   doctrine(
     'doc_firewheel_embers', 'firewheel', 'Doctrina: Brasas',
-    { desc: '+2 de daño por segundo de burn', mods: { burnDpsAdd: 2 } },
-    { desc: '+0,5 s de burn', mods: { burnTimeAdd: 0.5 } },
+    { desc: '+2 de daño por segundo de quemadura', mods: { burnDpsAdd: 2 } },
+    { desc: '+0,5 s de quemadura', mods: { burnTimeAdd: 0.5 } },
   ),
   doctrine(
     'doc_wasps_hive', 'wasps', 'Doctrina: Colmena',
@@ -205,7 +205,7 @@ export const DOCTRINE_CARDS = [
   doctrine(
     'doc_forcefield_dome', 'forcefield', 'Doctrina: Cúpula',
     { desc: '+4 px de radio de burbuja', mods: { radiusAdd: 4 } },
-    { desc: '+3 % de slow a los atrapados', mods: { slowOnHit: 0.03 } },
+    { desc: '+3 % de ralentización a los enemigos atrapados', mods: { slowOnHit: 0.03 } },
   ),
 ];
 

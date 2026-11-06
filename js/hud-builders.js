@@ -46,6 +46,11 @@ import { MAX_LEVEL_PER_STAGE } from './score.js';
 // oleadas-dinámicas: ENEMY_FAMILIES da el nombre legible de cada familia
 // para el sesgo de etapa del selector ("roca / virus").
 import { DAMAGE_TYPES, ENEMY_FAMILIES, buildDamageLegendHtml, buildBestiaryHtml } from './damagetypes.js';
+// 1.17.1 — el chip del modal de level-up necesita el nombre visible de la
+// unidad y los tags que declara cada una. towers-data es data pura;
+// UNIT_TAGS vive en cards-data (también data pura, no la lógica de cards.js).
+import { TOWERS, DRONES } from './towers-data.js';
+import { UNIT_TAGS } from './cards-data.js';
 // dev-7 fase 40: el bestiario dibuja al ENEMIGO de verdad (el mismo
 // render que la partida) en un canvasito.
 import { renderEnemyIcon } from './enemies-bestiary.js';
@@ -1138,6 +1143,114 @@ export function cardRarity(card) {
 export const CARD_PICK_DEBOUNCE_MS = 350;
 
 /**
+ * 1.17.1 — GUARD DE APERTURA del modal de level-up (ms). Ningún pick se
+ * acepta en los primeros 180 ms: absorbe un click que ya venía en vuelo
+ * cuando la subida de nivel abrió la oferta.
+ */
+export const CARD_OPEN_GUARD_MS = 180;
+
+/** Nombre visible de una unidad (torre o dron) por id. */
+function unitDisplayName(id) {
+  return TOWERS[id]?.name ?? DRONES[id]?.name ?? String(id ?? '—');
+}
+
+/** ¿El id es un dron? (los drones viven aparte de las torres). */
+function isDroneId(id) {
+  return Object.prototype.hasOwnProperty.call(DRONES, id);
+}
+
+/** Unidades del juego que declaran un tag (p. ej. `blast` → Missile, Mortar).
+ *  El tag puede venir del TIPO DE DAÑO de la unidad (`dmgType`) o de sus
+ *  `UNIT_TAGS`: el pool de cartas usa los dos (cards.js `ownedTags`). */
+function unitsWithTag(tag) {
+  const ids = [...Object.keys(TOWERS), ...Object.keys(DRONES)];
+  return ids.filter((id) => (TOWERS[id] ?? DRONES[id])?.dmgType === tag
+    || (UNIT_TAGS[id] ?? []).includes(tag));
+}
+
+/**
+ * 1.17.1 — A QUÉ UNIDAD PERTENECE UNA CARTA, para el chip del modal.
+ *
+ * Reglas (en orden):
+ *  - `tower`/`drone` → carta de DESBLOQUEO de una unidad nueva;
+ *  - `unit`          → torre o dron concreto;
+ *  - `type`/`dmgType` sin unidad → carta de TIPO de daño;
+ *  - `requiresUnits` → combo de esas unidades;
+ *  - `requiresTags`  → combo: las unidades que llevan ese tag;
+ *  - nada de lo anterior → carta GLOBAL.
+ *
+ * Es PURA y no depende del arsenal desplegado: una carta de una torre que
+ * el jugador no tiene sigue mostrando su nombre.
+ *
+ * @param {object} card carta del catálogo
+ * @returns {{kind:string, ids:string[], label:string}}
+ */
+export function cardUnitLabel(card) {
+  const c = card && typeof card === 'object' ? card : {};
+  const upper = (id) => unitDisplayName(id).toUpperCase();
+  // Los drones ya se llaman "Dron Mosquitos" / "Dron Rueda de Fuego": el
+  // prefijo del chip es el que dice DRON, así que no se repite.
+  const upperDrone = (id) => unitDisplayName(id)
+    .replace(/^Dron\s+/i, '').toUpperCase();
+  if (c.tower) {
+    return { kind: 'new-tower', ids: [c.tower], label: `NUEVA TORRE · ${upper(c.tower)}` };
+  }
+  if (c.drone) {
+    return { kind: 'new-drone', ids: [c.drone], label: `NUEVO DRON · ${upperDrone(c.drone)}` };
+  }
+  if (c.unit) {
+    const drone = isDroneId(c.unit);
+    return {
+      kind: drone ? 'drone' : 'tower',
+      ids: [c.unit],
+      label: `${drone ? 'DRON' : 'TORRE'} · ${drone ? upperDrone(c.unit) : upper(c.unit)}`,
+    };
+  }
+  const typeId = c.type ?? c.dmgType;
+  if (typeId && DAMAGE_TYPES[typeId]) {
+    return { kind: 'type', ids: [], label: `TIPO · ${DAMAGE_TYPES[typeId].name.toUpperCase()}` };
+  }
+  if (Array.isArray(c.requiresUnits) && c.requiresUnits.length) {
+    const ids = c.requiresUnits.slice();
+    return { kind: 'combo', ids, label: `COMBO · ${ids.map(upper).join(' + ')}` };
+  }
+  if (Array.isArray(c.requiresTags) && c.requiresTags.length) {
+    const ids = [...new Set(c.requiresTags.flatMap(unitsWithTag))];
+    if (ids.length) {
+      return { kind: 'combo', ids, label: `COMBO · ${ids.map(upper).join(' + ')}` };
+    }
+  }
+  return { kind: 'global', ids: [], label: 'GLOBAL · TODAS' };
+}
+
+/**
+ * 1.17.1 — LÍNEA "REQUIERE: …" de una carta.
+ *
+ * Sólo agrega lo que el texto NO dice ya (si la descripción menciona
+ * "requiere", no duplica). Cubre `requiresUnits`, `requiresTags` y
+ * `requiresBlackHole`; `requiresCards` se omite porque el nombre legible
+ * de otra carta no vive en este módulo (y esas descripciones ya lo dicen).
+ *
+ * @param {object} card
+ * @returns {string} texto listo para pintar, o '' si no aplica
+ */
+export function cardRequiresText(card) {
+  const c = card && typeof card === 'object' ? card : {};
+  if (/requiere/i.test(String(c.desc ?? ''))) return '';
+  const partes = [];
+  if (Array.isArray(c.requiresUnits) && c.requiresUnits.length) {
+    partes.push(...c.requiresUnits.map(unitDisplayName));
+  } else if (Array.isArray(c.requiresTags) && c.requiresTags.length) {
+    // Aunque la carta pertenezca a una unidad, el TAG puede exigir OTRA
+    // (Balas Detonantes es del Guardian pero necesita Missile o Mortar).
+    const ids = [...new Set(c.requiresTags.flatMap(unitsWithTag))];
+    if (ids.length) partes.push(...ids.map(unitDisplayName));
+  }
+  if (c.requiresBlackHole) partes.push('Black Hole');
+  return partes.length ? `Requiere: ${partes.join(' + ')}` : '';
+}
+
+/**
  * fase 72 — PANTALLA DE CRÉDITOS Y LICENCIAS. PURA: no recibe datos, no toca
  * el DOM, no hace red. Devuelve el HTML completo; el contenido viene de
  * `licenses.js` (embebido, porque el juego es offline y docs/ no se publica).
@@ -1391,18 +1504,24 @@ export function restoreProtocolFocus(root, key) {
  *
  * Reglas:
  *  - una carta YA elegida en la oferta actual no se puede volver a tapar;
+ *  - un pick dentro de los primeros CARD_OPEN_GUARD_MS desde que el modal
+ *    se abrió se descarta (1.17.1: un click en vuelo del mismo gesto que
+ *    disparó el level-up no puede elegir por el jugador);
  *  - dos toques con menos de CARD_PICK_DEBOUNCE_MS sobre la MISMA oferta
  *    cuentan como uno solo;
  *  - una oferta distinta (o un modal nuevo) sí se puede elegir.
  *
  * @param {{lastPickAt?: {at:number, offerId:string|null}|null, now?: number,
- *          pickedIds?: string[], offerId?: string|null, cardId?: string|null}} [state]
+ *          pickedIds?: string[], offerId?: string|null, cardId?: string|null,
+ *          openedAt?: number, minAgeMs?: number}} [state]
  * @returns {boolean} true si el toque se acepta
  */
 export function canPickCard({
   lastPickAt = null, now = 0, pickedIds = [], offerId = null, cardId = null,
+  openedAt = 0, minAgeMs = 0,
 } = {}) {
   if (cardId != null && pickedIds.includes(cardId)) return false;
+  if (openedAt > 0 && minAgeMs > 0 && now - openedAt < minAgeMs) return false;
   if (!lastPickAt) return true;
   if (offerId != null && lastPickAt.offerId !== offerId) return true;
   return (now - (lastPickAt.at ?? 0)) >= CARD_PICK_DEBOUNCE_MS;

@@ -1487,7 +1487,11 @@ export class Engine {
         if (this.state === 'PLAYING') this.setState('PAUSED');
         else this.emit('key:escape');
         break;
-      case 'enter': this.emit('key:confirm'); break;
+      case 'enter':
+        // 1.17.1 — Enter no elige una carta: el modal bloquea el default
+        // cuando el target es una carta. El botón "Lista de Combos" sigue
+        // funcionando con Enter.
+        this.emit('key:confirm'); break;
       case '1': this.setTimeScale(1); break;
       case '2': this.setTimeScale(1.5); break;
       case '3': this.setTimeScale(2); break;
@@ -1497,6 +1501,10 @@ export class Engine {
         // navegador se cancelaba en TODAS las pantallas (menú, pausa,
         // torretas): con el teclado, Espacio no funcionaba en ningún
         // botón del juego salvo jugando.
+        // 1.17.1 — con el modal de level-up abierto, Espacio NO hace nada:
+        // sin esto el navegador activaba el <button> de la carta enfocada
+        // y se elegía una mejora sin querer.
+        if (this.state === 'CARD_CHOICE') { ev.preventDefault(); return; }
         if (this.state === 'PLAYING') ev.preventDefault();
         this.emit('ultimate:fire');
         break;

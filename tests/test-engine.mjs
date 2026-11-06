@@ -229,6 +229,27 @@ test('setTimeScale: en CARD_CHOICE tampoco reanuda la simulación', () => {
   assert.equal(e._savedSpeed, 2);
 });
 
+test('1.17.1: en CARD_CHOICE el Espacio no dispara el ultimate', () => {
+  const e = makeEngine();
+  const emitted = [];
+  e.on('ultimate:fire', () => emitted.push('ultimate'));
+  e.setState('PLAYING');
+  e.setState('CARD_CHOICE');
+
+  let preventedSpace = 0;
+  e._onKeyDown({ key: ' ', preventDefault() { preventedSpace += 1; } });
+  assert.deepEqual(emitted, [],
+    'Espacio en el modal no puede disparar el ultimate');
+  assert.equal(preventedSpace, 1,
+    'Espacio debe cancelar el default del navegador (activa el botón enfocado)');
+
+  // Enter NO se bloquea a nivel global: el modal sólo cancela el default
+  // cuando el foco está en una carta (así "Lista de Combos" sigue vivo).
+  let preventedEnter = 0;
+  e._onKeyDown({ key: 'Enter', preventDefault() { preventedEnter += 1; } });
+  assert.equal(preventedEnter, 0, 'Enter no se bloquea globalmente');
+});
+
 test('setState: entrar en PAUSED congela y volver a PLAYING restaura', () => {
   const e = makeEngine();
   e.setState('PLAYING');

@@ -6,7 +6,7 @@
 node --test "tests/test-*.mjs"
 ```
 
-Estado actual: **1187 tests** (1187 pass, 0 skip, 0 fail) en **40 archivos**.
+Estado actual: **1201 tests** (1201 pass, 0 skip, 0 fail) en **41 archivos**.
 
 Requisitos: Node 22 o superior.
 

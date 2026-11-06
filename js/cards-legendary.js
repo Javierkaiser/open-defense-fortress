@@ -42,18 +42,18 @@ function legendary(id, unit, name, desc, mods) {
 export const LEGENDARY_CARDS = [
   // ---------------- Guardian: supresión, ráfaga y crítico ----------------
   legendary('leg_guard_focus', 'guardian', 'Foco Resonante',
-    'El estallido de Supresión también golpea a 3 enemigos cercanos (60 % del daño) y les aplica 1 stack de foco.',
+    'El estallido de Supresión también golpea a 3 enemigos a 70 px (60 % del daño del estallido) y les deja 1 carga de foco.',
     { supSplashFrac: 0.6, supSplashRadius: 70, supSplashTargets: 3 }),
   legendary('leg_guard_exec', 'guardian', 'Bastión Ejecutor',
     'Cada 5.º proyectil del Guardian hace 250 % de daño y perfora 3 enemigos.',
     { execEvery: 5, execDmgMul: 2.5, execPierce: 3 }),
   legendary('leg_guard_steel', 'guardian', 'Guardia de Acero',
-    '+15 % de crítico; la Supresión acumula 1 stack más y el estallido pega +15 %.',
+    '+15 % de crítico; la Supresión acumula 1 carga más (de 3 a 4) y el estallido pasa del 45 % al 60 % del golpe.',
     { critChanceAdd: 0.15, supMaxStacksAdd: 1, supBurstFracAdd: 0.15 }),
 
   // ---------------- Missile: remate, salva y antimateria ----------------
   legendary('leg_missile_hunter', 'missile', 'Cazador de Titanes',
-    '+4 puntos al umbral de remate y +10 % de daño del Misil.',
+    '+4 puntos porcentuales al umbral de remate (6 % → 10 % sin perks) y +10 % de daño del Misil.',
     { executeThreshold: 0.04, dmgMul: 1.1 }),
   legendary('leg_missile_salvo', 'missile', 'Salva Saturada',
     '+1 misil por salva y +20 % de radio de explosión.',
@@ -64,10 +64,10 @@ export const LEGENDARY_CARDS = [
 
   // ---------------- Beam: fusión, cadena y sostén ----------------
   legendary('leg_beam_chain', 'beam', 'Fusión en Cadena',
-    'Con 3 stacks de Fusión, el haz salta a un segundo enemigo cercano al 60 % y conserva el ramp.',
+    'Con 3 cargas de fusión, el haz salta a un segundo enemigo a 130 px con el 60 % del daño; el foco del blanco principal no se reinicia.',
     { beamChain: 1 }),
   legendary('leg_beam_supernova', 'beam', 'Supernova Térmica',
-    '+0,4 de ramp por segundo y +20 % de daño: el haz llega al pico mucho antes.',
+    '+0,4 de foco por segundo (de 0,8 a 1,2) y +20 % de daño: el haz llega al tope de ×4,5 mucho antes.',
     { beamRampPerSecAdd: 0.4, dmgMul: 1.2 }),
   legendary('leg_beam_devour', 'beam', 'Haz Devorador',
     '+2 % de robo de vida y +15 % de daño del haz.',

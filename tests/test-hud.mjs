@@ -18,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 import {
   HUD, buildMenuScreen, buildTowerCards, buildTorretasScreen, META_TOTAL_MAX_LEVELS,
   buildRankBadge, canPickCard, CARD_PICK_DEBOUNCE_MS, formatBattleStatus,
+  CARD_OPEN_GUARD_MS, cardUnitLabel, cardRequiresText,
   buildStatusStripHtml, buildBossBarHtml,
   towerDps, fortressDps, BOSS_WARNING_MS,
   buildStageGroups, buildStageList, findStageHighlights, stageThemeColor,
@@ -899,8 +900,22 @@ const fakeHudLive = () => {
   hud._cardOfferId = null;
   hud._cardPickedIds = [];
   hud._lastCardPickAt = null;
+  // 1.17.1: selección sólo por puntero + guard de apertura.
+  hud._cardOpenedAt = 0;
+  hud._pointerCard = null;
   return hud;
 };
+
+/**
+ * 1.17.1 — el modal elige SÓLO con puntero: hay que armar el gesto con
+ * `pointerdown` y después disparar el `click` sobre la misma carta. Además
+ * se desactiva el guard de apertura (180 ms) para no depender del reloj.
+ */
+function tapCard(hud, card, modal = hud.cardModal) {
+  hud._cardOpenedAt = 0;
+  modal.dispatch('pointerdown', { target: card });
+  modal.dispatch('click', { target: card });
+}
 
 /** Oferta de 3 cartas (como la que muestra el modal LEVEL UP). */
 const OFFER = [
@@ -949,7 +964,7 @@ test('soft-lock: cerrar el panel COMBO deja las 3 cartas elegibles', () => {
       'el modal de cartas sigue visible (no se puede cerrar sin elegir)');
 
     // La carta sigue siendo elegible → evento canónico 'card:pick'.
-    modal.dispatch('click', { target: modal.querySelector('[data-card-id]') });
+    tapCard(hud, modal.querySelector('[data-card-id]'));
     assert.equal(hud.emitted.length, 1, 'el click en la carta debe emitir un evento');
     assert.equal(hud.emitted[0].ev, 'card:pick');
     assert.equal(hud.emitted[0].data.cardId, 'a');
@@ -1183,12 +1198,12 @@ test('T4: el doble toque NO aplica dos cartas', () => {
     const modal = hud.cardModal;
     const card = modal.querySelector('[data-card-id]');
 
-    modal.dispatch('click', { target: card });
+    tapCard(hud, card);
     assert.equal(hud.emitted.length, 1, 'el primer toque aplica la carta');
     assert.equal(card.classList.contains('dealt-out'), true,
       'la carta elegida queda marcada (dealt-out)');
 
-    modal.dispatch('click', { target: card });
+    tapCard(hud, card);
     assert.equal(hud.emitted.length, 1, 'el 2º toque sobre la misma carta se ignora');
   });
 });
@@ -1198,7 +1213,7 @@ test('T4: tras el re-render con la oferta siguiente, el 2º toque sigue bloquead
     const hud = fakeHudLive();
     hud.showCardChoice(OFFER);
     const modal = hud.cardModal;
-    modal.dispatch('click', { target: modal.querySelector('[data-card-id]') });
+    tapCard(hud, modal.querySelector('[data-card-id]'));
     assert.equal(hud.emitted.length, 1);
 
     // main.js re-renderiza el modal con la oferta SIGUIENTE (multi-level-up):
@@ -1211,7 +1226,7 @@ test('T4: tras el re-render con la oferta siguiente, el 2º toque sigue bloquead
     const modal2 = hud.cardModal;
     const card2 = modal2.querySelector('[data-card-id]');
     assert.equal(card2.classList.contains('dealt-out'), false, 'la carta nueva no está marcada');
-    modal2.dispatch('click', { target: card2 });
+    tapCard(hud, card2, modal2);
     assert.equal(hud.emitted.length, 1,
       'el doble toque no puede comer DOS subidas de nivel');
   });
@@ -1222,15 +1237,118 @@ test('T4: pasada la ventana de 350 ms la carta se puede volver a elegir', () => 
     const hud = fakeHudLive();
     hud.showCardChoice(OFFER);
     const modal = hud.cardModal;
-    modal.dispatch('click', { target: modal.querySelectorAll('[data-card-id]')[0] });
+    tapCard(hud, modal.querySelectorAll('[data-card-id]')[0]);
     assert.equal(hud.emitted.length, 1);
 
     // El reloj avanzó más de la ventana anti-doble-toque.
     hud._lastCardPickAt = { at: Date.now() - (CARD_PICK_DEBOUNCE_MS + 10), offerId: hud._cardOfferId };
     const other = modal.querySelectorAll('[data-card-id]')[1];
-    modal.dispatch('click', { target: other });
+    tapCard(hud, other);
     assert.equal(hud.emitted.length, 2, 'con el tiempo suficiente, el pick se acepta');
     assert.equal(hud.emitted[1].data.cardId, 'b');
+  });
+});
+
+// ============================================================
+// 1.17.1 — modal de level-up: selección sólo por puntero + chip de unidad
+// ============================================================
+
+test('1.17.1: un click sin gesto de puntero NO elige (teclado o programático)', () => {
+  withFakeDocument(() => {
+    const hud = fakeHudLive();
+    hud.showCardChoice(OFFER);
+    hud._cardOpenedAt = 0;
+    const modal = hud.cardModal;
+    const cards = modal.querySelectorAll('[data-card-id]');
+    modal.dispatch('click', { target: cards[0] });
+    assert.equal(hud.emitted.length, 0, 'sin pointerdown no hay pick');
+    // El gesto tiene que ser sobre ESA carta.
+    modal.dispatch('pointerdown', { target: cards[0] });
+    modal.dispatch('click', { target: cards[1] });
+    assert.equal(hud.emitted.length, 0, 'el gesto de otra carta no habilita el click');
+    tapCard(hud, cards[0]);
+    assert.equal(hud.emitted.length, 1, 'con gesto de puntero sobre la carta, sí elige');
+  });
+});
+
+test('1.17.1: Espacio y Enter sobre una carta no la eligen', () => {
+  withFakeDocument(() => {
+    const hud = fakeHudLive();
+    hud.showCardChoice(OFFER);
+    const modal = hud.cardModal;
+    const card = modal.querySelector('[data-card-id]');
+    let prevented = 0;
+    const stopped = modal.dispatch('keydown', {
+      key: ' ',
+      target: card,
+      preventDefault() { prevented += 1; },
+    });
+    assert.equal(stopped, true, 'el Espacio no debe llegar al window');
+    assert.equal(prevented, 1, 'el Espacio debe cancelar el default del navegador');
+    assert.equal(hud.emitted.length, 0, 'Espacio no elige la carta');
+    const stoppedEnter = modal.dispatch('keydown', { key: 'Enter', target: card });
+    assert.equal(stoppedEnter, true, 'Enter tampoco debe seguir');
+    assert.equal(hud.emitted.length, 0, 'Enter no elige la carta');
+  });
+});
+
+test('1.17.1: guard de apertura — el pick dentro de 180 ms se descarta', () => {
+  withFakeDocument(() => {
+    const hud = fakeHudLive();
+    hud.showCardChoice(OFFER);   // fija _cardOpenedAt = ahora
+    const modal = hud.cardModal;
+    const card = modal.querySelector('[data-card-id]');
+    modal.dispatch('pointerdown', { target: card });
+    modal.dispatch('click', { target: card });
+    assert.equal(hud.emitted.length, 0, 'el click en vuelo al abrir no puede elegir');
+    hud._cardOpenedAt = 0;
+    tapCard(hud, card);
+    assert.equal(hud.emitted.length, 1, 'pasado el guard, el pick se acepta');
+  });
+});
+
+test('1.17.1: canPickCard respeta el guard de apertura', () => {
+  assert.equal(canPickCard({ now: 100, openedAt: 100, minAgeMs: CARD_OPEN_GUARD_MS }), false);
+  assert.equal(canPickCard({
+    now: 100 + CARD_OPEN_GUARD_MS, openedAt: 100, minAgeMs: CARD_OPEN_GUARD_MS,
+  }), true);
+  assert.equal(canPickCard({ now: 5000, openedAt: 0, minAgeMs: CARD_OPEN_GUARD_MS }), true,
+    'sin openedAt el guard no aplica (compat tests)');
+});
+
+test('1.17.1: cardUnitLabel distingue torre, dron, desbloqueo, combo, tipo y global', () => {
+  assert.equal(cardUnitLabel({ unit: 'mortar' }).label, 'TORRE · MORTAR');
+  assert.equal(cardUnitLabel({ unit: 'wasps' }).label, 'DRON · MOSQUITOS');
+  assert.equal(cardUnitLabel({ tower: 'gauss' }).label, 'NUEVA TORRE · GAUSS');
+  assert.equal(cardUnitLabel({ drone: 'wasps' }).label, 'NUEVO DRON · MOSQUITOS');
+  assert.equal(cardUnitLabel({ requiresUnits: ['missile', 'mortar'] }).label,
+    'COMBO · MISSILE + MORTAR');
+  assert.equal(cardUnitLabel({ requiresTags: ['blast'] }).label, 'COMBO · MISSILE + MORTAR');
+  assert.equal(cardUnitLabel({ type: 'light' }).label, 'TIPO · LUZ');
+  assert.equal(cardUnitLabel({}).label, 'GLOBAL · TODAS');
+});
+
+test('1.17.1: cardRequiresText no duplica lo que la descripción ya dice', () => {
+  assert.equal(cardRequiresText({ requiresUnits: ['beam', 'laser'], desc: 'algo' }),
+    'Requiere: Beam + Láser');
+  assert.equal(cardRequiresText({ requiresBlackHole: true, desc: 'Requiere Black Hole' }), '');
+  assert.equal(cardRequiresText({ requiresUnits: ['mortar'], desc: 'Requiere Mortar' }), '');
+  assert.equal(cardRequiresText({ desc: 'global' }), '');
+});
+
+test('1.17.1: el modal pinta el chip de unidad y la línea Requiere', () => {
+  withFakeDocument(() => {
+    const hud = fakeHudLive();
+    hud.showCardChoice([
+      { id: 'dmg_mortar', name: 'Ojiva Pesada', desc: 'daño', weight: 9, unit: 'mortar' },
+      { id: 'dmg_all', name: 'Munición Reforzada', desc: 'daño', weight: 12 },
+      { id: 'unlock_gauss', name: 'Gauss', desc: 'nueva', weight: 5, tower: 'gauss' },
+    ]);
+    const html = hud.cardModal.innerHTML;
+    assert.ok(html.includes('TORRE · MORTAR'), 'la carta del Mortar dice su torre');
+    assert.ok(html.includes('GLOBAL · TODAS'), 'la carta global lo dice');
+    assert.ok(html.includes('NUEVA TORRE · GAUSS'), 'la de desbloqueo lo dice');
+    assert.ok(html.includes('class="card-unit"'), 'el chip tiene su clase CSS');
   });
 });
 
@@ -1269,9 +1387,10 @@ test('T7: el modal de cartas toma el foco al abrir y lo devuelve al cerrar', () 
     globalThis.document.activeElement = before;
 
     hud.showCardChoice(OFFER);
-    const card = hud.cardModal.querySelector('[data-card-id]');
-    assert.equal(globalThis.document.activeElement, card,
-      'el foco entra al modal (si no, el HUD de atrás queda tabulable)');
+    // 1.17.1: el foco entra al DIÁLOGO, no a la primera carta (con el foco
+    // en un botón, Espacio/Enter lo activaban y elegían sin querer).
+    assert.equal(globalThis.document.activeElement, hud.cardModal,
+      'el foco entra al diálogo (si no, el HUD de atrás queda tabulable)');
 
     hud.hideCardChoice();
     assert.equal(globalThis.document.activeElement, before,
@@ -2852,7 +2971,7 @@ test('fase 61: con el arsenal lleno la oferta sigue viva (no se traba)', () => {
     const modal = hud.cardModal;
     assert.equal(modal.querySelectorAll('[data-card-id]').length, 3,
       'la oferta tiene 3 cartas de mejora');
-    modal.dispatch('click', { target: modal.querySelector('[data-card-id]') });
+    tapCard(hud, modal.querySelector('[data-card-id]'));
     assert.equal(hud.emitted.at(-1)?.ev, 'card:pick', 'elegir sigue emitiendo card:pick');
     assert.equal(ownTowersIn(ownRowOf(modal.innerHTML)), 5,
       'y la fila sigue mostrando el arsenal');
