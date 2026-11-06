@@ -679,10 +679,18 @@ export const WAVE_ARCHETYPES = {
   },
   convoy: {
     name: 'CONVOY', desde: 8, densityMul: 0.55, flow: false,
+    // Las fracciones suman 1,00 exacto y `densityMul` no se toca: el
+    // presupuesto de la descarga no cambia, sólo se REPARTE. La parte del
+    // tanque es 0,70 (antes 0,55) porque con 0,225 el tanque más barato
+    // del pool (miniBlob, 200 HP) no cabía en su parte desde S8 y
+    // `composeWave` descartaba el grupo entero (el tope es
+    // `share < hp × 0,75`): el convoy salía sin tanque y violaba la spec
+    // ("el convoy junta tanque y enjambre"). Con 0,70 el tanque entra
+    // desde un presupuesto de 465 HP: 75 + 150 / (0,55 × 0,70).
     groups: [
-      { role: 'tanque', budget: 0.55, pattern: 'line', lane: 'centro', cap: 6 },
-      { role: 'barato', budget: 0.225, pattern: 'vee', lane: 'izq', cap: 16, delay: [1.5, 2.5] },
-      { role: 'barato', budget: 0.225, pattern: 'burst-diag', lane: 'der', cap: 16, delay: [1.5, 2.5] },
+      { role: 'tanque', budget: 0.70, pattern: 'line', lane: 'centro', cap: 6 },
+      { role: 'barato', budget: 0.15, pattern: 'vee', lane: 'izq', cap: 16, delay: [1.5, 2.5] },
+      { role: 'barato', budget: 0.15, pattern: 'burst-diag', lane: 'der', cap: 16, delay: [1.5, 2.5] },
     ],
   },
   'cuña': {
@@ -1248,8 +1256,26 @@ function waveVarietyRng(seed, stage, waveIndex, salt = 0) {
 }
 
 /**
+ * Probabilidad de que la descarga entera entre ESPEJADA (1.17.0): la
+ * variedad de entrada no puede depender sólo de la formación. El espejo es
+ * HP-neutral — sólo cambia `lane: izq <-> der`, nunca type, count, pattern,
+ * stagger ni delay — y deja intactas las franjas sin lado (`centro`,
+ * `full`, `angosta`) y el crystal.
+ */
+export const LANE_MIRROR_CHANCE = 0.5;
+
+/** Espeja las franjas laterales de una descarga (izq <-> der). */
+function mirrorLanes(wave) {
+  for (const g of waveGroups(wave)) {
+    if (g.lane === 'izq') g.lane = 'der';
+    else if (g.lane === 'der') g.lane = 'izq';
+  }
+}
+
+/**
  * Agrega formación y micro-escalonado a olas YA generadas. No toca
- * type, count, t ni el arquetipo: el balance queda igual.
+ * type, count, t ni el arquetipo: el balance queda igual. El espejo de
+ * franjas también es HP-neutral (ver LANE_MIRROR_CHANCE).
  */
 function attachWaveVariety(waves, seed, stage) {
   waves.forEach((wave, wi) => {
@@ -1272,18 +1298,22 @@ function attachWaveVariety(waves, seed, stage) {
         g.stagger = round2(opening ? 0.04 + rnd() * 0.10 : 0.04 + rnd() * 0.16);
       }
     }
+    // El sorteo del espejo va AL FINAL para no correr los draws de la
+    // formación (la geometría de hoy queda byte a byte).
+    if (rnd() < LANE_MIRROR_CHANCE) mirrorLanes(wave);
   });
 }
 
 /**
- * Clona y viste una tabla manual (1..5): conserva tiempos, tipos,
- * cuentas, patrón y franja, y randomiza los parámetros de la formación
- * y el micro-escalonado. La primera ola mantiene el enjambre en vee; el
- * crystal conserva su patrón y su XP.
+ * Clona y viste una tabla manual (1..5): conserva la composición, el
+ * patrón y la franja de cada grupo, y randomiza por run la geometría de
+ * la formación y el micro-escalonado. La primera ola mantiene el enjambre
+ * en vee; el crystal conserva su patrón y su XP. Los TIEMPOS llevan el
+ * jitter determinista de `jitterManualTimes` (la ola de jefe no).
  */
 function dressManualWaves(table, stage, seed) {
   const rnd = waveVarietyRng(seed, stage, 0x51ed);
-  return table.map((baseWave, wi) => {
+  const waves = table.map((baseWave, wi) => {
     const wave = { ...baseWave, groups: waveGroups(baseWave).map((g) => ({ ...g })) };
     const opening = wave.t < OPEN_T;
     const isBoss = wave.groups.some((g) => g.type === 'boss' || g.pattern === 'boss');
@@ -1317,6 +1347,59 @@ function dressManualWaves(table, stage, seed) {
     }
     return wave;
   });
+  return jitterManualTimes(waves, rnd);
+}
+
+/** Jitter máximo (±s) de los tiempos de las tablas manuales 1..5. */
+export const MANUAL_TIME_JITTER = 0.6;
+
+/** Separación mínima entre dos olas de una tabla manual. */
+export const MANUAL_TIME_GAP = 0.2;
+
+/**
+ * Aplica un jitter determinista de ±`MANUAL_TIME_JITTER` a los tiempos de
+ * una tabla manual (S1..S5) para que dos runs de la misma etapa no entren
+ * con el mismo ritmo. Invariantes:
+ *  - la ola de JEFE no se toca;
+ *  - la cola queda ESTRICTAMENTE creciente (≥`MANUAL_TIME_GAP` s entre
+ *    olas) y la primera ola sigue con `t > 0`;
+ *  - ninguna ola cruza `OPEN_T`: la apertura queda en
+ *    `[MANUAL_TIME_GAP, OPEN_T - MANUAL_TIME_GAP]` y el tramo clásico
+ *    desde `OPEN_T + MANUAL_TIME_GAP` (la ventana se clasifica con el `t`
+ *    ORIGINAL, que es el que vio el vestido de la ola).
+ *
+ * Consume exactamente UN draw de `rnd` por ola NO jefe, en orden.
+ * Muta y devuelve `waves` (que ya es un clon de la tabla canónica).
+ *
+ * @param {Array<{t: number, groups?: Array<object>}>} waves
+ * @param {() => number} [rnd]
+ * @returns {Array<object>} las mismas olas, con `t` desplazado
+ */
+export function jitterManualTimes(waves, rnd = Math.random) {
+  let prev = 0;
+  for (const wave of waves) {
+    const base = Number.isFinite(wave.t) ? wave.t : prev;
+    const isBoss = waveGroups(wave).some((g) => g.type === 'boss' || g.pattern === 'boss');
+    if (isBoss) {
+      prev = base;
+      continue;
+    }
+    const opening = base < OPEN_T;
+    const shift = (rnd() * 2 - 1) * MANUAL_TIME_JITTER;
+    // Ventana válida de la ola según su tramo. En la apertura el techo es
+    // `OPEN_T - MANUAL_TIME_GAP`, así que el piso de la cola nunca puede
+    // empujar una ola a cruzar el umbral (y si la ventana ya se cerró,
+    // manda el techo: la ola se queda pegada al borde del tramo).
+    const maxOpening = OPEN_T - MANUAL_TIME_GAP;
+    const floor = opening
+      ? Math.min(Math.max(MANUAL_TIME_GAP, prev + MANUAL_TIME_GAP), maxOpening)
+      : Math.max(OPEN_T + MANUAL_TIME_GAP, prev + MANUAL_TIME_GAP);
+    const ceil = opening ? maxOpening : Infinity;
+    const t = Math.min(ceil, Math.max(floor, base + shift));
+    wave.t = Math.round(t * 10) / 10;
+    prev = wave.t;
+  }
+  return waves;
 }
 
 /**
@@ -1722,6 +1805,47 @@ retuneManualCampaign();
 tagManualWaves();
 
 /**
+ * BANDAS DE TEMPO del tramo clásico (1.17.0): reemplazan el intervalo
+ * uniforme `3 + rnd()×4,2` (media 5,1 s) por un ritmo con PICOS y
+ * RESPIROS, sin mover la media ni el número de descargas.
+ *
+ * Cada banda ocupa una franja del `roll` de UN solo draw; dentro de la
+ * franja el valor se interpola lineal (reparto uniforme del intervalo).
+ *  - `doble golpe` 12 % → 2,3-3,3 s (media 2,8): dos entradas seguidas.
+ *  - `normal`      60 % → 3,7-5,5 s (media 4,6): el pulso de siempre.
+ *  - `respiro`     28 % → 6,2-8,2 s (media 7,2): el aire tras el pico.
+ * Media exacta: 0,12×2,8 + 0,60×4,6 + 0,28×7,2 = 5,112 s.
+ */
+export const CLASSIC_GAP_BANDS = [
+  { name: 'doble golpe', weight: 0.12, min: 2.3, max: 3.3 },
+  { name: 'normal', weight: 0.60, min: 3.7, max: 5.5 },
+  { name: 'respiro', weight: 0.28, min: 6.2, max: 8.2 },
+];
+
+/**
+ * Intervalo (s) hasta la próxima descarga del tramo clásico.
+ *
+ * Consume UN `roll` uniforme [0,1): el generador gasta exactamente los
+ * mismos draws que con el intervalo uniforme, así que la composición de
+ * las olas siguientes no se mueve.
+ *
+ * @param {number} roll número uniforme en [0,1)
+ * @returns {number} segundos hasta la próxima descarga
+ */
+export function classicGap(roll) {
+  const r = Number.isFinite(roll) ? Math.min(1, Math.max(0, roll)) : 0;
+  let from = 0;
+  let band = CLASSIC_GAP_BANDS[CLASSIC_GAP_BANDS.length - 1];
+  for (const b of CLASSIC_GAP_BANDS) {
+    band = b;
+    if (r < from + b.weight) break;
+    from += b.weight;
+  }
+  const local = Math.min(1, (r - from) / band.weight);
+  return band.min + local * (band.max - band.min);
+}
+
+/**
  * Genera la tabla de olas de un stage 6..50. seed por RUN (varía en cada
  * partida). Si el stage es de jefe, la última ola es el WARNING→boss
  * (cada 10 stages).
@@ -1755,6 +1879,7 @@ tagManualWaves();
  * Élites/Doble élite en `assignVariant`. Sin runMods (o con el Protocolo
  * vacío) la etapa es EXACTAMENTE la de la fase 68.
  */
+
 export function generateStageWaves(id, seed, opts = {}) {
   const powerMul = opts.powerMul || 1;
   const rnd = mulberry32((seed >>> 0) ^ (id * 7919));
@@ -2256,9 +2381,11 @@ export function generateStageWaves(id, seed, opts = {}) {
     const openingType = openingSwarmForStage(id, openPlayerLevel, powerMul, scale);
     const tightOpening = isOpening
       && maxKillableInOpening(openingType, hpMul, velMul, openPlayerLevel, powerMul) <= 2;
+    // 1.17.0: el tramo clásico usa la tabla de tempo (picos y respiros).
+    // Sigue siendo UN solo draw del stream: la composición no se corre.
     t += isOpening
       ? (tightOpening ? 0.9 + rnd() * 1.1 : 2.2 + rnd() * 2.4)
-      : 3 + rnd() * 4.2;
+      : classicGap(rnd());
     idx += 1;
   }
   if (boss) {

@@ -5,7 +5,7 @@
 [![CI](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml/badge.svg)](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml)
 [![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-3FD4FF.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-6DA55F.svg)](package.json)
-[![Tests](https://img.shields.io/badge/tests-1173-3FD4FF.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-1187-3FD4FF.svg)](tests/)
 
 [Demo web](https://opendefensefortress.javierlust.net.ar/) · [English summary](README.en.md) · [Diseño técnico](docs/DESIGN.md) · [Balance](docs/BALANCE.md) · [Testing](docs/TESTING.md) · [Créditos](docs/CREDITS.md) · [Cómo contribuir](CONTRIBUTING.md) · [Código de conducta](CODE_OF_CONDUCT.md)
 
@@ -81,7 +81,7 @@ La demo se publica sola: cada push a `main` corre el workflow de deploy
 - **Sin anuncios, sin compras, sin cuentas, sin telemetría.**
 - **Offline real**: fuentes, sprites y SFX locales.
 - **Calidad gráfica Alta/Baja** para equipos modestos.
-- **1173 tests** en Node, sin DOM ni canvas.
+- **1187 tests** en Node, sin DOM ni canvas.
 
 ## Controles
 
@@ -100,7 +100,7 @@ El disparo es automático: no hay apuntado ni joystick.
 ## Tests
 
 ```bash
-node --test "tests/test-*.mjs"            # 1173 tests (1173 pass, 0 skip, 0 fail)
+node --test "tests/test-*.mjs"            # 1187 tests (1187 pass, 0 skip, 0 fail)
 node .github/scripts/ci-checks.mjs   # checks estáticos (sintaxis, zero-dep, refs)
 ```
 
@@ -122,7 +122,7 @@ que pasar esa matriz para mergearse.
 ├─ js/                   # 24 módulos ES (juego + puente nativo)
 ├─ assets/               # solo los 33 assets que usa el juego
 ├─ tests/                # node:test
-├─ scripts/              # serve, balance-sim, probe-waves, probes
+├─ scripts/              # serve, balance-sim, probe-waves, probe-pacing
 ├─ tools/tower-sheet.html# hoja de contactos del arte de torres
 ├─ mobile/               # wrapper Android (Capacitor 8) + CI
 ├─ docs/                 # diseño, balance, testing, créditos, screenshots
@@ -153,6 +153,7 @@ node scripts/balance-sim.mjs --mode=inteligente --seeds=5
 
 # sonda del director de olas (composición por etapa)
 node scripts/probe-waves.mjs --seeds=20
+node scripts/probe-pacing.mjs --seeds=3   # tiempo muerto entre olas
 
 # hojas de contacto del arte de torres
 # http://localhost:8080/tools/tower-sheet.html

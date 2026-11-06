@@ -4,6 +4,55 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.17.0] — 2026-11-06
+
+### Ritmo de olas sin espacios muertos
+
+- **Ritmo adaptativo**: `WaveManager` adelanta la próxima descarga cuando la
+  arena queda limpia de enemigos normales (`CLEAR_GRACE` 0,5 s), con piso de
+  `WAVE_MIN_GAP` 1,6 s entre descargas, tope `MAX_PULL` 3 s por adelanto y
+  `BOSS_BREATH` 4 s antes del jefe. Los huecos **estructurales** —el salto
+  apertura→clásico y la espera del jefe— se colapsan enteros.
+- **Hueco de apertura**: la tabla generada cerraba la apertura por
+  presupuesto y recién volvía en `OPEN_T` (**23–36 s sin nada en pantalla**,
+  medido). El adelanto lo elimina y conserva la clasificación apertura/clásico
+  de cada ola (`_opening`), así que una ola clásica adelantada no entra con
+  geometría de apertura.
+- **Medición** (`scripts/probe-pacing.mjs`, nuevo): el tiempo de etapa sin
+  enemigos vivos baja de **46 % a 16 %**, y la racha máxima de 23–36 s a
+  ~5 s (el respiro del jefe). El resto del tiempo "muerto" es la pausa
+  intencional de 0,5 s después de limpiar.
+
+### Más variedad y aleatoriedad
+
+- **Ritmo con picos y respiros**: `classicGap()` reemplaza el intervalo
+  uniforme 3–7,2 s por *doble golpe* 12 % (2,3–3,3 s), *normal* 60 %
+  (3,7–5,5 s) y *respiro* 28 % (6,2–8,2 s). Consume un solo draw y conserva
+  la media (5,11 s), así que no cambia la cantidad de olas ni el HP.
+- **Catálogo de formaciones**: `makeFormation` ahora sortea dentro de la
+  familia del patrón (`KIND_OPTIONS`) y usa las 14 formas (antes 5–6 fijas).
+  Medido: **12 formas distintas** por etapa.
+- **Franjas espejadas**: las descargas con `izq`/`der` pueden entrar
+  espejadas por run (`LANE_MIRROR_CHANCE` 0,25).
+- **Tablas manuales S1–S5**: `jitterManualTimes` mueve el `t` ±0,6 s por run
+  sin cruzar `OPEN_T`, sin invertir el orden y sin tocar la ola de jefe.
+  `STAGE_WAVES` sigue intacta.
+
+### Balance
+
+- La misma cantidad de HP se entrega en menos tiempo: en `balance-sim`
+  (40 semillas, S10) el win rate pasa de **40 % a 30 %** y la duración de
+  123 s a 101 s. Es el costo de eliminar el relleno; se puede suavizar con
+  `MAX_PULL` o `CLEAR_GRACE` sin tocar la composición.
+- HP por etapa dentro de la guarda de ±10 % (`probe-waves`): S6 23k, S10 27k,
+  S20 52k, S30 67k, S40 79k, S50 98k.
+
+### Tests / versión
+
+- **1187 tests, 0 skip** (40 archivos). Nuevo `tests/test-wave-pacing.mjs`
+  (14 tests) y nuevo `scripts/probe-pacing.mjs`.
+- Versión **1.17.0** / Android `versionCode 37`.
+
 ## [1.16.2] — 2026-11-04
 
 ### Nerf de Thunderstroke y Mortar

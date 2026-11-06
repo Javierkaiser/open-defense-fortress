@@ -67,6 +67,50 @@ Los grupos de una descarga MUST poder declarar retardos (`delay`, `stagger`, `la
 - **WHEN** se vacía la cola de olas pero quedan spawns diferidos sin entrar
 - **THEN** la etapa no se declara terminada hasta que entren y la arena quede limpia
 
+### Requirement: Ritmo sin espacios muertos
+
+El `WaveManager` MUST adelantar la próxima descarga cuando la arena queda
+**limpia de enemigos normales** (el jefe puede seguir vivo) durante
+`CLEAR_GRACE` (0,5 s), siempre que hayan pasado al menos `WAVE_MIN_GAP`
+(1,6 s) desde la última descarga. Cada adelanto MUST toparse en `MAX_PULL`
+(3 s) para no convertir la etapa en un treadmill; los huecos
+ESTRUCTURALES (el salto apertura→clásico y la espera del jefe) MUST
+colapsarse enteros. Antes del jefe el piso MUST ser `BOSS_BREATH` (4 s) y
+el aviso de `WARNING_SECONDS` se suma aparte.
+
+El adelanto MUST NOT cambiar la composición de la ola (tipos, cuentas,
+patrón, variantes ni HP) ni su clasificación apertura/clásico: una ola
+generada para el tramo clásico MUST seguir entrando con geometría clásica
+aunque su instante quede por debajo de `OPEN_T`. El resto de la cola MUST
+correrse lo mismo que se adelantó, de modo que el espaciado relativo entre
+descargas se conserve. Con la misma semilla y la misma secuencia de
+muertes, la secuencia de spawns MUST ser determinista.
+
+#### Scenario: El jugador limpia antes de tiempo
+
+- **WHEN** la arena queda sin enemigos normales y la próxima descarga está agendada para más adelante
+- **THEN** la descarga se adelanta hasta `MAX_PULL` segundos y entra en cuanto se cumplen `CLEAR_GRACE` y `WAVE_MIN_GAP`
+
+#### Scenario: El jugador no da abasto
+
+- **WHEN** quedan enemigos normales vivos
+- **THEN** la próxima descarga respeta su `t` de agenda y no se adelanta
+
+#### Scenario: El hueco de la apertura
+
+- **WHEN** la apertura cierra por presupuesto o XP antes de `OPEN_T` y la próxima ola de la tabla está en `OPEN_T`
+- **THEN** esa ola entra en cuanto la arena queda limpia, sin el hueco de decenas de segundos
+
+#### Scenario: Una ola clásica adelantada no se vuelve apertura
+
+- **WHEN** una ola clásica se adelanta por debajo de `OPEN_T`
+- **THEN** sus enemigos siguen entrando con la geometría clásica (formación completa, fuera del cono del Guardian)
+
+#### Scenario: El jefe espera su respiro
+
+- **WHEN** la arena queda limpia y la próxima descarga es la ola de jefe
+- **THEN** el aviso arranca recién a los `BOSS_BREATH` de la última descarga
+
 ### Requirement: Biomas por década
 
 Cada etapa MUST tener un sesgo de familia por década (roca, cristal, espora, virus) con la familia dominante entre el 45 % y el 60 % de los enemigos. Décadas consecutivas MUST NOT compartir la misma familia dominante. Cada familia MUST ser dominante en al menos una década. El sesgo MUST ser visible en el selector de etapa.
@@ -140,19 +184,24 @@ Los primeros `OPEN_T` segundos de una etapa MUST conservar sus garantías: al me
 
 ### Requirement: Variedad de entrada por run
 
-La FORMA de entrar de cada descarga MUST variar por run sin mover la composición ni el HP de la etapa. Cada grupo del tramo clásico MUST declarar una formación (line, vee, wall, burst-diag, rain, mixed-arc, mixed-spread, arc, wave, cluster, columns, diamond, flanks o spiral) y un micro-escalonado derivados de (etapa, semilla). La campaña MUST conservar la FAMILIA del patrón y la franja del arquetipo: cambiar la cobertura de las torres mueve las bajas medidas. El catálogo completo de formas MUST existir y MUST poder pedirse con `explore: true` para diseño/pruebas. Las tablas manuales 1..5 MUST conservar sus tiempos, tipos, cuentas, patrón y franja, pero PUEDEN clonarse y vestirse por run; su primera ola MUST seguir siendo un enjambre en vee y su crystal MUST seguir en vee.
+La FORMA de entrar de cada descarga MUST variar por run sin mover la composición ni el HP de la etapa. Cada grupo del tramo clásico MUST declarar una formación derivada de (etapa, semilla). La formación MUST elegirse del catálogo de su FAMILIA (`KIND_OPTIONS`: una `vee` puede entrar como vee, arco, ola o diamante; una `line` como línea, columnas, ola o arco) y MUST conservar la franja del arquetipo. La apertura MUST limitarse a `vee`/`line`/`burst-diag`. El catálogo completo de formas MUST existir y MUST poder pedirse con `explore: true` para diseño/pruebas. Las tablas manuales 1..5 MUST conservar tipos, cuentas, patrón y franja, pero PUEDEN clonarse y vestirse por run: su `t` MAY variar ±0,6 s (sin cruzar `OPEN_T`, sin invertir el orden y sin tocar la ola de jefe), su primera ola MUST seguir siendo un enjambre en vee y su crystal MUST seguir en vee. Las franjas laterales de los arquetipos simétricos (`izq`/`der`) MUST poder espejarse por run.
 
 #### Scenario: Dos runs de la misma etapa se ven distintas
 
 - **WHEN** se generan las olas de la misma etapa con dos semillas distintas
-- **THEN** cambian el espejo, la dispersión, el jitter o el micro-ritmo de las formaciones
-- **AND** los tipos, las cuentas por ola, las franjas y el HP total no cambian
+- **THEN** cambian el espejo, la dispersión, el jitter, el micro-ritmo, la forma de la familia o las franjas laterales
+- **AND** los tipos, las cuentas por ola, las franjas efectivas y el HP total no cambian
 
 #### Scenario: La tabla manual no se muta
 
 - **WHEN** se juega una run de S1–S5
 - **THEN** `STAGE_WAVES` conserva exactamente sus tiempos, tipos, cuentas, patrones y franjas
-- **AND** la copia de la run es la que lleva los parámetros de formación y el escalonado nuevos
+- **AND** la copia de la run es la que lleva los parámetros de formación, el escalonado y el jitter de tiempos nuevos
+
+#### Scenario: El jitter de las tablas manuales no cruza la apertura
+
+- **WHEN** una ola manual de `t < OPEN_T` recibe su jitter de ±0,6 s
+- **THEN** sigue dentro de la apertura y detrás de la ola anterior
 
 #### Scenario: La apertura no cambia su modelo
 

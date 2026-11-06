@@ -593,6 +593,24 @@ legendarias, no la curva base.
   **3 → 2,2 s**, y vuelo del obús fijado en **1,6 s** para desacoplarlo del
   cooldown. En el sim forzado (5 semillas) no hay colapso: ambos pierden una
   semilla en S30 y mantienen S10/S20; S50 sigue en 0 %.
+- **Ritmo 1.17.0 — el relleno era dificultad**: el director tenía 46 % del
+  tiempo de etapa sin enemigos vivos (`scripts/probe-pacing.mjs`, modelo de
+  kill constante), con un hueco de **23–36 s** al cerrar la apertura
+  (`t += 1.5; continue;` hasta cruzar `OPEN_T`) y 10–13 s antes del jefe
+  (`tEnd + 10` + aviso de 2 s). Al adelantar la próxima descarga cuando la
+  arena queda limpia (`CLEAR_GRACE` 0,5 s, `MAX_PULL` 3 s), el tiempo sin
+  enemigos baja a **16 %** y la racha máxima a ~5 s (el respiro del jefe).
+  Efecto medido: la misma cantidad de HP se entrega en menos tiempo.
+  `balance-sim` 40 semillas en S10: win **40 % → 30 %**, duración
+  **123 → 101 s**; S20 se mantiene (40 %); S30/S40/S50 no se mueven.
+  El HP por etapa no cambia (±10 %): S6 23k, S10 27k, S20 52k, S30 67k,
+  S40 79k, S50 98k. Si hiciera falta suavizarlo, los diales son
+  `MAX_PULL` (cuánto se adelanta cada descarga) y `CLEAR_GRACE` (la pausa
+  tras limpiar), sin tocar la composición.
+- **Variedad 1.17.0**: formaciones sorteadas dentro de la familia (5–6 → 12
+  formas por etapa), franjas laterales espejadas en el 25 % de las descargas
+  y jitter de ±0,6 s en las tablas manuales. Todo HP-neutral: `probe-waves`
+  no mueve tipos, cuentas ni HP.
 - Renombre (1.5.3): Avispas → Mosquitos es sólo texto/flavor; no cambia
   stats, cartas ni balance.
 - Limpieza de cartas (1.5.4): se quitaron `xp_boost` y `score_gain`; el

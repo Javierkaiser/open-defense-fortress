@@ -64,7 +64,7 @@ test('fase 77: campaignWavesForRun es determinista y cada semilla cambia la entr
   }
 });
 
-test('fase 77: las tablas manuales 1..5 conservan tiempos, tipos y cuentas (no mutan STAGE_WAVES)', () => {
+test('fase 77: las tablas manuales 1..5 conservan tipos y cuentas (no mutan STAGE_WAVES)', () => {
   for (const id of MANUAL_IDS) {
     const before = JSON.stringify(STAGE_WAVES[id]);
     const stable = STAGE_WAVES[id];
@@ -73,7 +73,13 @@ test('fase 77: las tablas manuales 1..5 conservan tiempos, tipos y cuentas (no m
     assert.equal(run.length, stable.length, 'S' + id + ': cambió el nº de olas');
     run.forEach((w, i) => {
       const base = stable[i];
-      assert.equal(w.t, base.t, 'S' + id + ': cambió el tiempo de la ola ' + i);
+      // 1.17.0: el tiempo puede variar ±0,6 s por run (variedad de ritmo),
+      // pero nunca cruza la frontera apertura/clásico ni invierte el orden.
+      assert.ok(Math.abs(w.t - base.t) <= 0.6001,
+        `S${id}: la ola ${i} se movió ${(w.t - base.t).toFixed(2)} s (> 0,6)`);
+      assert.equal(w.t < OPEN_T, base.t < OPEN_T,
+        `S${id}: la ola ${i} cruzó OPEN_T`);
+      if (i > 0) assert.ok(w.t > run[i - 1].t, `S${id}: la ola ${i} invierte el orden`);
       assert.equal(w.groups.length, base.groups.length, 'S' + id + ': cambió la cantidad de grupos');
       assert.equal(waveCount(w), waveCount(base), 'S' + id + ': cambió la cuenta de enemigos');
       assert.deepEqual(waveTypes(w), waveTypes(base), 'S' + id + ': cambió el cast de la ola');
@@ -230,7 +236,8 @@ test('fase 77: campaignWaves sigue siendo la tabla canónica (sin vestido)', () 
   }
 });
 
-test('fase 77: el vestido conserva las franjas de los grupos generados', () => {
+test('1.17.0: el vestido conserva las franjas (o las espeja izq<->der)', () => {
+  const mirror = (lane) => (lane === 'izq' ? 'der' : lane === 'der' ? 'izq' : lane);
   for (const id of GEN_IDS) {
     for (const seed of SEEDS) {
       const canonical = campaignWaves(id, seed);
@@ -241,9 +248,18 @@ test('fase 77: el vestido conserva las franjas de los grupos generados', () => {
         const runGroups = waveGroups(w);
         assert.equal(runGroups.length, baseGroups.length,
           `S${id} seed ${seed}: cambió la cantidad de grupos`);
+        // 1.17.0: la descarga entera puede entrar espejada; las franjas
+        // sin lado (centro/full/angosta) y el crystal no se tocan.
+        const espejada = runGroups.every((g, gi) => g.lane === mirror(baseGroups[gi].lane));
+        const intacta = runGroups.every((g, gi) => g.lane === baseGroups[gi].lane);
+        assert.ok(espejada || intacta,
+          `S${id} seed ${seed} ola ${wi}: franjas alteradas (${runGroups.map((g) => g.lane).join(',')} vs ${baseGroups.map((g) => g.lane).join(',')})`);
         for (let gi = 0; gi < runGroups.length; gi++) {
-          assert.equal(runGroups[gi].lane, baseGroups[gi].lane,
-            `S${id} seed ${seed} ola ${wi} grupo ${gi}: cambió la franja`);
+          const lane = baseGroups[gi].lane;
+          if (lane === undefined || lane === 'centro' || lane === 'full' || lane === 'angosta') {
+            assert.equal(runGroups[gi].lane, lane,
+              `S${id} seed ${seed} ola ${wi} grupo ${gi}: cambió una franja sin lado`);
+          }
         }
       });
     }

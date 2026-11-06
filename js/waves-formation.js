@@ -11,9 +11,10 @@
 //     el scheduler puede soltarlos de a uno y la forma es la misma que si
 //     entraran en bloque;
 //   · el catalogo incluye formas nuevas (arco, ola, racimo, columnas,
-//     pinza, espiral...), pero la campana conserva la FAMILIA del patron
-//     y la franja: cambiarlas mueve la cobertura de las torres (medido).
-//     `explore:true` habilita el catalogo completo para experimentos;
+//     pinza, espiral...). La campana sortea dentro de la FAMILIA del
+//     patron (`KIND_OPTIONS`) y conserva su franja: la forma solo mueve
+//     posiciones, nunca type ni count, asi que es HP-neutral;
+//     `explore:true` sortea por patron sin la restriccion de apertura;
 //   · la apertura mantiene y=SPAWN_Y (sin profundidad) y x dentro del
 //     cono del Guardian: su modelo de matabilidad no se mueve.
 //
@@ -103,20 +104,27 @@ export function laneBounds(lane, gi, gn, opts = {}) {
  * @param {() => number} rnd stream de la ola/formacion
  * @param {string} pattern patron semantico del grupo
  * @param {{opening?:boolean, crystal?:boolean, type?:string, explore?:boolean}} [opts]
- *   `explore: true` habilita el catálogo completo de formas; por defecto
- *   se conserva la familia del patrón (balance medido).
+ *   `explore: true` sortea por patrón sin la restricción de apertura.
  * @returns {object} formacion compacta y serializable
  */
 export function makeFormation(rnd, pattern, opts = {}) {
   const opening = opts.opening === true;
   const options = opening ? OPENING_KINDS : (KIND_OPTIONS[pattern] ?? KIND_OPTIONS.line);
-  // Por defecto se conserva la FAMILIA del patrón (una V sigue siendo una
-  // V, una línea sigue siendo una línea) y se randomizan espejo, sesgo,
-  // dispersión, jitter y ritmo. Cambiar de familia mueve la cobertura de
-  // las torres y baja las bajas de la etapa (medido con balance-sim);
-  // `explore: true` queda para experimentos de diseño, no para la campaña.
-  const keep = opts.explore !== true && isFormationKind(pattern) ? pattern : null;
-  const kind = opts.crystal ? 'vee' : (keep ?? pick(rnd, options) ?? 'line');
+  // Se sortea dentro de la FAMILIA del patrón: la primera opción de
+  // KIND_OPTIONS está duplicada, así que la forma histórica (una V sigue
+  // siendo una V, una línea sigue siendo una línea) domina y las variantes
+  // (arco, ola, racimo, columnas...) aparecen el resto de las veces. Es
+  // HP-neutral: el kind sólo mueve posiciones (x dentro de su franja, dy de
+  // pocos px), nunca type ni count.
+  //
+  // La apertura se queda en su forma segura dentro del cono: ahí el spawner
+  // no usa `formationPosition` sino `openingPosition`, que replica la
+  // geometría del patrón, y el modelo de matabilidad del Guardián se midió
+  // con esas X. Un patrón que no sea seguro se sortea de OPENING_KINDS.
+  const safeOpening = opening && opts.explore !== true && OPENING_KINDS.includes(pattern)
+    ? pattern
+    : null;
+  const kind = opts.crystal ? 'vee' : (safeOpening ?? pick(rnd, options) ?? 'line');
   const seed = ((rnd() * 0xffffffff) >>> 0) || 1;
   const spread = opening
     ? 0.82 + rnd() * 0.30

@@ -15,6 +15,39 @@ import {
 import { CONE_W, makeFormation, formationPosition, openingPosition, laneBounds } from './waves-formation.js';
 import { mulberry32, hashSeed } from './waves-rng.js';
 
+// ------------------------------------------------------------
+// RITMO ADAPTATIVO (1.17.0)
+// ------------------------------------------------------------
+// La cola de olas es una AGENDA (cada descarga trae su `t` absoluto), pero
+// el jugador no juega contra un reloj: juega contra lo que hay en pantalla.
+// Si limpia la arena antes de que llegue el próximo `t`, esperar es tiempo
+// muerto. Estas constantes definen cuánto se puede adelantar:
+//   · CLEAR_GRACE  — la arena tiene que estar limpia este tiempo seguido
+//                    (evita reaccionar a un frame suelto entre muertes);
+//   · WAVE_MIN_GAP — piso entre descargas: sin él, un jugador que borra
+//                    todo recibe las olas una atrás de otra sin respiro;
+//   · BOSS_BREATH  — respiro mínimo antes del jefe (después entra el aviso
+//                    de WARNING_SECONDS, así que el hueco real es mayor).
+export const CLEAR_GRACE = 0.5;
+export const WAVE_MIN_GAP = 1.6;
+export const BOSS_BREATH = 4.0;
+/**
+ * Adelanto MÁXIMO por descarga en el tramo normal (s). Sin este tope el
+ * director convertía la etapa en un treadmill: cada hueco se colapsaba a
+ * `WAVE_MIN_GAP` y la etapa entregaba el mismo HP en ~30 % menos tiempo
+ * (medido: S10 pasaba de 140 s a 97 s y el win rate se desplomaba). Los
+ * huecos ESTRUCTURALES (el salto apertura→clásico y la espera del jefe)
+ * no se topan: ahí no hay contenido, sólo reloj.
+ */
+export const MAX_PULL = 3.0;
+
+/** ¿La descarga es la ola de jefe? (formato legacy o de grupos). */
+function isBossWave(w) {
+  const groups = waveGroups(w);
+  return w?.pattern === 'boss'
+    || groups.some((g) => g.type === 'boss' || g.pattern === 'boss');
+}
+
 export const BOSS_ENTRY_ZONES = [
   [0.08, 0.22],   // izquierda
   [0.40, 0.60],   // centro
@@ -136,6 +169,10 @@ export class WaveManager {
     this._wavesDoneCb = null; // v6: fin de olas sin jefe
     this._doneT = 0;          // temporizador de cierre tras la última ola
     this._endFlagged = false; // clear ya emitido, no repetir
+    // 1.17.0 — ritmo adaptativo: tiempo con la arena limpia y sello de la
+    // última descarga. `-Infinity` deja pasar la primera sin piso.
+    this._clearT = 0;
+    this._lastDispatchT = -Infinity;
   }
 
   /** Progreso 0..1: olas despachadas / total (+ tramo WARNING→kill). */
@@ -220,32 +257,20 @@ export class WaveManager {
     }
 
     this.t += dt;
+    this._trackArena(game, dt);
 
     while (this.queue.length && this.queue[0].t <= this.t) {
       const w = this.queue.shift();
       // Fase 27: la ola de jefe puede venir en el formato legacy
       // ({type:'boss',pattern:'boss'}) o en el de grupos. Se detecta por
       // cualquiera de las dos formas.
-      const groups = waveGroups(w);
-      if (w.pattern === 'boss' || groups.some((g) => g.type === 'boss' || g.pattern === 'boss')) {
-        this.warningLeft = WARNING_SECONDS;
-        // fase 65: el aviso CANCELA lo pendiente — "esos spawns se
-        // descartan y no aparece ningún enemigo normal durante el aviso".
-        this.pending.length = 0;
-        // dev-7 fase 28: el payload lleva el NOMBRE del jefe, para que el
-        // banner DOM que pinta el HUD (js/hud.js showBossWarning) pueda
-        // dizer de quién se trata ("¡JEFE EN CAMINO! — Meteorito Gigante").
-        const bossName = this._bossName() ?? 'BOSS';
-        game.engine.emit('boss:warning', { name: bossName });   // banner + sombra (D10)
-        this.dispatched += 1;
-        break; // no más spawns mientras dura el aviso
-      }
-      this._spawnWave(w, game);
-      this.dispatched += 1;
-      // fase 70: el HUD de la run muestra la oleada; la de JEFE no mueve el
-      // contador (mantiene la última normal, que es la que se juega).
-      if (this.survival && Number.isInteger(w.wave)) this.survivalWave = w.wave;
+      if (!this._dispatchWave(w, game)) break; // no más spawns durante el aviso
     }
+
+    // 1.17.0: si la arena quedó limpia, la próxima descarga no espera al
+    // hueco de la agenda (ver `_pullOnClear`). Va DESPUÉS del despacho por
+    // reloj para que una ola ya vencida tenga prioridad.
+    this._pullOnClear(game);
 
     // fase 65: los eventos vencidos entran acá — los de descargas
     // anteriores y los que la recién despachada agenda para este mismo
@@ -257,6 +282,99 @@ export class WaveManager {
     // quedado en un residuo negativo con dt variable; el flush tiene que
     // correr igual.
     if (this.warningLeft <= 0) this._flushPending(game);
+  }
+
+  /**
+   * Despacha UNA descarga de la cola.
+   *
+   * @returns {boolean} false si era la ola de JEFE: el aviso ya arrancó y
+   *   no se puede seguir despachando en este frame.
+   */
+  _dispatchWave(w, game) {
+    if (isBossWave(w)) {
+      this.warningLeft = WARNING_SECONDS;
+      // fase 65: el aviso CANCELA lo pendiente — "esos spawns se
+      // descartan y no aparece ningún enemigo normal durante el aviso".
+      this.pending.length = 0;
+      // dev-7 fase 28: el payload lleva el NOMBRE del jefe, para que el
+      // banner DOM que pinta el HUD (js/hud.js showBossWarning) pueda
+      // decir de quién se trata ("¡JEFE EN CAMINO! — Meteorito Gigante").
+      const bossName = this._bossName() ?? 'BOSS';
+      game.engine.emit('boss:warning', { name: bossName });   // banner + sombra (D10)
+      this.dispatched += 1;
+      this._lastDispatchT = this.t;
+      return false;
+    }
+    this._spawnWave(w, game);
+    this.dispatched += 1;
+    // fase 70: el HUD de la run muestra la oleada; la de JEFE no mueve el
+    // contador (mantiene la última normal, que es la que se juega).
+    if (this.survival && Number.isInteger(w.wave)) this.survivalWave = w.wave;
+    this._lastDispatchT = this.t;
+    return true;
+  }
+
+  /**
+   * Acumula el tiempo que la arena lleva LIMPIA (sin enemigos normales
+   * vivos). El jefe no cuenta: puede seguir vivo mientras entran olas.
+   */
+  _trackArena(game, dt) {
+    const hay = (game?.fortress?.enemies ?? [])
+      .some((e) => e && !e.dead && !e.isBoss);
+    this._clearT = hay ? 0 : this._clearT + dt;
+  }
+
+  /**
+   * 1.17.0 — RITMO ADAPTATIVO.
+   *
+   * Si la arena quedó limpia, la próxima descarga entra YA en vez de
+   * esperar al `t` de la agenda. Esto elimina los espacios muertos que el
+   * jugador veía como "no pasa nada":
+   *   · entre olas (la agenda las separa 2–8,6 s);
+   *   · al cerrar la apertura, donde la tabla recién vuelve en OPEN_T
+   *     (medido: 23–36 s de pantalla vacía);
+   *   · antes del jefe (la tabla lo pone en `tEnd + 10`).
+   *
+   * NO cambia la composición: la tabla ya está generada. Sólo mueve el
+   * instante de entrada y corre el resto de la cola lo mismo que se
+   * adelantó, así el espaciado relativo se conserva.
+   */
+  _pullOnClear(game) {
+    if (!this.queue.length || this.bossSpawned) return undefined;
+    if (this.dispatched === 0) return undefined;   // la 1ª ola respeta su t
+    if (this._clearT < CLEAR_GRACE) return undefined;
+    const next = this.queue[0];
+    if (next.t <= this.t) return undefined;        // ya entra por agenda
+    const boss = isBossWave(next);
+    const gap = boss ? BOSS_BREATH : WAVE_MIN_GAP;
+    if (this.t - this._lastDispatchT < gap) return undefined;
+    // Hueco ESTRUCTURAL: la tabla recién vuelve en OPEN_T cuando la
+    // apertura cerró por presupuesto. Ahí no hay contenido que dosificar,
+    // así que se colapsa entero. El resto de los huecos sí se topa.
+    const structural = this.t < OPEN_T && next.t >= OPEN_T;
+    const target = structural || boss ? this.t : Math.max(this.t, next.t - MAX_PULL);
+    return this._pullForward(target);
+  }
+
+  /**
+   * Corre la cola para que su primera ola entre en `now`.
+   *
+   * La clasificación apertura/clásico se CONGELA en `_opening` antes de
+   * tocar el tiempo: el generador decidió la composición y la geometría
+   * con el `t` original, y una ola clásica adelantada por debajo de OPEN_T
+   * volvería a entrar como apertura (cono del Guardian, sin profundidad).
+   *
+   * @returns {number} segundos que se adelantó (0 si no hizo falta)
+   */
+  _pullForward(now) {
+    const next = this.queue[0];
+    const shift = next.t - now;
+    if (!(shift > 0.01)) return 0;
+    for (const w of this.queue) {
+      if (w._opening === undefined) w._opening = w.t < OPEN_T;
+      w.t -= shift;
+    }
+    return shift;
   }
 
   /**
@@ -290,7 +408,12 @@ export class WaveManager {
     const groups = waveGroups(ev.wave);
     const group = groups[ev.group];
     if (!group) return;
-    this._spawnGroup(group, ev.group, groups.length, game, list, ev.wave.t < OPEN_T, ev.index);
+    // 1.17.0: la clasificación apertura/clásico se congela cuando la ola
+    // se adelanta por `_pullForward`; sin captura se derivaría del `t` YA
+    // movido y una ola clásica adelantada entraría con geometría de
+    // apertura (cono del Guardian, sin profundidad).
+    const isOpening = ev.wave._opening ?? (ev.wave.t < OPEN_T);
+    this._spawnGroup(group, ev.group, groups.length, game, list, isOpening, ev.index);
   }
 
   /**

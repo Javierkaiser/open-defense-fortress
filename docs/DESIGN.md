@@ -40,7 +40,7 @@ css/style.css           HUD, pantallas, temas, responsive
 js/                     57 módulos ES
 assets/                 fuentes, SFX y sprites usados
 tests/                  node:test
-scripts/                serve, balance-sim, probe-waves, probes
+scripts/                serve, balance-sim, probe-waves, probe-pacing, probes
 tools/tower-sheet.html  hoja de contactos del arte de torres
 docs/                   diseño, balance, testing, créditos
 openspec/specs/         specs de comportamiento
@@ -260,17 +260,36 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 - **Crystal garantizado**: 1 por descarga, descontado del presupuesto.
 - **Variedad de entrada (fase 77)**: `waves-formation.js` parametriza la
   forma de cada grupo (espejo, sesgo, dispersión, jitter y profundidad
-  mínima) y el micro-escalonado a partir de `(etapa, semilla)`. Conserva
-  la FAMILIA del patrón y la franja del arquetipo: cambiar la cobertura
-  movía las bajas de la etapa (medido con balance-sim). El catálogo
-  completo de formas queda disponible con `explore: true`.
+  mínima) y el micro-escalonado a partir de `(etapa, semilla)`. Desde 1.17.0
+  la forma se sortea dentro de la FAMILIA del patrón (`KIND_OPTIONS`: una
+  `vee` puede entrar como vee, arco, ola o diamante) y el catálogo completo
+  de 14 formas se usa en la campaña; la apertura queda en
+  `vee`/`line`/`burst-diag`. **HP-neutral**: la forma sólo mueve posiciones.
+- **Ritmo con picos y respiros (1.17.0)**: el intervalo clásico ya no es
+  uniforme (3–7,2 s). `classicGap()` sortea con un solo draw entre
+  *doble golpe* (12 %, 2,3–3,3 s), *normal* (60 %, 3,7–5,5 s) y *respiro*
+  (28 %, 6,2–8,2 s); la media sigue en 5,11 s, así que la cantidad de olas
+  y el HP por etapa no se mueven.
+- **Ritmo adaptativo (1.17.0)**: `WaveManager` adelanta la próxima descarga
+  cuando la arena queda limpia `CLEAR_GRACE` (0,8 s), con piso
+  `WAVE_MIN_GAP` (1,6 s), tope `MAX_PULL` (3 s) por descarga y
+  `BOSS_BREATH` (4 s) antes del jefe. Los huecos ESTRUCTURALES (el salto
+  apertura→clásico y la espera del jefe) se colapsan enteros. El adelanto
+  no recompone nada: mueve el instante y corre la cola lo mismo, y congela
+  la clasificación apertura/clásico en `_opening` para no cambiar la
+  geometría. Medido: el tiempo sin enemigos vivos baja de **46 % a ~12 %**
+  de la etapa (`scripts/probe-pacing.mjs`).
 - **Spawn determinista**: `waves-rng.js` alimenta posiciones, formaciones
   y entrada del jefe; la misma semilla reproduce el mismo spawn y dos
   runs se ven distintas. El jitter de velocidad sigue el RNG de combate.
-- **Tablas manuales por run**: S1–S5 conservan tiempos, tipos, cuentas,
-  patrón y franja, pero `campaignWavesForRun()` clona la tabla y
-  randomiza los parámetros de la formación y el micro-ritmo.
-  `STAGE_WAVES` queda intacta como referencia.
+- **Tablas manuales por run**: S1–S5 conservan tipos, cuentas, patrón y
+  franja, pero `campaignWavesForRun()` clona la tabla, randomiza los
+  parámetros de la formación y el micro-ritmo y aplica un jitter de
+  ±0,6 s a los tiempos (`jitterManualTimes`, sin cruzar `OPEN_T` ni tocar
+  al jefe). `STAGE_WAVES` queda intacta como referencia.
+- **Franjas espejadas**: las descargas con franjas laterales (`izq`/`der`)
+  pueden entrar espejadas por run (`LANE_MIRROR_CHANCE`), sin tocar
+  `centro`/`full`/`angosta` ni el crystal.
 - **Escalonado**: `stagger`/`delay`/`lane` por grupo + `waveSchedule()` pura.
 - **Scheduler**: `WaveManager` usa una cola `pending[]`; el aviso de jefe la
   vacía y la etapa no cierra con pendientes.
@@ -493,7 +512,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1173 tests (1173 pass, 0 skip) en 39 archivos.
+- 1187 tests (1187 pass, 0 skip) en 40 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

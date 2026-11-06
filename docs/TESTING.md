@@ -6,7 +6,7 @@
 node --test "tests/test-*.mjs"
 ```
 
-Estado actual: **1173 tests** (1173 pass, 0 skip, 0 fail) en **39 archivos**.
+Estado actual: **1187 tests** (1187 pass, 0 skip, 0 fail) en **40 archivos**.
 
 Requisitos: Node 22 o superior.
 
@@ -49,6 +49,7 @@ node --test tests/test-stages.mjs
 | Infinito | `test-endless.mjs` |
 | Supervivencia | `test-survival.mjs` |
 | Balance sim | `test-balance-sim.mjs` |
+| Ritmo adaptativo de olas (arena limpia, piso, jefe, apertura) | `test-wave-pacing.mjs` |
 | Puente nativo Android (`backAction`, eventos) | `test-native.mjs` |
 | Arranque / guarda de boot (index.html) | `test-boot-guard.mjs` |
 | Integración del motor real | `test-integration.mjs` |
