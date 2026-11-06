@@ -601,16 +601,20 @@ legendarias, no la curva base.
   arena queda limpia (`CLEAR_GRACE` 0,5 s, `MAX_PULL` 3 s), el tiempo sin
   enemigos baja a **16 %** y la racha máxima a ~5 s (el respiro del jefe).
   Efecto medido: la misma cantidad de HP se entrega en menos tiempo.
-  `balance-sim` 40 semillas en S10: win **40 % → 30 %**, duración
-  **123 → 101 s**; S20 se mantiene (40 %); S30/S40/S50 no se mueven.
-  El HP por etapa no cambia (±10 %): S6 23k, S10 27k, S20 52k, S30 67k,
-  S40 79k, S50 98k. Si hiciera falta suavizarlo, los diales son
+  `balance-sim` 40 semillas en S10: win **40 % → 23 %**, duración
+  **123 → 93 s**; S20 se mantiene (40 %); S30/S40/S50 no se mueven.
+  El HP por etapa no cambia (±10 %): S6 22k, S10 26k, S20 51k, S30 67k,
+  S40 78k, S50 97k. Si hiciera falta suavizarlo, los diales son
   `MAX_PULL` (cuánto se adelanta cada descarga) y `CLEAR_GRACE` (la pausa
   tras limpiar), sin tocar la composición.
 - **Variedad 1.17.0**: formaciones sorteadas dentro de la familia (5–6 → 12
   formas por etapa), franjas laterales espejadas en el 25 % de las descargas
   y jitter de ±0,6 s en las tablas manuales. Todo HP-neutral: `probe-waves`
   no mueve tipos, cuentas ni HP.
+- **Convoy 1.17.0**: la parte del tanque sube 0,55 → **0,70** (baratos 0,15)
+  para que el tanque quepa desde S8. Convoys con tanque: S8 67 %, S9 56 %,
+  S10 62 %, S11 59 %, S20 79 %, S50 77 % (antes 60/0/0/53/71/72 %).
+  Costo: +5,3 % de HP en S9 y +3,3 % en S10, dentro de la guarda ±10 %.
 - Renombre (1.5.3): Avispas → Mosquitos es sólo texto/flavor; no cambia
   stats, cartas ni balance.
 - Limpieza de cartas (1.5.4): se quitaron `xp_boost` y `score_gain`; el

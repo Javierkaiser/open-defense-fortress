@@ -1262,7 +1262,7 @@ function waveVarietyRng(seed, stage, waveIndex, salt = 0) {
  * stagger ni delay — y deja intactas las franjas sin lado (`centro`,
  * `full`, `angosta`) y el crystal.
  */
-export const LANE_MIRROR_CHANCE = 0.5;
+export const LANE_MIRROR_CHANCE = 0.25;
 
 /** Espeja las franjas laterales de una descarga (izq <-> der). */
 function mirrorLanes(wave) {

@@ -37,15 +37,19 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 - **Tablas manuales S1–S5**: `jitterManualTimes` mueve el `t` ±0,6 s por run
   sin cruzar `OPEN_T`, sin invertir el orden y sin tocar la ola de jefe.
   `STAGE_WAVES` sigue intacta.
+- **Convoy**: la parte del tanque sube de 0,55 a **0,70** (baratos 0,15,
+  suma 1,00 y `densityMul` intacto). Los convoys con tanque pasan de
+  60/0/0/53 % a **67/56/62/59 %** en S8/S9/S10/S11, a cambio de +5,3 % de HP
+  en S9 y +3,3 % en S10 (dentro de ±10 %).
 
 ### Balance
 
 - La misma cantidad de HP se entrega en menos tiempo: en `balance-sim`
-  (40 semillas, S10) el win rate pasa de **40 % a 30 %** y la duración de
-  123 s a 101 s. Es el costo de eliminar el relleno; se puede suavizar con
+  (40 semillas, S10) el win rate pasa de **40 % a 23 %** y la duración de
+  123 s a 93 s. Es el costo de eliminar el relleno; se puede suavizar con
   `MAX_PULL` o `CLEAR_GRACE` sin tocar la composición.
-- HP por etapa dentro de la guarda de ±10 % (`probe-waves`): S6 23k, S10 27k,
-  S20 52k, S30 67k, S40 79k, S50 98k.
+- HP por etapa dentro de la guarda de ±10 % (`probe-waves`): S6 22k, S10 26k,
+  S20 51k, S30 67k, S40 78k, S50 97k.
 
 ### Tests / versión
 
