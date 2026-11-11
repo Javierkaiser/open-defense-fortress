@@ -39,7 +39,7 @@ REPO="${1:-.}"
 REPO="$(cd "$REPO" && pwd)"
 BASE_URL="https://here.now"
 
-for cmd in curl jq; do
+for cmd in curl jq npx; do
   command -v "$cmd" >/dev/null 2>&1 || { echo "error: requiere $cmd" >&2; exit 1; }
 done
 
@@ -84,8 +84,17 @@ cp -r "$REPO/index.html" "$STAGING/"
 cp -r "$REPO/privacy.html" "$STAGING/"
 cp -r "$REPO/css" "$STAGING/"
 cp -r "$REPO/assets" "$STAGING/"
-# js/ -> js_v<commit>/ (carpeta nueva por push => URLs nuevas => sin caché vieja)
-cp -r "$REPO/js" "$STAGING/$JS_DIR"
+# js/ -> js_v<commit>/main.js (un solo bundle minificado; URLs nuevas por push)
+mkdir -p "$STAGING/$JS_DIR"
+npx --no-install esbuild "$REPO/js/main.js" \
+  --bundle --minify --platform=browser --format=esm --target=es2020 --charset=utf8 \
+  --outfile="$STAGING/$JS_DIR/main.js"
+[[ -s "$STAGING/$JS_DIR/main.js" ]] || die "el bundle de JS quedó vacío"
+node --check "$STAGING/$JS_DIR/main.js" >/dev/null 2>&1 || die "el bundle de JS no parsea"
+BUNDLE_BYTES=$(wc -c < "$STAGING/$JS_DIR/main.js" | tr -d ' ')
+[[ "$BUNDLE_BYTES" -gt 100000 && "$BUNDLE_BYTES" -lt 900000 ]] \
+  || die "bundle de JS fuera de rango: ${BUNDLE_BYTES} bytes"
+echo ">> bundle: $JS_DIR/main.js (${BUNDLE_BYTES} bytes)"
 # Reescribir la referencia del módulo de entrada en el index del staging
 sed -i "s|src=\"js/main.js\"|src=\"$JS_DIR/main.js\"|" "$STAGING/index.html"
 # Cache-bust del CSS (mismo motivo que js/: max-age=3600 sin versionar).

@@ -1,9 +1,10 @@
 // =============================================================================
 // Checks estáticos de CI — Open Defense Fortress
 // -----------------------------------------------------------------------------
-// Zero-dependency (solo stdlib de Node). Verifica lo que la suite de tests no ve:
+// Zero-dependency de runtime (solo stdlib de Node; esbuild es la devDependency
+// del bundle de deploy). Verifica lo que la suite de tests no ve:
 //   1. `node --check` de cada archivo JS/MJS del repo (sintaxis).
-//   2. Que package.json siga sin dependencias (regla dura del proyecto).
+//   2. Que package.json no tenga dependencias de runtime (solo esbuild de deploy).
 //   3. Que toda referencia local de index.html / privacy.html exista en disco.
 //   4. Que los assets referenciados en js/ existan (rutas de string de assets/).
 //   5. Que no haya archivos binarios grandes accidentales (> 1 MB sin ser assets
@@ -52,18 +53,32 @@ for (const file of jsFiles) {
 }
 notes.push(`node --check: ${jsFiles.length} archivos`);
 
-// --- 2. Zero-dependency ------------------------------------------------------
+// --- 2. Zero-dependency de runtime ------------------------------------------
 const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
-for (const field of ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"]) {
+for (const field of ["dependencies", "optionalDependencies", "peerDependencies"]) {
   const deps = pkg[field];
   if (deps && Object.keys(deps).length > 0) {
-    errors.push(`package.json: "${field}" debe estar vacío (proyecto zero-dependency)`);
+    errors.push(`package.json: "${field}" debe estar vacío (sin dependencias de runtime)`);
   }
 }
-if (existsSync(join(ROOT, "node_modules"))) {
-  errors.push("node_modules/ existe en el repo: no debe estar versionado");
+// La única devDependency permitida es el bundler del deploy.
+const devDeps = Object.keys(pkg.devDependencies ?? {});
+for (const dep of devDeps) {
+  if (dep !== "esbuild") {
+    errors.push(`package.json: devDependency no permitida "${dep}" (solo esbuild para el deploy)`);
+  }
 }
-notes.push("package.json: sin dependencias");
+// node_modules puede existir en local tras `npm install`; lo que no puede es
+// estar versionado.
+try {
+  const tracked = execFileSync("git", ["ls-files", "--", "node_modules"], {
+    cwd: ROOT, encoding: "utf8",
+  }).trim();
+  if (tracked) errors.push("node_modules/ está versionado: no debe estar en git");
+} catch {
+  // sin git disponible: no se puede verificar
+}
+notes.push(`package.json: sin dependencias de runtime (devDependency de deploy: ${devDeps.join(", ") || "ninguna"})`);
 
 // --- 3. Referencias locales en el HTML --------------------------------------
 for (const html of ["index.html", "privacy.html"]) {

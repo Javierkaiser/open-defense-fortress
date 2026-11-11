@@ -22,8 +22,10 @@ and the upgrade cards offered on level-up. Every run is a roguelike.
 - 8 towers + 3 drones, each with a signature mechanic (suppression, melt, judgment, ion, crater, rail, cut, ignition, venom and bubble), **level 1–6 and mastery 0–15**, 108 normal cards + 33 legendaries, 7 elite affixes, 5 visual themes with per-theme tower skins (palette, motifs, pad and FX). Every 5 mastery points unlocks a choice of that unit's 3 legendary cards.
 - Decision-driven progression: a new account starts with **Guardian only**; the other 10 units are unlocked with gold. Fragments are a **shared pool**, so leveling one tower leaves less for the rest. **Replaying cleared stages still pays fragments**: the 1.9.0 economy is farm-based.
 - No ads, no purchases, no accounts, no telemetry.
-- Canvas 2D + DOM/CSS + ES modules; no build step, no server, no network calls.
-- 1210 Node tests.
+- Canvas 2D + DOM/CSS + ES modules; no runtime dependencies and no build step
+  to play or develop; the deploy publishes a minified bundle. No server, no
+  network calls.
+- 1213 Node tests.
 
 ## Run it
 
@@ -36,7 +38,7 @@ install needed, and it keeps working offline after the first load.
 node scripts/serve.mjs 8080
 # open http://localhost:8080
 
-# tests (1210) + static checks
+# tests (1213) + static checks
 node --test "tests/test-*.mjs"
 node .github/scripts/ci-checks.mjs
 ```
@@ -77,7 +79,8 @@ Assets keep their own licenses (CC0, CC BY 3.0, OFL 1.1); see
 Read [CONTRIBUTING.md](CONTRIBUTING.md) (Spanish) and the
 [Code of Conduct](CODE_OF_CONDUCT.md). Issues and PRs are welcome **in English
 or Spanish**. The project is deliberately zero-dependency: no npm packages in the
-runtime, no build step. UI changes need a screenshot; logic changes need tests.
+runtime and no build step to develop; the deploy bundles with esbuild. UI changes
+need a screenshot; logic changes need tests.
 
 Security issues: please use GitHub's private advisory reporting
 (<https://github.com/Javierkaiser/open-defense-fortress/security/advisories/new>),

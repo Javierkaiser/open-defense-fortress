@@ -1,8 +1,7 @@
 # Dependabot — Open Defense Fortress
 #
-# El proyecto es zero-dependency en runtime: NO hay dependencias npm, así que el
-# único ecosistema que hay que vigilar son las GitHub Actions de los workflows.
-# (Si alguna vez se agregan dependencias npm, descomentá el bloque "npm".)
+# El runtime es zero-dependency; la única devDependency es esbuild (bundle de
+# deploy). Vigilamos las GitHub Actions y el paquete npm del deploy.
 
 version: 2
 
@@ -22,7 +21,7 @@ updates:
       - "ci"
     groups:
       # Las actions menores y de parche se agrupan: no se contradicen entre sí
-      # porque no hay dependencias npm que pinen versiones exactas.
+      # porque no hay dependencias de runtime que pinen versiones exactas.
       github-actions:
         patterns:
           - "*"
@@ -30,8 +29,12 @@ updates:
           - "minor"
           - "patch"
 
-  # - package-ecosystem: "npm"
-  #   directory: "/"
-  #   schedule:
-  #     interval: "weekly"
-  #   open-pull-requests-limit: 5
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore"
+    labels:
+      - "dependencies"

@@ -5,8 +5,9 @@ mediciones, ver [BALANCE.md](BALANCE.md); para la suite, [TESTING.md](TESTING.md
 
 ## 1. Principios
 
-1. **100% estático y offline.** Sin servidor, sin llamadas de red, sin build
-   step y sin dependencias npm en runtime.
+1. **100% estático y offline.** Sin servidor, sin llamadas de red y sin
+   dependencias npm en runtime. El runtime no tiene build step; el deploy
+   bundlea/minifica con esbuild.
 2. **Una sola pantalla de juego.** Canvas 2D lógico 540×880; el jugador no
    mueve una nave ni apunta. Las torres disparan solas.
 3. **Portrait primero.** El HUD y los overlays se adaptan a marcos angostos y a
@@ -553,7 +554,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1210 tests (1210 pass, 0 skip) en 41 archivos.
+- 1213 tests (1213 pass, 0 skip) en 42 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

@@ -1,8 +1,9 @@
 # CI — Open Defense Fortress
 #
 # Matriz de SO × versión de Node: el proyecto es JavaScript puro sin dependencias
-# ni build step, así que lo que hay que probar es que la suite corra igual en
-# Linux, macOS y Windows y en las dos LTS soportadas (22 y 24).
+# de runtime (el deploy bundlea con esbuild), así que lo que hay que probar es
+# que la suite corra igual en Linux, macOS y Windows y en las dos LTS
+# soportadas (22 y 24).
 #
 # Jobs (los nombres son el contexto exacto de la branch protection):
 #   - test (ubuntu-latest, 22) ... test (windows-latest, 24)

@@ -57,7 +57,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Deploy a here.now (staging + js_vSHA)
+      - name: Setup Node 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Install deploy dependency (esbuild)
+        run: npm install --no-audit --no-fund
+
+      - name: Deploy a here.now (staging + bundle + js_vSHA)
         env:
           HERENOW_API_KEY: ${{ secrets.HERENOW_API_KEY }}
         run: bash .github/scripts/deploy-herenow.sh

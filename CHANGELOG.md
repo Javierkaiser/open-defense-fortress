@@ -4,6 +4,25 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.17.8] — 2026-11-11
+
+### Bundle de deploy
+
+- El deploy publica un **solo `main.js` minificado** con esbuild: los 57
+  módulos (1,48 MB sin minificar) pasan a **500 KB raw / 129 KB brotli** y una
+  sola request. El runtime y los tests siguen leyendo `js/` sin build.
+- `esbuild 0.25.0` es la única devDependency; el job de deploy la instala y
+  `ci-checks` sigue prohibiendo dependencias de runtime.
+- El bundle se valida antes de publicar: no vacío, parsea con `node --check`
+  y pesa entre 100 y 900 KB.
+- Docs: README/AGENTS/CONTRIBUTING/DESIGN y Dependabot actualizados; el árbol
+  de módulos dice 57 (antes 24).
+
+### Tests / versión
+
+- **1213 tests, 0 skip** (42 archivos).
+- Versión **1.17.8** / Android `versionCode 45`.
+
 ## [1.17.7] — 2026-11-11
 
 ### Fuentes WOFF2 subset

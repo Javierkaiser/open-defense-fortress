@@ -8,8 +8,9 @@ body:
       value: |
         Antes de abrir el issue, chequeá que la idea entre en el alcance del
         proyecto: el juego es **estático, offline y zero-dependency** (sin
-        paquetes npm en runtime, sin build step y sin backend). Si tu propuesta
-        necesita un servidor, una cuenta o una dependencia de runtime, contalo
+        paquetes npm en runtime, sin build step para desarrollar; el deploy
+        bundlea con esbuild y no hay backend). Si tu propuesta necesita un
+        servidor, una cuenta o una dependencia de runtime, contalo
         explícitamente en "Impacto técnico".
 
   - type: textarea

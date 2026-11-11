@@ -5,7 +5,7 @@
 [![CI](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml/badge.svg)](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml)
 [![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-3FD4FF.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-6DA55F.svg)](package.json)
-[![Tests](https://img.shields.io/badge/tests-1210-3FD4FF.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-1213-3FD4FF.svg)](tests/)
 
 [Demo web](https://opendefensefortress.javierlust.net.ar/) · [English summary](README.en.md) · [Diseño técnico](docs/DESIGN.md) · [Balance](docs/BALANCE.md) · [Testing](docs/TESTING.md) · [Créditos](docs/CREDITS.md) · [Cómo contribuir](CONTRIBUTING.md) · [Código de conducta](CODE_OF_CONDUCT.md)
 
@@ -49,7 +49,8 @@ node scripts/serve.mjs 8080
 ```
 
 Requisitos: **Node 22+** (solo para servir y para los tests; el juego no tiene
-dependencias ni build step). Alternativas de servidor:
+dependencias de runtime ni build step para jugar o desarrollar; el deploy
+publica un bundle minificado con esbuild). Alternativas de servidor:
 
 ```bash
 python3 -m http.server 8080
@@ -81,7 +82,7 @@ La demo se publica sola: cada push a `main` corre el workflow de deploy
 - **Sin anuncios, sin compras, sin cuentas, sin telemetría.**
 - **Offline real**: fuentes, sprites y SFX locales.
 - **Calidad gráfica Alta/Baja** para equipos modestos.
-- **1210 tests** en Node, sin DOM ni canvas.
+- **1213 tests** en Node, sin DOM ni canvas.
 
 ## Controles
 
@@ -100,7 +101,7 @@ El disparo es automático: no hay apuntado ni joystick.
 ## Tests
 
 ```bash
-node --test "tests/test-*.mjs"            # 1210 tests (1210 pass, 0 skip, 0 fail)
+node --test "tests/test-*.mjs"            # 1213 tests (1213 pass, 0 skip, 0 fail)
 node .github/scripts/ci-checks.mjs   # checks estáticos (sintaxis, zero-dep, refs)
 ```
 
@@ -119,7 +120,7 @@ que pasar esa matriz para mergearse.
 .
 ├─ index.html            # canvas + HUD DOM + overlays
 ├─ css/style.css         # HUD, pantallas, temas, responsive
-├─ js/                   # 24 módulos ES (juego + puente nativo)
+├─ js/                   # 57 módulos ES (juego + puente nativo)
 ├─ assets/               # solo los 33 assets que usa el juego
 ├─ tests/                # node:test
 ├─ scripts/              # serve, balance-sim, probe-waves, probe-pacing
@@ -134,7 +135,8 @@ que pasar esa matriz para mergearse.
 
 - **Canvas 2D** lógico 540×880, escalado por CSS y DPR (tope 2).
 - **DOM/CSS** para HUD, menús, cartas, pausa, meta, protocolo y récords.
-- **24 módulos ES acíclicos** con un EventBus en `engine.js`; sin dependencias npm.
+- **57 módulos ES acíclicos** con un EventBus en `engine.js`; sin dependencias
+  de runtime (el deploy los bundlea en un solo `main.js` minificado).
 - **FSM de 12 estados** (`BOOT`, `MENU`, `SELECT_STAGE`, `PLAYING`, `PAUSED`,
   `CARD_CHOICE`, `STAGE_CLEAR`, `GAME_OVER`, `TORRETAS`, `PROTOCOLO`, `RECORDS`,
   `CREDITS`).
