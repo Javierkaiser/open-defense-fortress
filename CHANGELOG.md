@@ -15,9 +15,11 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
   `Δ`, `π`) y las cifras tabulares `tnum`/`lnum` de Exo2.
 - `@font-face` sirve WOFF2 primero y deja el TTF como fallback; Orbitron y
   Rajdhani (las fuentes del LCP) se **precargan** desde el `<head>`.
-- Medición de producción: la cadena crítica de Rajdhani baja de **7,2 s a
-  ~1,5 s** en Fast 3G; el LCP sigue atado al grafo de 57 módulos JS
-  (1,48 MB sin minificar, ~350 KB con brotli del host), no a las fuentes.
+- Medición de producción (Fast 3G, CPU 4×): el peso de fuentes baja de
+  **802 KB a 104 KB**; la cadena crítica máxima pasa de **7.239 ms a
+  5.250 ms** y el LCP de **5.949 ms a 5.715 ms**. El LCP sigue atado al
+  grafo de 57 módulos JS (1,48 MB sin minificar, ~350 KB con brotli), no a
+  las fuentes.
 - Test que exige los 4 WOFF2 y el orden WOFF2 → TTF en el CSS.
 
 ### Tests / versión
