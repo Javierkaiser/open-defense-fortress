@@ -4,6 +4,23 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.17.10] — 2026-11-11
+
+### Pulido final
+
+- El **theme swatch activo ya no escala**: el borde grueso, el halo y el
+  nombre en teal alcanzan para distinguirlo, y la grilla de temas queda
+  alineada. El hover sigue levantando la muestra.
+- El **feedback** (nivel, XP, racha e hint del meta) reinicia sus animaciones
+  con doble `requestAnimationFrame` en vez de `void offsetWidth`: se elimina
+  el layout síncrono del camino de feedback.
+- Test que exige el activo sin `transform` y el reinicio con doble rAF.
+
+### Tests / versión
+
+- **1215 tests, 0 skip** (42 archivos).
+- Versión **1.17.10** / Android `versionCode 47`.
+
 ## [1.17.9] — 2026-11-11
 
 ### Tokens de movimiento y radio

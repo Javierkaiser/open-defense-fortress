@@ -34,7 +34,7 @@ Los módulos ES no cargan desde `file://`; hace falta el servidor estático.
 ## Tests y checks
 
 ```bash
-node --test "tests/test-*.mjs"                    # 1214 tests
+node --test "tests/test-*.mjs"                    # 1215 tests
 node .github/scripts/ci-checks.mjs    # sintaxis, zero-dep, referencias
 ```
 

@@ -1241,14 +1241,26 @@ export class HUD {
     }
   }
 
+  /**
+   * Reinicia una animación de clase sin forzar layout: quita la clase, deja
+   * que el navegador pinte el estado sin ella (doble rAF) y la vuelve a
+   * poner. Antes se leía `offsetWidth` para forzar el reflow.
+   */
+  _replayClass(el, cls) {
+    if (!el) return;
+    el.classList.remove(cls);
+    const raf = typeof requestAnimationFrame === 'function'
+      ? requestAnimationFrame
+      : (fn) => setTimeout(fn, 0);
+    raf(() => raf(() => el.classList.add(cls)));
+  }
+
   /** Flash del hint #meta-hint (re-query cada vez: sobrevive re-renders). */
   _metaFlash(text, ms = 1600) {
     const hint = this.overlayRoot?.querySelector('#meta-hint');
     if (!hint) return;
     hint.textContent = text;
-    hint.classList.remove('show');
-    void hint.offsetWidth;
-    hint.classList.add('show');
+    this._replayClass(hint, 'show');
     clearTimeout(this._metaHintT);
     this._metaHintT = setTimeout(() => hint.classList.remove('show'), ms);
   }
@@ -2633,14 +2645,8 @@ export class HUD {
         this.el.lv.textContent = txt;
       }
       if (wentUp) {   // D14/D7: el label y la barra XP "chispean" al subir
-        this.el.lv.classList.remove('lv-pop');
-        void this.el.lv.offsetWidth;
-        this.el.lv.classList.add('lv-pop');
-        if (this.el.xp) {
-          this.el.xp.classList.remove('xp-flash');
-          void this.el.xp.offsetWidth;
-          this.el.xp.classList.add('xp-flash');
-        }
+        this._replayClass(this.el.lv, 'lv-pop');
+        if (this.el.xp) this._replayClass(this.el.xp, 'xp-flash');
       }
     }
     if (this.el.xp) {
@@ -2689,9 +2695,7 @@ export class HUD {
           this.el.mult.classList.remove('hidden');
         }
         if (changed) {
-          this.el.mult.classList.remove('pop');
-          void this.el.mult.offsetWidth; // reinicia la animación
-          this.el.mult.classList.add('pop');
+          this._replayClass(this.el.mult, 'pop');
         }
       } else if (this._lastMultHidden !== true) {
         this._lastMultHidden = true;

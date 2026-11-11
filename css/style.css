@@ -2558,7 +2558,9 @@ html, body {
     0 0 0 1px rgb(var(--hud-teal-rgb) / .35),
     0 0 14px rgb(var(--hud-teal-rgb) / .55),
     inset 0 0 10px rgba(0, 0, 0, .3);
-  transform: translateY(-2px) scale(1.06);
+  /* polish 1.17.10 — el activo no escala: el borde grueso + halo + nombre
+     en teal ya lo distinguen y la grilla queda alineada. El hover sigue
+     levantando la muestra. */
 }
 /* El activo también dice cuál es por el texto, no solo por el marco. */
 .theme-swatch.active .theme-swatch-name { color: var(--hud-teal); }

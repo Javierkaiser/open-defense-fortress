@@ -4537,3 +4537,22 @@ test('extract 1.17.9: los tiempos de hover/estado son tokens', () => {
   assert.ok(!css.includes('border-radius: 999px'), 'quedó un radio píldora literal');
   assert.ok(css.includes('border-radius: var(--radius-l)'), 'las píldoras usan el token');
 });
+
+test('polish 1.17.10: el activo no escala y el feedback reinicia sin offsetWidth', () => {
+  const active = cssRule('.theme-swatch.active {');
+  assert.ok(active && !active.includes('transform:'), 'el activo del tema no escala');
+  const hudSrc = readFileSync(new URL('../js/hud-core.js', import.meta.url), 'utf8');
+  assert.ok(!/void\s+[^;\n]*offsetWidth/.test(hudSrc),
+    'volvió el layout síncrono para reiniciar animaciones');
+  const hud = fakeHudLive();
+  const calls = [];
+  const el = { classList: { remove: (c) => calls.push('rm:' + c), add: (c) => calls.push('add:' + c) } };
+  const prev = globalThis.requestAnimationFrame;
+  globalThis.requestAnimationFrame = (fn) => { calls.push('raf'); fn(); };
+  try { hud._replayClass(el, 'pop'); } finally {
+    if (prev === undefined) delete globalThis.requestAnimationFrame;
+    else globalThis.requestAnimationFrame = prev;
+  }
+  assert.deepEqual(calls, ['rm:pop', 'raf', 'raf', 'add:pop'],
+    'el reinicio usa doble rAF, no offsetWidth');
+});
