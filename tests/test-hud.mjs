@@ -1761,7 +1761,7 @@ test('T5: los overlays ponen un velo denso + desenfoque de fondo', () => {
   const veil = cssRule('.screen::before');
   assert.ok(veil, 'la pantalla debe tener su velo');
   assert.ok(/background:\s*linear-gradient/.test(veil), 'el velo es un degradado');
-  assert.ok(/rgba\(/.test(veil),
+  assert.ok(/rgba?\(/.test(veil),
     'el velo tiene color propio: si no hay backdrop-filter, el velo solo ya tapa');
   assert.ok(veil.includes('backdrop-filter'), 'el desenfoque es la mejora progresiva');
   // El blur NO puede estar en #overlay-root: crearía el "backdrop root" y
@@ -4511,4 +4511,20 @@ test('polish 1.17.5: la carta no conserva el flip muerto', () => {
   assert.ok(!css.includes('--deal-delay'), 'volvió el delay de una animación inexistente');
   assert.ok(/\.card-choice-card\s*\{[^}]*transition:/.test(css),
     'la carta conserva su transición de hover');
+});
+
+test('extract 1.17.6: acero y panel se consumen por triplet y siguen al tema', () => {
+  const themes = [':root {', '[data-theme="cyberpunk"] {', '[data-theme="neon"] {',
+    '[data-theme="aqua"] {', '[data-theme="cielo"] {'];
+  for (const sel of themes) {
+    const bloque = cssRule(sel);
+    assert.ok(bloque.includes('--platform-light-rgb:'), `${sel} define el triplet del acero`);
+    assert.ok(bloque.includes('--hud-panel-rgb:'), `${sel} define el triplet del panel`);
+    assert.ok(bloque.includes('rgb(var(--hud-panel-rgb)'), `${sel} deriva el panel del triplet`);
+  }
+  assert.ok(!css.includes('rgba(159, 180, 200'), 'no queda acero hardcodeado');
+  assert.ok(!css.includes('rgba(15, 42, 40'), 'no queda panel teal hardcodeado');
+  assert.ok(css.includes('rgb(var(--platform-light-rgb) / .14)'),
+    'la matriz de daño usa el acero del tema');
+  assert.ok(css.includes('--overlay-veil-rgb: 6 8 12'), 'el velo también tiene triplet');
 });

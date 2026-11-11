@@ -4,6 +4,31 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.17.6] — 2026-11-11
+
+### Extracción de tokens de acero y panel
+
+- `--platform-light-rgb` y `--hud-panel-rgb` viven ahora en `:root` y en
+  los cuatro temas. Los **77 alfas** de acero y panel que estaban escritos
+  como `rgba(159,180,200, …)` / `rgba(15,42,40, …)` pasan a
+  `rgb(var(--…-rgb) / …)` y **siguen al tema** (antes el borde y el inset
+  se quedaban en el acero/teal base con cyberpunk, neón, aqua y cielo).
+- Nuevos tokens de matiz: `--ink-dim-rgb`, `--ink-muted`,
+  `--steel-line-rgb`, `--teal-ink`, `--danger-glow-rgb`,
+  `--volcano-edge-rgb`, `--overlay-veil-rgb`, `--panel-deep-rgb`,
+  `--panel-base-rgb`, `--panel-raised-rgb` y `--boot-veil`.
+- **142 literales** migrados a tokens (incluye los tres fondos de arranque
+  y los textos sobre teal/verde). Los 12 colores one-off de gradientes de
+  peligro/calor quedan como deuda declarada: se usan 1–2 veces y no
+  justifican un token.
+- Test que exige los triplets en los 5 temas y prohíbe volver al acero o
+  panel hardcodeado.
+
+### Tests / versión
+
+- **1209 tests, 0 skip** (41 archivos).
+- Versión **1.17.6** / Android `versionCode 43`.
+
 ## [1.17.5] — 2026-11-11
 
 ### Pulido de arranque y pausa

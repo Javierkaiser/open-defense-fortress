@@ -5,7 +5,7 @@
 [![CI](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml/badge.svg)](https://github.com/Javierkaiser/open-defense-fortress/actions/workflows/ci.yml)
 [![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-3FD4FF.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522-6DA55F.svg)](package.json)
-[![Tests](https://img.shields.io/badge/tests-1208-3FD4FF.svg)](tests/)
+[![Tests](https://img.shields.io/badge/tests-1209-3FD4FF.svg)](tests/)
 
 [Demo web](https://opendefensefortress.javierlust.net.ar/) · [English summary](README.en.md) · [Diseño técnico](docs/DESIGN.md) · [Balance](docs/BALANCE.md) · [Testing](docs/TESTING.md) · [Créditos](docs/CREDITS.md) · [Cómo contribuir](CONTRIBUTING.md) · [Código de conducta](CODE_OF_CONDUCT.md)
 
@@ -81,7 +81,7 @@ La demo se publica sola: cada push a `main` corre el workflow de deploy
 - **Sin anuncios, sin compras, sin cuentas, sin telemetría.**
 - **Offline real**: fuentes, sprites y SFX locales.
 - **Calidad gráfica Alta/Baja** para equipos modestos.
-- **1208 tests** en Node, sin DOM ni canvas.
+- **1209 tests** en Node, sin DOM ni canvas.
 
 ## Controles
 
@@ -100,7 +100,7 @@ El disparo es automático: no hay apuntado ni joystick.
 ## Tests
 
 ```bash
-node --test "tests/test-*.mjs"            # 1208 tests (1208 pass, 0 skip, 0 fail)
+node --test "tests/test-*.mjs"            # 1209 tests (1209 pass, 0 skip, 0 fail)
 node .github/scripts/ci-checks.mjs   # checks estáticos (sintaxis, zero-dep, refs)
 ```
 

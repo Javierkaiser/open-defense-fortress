@@ -331,7 +331,10 @@ plataforma, carta y espacio). La escena se tiñe; las entidades no.
 
 Cada paleta define además su `platform` / `platform-light`, `card-border`,
 `card-text` y `space-deep`. En el frontmatter viven como `cyberpunk-*`,
-`neon-*`, `aqua-*` y `cielo-*`; en CSS son los bloques `[data-theme]`.
+`neon-*`, `aqua-*` y `cielo-*`; en CSS son los bloques `[data-theme]`. Los
+matices de acero y panel se consumen por triplet (`--platform-light-rgb`,
+`--hud-panel-rgb`) para que los bordes, textos apagados y velos con alfa
+sigan al tema en vez de quedarse en el acero base.
 
 **La Regla del Tema.** El tema tiñe la consola, nunca la batalla. Torres,
 enemigos, proyectiles, rangos y tipos de daño conservan su color semántico en

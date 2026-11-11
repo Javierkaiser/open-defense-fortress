@@ -466,6 +466,10 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
   celdas (sin marquee); la matriz de daño de la pausa oculta el glifo del
   encabezado a ≤520 px y pasa a fichas a ≤380 px; el flip muerto de las
   cartas (`card-flip`) se eliminó y el arsenal vacío dice "Sin torres".
+- **Tokens 1.17.6**: `--platform-light-rgb` y `--hud-panel-rgb` se declaran
+  en los 5 temas; los alfas de acero y panel se consumen con
+  `rgb(var(--…-rgb) / …)` (142 literales migrados). El borde apagado y el
+  inset de panel dejan de quedarse en el acero/teal base al cambiar de tema.
 
 ## 12. Arte
 
@@ -545,7 +549,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1208 tests (1208 pass, 0 skip) en 41 archivos.
+- 1209 tests (1209 pass, 0 skip) en 41 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 
