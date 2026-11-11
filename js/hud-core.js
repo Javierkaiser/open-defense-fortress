@@ -1915,8 +1915,8 @@ export class HUD {
 
   /**
    * Muestra el modal LEVEL UP con la oferta [card, card, card] (§4.4):
-   * fila de torres poseídas + pips arriba, 3 cartas con reveal flip
-   * escalonado 0/120/240 ms, glow en hover, SFX de reveal.
+   * fila de torres poseídas + pips arriba, 3 cartas planas, glow en hover
+   * y SFX de reveal.
    */
   showCardChoice(offer = [], meta = null) {
     this._ensureCardModal();
@@ -1942,7 +1942,7 @@ export class HUD {
     // (CONFIG.SLOTS, una sola fila), así que la fila muestra como máximo
     // 5 fichas — las que haya en `slots` (con el Guardian siempre en la
     // del centro) y nunca una 6.ª. Sin torres (caso defensivo: la run
-    // real arranca con el Guardian puesto) queda el guion.
+    // real arranca con el Guardian puesto) se declara "Sin torres".
     const towers = (game?.fortress?.slots ?? []).filter(Boolean);
     // 1.11.0: los drones también tienen nivel y maestría; se muestran en la
     // misma fila (wrap) para que el jugador vea el progreso de las 11
@@ -1967,7 +1967,7 @@ export class HUD {
     const units = [...towers, ...drones];
     const towerRow = units.length
       ? units.map(unitChip).join('')
-      : '<span class="own-tower"><b>—</b></span>';
+      : '<span class="own-empty">Sin torres</span>';
     // Encabezado "Fase Normal N · Nvl.X" (fiel a la referencia).
     const stageNo = game?.stageId ?? 1;
     const headRow = `
@@ -1986,7 +1986,7 @@ export class HUD {
       lv: game?.lv ?? 1,
       maxLevel: levelCap(game?.maxLevel),
     });
-    const cards = offer.map((c, i) => {
+    const cards = offer.map((c) => {
       const r = cardRarity(c);
       const isUnlock = Boolean(c.tower || c.drone);
       const isLegendary = c.legendary === true || r.cls === 'legendary';
@@ -2023,7 +2023,7 @@ export class HUD {
       const [desc, ...resto] = String(c.desc ?? '').split('\n');
       const synergy = resto.join('\n');
       return `
-        <button class="card-choice-card rarity-${r.cls}" data-card-id="${c.id}" style="--deal-delay:${i * 120}ms">
+        <button class="card-choice-card rarity-${r.cls}" data-card-id="${c.id}">
           <span class="card-inner">
             <span class="card-lv-badge${badgeCls}">${badge}</span>
             <span class="card-unit" data-unit-kind="${u.kind}">${esc(u.label)}</span>
@@ -2097,7 +2097,7 @@ export class HUD {
     if (typeof this.cardModal.focus === 'function') {
       try { this.cardModal.focus(); } catch (_err) { /* sin foco */ }
     }
-    // SFX de revelado (D7); el flip lo hace CSS con --deal-delay
+    // SFX de revelado (D7).
     try { this.audio.sfx('card'); } catch (_err) { /* sin ctx aún */ }
   }
 

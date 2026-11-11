@@ -437,12 +437,16 @@ DPR tope 2: una sola pantalla, sin scroll de cámara. El marco suma 8 px de
 margen y 1 px de borde; los overlays usan el ancho del marco y el alto real de
 la pantalla, con `100dvh` y `env(safe-area-inset-*)` para notch y barras.
 
-La ritmo de espacio es corto y mecánico: 2 / 4 / 8 / 14 px (`--space-1..4`),
+El ritmo de espacio es corto y mecánico: 2 / 4 / 8 / 14 px (`--space-1..4`),
 pantallas con 16–24 px de padding, paneles con 22/20, cartas con 13/14 y gaps
-de 8–14. En escritorio la fila de cartas se vuelve horizontal a partir de
-**431 px**; en móvil se apila. Los chips del HUD miden **48 px** en PC y
-**32 px** en móvil; con `pointer: coarse` los controles principales suben a
-**52 px**.
+de 8–14. En escritorio (≥431 px) las cartas del level-up pasan a filas anchas
+apiladas con el contenido en dos columnas; en móvil se apilan a ancho completo.
+Los chips del HUD miden **48 px** en PC y **32 px** en móvil; con
+`pointer: coarse` los controles principales suben a **52 px**.
+
+La matriz de daño de la pausa se mantiene en tabla; por debajo de **520 px**
+oculta el glifo del encabezado y por debajo de **380 px** pasa a fichas por
+tipo de daño, para no desbordar el panel ni pedir scroll horizontal.
 
 **La Regla del Marco.** Nada vive fuera del marco: los overlays cubren el marco,
 no el monitor. La cámara y el HUD comparten la misma caja.
@@ -531,8 +535,9 @@ una tarjeta biselada se lee como botón.
   `pointer: coarse` el blur se apaga y el velo ya es opaco.
 - **Panel:** 12 px de radio, borde teal `.28`, fondo grafito degradado y glow
   ambiente; padding 22/20.
-- **Cartas de mejora:** el modal entra con flip escalonado (120 ms por carta);
-  la rareza va al pie; la unidad se declara en un chip arriba del nombre.
+- **Cartas de mejora:** el modal entra plano y quieto (el restyle de forja
+  quitó el flip en 1.17.1); la rareza va al pie y la unidad se declara en un
+  chip arriba del nombre. El hover enciende borde y glow, sin mover la carta.
 
 ## Do's and Don'ts
 

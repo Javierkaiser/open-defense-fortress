@@ -2963,22 +2963,24 @@ test('fase 61: con una sola torre (el arranque) la fila muestra solo esa', () =>
   });
 });
 
-test('fase 61: con el arsenal vacío la fila muestra el guion (no se rompe)', () => {
+test('polish 1.17.5: con el arsenal vacío la fila declara "Sin torres" (no una ficha)', () => {
   withFakeDocument(() => {
     const hud = fakeHudLive();
     withFakeGame(arsenalGame([]), () => hud.showCardChoice(OFFER));
 
     const fila = ownRowOf(hud.cardModal.innerHTML);
-    assert.equal(ownTowersIn(fila), 1, 'queda una ficha (la del guion)');
-    assert.ok(fila.includes('—'), 'la ficha vacía es el guion');
-    assert.ok(!/[0-9]/.test(fila), 'sin torres no hay nivel ni slot que rotular');
+    assert.equal(ownTowersIn(fila), 0, 'sin torres no hay ficha de torre');
+    assert.ok(fila.includes('own-empty'), 'el estado vacío es texto, no una ficha');
+    assert.ok(fila.includes('Sin torres'), 'lo dice con palabras');
+    assert.ok(!fila.includes('—'), 'el guion parecía un botón de minimizar');
   });
   // Sin Game viva (window.__GDF__ ausente) tampoco se rompe: es el caso
   // que ya recorre el resto de los tests del modal.
   withFakeDocument(() => {
     const hud = fakeHudLive();
     assert.doesNotThrow(() => hud.showCardChoice(OFFER));
-    assert.ok(ownRowOf(hud.cardModal.innerHTML).includes('—'), 'queda el guion');
+    assert.ok(ownRowOf(hud.cardModal.innerHTML).includes('Sin torres'),
+      'sin Game también se declara el estado vacío');
   });
 });
 
@@ -4485,4 +4487,28 @@ test('animate 1.17.3: el movimiento reducido conserva el feedback y no mata todo
   assert.ok(bloque.includes('animation: mult-fade'), 'la racha conserva feedback');
   assert.ok(bloque.includes('.btn-round.ult.ready'), 'el ultimate conserva un estado visible');
   assert.ok(bloque.includes('transform: none'), 'no hay lifts ni escalas');
+});
+
+test('polish 1.17.5: el boot usa celdas que respiran, no un marquee', () => {
+  assert.ok(!css.includes('boot-loading-slide'), 'volvió el loop horizontal del boot');
+  assert.ok(css.includes('boot-loading-pulse'), 'la barra respira en el lugar');
+  assert.ok(/\.boot-loading-bar\s*\{[^}]*display:\s*flex/.test(css),
+    'la barra es una fila de celdas');
+  assert.ok(/\.boot-loading-box\s*\{[^}]*padding:\s*22px 20px/.test(css),
+    'el contenido del boot no toca el borde');
+  assert.ok(/\.boot-error-box\s*\{[^}]*padding:\s*22px 20px/.test(css),
+    'el error de arranque tampoco');
+  assert.ok(css.includes('.boot-loading-bar i:nth-child(2)'), 'las celdas están escalonadas');
+});
+
+test('polish 1.17.5: la matriz de daño no desborda a 390 px', () => {
+  assert.ok(/@media \(max-width: 520px\) \{[^}]*\.pause-data \.dmg-legend thead \.leg-glyph \{ display: none; \}/.test(css),
+    'en teléfono/tablet chica se oculta el glifo del encabezado para que entre VIRUS');
+});
+
+test('polish 1.17.5: la carta no conserva el flip muerto', () => {
+  assert.ok(!css.includes('card-flip'), 'volvió el flip que el restyle de forja pisaba');
+  assert.ok(!css.includes('--deal-delay'), 'volvió el delay de una animación inexistente');
+  assert.ok(/\.card-choice-card\s*\{[^}]*transition:/.test(css),
+    'la carta conserva su transición de hover');
 });

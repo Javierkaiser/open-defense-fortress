@@ -4,6 +4,31 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.17.5] — 2026-11-11
+
+### Pulido de arranque y pausa
+
+- **Pantalla de carga:** las cajas de carga y error ahora tienen inset
+  (22/20) y el contenido deja de tocar el borde. La barra indeterminada pasó
+  de un marquee horizontal a **tres celdas que respiran** en secuencia; bajo
+  `prefers-reduced-motion` quedan quietas.
+- **Pausa a 390 px:** la matriz de daño medía 333 px en una caja de 294 y la
+  columna VIRUS se salía del panel. A ≤520 px se oculta el glifo del
+  encabezado (el cuerpo conserva ▲/▼ y el color) y la tabla vuelve a entrar
+  sin scroll horizontal; a ≤380 px sigue el modo fichas.
+- **Carta de level-up:** se elimina el flip muerto (`card-flip`,
+  `--deal-delay`, `legendary-pulse` y el fallback de calidad Baja) que el
+  restyle de forja ya pisaba. La carta entra plana, como se ve.
+- **Fila de torres del modal:** el arsenal vacío dice **"Sin torres"** en
+  lugar de una ficha con "—" que parecía un botón de minimizar.
+- Docs: el registro visual corrige que las cartas de escritorio son filas
+  anchas apiladas (no una fila horizontal) y documenta el reflow de la matriz.
+
+### Tests / versión
+
+- **1208 tests, 0 skip** (41 archivos).
+- Versión **1.17.5** / Android `versionCode 42`.
+
 ## [1.17.4] — 2026-11-11
 
 ### Adaptación de pantallas bajas

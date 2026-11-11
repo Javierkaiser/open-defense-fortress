@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-11T14:56:26.637Z",
+  "generatedAt": "2026-11-11T15:11:59.933Z",
   "title": "Design System: Open Defense Fortress",
   "extensions": {
     "colorMeta": {
@@ -1686,11 +1686,6 @@
         "name": "ease-screen",
         "value": ".28s cubic-bezier(.2,.8,.3,1)",
         "purpose": "Entrada de pantallas de overlay."
-      },
-      {
-        "name": "card-flip",
-        "value": ".42s cubic-bezier(.2,.85,.3,1.15)",
-        "purpose": "Revelado escalonado de cartas."
       },
       {
         "name": "shine-sweep",

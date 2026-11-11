@@ -2164,13 +2164,9 @@ html, body {
   box-shadow: none !important;
   filter: none !important;
 }
-/* Las cartas del modal de nivel se muestran YA reveladas (sin el flip
-   no pasarían de `opacity: 0`) y la carta ya elegida sigue en gris:
-   es información, no decoración. */
-.gdf-lowq .card-choice-card:not(.dealt-out) {
-  transform: none;
-  opacity: 1;
-}
+/* Las cartas del modal de nivel ya no tienen reveal: no hace falta forzar
+   su visibilidad en calidad Baja. La carta elegida sigue en gris porque
+   `.gdf-lowq *` apaga todos los filtros. */
 .gdf-lowq .card-choice-card.dealt-out { filter: grayscale(.55) !important; }
 
 /* dev-7 fase 29: el bloque "LO QUE PERDISTE" de la pantalla de derrota.
@@ -2625,6 +2621,9 @@ html, body {
   align-items: center;
   gap: 14px;
   max-width: 460px;
+  /* polish 1.17.5 — el contenido no puede tocar el borde: misma inset que
+     un panel (22/20) para que el título y la barra respiren. */
+  padding: 22px 20px;
 }
 .boot-loading-title {
   font-family: var(--font-display);
@@ -2638,15 +2637,20 @@ html, body {
   border-radius: 999px;
   background: rgb(var(--hud-teal-rgb) / 0.15);
   overflow: hidden;
+  display: flex;
+  gap: 4px;
 }
 .boot-loading-bar i {
-  display: block;
-  width: 40%;
+  flex: 1 1 0;
   height: 100%;
-  border-radius: inherit;
   background: var(--hud-teal);
-  animation: boot-loading-slide 1.1s ease-in-out infinite;
+  opacity: .28;
+  /* polish 1.17.5 — tres celdas que respiran en secuencia: se lee como
+     "trabajando" sin recorrer el carril ni fingir un porcentaje. */
+  animation: boot-loading-pulse 1.2s ease-in-out infinite;
 }
+.boot-loading-bar i:nth-child(2) { animation-delay: .15s; }
+.boot-loading-bar i:nth-child(3) { animation-delay: .3s; }
 .boot-loading-text {
   font-family: var(--font-body);
   font-size: var(--text-md);
@@ -2655,12 +2659,12 @@ html, body {
 @keyframes boot-loading-in {
   to { opacity: 1; visibility: visible; }
 }
-@keyframes boot-loading-slide {
-  0% { transform: translateX(-120%); }
-  100% { transform: translateX(320%); }
+@keyframes boot-loading-pulse {
+  0%, 100% { opacity: .30; }
+  50% { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .boot-loading-bar i { animation: none; width: 100%; opacity: 0.6; }
+  .boot-loading-bar i { animation: none; opacity: 0.6; }
 }
 
 /* ============================================================
@@ -2684,7 +2688,7 @@ html, body {
   text-align: center;
 }
 #boot-error[hidden] { display: none; }
-#boot-error .boot-error-box { max-width: 460px; }
+#boot-error .boot-error-box { max-width: 460px; padding: 22px 20px; }
 #boot-error h1 {
   font-family: var(--font-display);
   font-size: var(--text-xl);
@@ -2918,6 +2922,17 @@ html, body {
   color: var(--hud-teal);
 }
 .own-tower i { font-style: normal; color: var(--crit-gold); letter-spacing: var(--tracking-normal); }
+/* polish 1.17.5 — estado vacío de la fila de torres: un texto, no una
+   ficha con borde (el "—" parecía un botón de minimizar). */
+.own-empty {
+  align-self: center;
+  padding: 0 2px;
+  color: var(--platform-light);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: .04em;
+  opacity: .8;
+}
 /* 1.11.0: maestría de la unidad en la fila del modal de cartas. */
 .own-mastery {
   font-style: normal;
@@ -2927,7 +2942,7 @@ html, body {
   opacity: .9;
 }
 
-/* Fila de 3 cartas con reveal flip escalonado 0/120/240 ms */
+/* Fila de 3 cartas: entrada plana desde el restyle de forja (1.17.1). */
 .cards-row {
   display: flex;
   gap: var(--space-4);
@@ -2949,7 +2964,6 @@ html, body {
   mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
 }
 .card-choice-card {
-  --deal-delay: 0ms;
   /* fase 38 — el ancho de la carta es el del marco repartido entre las 3
      (flex-basis 0 + grow 1), con min-width:0 para que el texto pueda
      envolver. max-width conserva el ancho de diseño en desktop. */
@@ -2969,17 +2983,11 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  /* Reveal: parte "dada vuelta" y se voltea escalonado */
-  transform: rotateY(90deg) scale(.9);
-  opacity: 0;
-  animation: card-flip .42s cubic-bezier(.2, .85, .3, 1.15) forwards;
-  animation-delay: var(--deal-delay);
+  /* polish 1.17.5 — la carta entra YA revelada: el restyle de forja la
+     dejó plana y el flip viejo quedó muerto (lo pisaba `animation: none`
+     al final del archivo). Sin transform/opacity iniciales no hay salto
+     si el navegador no corre la animación. */
   transition: box-shadow .18s ease, transform .18s ease, border-color .18s ease;
-}
-@keyframes card-flip {
-  from { transform: rotateY(90deg) scale(.9); opacity: 0; }
-  60% { opacity: 1; }
-  to { transform: rotateY(0deg) scale(1); opacity: 1; }
 }
 .card-choice-card:hover, .card-choice-card:focus-visible {
   border-color: #B7FFE9;
@@ -3059,17 +3067,10 @@ html, body {
 .card-choice-card.rarity-legendary {
   border-color: var(--crit-gold);
   box-shadow: 0 0 20px rgb(var(--crit-gold-rgb) / .45), inset 0 0 14px rgb(var(--crit-gold-rgb) / .22);
-  /* fase 42: la carta legendaria late 3 veces (con el flip de entrada)
-     y después queda quieta: el brillo lo aporta su propia sombra. */
-  animation: card-flip .42s cubic-bezier(.2, .85, .3, 1.15) forwards, legendary-pulse 2.2s ease-in-out .5s 3;
 }
 .card-choice-card.rarity-legendary:hover, .card-choice-card.rarity-legendary:focus-visible {
   border-color: #FFE9A8;
   box-shadow: 0 0 30px rgb(var(--crit-gold-rgb) / .8), 0 0 52px rgb(var(--crit-gold-rgb) / .4), inset 0 0 18px rgb(var(--crit-gold-rgb) / .35);
-}
-@keyframes legendary-pulse {
-  0%, 100% { box-shadow: 0 0 20px rgb(var(--crit-gold-rgb) / .45), inset 0 0 14px rgb(var(--crit-gold-rgb) / .22); }
-  50% { box-shadow: 0 0 30px rgb(var(--crit-gold-rgb) / .75), inset 0 0 18px rgb(var(--crit-gold-rgb) / .4); }
 }
 
 /* Colores de los diamantes/etiqueta de rareza — el mismo tono del borde,
@@ -4015,8 +4016,8 @@ html, body {
 }
 
 /* ---------- T4: la carta ya elegida se apaga ---------- */
-/* !important: la animación de reveal (.card-flip) fija el transform al
-   terminar y, sin esto, ganaría a la regla normal. */
+/* !important: `#card-choice .card-choice-card` (más específico) fija el
+   transform y la opacidad para el layout horizontal de PC. */
 .card-choice-card.dealt-out {
   opacity: .35 !important;
   transform: scale(.96) !important;
@@ -6474,6 +6475,15 @@ kbd {
   .stage-panel .stage-list {
     max-height: 38vh;
   }
+}
+
+@media (max-width: 520px) {
+  /* polish 1.17.5 — a 390 px la matriz de daño medía 333 px dentro de una
+     caja de 294 y la columna VIRUS se salía del panel; a 431 px todavía
+     sobraban 28 px. En ancho de teléfono/tablet chica se oculta el glifo
+     del ENCABEZADO: el cuerpo conserva ▲/▼ y el color, y las cinco
+     columnas vuelven a entrar sin scroll horizontal. */
+  .pause-data .dmg-legend thead .leg-glyph { display: none; }
 }
 
 @media (max-width: 380px) {
