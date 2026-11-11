@@ -14,7 +14,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -93,4 +93,16 @@ test('licenses: las tipografías declaradas existen en assets/fonts/', () => {
   }
   assert.equal(CODE.license, 'MIT');
   assert.equal(CODE.holder, 'Javier Lust');
+});
+
+test('optimize 1.17.7: cada fuente tiene WOFF2 y el CSS lo prefiere', () => {
+  const css = leer('css/style.css');
+  for (const f of FONTS) {
+    const woff2 = f.file.replace(/\.ttf$/, '.woff2');
+    assert.ok(existsSync(path.join(ROOT, woff2)), `falta ${woff2}`);
+    assert.ok(css.includes(`../${woff2}') format('woff2')`),
+      `${woff2} no está declarado como WOFF2`);
+    assert.ok(css.indexOf(woff2) < css.indexOf(f.file),
+      `el TTF de ${f.name} tiene que quedar como fallback después del WOFF2`);
+  }
 });

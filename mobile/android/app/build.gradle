@@ -1,7 +1,7 @@
 apply plugin: 'com.android.application'
 
-def versionCodeEnv = (System.getenv("VERSION_CODE") ?: "43").toInteger()
-def versionNameEnv = System.getenv("VERSION_NAME") ?: "1.17.6"
+def versionCodeEnv = (System.getenv("VERSION_CODE") ?: "44").toInteger()
+def versionNameEnv = System.getenv("VERSION_NAME") ?: "1.17.7"
 def keystorePropertiesFile = rootProject.file("keystore.properties")
 def keystoreProperties = new Properties()
 if (keystorePropertiesFile.exists()) {

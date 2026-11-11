@@ -47,6 +47,10 @@ El texto completo de la OFL está en
 [`docs/licenses/OFL-1.1.txt`](licenses/OFL-1.1.txt). Las fuentes no se venden
 por separado; se distribuyen embebidas con el juego.
 
+Cada familia se publica además como **WOFF2 subset** (latino, griego y
+símbolos matemáticos) del mismo TTF; el TTF queda como fallback para
+navegadores sin WOFF2. El subset no cambia la licencia ni los autores.
+
 ## Assets retirados
 
 La versión pública del repo incluye **solo los 33 assets que el juego usa**.

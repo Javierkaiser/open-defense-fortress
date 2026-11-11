@@ -4,6 +4,27 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.17.7] — 2026-11-11
+
+### Fuentes WOFF2 subset
+
+- Las 4 tipografías pasan de **802 KB de TTF** a **104 KB de WOFF2** (−87 %):
+  Orbitron 14 KB, Rajdhani 23 KB, ChakraPetch 12 KB y Exo2 57 KB.
+- Subset conservador: latino, griego y símbolos matemáticos/geométricos.
+  Se conservan los signos que usa el juego (`−`, `∞`, `≤`, `≥`, `≈`, `≠`,
+  `Δ`, `π`) y las cifras tabulares `tnum`/`lnum` de Exo2.
+- `@font-face` sirve WOFF2 primero y deja el TTF como fallback; Orbitron y
+  Rajdhani (las fuentes del LCP) se **precargan** desde el `<head>`.
+- Medición de producción: la cadena crítica de Rajdhani baja de **7,2 s a
+  ~1,5 s** en Fast 3G; el LCP sigue atado al grafo de 57 módulos JS
+  (1,48 MB sin minificar, ~350 KB con brotli del host), no a las fuentes.
+- Test que exige los 4 WOFF2 y el orden WOFF2 → TTF en el CSS.
+
+### Tests / versión
+
+- **1210 tests, 0 skip** (41 archivos).
+- Versión **1.17.7** / Android `versionCode 44`.
+
 ## [1.17.6] — 2026-11-11
 
 ### Extracción de tokens de acero y panel

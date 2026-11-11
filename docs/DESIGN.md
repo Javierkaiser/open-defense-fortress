@@ -544,12 +544,16 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 - Medición de referencia (Chrome 156, Intel UHD 630, 540×880): 0/100/200
   enemigos con atlas dan mediana 16.7 ms (60 FPS); antes 100 enemigos
   daban 33–50 ms. En gama baja se recomienda Baja o Auto.
+- **Carga (1.17.7)**: las 4 fuentes se sirven como **WOFF2 subset** (104 KB
+  vs 802 KB de TTF) y Orbitron/Rajdhani se precargan; el TTF queda como
+  fallback. El host sirve brotli; el JS (1,48 MB sin minificar) sigue siendo
+  la deuda de primera carga, no el frame.
 
 ## 15. Testing
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1209 tests (1209 pass, 0 skip) en 41 archivos.
+- 1210 tests (1210 pass, 0 skip) en 41 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

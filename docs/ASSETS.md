@@ -17,6 +17,10 @@ archivos ni requests. Las texturas por skin quedan para una versión posterior.
 
 Texto de la licencia: [`docs/licenses/OFL-1.1.txt`](licenses/OFL-1.1.txt).
 
+Cada TTF tiene su **WOFF2 subset** (`Orbitron.woff2`, etc.) con latino,
+griego y símbolos matemáticos; el CSS sirve WOFF2 primero (104 KB los cuatro)
+y deja el TTF como fallback.
+
 ## SFX (18)
 
 Todos CC0 1.0, de los packs de sonido de Kenney.
