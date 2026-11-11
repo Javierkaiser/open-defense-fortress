@@ -2754,9 +2754,9 @@ html, body {
 }
 
 /* Usuarios sensibles al movimiento: sin shake glow continuo */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01s !important; animation-iteration-count: 1 !important; transition-duration: 0.01s !important; }
-}
+/* harden/animate 1.17.3 — el movimiento reducido NO se resuelve con un
+   kill global de 0,01 s: eso borra el feedback de nivel/XP/ultimate/jefe.
+   La alternativa intencional vive al final del archivo. */
 
 /* ============================================================
    v3-1/7 — CARD CHOICE (modal LEVEL UP, §4.4/D7) + COMBO LIST
@@ -6509,8 +6509,82 @@ kbd {
     font-size: var(--text-xs);
   }
 }
+/* ============================================================
+   animate 1.17.3 — MOVIMIENTO REDUCIDO CON INTENCIÓN
+   ------------------------------------------------------------
+   prefers-reduced-motion no significa "sin animación": significa
+   menos desplazamiento y más opacidad/color. La consola conserva el
+   feedback que confirma una acción (nivel, XP, multiplicador, ultimate,
+   avisos) y pierde solo lo espacial (flip, lifts, barridos, rotaciones).
+   ============================================================ */
 @media (prefers-reduced-motion: reduce) {
-  .card-choice-card { animation: none !important; }
+  /* 1. Coreografía espacial: fuera. */
+  #overlay-root .screen,
+  .game-title, .card-title,
+  .menu-hero, .menu-command, .menu-settings, .menu-footer,
+  .menu-tile-grid > *,
+  .clear-sparkle,
+  #rotate-hint .rotate-icon,
+  #boss-bar .boss-tag,
+  .aviso--jefe .aviso-title {
+    animation: none !important;
+  }
+  /* La carta se muestra completa y quieta (el modal de forja ya entra
+     plano): bajo movimiento reducido no agregamos un fade que el modo
+     normal no tiene. */
+  .card-choice-card,
+  .card-choice-card.rarity-legendary {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+  /* 2. Hover/press: color y glow sí, desplazamiento no. */
+  .menu-cta, .pause-cta, .menu-tile, .pause-tile,
+  .theme-swatch, .btn, .btn-round, .card-choice-card {
+    transition: color .15s ease, background-color .15s ease,
+      border-color .15s ease, box-shadow .15s ease, opacity .15s ease;
+  }
+  .menu-cta:hover, .pause-cta:hover,
+  .menu-tile:hover, .pause-tile:hover,
+  .theme-swatch:hover, .theme-swatch.active,
+  .btn:active, .btn-round:active,
+  .card-choice-card:active {
+    transform: none;
+  }
+  .menu-cta::before, .pause-cta::before { display: none; }
+  .menu-cta:hover, .pause-cta:hover { filter: none; }
+  /* 3. Feedback esencial: pulso de opacidad, sin mover el layout. */
+  .lv-label.lv-pop { animation: lv-fade .35s ease; }
+  .xp-bar > span.xp-flash { animation: xp-fade .35s ease; }
+  .score-mult.pop { animation: mult-fade .25s ease; }
+  .btn-round.ult.ready {
+    animation: none;
+    box-shadow: 0 0 18px rgb(var(--crit-gold-rgb) / .75);
+  }
+  /* 4. Avisos: fade de opacidad; sin grow, shadow ni blink. */
+  .aviso, .aviso--jefe { animation: aviso-fade .2s ease-out; }
+  .aviso.aviso-out { animation: aviso-fade-out .2s ease-in forwards; }
+}
+
+@keyframes lv-fade {
+  0%, 100% { opacity: 1; }
+  45% { opacity: .5; }
+}
+@keyframes xp-fade {
+  0%, 100% { opacity: 1; }
+  45% { opacity: .45; }
+}
+@keyframes mult-fade {
+  0%, 100% { opacity: 1; }
+  45% { opacity: .5; }
+}
+@keyframes aviso-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes aviso-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
 /* ============================================================

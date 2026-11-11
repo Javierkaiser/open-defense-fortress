@@ -4474,3 +4474,15 @@ test('1.16.1: Stage, Lv y reloj comparten altura en PC', () => {
   assert.ok(bloque.includes('justify-content: center'),
     'el contenido se centra en la altura común');
 });
+
+test('animate 1.17.3: el movimiento reducido conserva el feedback y no mata todo', () => {
+  assert.ok(!/\*,\s*\*::before,\s*\*::after\s*\{[^}]*animation-duration:\s*0\.01s/.test(css),
+    'volvió el kill global de 0,01 s: borra el feedback de nivel/XP/ultimate');
+  const bloque = css.slice(css.indexOf('animate 1.17.3'));
+  assert.ok(bloque.includes('@media (prefers-reduced-motion: reduce)'));
+  assert.ok(bloque.includes('animation: lv-fade'), 'el nivel conserva feedback');
+  assert.ok(bloque.includes('animation: xp-fade'), 'la XP conserva feedback');
+  assert.ok(bloque.includes('animation: mult-fade'), 'la racha conserva feedback');
+  assert.ok(bloque.includes('.btn-round.ult.ready'), 'el ultimate conserva un estado visible');
+  assert.ok(bloque.includes('transform: none'), 'no hay lifts ni escalas');
+});

@@ -449,6 +449,12 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
   agranda los botones a 52 px.
 - `viewport-fit=cover` + `env(safe-area-inset-*)` para notch y barras.
 - `100dvh` con fallback a `100vh`.
+- **Movimiento y reduced motion (1.17.3)**: con `prefers-reduced-motion:
+  reduce` se apaga la coreografía espacial (flip, lifts, barridos,
+  rotaciones, crecimiento de avisos) y se conserva el feedback como pulso de
+  opacidad o glow estático: nivel (`lv-fade`), XP (`xp-fade`), racha
+  (`mult-fade`), ultimate listo (glow fijo) y avisos (fade). No hay kill
+  global de 0,01 s.
 
 ## 12. Arte
 
@@ -528,7 +534,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1203 tests (1203 pass, 0 skip) en 41 archivos.
+- 1204 tests (1204 pass, 0 skip) en 41 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

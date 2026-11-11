@@ -4,6 +4,25 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.17.3] — 2026-11-11
+
+### Movimiento reducido con intención
+
+- Se elimina el **kill global de 0,01 s** de `prefers-reduced-motion`: borraba
+  el feedback de nivel, XP, racha, ultimate y avisos.
+- La coreografía espacial (flip, lifts, barridos, rotaciones, crecimiento de
+  avisos) se apaga; el feedback se conserva como **pulso de opacidad**
+  (`lv-fade`, `xp-fade`, `mult-fade`), **glow estático** del ultimate listo y
+  **fade** de avisos.
+- Hover/press conservan color, borde y glow, sin desplazamiento; la carta del
+  level-up queda visible y quieta; la pantalla entra sin animación.
+- Test estático que impide volver al kill global.
+
+### Tests / versión
+
+- **1204 tests, 0 skip** (41 archivos).
+- Versión **1.17.3** / Android `versionCode 40`.
+
 ## [1.17.2] — 2026-11-11
 
 ### Hardening de accesibilidad y bordes
