@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-11T13:30:22.132Z",
+  "generatedAt": "2026-11-11T14:56:26.637Z",
   "title": "Design System: Open Defense Fortress",
   "extensions": {
     "colorMeta": {
@@ -49,6 +49,21 @@
           "#BDFEF0"
         ]
       },
+      "teal-hover": {
+        "role": "primary",
+        "displayName": "Filo de Fragua",
+        "canonical": "#B7FFE9",
+        "tonalRamp": [
+          "#01110C",
+          "#00372B",
+          "#1B5C4D",
+          "#438271",
+          "#75A898",
+          "#9FC8BB",
+          "#C2E3D9",
+          "#DEF9F0"
+        ]
+      },
       "crit-gold": {
         "role": "secondary",
         "displayName": "Latón de Recompensa",
@@ -62,21 +77,6 @@
           "#CFA936",
           "#EECE74",
           "#FFEDBE"
-        ]
-      },
-      "rarity-rare": {
-        "role": "tertiary",
-        "displayName": "Amatista de Reliquia",
-        "canonical": "#B48CFF",
-        "tonalRamp": [
-          "#100126",
-          "#31075D",
-          "#52268D",
-          "#744AB6",
-          "#9670DB",
-          "#BA98FC",
-          "#D7C7FC",
-          "#F0EBFF"
         ]
       },
       "boss-red": {
@@ -184,6 +184,21 @@
           "#DDF5ED"
         ]
       },
+      "card-bg-deep": {
+        "role": "neutral",
+        "displayName": "Verde de Placa Profundo",
+        "canonical": "#16332C",
+        "tonalRamp": [
+          "#04100D",
+          "#1E322D",
+          "#3C564F",
+          "#5F7B74",
+          "#8AA19B",
+          "#AFC3BD",
+          "#CFDFDA",
+          "#E8F5F1"
+        ]
+      },
       "card-border": {
         "role": "neutral",
         "displayName": "Borde de Placa",
@@ -197,6 +212,21 @@
           "#6FC0AC",
           "#9DE1CF",
           "#C4FDED"
+        ]
+      },
+      "card-border-common": {
+        "role": "neutral",
+        "displayName": "Borde Común Iluminado",
+        "canonical": "#C9D8E4",
+        "tonalRamp": [
+          "#080E12",
+          "#262F36",
+          "#46515B",
+          "#6A7680",
+          "#929DA5",
+          "#B6BFC6",
+          "#D4DCE2",
+          "#EDF3F8"
         ]
       },
       "card-text": {
@@ -258,9 +288,1330 @@
           "#81EBAB",
           "#C7FED9"
         ]
+      },
+      "hp-ink": {
+        "role": "neutral",
+        "displayName": "Tinta de Vida",
+        "canonical": "#06281A",
+        "tonalRamp": [
+          "#03110A",
+          "#1D3328",
+          "#3A5749",
+          "#5E7D6D",
+          "#88A395",
+          "#AEC4B8",
+          "#CEE0D6",
+          "#E7F6EE"
+        ]
+      },
+      "void-deep": {
+        "role": "neutral",
+        "displayName": "Vacío del Tema",
+        "canonical": "#0B2129",
+        "tonalRamp": [
+          "#050F13",
+          "#213037",
+          "#3F535C",
+          "#637981",
+          "#8C9FA7",
+          "#B1C1C7",
+          "#D0DDE3",
+          "#E9F4F8"
+        ]
+      },
+      "void-glow-mid": {
+        "role": "neutral",
+        "displayName": "Vacío Medio",
+        "canonical": "#07131A",
+        "tonalRamp": [
+          "#080E12",
+          "#262F35",
+          "#45525A",
+          "#69777F",
+          "#929DA5",
+          "#B6BFC5",
+          "#D4DCE1",
+          "#ECF3F7"
+        ]
+      },
+      "void-glow-deep": {
+        "role": "neutral",
+        "displayName": "Vacío Profundo",
+        "canonical": "#04070E",
+        "tonalRamp": [
+          "#0B0D12",
+          "#2A2E35",
+          "#4B5059",
+          "#6F757F",
+          "#979CA4",
+          "#BABEC5",
+          "#D7DBE1",
+          "#EFF2F7"
+        ]
+      },
+      "void-glow-end": {
+        "role": "neutral",
+        "displayName": "Vacío Final",
+        "canonical": "#020308",
+        "tonalRamp": [
+          "#0B0D12",
+          "#2B2E35",
+          "#4C5059",
+          "#70747F",
+          "#989BA4",
+          "#BBBDC5",
+          "#D8DBE1",
+          "#F0F2F7"
+        ]
+      },
+      "shadow-black": {
+        "role": "neutral",
+        "displayName": "Negro de Sombra",
+        "canonical": "#000000",
+        "tonalRamp": [
+          "#0D0D0D",
+          "#2E2E2E",
+          "#505050",
+          "#747474",
+          "#9B9B9B",
+          "#BEBEBE",
+          "#DBDBDB",
+          "#F2F2F2"
+        ]
+      },
+      "overlay-veil": {
+        "role": "neutral",
+        "displayName": "Velo de Overlay",
+        "canonical": "#06080C",
+        "tonalRamp": [
+          "#0C0D10",
+          "#2C2E32",
+          "#4D5055",
+          "#71757A",
+          "#999BA0",
+          "#BBBEC2",
+          "#D9DBDE",
+          "#F0F2F5"
+        ]
+      },
+      "panel-ink": {
+        "role": "neutral",
+        "displayName": "Panel de Tinta",
+        "canonical": "#0F2A28",
+        "tonalRamp": [
+          "#04100F",
+          "#1F3230",
+          "#3D5553",
+          "#607B78",
+          "#8BA19E",
+          "#B0C2C0",
+          "#CFDEDD",
+          "#E8F5F3"
+        ]
+      },
+      "panel-deep": {
+        "role": "neutral",
+        "displayName": "Grafito Profundo",
+        "canonical": "#080C10",
+        "tonalRamp": [
+          "#0B0E10",
+          "#2B2E32",
+          "#4C5055",
+          "#70757A",
+          "#979CA0",
+          "#BABEC2",
+          "#D8DBDE",
+          "#EFF2F5"
+        ]
+      },
+      "panel-base": {
+        "role": "neutral",
+        "displayName": "Grafito Base",
+        "canonical": "#0A1014",
+        "tonalRamp": [
+          "#0B0E10",
+          "#2A2F32",
+          "#4A5155",
+          "#6E767B",
+          "#969CA1",
+          "#B9BEC2",
+          "#D7DBDE",
+          "#EFF2F5"
+        ]
+      },
+      "panel-raised": {
+        "role": "neutral",
+        "displayName": "Grafito Elevado",
+        "canonical": "#0C1618",
+        "tonalRamp": [
+          "#090E0F",
+          "#282F31",
+          "#475254",
+          "#6C7779",
+          "#949D9F",
+          "#B7BFC1",
+          "#D5DCDD",
+          "#EDF3F4"
+        ]
+      },
+      "panel-mid": {
+        "role": "neutral",
+        "displayName": "Grafito Medio",
+        "canonical": "#122226",
+        "tonalRamp": [
+          "#070F11",
+          "#243033",
+          "#435357",
+          "#67787C",
+          "#909EA2",
+          "#B4C0C3",
+          "#D3DDDF",
+          "#EBF3F6"
+        ]
+      },
+      "teal-ink": {
+        "role": "neutral",
+        "displayName": "Tinta de Fragua",
+        "canonical": "#06201E",
+        "tonalRamp": [
+          "#05100F",
+          "#203230",
+          "#3D5553",
+          "#617A78",
+          "#8BA09E",
+          "#B0C2C0",
+          "#D0DEDD",
+          "#E9F5F3"
+        ]
+      },
+      "steel-line": {
+        "role": "neutral",
+        "displayName": "Línea de Acero",
+        "canonical": "#7896A0",
+        "tonalRamp": [
+          "#040F13",
+          "#1E3137",
+          "#3B545D",
+          "#5F7982",
+          "#89A0A7",
+          "#AFC1C8",
+          "#CEDEE3",
+          "#E8F4F9"
+        ]
+      },
+      "steel-muted": {
+        "role": "neutral",
+        "displayName": "Acero Apagado",
+        "canonical": "#A0AFB4",
+        "tonalRamp": [
+          "#080E10",
+          "#273032",
+          "#465256",
+          "#6A777B",
+          "#929EA1",
+          "#B6C0C3",
+          "#D5DCDF",
+          "#EDF3F5"
+        ]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Tinta Apagada",
+        "canonical": "#9AA7B4",
+        "tonalRamp": [
+          "#090E13",
+          "#272F36",
+          "#47515B",
+          "#6B7681",
+          "#939DA6",
+          "#B7BFC7",
+          "#D5DCE2",
+          "#EDF2F8"
+        ]
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Tinta Suave",
+        "canonical": "#B8C7C2",
+        "tonalRamp": [
+          "#090F0D",
+          "#27302D",
+          "#47534F",
+          "#6B7874",
+          "#939E9B",
+          "#B7C0BD",
+          "#D5DDDA",
+          "#EDF3F1"
+        ]
+      },
+      "ink-dim": {
+        "role": "neutral",
+        "displayName": "Tinta Tenue",
+        "canonical": "#C8D7E0",
+        "tonalRamp": [
+          "#090E11",
+          "#272F34",
+          "#465259",
+          "#6A777E",
+          "#939DA4",
+          "#B6BFC5",
+          "#D5DCE0",
+          "#EDF3F7"
+        ]
+      },
+      "rarity-rare": {
+        "role": "tertiary",
+        "displayName": "Amatista de Reliquia",
+        "canonical": "#B48CFF",
+        "tonalRamp": [
+          "#100126",
+          "#31075D",
+          "#52268D",
+          "#744AB6",
+          "#9670DB",
+          "#BA98FC",
+          "#D7C7FC",
+          "#F0EBFF"
+        ]
+      },
+      "rarity-rare-hover": {
+        "role": "tertiary",
+        "displayName": "Amatista Iluminada",
+        "canonical": "#DCC8FF",
+        "tonalRamp": [
+          "#11081D",
+          "#332646",
+          "#574670",
+          "#7C6B98",
+          "#A193BA",
+          "#C3B7D8",
+          "#DFD5F1",
+          "#F4EFFF"
+        ]
+      },
+      "legend-ice": {
+        "role": "tertiary",
+        "displayName": "Hielo de Leyenda",
+        "canonical": "#7FDFFF",
+        "tonalRamp": [
+          "#001016",
+          "#033441",
+          "#05596E",
+          "#22809B",
+          "#63A6BD",
+          "#92C7DA",
+          "#B8E3F3",
+          "#DFF6FF"
+        ]
+      },
+      "bh-violet": {
+        "role": "tertiary",
+        "displayName": "Violeta de Agujero",
+        "canonical": "#B48CFF",
+        "tonalRamp": [
+          "#13002C",
+          "#371861",
+          "#5C3695",
+          "#815CC1",
+          "#A589DE",
+          "#C6B0F7",
+          "#DFD3FD",
+          "#F3EFFE"
+        ]
+      },
+      "rank-1": {
+        "role": "neutral",
+        "displayName": "Rango 1 · Aprendiz",
+        "canonical": "#8AA0B8",
+        "tonalRamp": [
+          "#060E17",
+          "#222F3D",
+          "#405265",
+          "#63778C",
+          "#8D9DAF",
+          "#B2BFCF",
+          "#D1DCE9",
+          "#E9F3FD"
+        ]
+      },
+      "rank-2": {
+        "role": "neutral",
+        "displayName": "Rango 2 · Centinela",
+        "canonical": "#35E0C8",
+        "tonalRamp": [
+          "#00110E",
+          "#03362F",
+          "#065D52",
+          "#0D8777",
+          "#41B09F",
+          "#7ED0C0",
+          "#A9EADD",
+          "#CAFFF4"
+        ]
+      },
+      "rank-3": {
+        "role": "neutral",
+        "displayName": "Rango 3 · Guardia",
+        "canonical": "#00F0FF",
+        "tonalRamp": [
+          "#011012",
+          "#063538",
+          "#0D5B60",
+          "#18848C",
+          "#21AFBA",
+          "#71CFD7",
+          "#A0EAF0",
+          "#D2FBFF"
+        ]
+      },
+      "rank-4": {
+        "role": "tertiary",
+        "displayName": "Rango 4 · Comandante",
+        "canonical": "#B388FF",
+        "tonalRamp": [
+          "#13012A",
+          "#381663",
+          "#5D3498",
+          "#825BC3",
+          "#A688E0",
+          "#C6AFF8",
+          "#E0D3FE",
+          "#F3EFFF"
+        ]
+      },
+      "rank-5": {
+        "role": "neutral",
+        "displayName": "Rango 5 · Almirante",
+        "canonical": "#FFD24A",
+        "tonalRamp": [
+          "#130C00",
+          "#392C02",
+          "#624D05",
+          "#8E710A",
+          "#B7983A",
+          "#D5BB75",
+          "#EED9A1",
+          "#FEF1CD"
+        ]
+      },
+      "rank-6": {
+        "role": "neutral",
+        "displayName": "Rango 6 · Arquitecto",
+        "canonical": "#FF2E97",
+        "tonalRamp": [
+          "#1F010E",
+          "#58012F",
+          "#8E1351",
+          "#CB2077",
+          "#F1609D",
+          "#FB9DBF",
+          "#FECADB",
+          "#FEECF2"
+        ]
+      },
+      "dmg-weak": {
+        "role": "neutral",
+        "displayName": "Daño Ventajoso",
+        "canonical": "#8CFFB0",
+        "tonalRamp": [
+          "#001205",
+          "#04381A",
+          "#0A6031",
+          "#138B4A",
+          "#5FB078",
+          "#8FCFA1",
+          "#B6EAC3",
+          "#D4FEDE"
+        ]
+      },
+      "dmg-weak-bg": {
+        "role": "neutral",
+        "displayName": "Fondo Ventajoso",
+        "canonical": "#50FFA0",
+        "tonalRamp": [
+          "#011206",
+          "#01381D",
+          "#115F37",
+          "#1E8A52",
+          "#3CB572",
+          "#7BD49C",
+          "#A8EEBF",
+          "#D3FFE0"
+        ]
+      },
+      "dmg-resist": {
+        "role": "neutral",
+        "displayName": "Daño Resistido",
+        "canonical": "#FF9A9A",
+        "tonalRamp": [
+          "#220003",
+          "#52151A",
+          "#813236",
+          "#AC5759",
+          "#CE8484",
+          "#EAABAA",
+          "#FDCDCC",
+          "#FFEDEC"
+        ]
+      },
+      "dmg-resist-bg": {
+        "role": "neutral",
+        "displayName": "Fondo Resistido",
+        "canonical": "#FF6464",
+        "tonalRamp": [
+          "#220002",
+          "#5B020D",
+          "#98021C",
+          "#C63C40",
+          "#E67470",
+          "#FBA29D",
+          "#FECDC9",
+          "#FEEDEC"
+        ]
+      },
+      "dmg-immune": {
+        "role": "neutral",
+        "displayName": "Daño Inmune",
+        "canonical": "#FFB4B4",
+        "tonalRamp": [
+          "#1E0405",
+          "#491F21",
+          "#753C3E",
+          "#9F6161",
+          "#C18B8B",
+          "#DEB1B0",
+          "#F6D0CF",
+          "#FFEDEC"
+        ]
+      },
+      "gold-bright": {
+        "role": "neutral",
+        "displayName": "Latón Brillante",
+        "canonical": "#FFF0B0",
+        "tonalRamp": [
+          "#110D01",
+          "#372D01",
+          "#5C4F18",
+          "#81753E",
+          "#A69C6F",
+          "#C7BE9A",
+          "#E2DBBD",
+          "#F8F2D9"
+        ]
+      },
+      "gold-hover": {
+        "role": "neutral",
+        "displayName": "Latón Iluminado",
+        "canonical": "#FFE9A8",
+        "tonalRamp": [
+          "#120D00",
+          "#382C03",
+          "#5F4E13",
+          "#85733B",
+          "#AA9A6D",
+          "#CABD98",
+          "#E5DABC",
+          "#FAF2D8"
+        ]
+      },
+      "gold-soft": {
+        "role": "neutral",
+        "displayName": "Latón Suave",
+        "canonical": "#FFE58A",
+        "tonalRamp": [
+          "#120D00",
+          "#382D01",
+          "#5F4E0F",
+          "#89731A",
+          "#AD9B5B",
+          "#CCBE8A",
+          "#E7DBB1",
+          "#FCF2D0"
+        ]
+      },
+      "gold-deep": {
+        "role": "neutral",
+        "displayName": "Latón Profundo",
+        "canonical": "#E8A63A",
+        "tonalRamp": [
+          "#150B01",
+          "#3F2905",
+          "#6A480C",
+          "#9A6A16",
+          "#C29249",
+          "#DEB67E",
+          "#F6D5A8",
+          "#FFEFDB"
+        ]
+      },
+      "gold-ink": {
+        "role": "neutral",
+        "displayName": "Tinta de Latón",
+        "canonical": "#2A1B02",
+        "tonalRamp": [
+          "#130C02",
+          "#372C1A",
+          "#5D4D35",
+          "#827259",
+          "#A79984",
+          "#C8BCAA",
+          "#E3D9CB",
+          "#F9F1E4"
+        ]
+      },
+      "volcano-core": {
+        "role": "neutral",
+        "displayName": "Núcleo Volcánico",
+        "canonical": "#E8641F",
+        "tonalRamp": [
+          "#1C0601",
+          "#501B00",
+          "#82350D",
+          "#BB4F17",
+          "#E07D52",
+          "#FAA683",
+          "#FDCFBC",
+          "#FFEEE7"
+        ]
+      },
+      "volcano-edge": {
+        "role": "neutral",
+        "displayName": "Borde Volcánico",
+        "canonical": "#F7A824",
+        "tonalRamp": [
+          "#160B00",
+          "#402803",
+          "#6C4707",
+          "#9C680F",
+          "#C88F3C",
+          "#E4B476",
+          "#FBD3A1",
+          "#FFEFDC"
+        ]
+      },
+      "volcano-crack": {
+        "role": "neutral",
+        "displayName": "Grieta Volcánica",
+        "canonical": "#FFDD55",
+        "tonalRamp": [
+          "#120D00",
+          "#372D03",
+          "#5F4F06",
+          "#89730E",
+          "#B29A3B",
+          "#D1BD76",
+          "#EADBA1",
+          "#FFF2C3"
+        ]
+      },
+      "danger-soft": {
+        "role": "danger",
+        "displayName": "Rojo Suave",
+        "canonical": "#FFD9D9",
+        "tonalRamp": [
+          "#160909",
+          "#3C2728",
+          "#634748",
+          "#8A6C6C",
+          "#AE9494",
+          "#CEB7B7",
+          "#E8D6D5",
+          "#FDEDED"
+        ]
+      },
+      "danger-glow": {
+        "role": "danger",
+        "displayName": "Rojo Encendido",
+        "canonical": "#FF8C64",
+        "tonalRamp": [
+          "#1D0501",
+          "#521701",
+          "#86300E",
+          "#B6532F",
+          "#D78265",
+          "#F1AA91",
+          "#FECFBF",
+          "#FFEEE8"
+        ]
+      },
+      "danger-warm": {
+        "role": "danger",
+        "displayName": "Naranja Cálido",
+        "canonical": "#FFB478",
+        "tonalRamp": [
+          "#180900",
+          "#462404",
+          "#764009",
+          "#A2632C",
+          "#C48E64",
+          "#E1B390",
+          "#F8D2B6",
+          "#FFEEE2"
+        ]
+      },
+      "danger-arm": {
+        "role": "danger",
+        "displayName": "Naranja Armado",
+        "canonical": "#C7522F",
+        "tonalRamp": [
+          "#1F0300",
+          "#541401",
+          "#8D2701",
+          "#B94F2F",
+          "#DA8065",
+          "#F4A892",
+          "#FDCFC1",
+          "#FFEEE9"
+        ]
+      },
+      "danger-bg": {
+        "role": "danger",
+        "displayName": "Fondo de Amenaza",
+        "canonical": "#3A0C0C",
+        "tonalRamp": [
+          "#1C0605",
+          "#452220",
+          "#70413E",
+          "#986561",
+          "#BB8F8B",
+          "#D9B3B0",
+          "#F2D2CF",
+          "#FFEDEB"
+        ]
+      },
+      "danger-ink": {
+        "role": "danger",
+        "displayName": "Tinta de Amenaza",
+        "canonical": "#FFB4A0",
+        "tonalRamp": [
+          "#1F0401",
+          "#4A1F14",
+          "#773D2E",
+          "#A06251",
+          "#C28C7E",
+          "#DFB2A5",
+          "#F7D1C7",
+          "#FEEEE9"
+        ]
+      },
+      "cyberpunk-accent": {
+        "role": "primary",
+        "displayName": "Cyberpunk · Acento",
+        "canonical": "#00F0FF",
+        "tonalRamp": [
+          "#011012",
+          "#063538",
+          "#0D5B60",
+          "#18848C",
+          "#21AFBA",
+          "#71CFD7",
+          "#A0EAF0",
+          "#D2FBFF"
+        ]
+      },
+      "cyberpunk-gold": {
+        "role": "secondary",
+        "displayName": "Cyberpunk · Oro",
+        "canonical": "#FF2E97",
+        "tonalRamp": [
+          "#1F010E",
+          "#58012F",
+          "#8E1351",
+          "#CB2077",
+          "#F1609D",
+          "#FB9DBF",
+          "#FECADB",
+          "#FEECF2"
+        ]
+      },
+      "cyberpunk-boss": {
+        "role": "danger",
+        "displayName": "Cyberpunk · Amenaza",
+        "canonical": "#FF3860",
+        "tonalRamp": [
+          "#210105",
+          "#59061A",
+          "#940E30",
+          "#D41948",
+          "#F36676",
+          "#FCA0A6",
+          "#FCCDCF",
+          "#FEEDED"
+        ]
+      },
+      "cyberpunk-platform": {
+        "role": "neutral",
+        "displayName": "Cyberpunk · Plataforma",
+        "canonical": "#1A1025",
+        "tonalRamp": [
+          "#100B16",
+          "#312A3B",
+          "#554B61",
+          "#7A6F88",
+          "#A097AC",
+          "#C1BACC",
+          "#DED7E6",
+          "#F4EFFB"
+        ]
+      },
+      "cyberpunk-light": {
+        "role": "neutral",
+        "displayName": "Cyberpunk · Acero Claro",
+        "canonical": "#C9A0FF",
+        "tonalRamp": [
+          "#150227",
+          "#391C57",
+          "#5E3A87",
+          "#8460B1",
+          "#A88BD0",
+          "#C9B1EB",
+          "#E3D1FE",
+          "#F5EFFE"
+        ]
+      },
+      "cyberpunk-card": {
+        "role": "neutral",
+        "displayName": "Cyberpunk · Carta",
+        "canonical": "#241433",
+        "tonalRamp": [
+          "#110919",
+          "#332840",
+          "#574868",
+          "#7D6C8F",
+          "#A295B2",
+          "#C3B8D1",
+          "#DFD6EB",
+          "#F5EEFE"
+        ]
+      },
+      "cyberpunk-border": {
+        "role": "neutral",
+        "displayName": "Cyberpunk · Borde de Carta",
+        "canonical": "#FF2E97",
+        "tonalRamp": [
+          "#1F010E",
+          "#58012F",
+          "#8E1351",
+          "#CB2077",
+          "#F1609D",
+          "#FB9DBF",
+          "#FECADB",
+          "#FEECF2"
+        ]
+      },
+      "cyberpunk-text": {
+        "role": "neutral",
+        "displayName": "Cyberpunk · Texto de Carta",
+        "canonical": "#F0E8FF",
+        "tonalRamp": [
+          "#0F0B14",
+          "#302B38",
+          "#524C5D",
+          "#777183",
+          "#9E98A8",
+          "#C0BBC8",
+          "#DCD8E4",
+          "#F3F0F9"
+        ]
+      },
+      "cyberpunk-space": {
+        "role": "neutral",
+        "displayName": "Cyberpunk · Espacio",
+        "canonical": "#0A0612",
+        "tonalRamp": [
+          "#0E0C13",
+          "#2F2C37",
+          "#524D5C",
+          "#767182",
+          "#9D99A7",
+          "#BFBBC7",
+          "#DCD9E3",
+          "#F3F0F8"
+        ]
+      },
+      "cyberpunk-void": {
+        "role": "neutral",
+        "displayName": "Cyberpunk · Vacío",
+        "canonical": "#2A0B45",
+        "tonalRamp": [
+          "#130521",
+          "#36234C",
+          "#5B4279",
+          "#8066A1",
+          "#A590C3",
+          "#C6B4DF",
+          "#E2D3F7",
+          "#F5EEFF"
+        ]
+      },
+      "neon-accent": {
+        "role": "primary",
+        "displayName": "Neón · Acento",
+        "canonical": "#00FFF0",
+        "tonalRamp": [
+          "#00110F",
+          "#033632",
+          "#065C57",
+          "#0C867E",
+          "#10B2A8",
+          "#6DD2C8",
+          "#9EECE3",
+          "#CAFEF8"
+        ]
+      },
+      "neon-gold": {
+        "role": "secondary",
+        "displayName": "Neón · Oro",
+        "canonical": "#FFEE00",
+        "tonalRamp": [
+          "#0F0E01",
+          "#332F00",
+          "#57520D",
+          "#7F7717",
+          "#A99F21",
+          "#CAC260",
+          "#E5DF92",
+          "#FAF5B7"
+        ]
+      },
+      "neon-boss": {
+        "role": "danger",
+        "displayName": "Neón · Amenaza",
+        "canonical": "#FF0060",
+        "tonalRamp": [
+          "#210106",
+          "#59051E",
+          "#940A36",
+          "#D41451",
+          "#FA5D7B",
+          "#FC9FAA",
+          "#FDCDD1",
+          "#FFEDEE"
+        ]
+      },
+      "neon-platform": {
+        "role": "neutral",
+        "displayName": "Neón · Plataforma",
+        "canonical": "#150826",
+        "tonalRamp": [
+          "#100A19",
+          "#312941",
+          "#544969",
+          "#796D90",
+          "#9F95B4",
+          "#C1B9D2",
+          "#DDD7EC",
+          "#F4EFFF"
+        ]
+      },
+      "neon-light": {
+        "role": "neutral",
+        "displayName": "Neón · Acero Claro",
+        "canonical": "#FF6EC7",
+        "tonalRamp": [
+          "#1F0014",
+          "#55023B",
+          "#8D0165",
+          "#BA3A8C",
+          "#DB71B0",
+          "#F69DCF",
+          "#FEC9E5",
+          "#FEECF5"
+        ]
+      },
+      "neon-card": {
+        "role": "neutral",
+        "displayName": "Neón · Carta",
+        "canonical": "#1F0A33",
+        "tonalRamp": [
+          "#11081C",
+          "#342645",
+          "#58466F",
+          "#7D6A97",
+          "#A393B9",
+          "#C4B7D7",
+          "#E0D5F0",
+          "#F5EEFE"
+        ]
+      },
+      "neon-border": {
+        "role": "neutral",
+        "displayName": "Neón · Borde de Carta",
+        "canonical": "#00FFF0",
+        "tonalRamp": [
+          "#00110F",
+          "#033632",
+          "#065C57",
+          "#0C867E",
+          "#10B2A8",
+          "#6DD2C8",
+          "#9EECE3",
+          "#CAFEF8"
+        ]
+      },
+      "neon-text": {
+        "role": "neutral",
+        "displayName": "Neón · Texto de Carta",
+        "canonical": "#FFF0FA",
+        "tonalRamp": [
+          "#110B0F",
+          "#332B31",
+          "#574C53",
+          "#7C7078",
+          "#A2989F",
+          "#C3BBC1",
+          "#DFD8DD",
+          "#F6F0F4"
+        ]
+      },
+      "neon-space": {
+        "role": "neutral",
+        "displayName": "Neón · Espacio",
+        "canonical": "#08030F",
+        "tonalRamp": [
+          "#0F0B14",
+          "#312B38",
+          "#544C5D",
+          "#797083",
+          "#9F98A8",
+          "#C1BBC8",
+          "#DDD8E4",
+          "#F4F0F9"
+        ]
+      },
+      "neon-void": {
+        "role": "neutral",
+        "displayName": "Neón · Vacío",
+        "canonical": "#1E0A44",
+        "tonalRamp": [
+          "#0E0723",
+          "#2F2550",
+          "#51457D",
+          "#756AA6",
+          "#9C93C7",
+          "#BEB7E3",
+          "#DBD6FA",
+          "#F2F0FE"
+        ]
+      },
+      "aqua-accent": {
+        "role": "primary",
+        "displayName": "Aqua · Acento",
+        "canonical": "#2BD9E0",
+        "tonalRamp": [
+          "#001112",
+          "#023537",
+          "#045B5F",
+          "#098589",
+          "#3FAEB2",
+          "#7DCED1",
+          "#A8E8EB",
+          "#CDFCFE"
+        ]
+      },
+      "aqua-gold": {
+        "role": "secondary",
+        "displayName": "Aqua · Oro",
+        "canonical": "#FFD166",
+        "tonalRamp": [
+          "#130C00",
+          "#3B2B01",
+          "#654B01",
+          "#926E01",
+          "#B7974C",
+          "#D5BB80",
+          "#EED8A9",
+          "#FFF1D2"
+        ]
+      },
+      "aqua-boss": {
+        "role": "danger",
+        "displayName": "Aqua · Amenaza",
+        "canonical": "#FF6B6B",
+        "tonalRamp": [
+          "#210102",
+          "#5A0610",
+          "#950F20",
+          "#C34044",
+          "#E37673",
+          "#FDA19C",
+          "#FDCDCA",
+          "#FFEDEC"
+        ]
+      },
+      "aqua-platform": {
+        "role": "neutral",
+        "displayName": "Aqua · Plataforma",
+        "canonical": "#0E2A3A",
+        "tonalRamp": [
+          "#030F17",
+          "#1D303C",
+          "#3A5364",
+          "#5E798A",
+          "#889FAE",
+          "#AEC1CD",
+          "#CEDDE8",
+          "#E7F4FD"
+        ]
+      },
+      "aqua-light": {
+        "role": "neutral",
+        "displayName": "Aqua · Acero Claro",
+        "canonical": "#A8DDE6",
+        "tonalRamp": [
+          "#011013",
+          "#103339",
+          "#2B585F",
+          "#4F7D85",
+          "#7DA3A9",
+          "#A5C4CA",
+          "#C7E0E5",
+          "#E2F6FA"
+        ]
+      },
+      "aqua-card": {
+        "role": "neutral",
+        "displayName": "Aqua · Carta",
+        "canonical": "#123647",
+        "tonalRamp": [
+          "#020F17",
+          "#19313D",
+          "#355465",
+          "#597A8C",
+          "#84A0AF",
+          "#ABC2CF",
+          "#CBDEE9",
+          "#E5F5FD"
+        ]
+      },
+      "aqua-border": {
+        "role": "neutral",
+        "displayName": "Aqua · Borde de Carta",
+        "canonical": "#4FD8E0",
+        "tonalRamp": [
+          "#011112",
+          "#053538",
+          "#0B5B5F",
+          "#14848A",
+          "#4FACB1",
+          "#85CCD0",
+          "#AEE7EA",
+          "#CEFCFF"
+        ]
+      },
+      "aqua-text": {
+        "role": "neutral",
+        "displayName": "Aqua · Texto de Carta",
+        "canonical": "#E5FBFF",
+        "tonalRamp": [
+          "#070F10",
+          "#243033",
+          "#425356",
+          "#66787B",
+          "#8F9FA1",
+          "#B4C0C3",
+          "#D2DDDF",
+          "#EBF4F5"
+        ]
+      },
+      "aqua-space": {
+        "role": "neutral",
+        "displayName": "Aqua · Espacio",
+        "canonical": "#061B24",
+        "tonalRamp": [
+          "#050F13",
+          "#213037",
+          "#3F535D",
+          "#637883",
+          "#8D9FA8",
+          "#B1C0C8",
+          "#D1DDE3",
+          "#E9F4F9"
+        ]
+      },
+      "aqua-void": {
+        "role": "neutral",
+        "displayName": "Aqua · Vacío",
+        "canonical": "#062A38",
+        "tonalRamp": [
+          "#020F16",
+          "#1A313C",
+          "#365563",
+          "#5A7A89",
+          "#85A0AD",
+          "#ACC2CD",
+          "#CCDEE7",
+          "#E6F5FC"
+        ]
+      },
+      "cielo-accent": {
+        "role": "primary",
+        "displayName": "Cielo · Acento",
+        "canonical": "#6FC6FF",
+        "tonalRamp": [
+          "#010F1A",
+          "#00314C",
+          "#10557C",
+          "#2A7CAD",
+          "#66A3CC",
+          "#93C5E7",
+          "#B9E1FD",
+          "#E6F4FE"
+        ]
+      },
+      "cielo-gold": {
+        "role": "secondary",
+        "displayName": "Cielo · Oro",
+        "canonical": "#FFC94A",
+        "tonalRamp": [
+          "#130C01",
+          "#3B2B04",
+          "#654B0A",
+          "#926E14",
+          "#BC953E",
+          "#D9BA77",
+          "#F2D8A2",
+          "#FEF0D4"
+        ]
+      },
+      "cielo-boss": {
+        "role": "danger",
+        "displayName": "Cielo · Amenaza",
+        "canonical": "#FF7A7A",
+        "tonalRamp": [
+          "#210103",
+          "#5C000F",
+          "#8F1E28",
+          "#BC484B",
+          "#DD7B79",
+          "#F7A4A1",
+          "#FFCDCA",
+          "#FEEDEC"
+        ]
+      },
+      "cielo-platform": {
+        "role": "neutral",
+        "displayName": "Cielo · Plataforma",
+        "canonical": "#1D2A3D",
+        "tonalRamp": [
+          "#070D17",
+          "#252E3D",
+          "#445164",
+          "#67768A",
+          "#909CAE",
+          "#B4BFCE",
+          "#D3DBE8",
+          "#EBF2FD"
+        ]
+      },
+      "cielo-light": {
+        "role": "neutral",
+        "displayName": "Cielo · Acero Claro",
+        "canonical": "#CFE6FF",
+        "tonalRamp": [
+          "#060E17",
+          "#222F3D",
+          "#405264",
+          "#64778B",
+          "#8D9DAF",
+          "#B2BFCE",
+          "#D1DCE8",
+          "#EAF3FD"
+        ]
+      },
+      "cielo-card": {
+        "role": "neutral",
+        "displayName": "Cielo · Carta",
+        "canonical": "#1B2C42",
+        "tonalRamp": [
+          "#060E18",
+          "#222F3F",
+          "#405167",
+          "#64768E",
+          "#8D9DB1",
+          "#B2BFD0",
+          "#D1DCEA",
+          "#EAF3FF"
+        ]
+      },
+      "cielo-border": {
+        "role": "neutral",
+        "displayName": "Cielo · Borde de Carta",
+        "canonical": "#6FC6FF",
+        "tonalRamp": [
+          "#010F1A",
+          "#00314C",
+          "#10557C",
+          "#2A7CAD",
+          "#66A3CC",
+          "#93C5E7",
+          "#B9E1FD",
+          "#E6F4FE"
+        ]
+      },
+      "cielo-text": {
+        "role": "neutral",
+        "displayName": "Cielo · Texto de Carta",
+        "canonical": "#EAF6FF",
+        "tonalRamp": [
+          "#0A0E11",
+          "#282F34",
+          "#485158",
+          "#6C767D",
+          "#949DA3",
+          "#B8BFC4",
+          "#D6DCE0",
+          "#EEF2F6"
+        ]
+      },
+      "cielo-space": {
+        "role": "neutral",
+        "displayName": "Cielo · Espacio",
+        "canonical": "#0B1420",
+        "tonalRamp": [
+          "#090E14",
+          "#272E38",
+          "#47515E",
+          "#6B7584",
+          "#939CA9",
+          "#B7BEC9",
+          "#D5DBE4",
+          "#EDF2FA"
+        ]
+      },
+      "cielo-void": {
+        "role": "neutral",
+        "displayName": "Cielo · Vacío",
+        "canonical": "#0B2136",
+        "tonalRamp": [
+          "#050E19",
+          "#1F2F3F",
+          "#3D5268",
+          "#60778E",
+          "#8A9EB2",
+          "#B0C0D1",
+          "#CFDCEB",
+          "#E8F3FF"
+        ]
       }
     },
     "typographyMeta": {
+      "display-hero": {
+        "displayName": "Display Hero",
+        "purpose": "Título del juego: el único grito a pantalla completa."
+      },
+      "display-lg": {
+        "displayName": "Display LG",
+        "purpose": "Cabecera de modal y \"Mejora de Nivel\" en escritorio."
+      },
+      "display-md": {
+        "displayName": "Display MD",
+        "purpose": "Título del modal de cartas."
+      },
+      "display-sm": {
+        "displayName": "Display SM",
+        "purpose": "Título de pantalla dentro de panel."
+      },
       "display": {
         "displayName": "Display",
         "purpose": "Títulos de pantalla y cabeceras de modal."
@@ -277,6 +1628,10 @@
         "displayName": "Body",
         "purpose": "Botones, descripciones, filas y datos de apoyo."
       },
+      "body-sm": {
+        "displayName": "Body SM",
+        "purpose": "Descripciones secundarias, celdas y datos de apoyo."
+      },
       "label": {
         "displayName": "Label",
         "purpose": "Etiquetas de dato, chips y micro-rótulos en mono."
@@ -284,6 +1639,14 @@
       "numeric": {
         "displayName": "Numeric",
         "purpose": "Score, reloj y cifras del HUD."
+      },
+      "stat-md": {
+        "displayName": "Stat MD",
+        "purpose": "Cifras de banner de meta."
+      },
+      "stat-lg": {
+        "displayName": "Stat LG",
+        "purpose": "La cifra de calor de Protocolo."
       }
     },
     "shadows": [
@@ -436,6 +1799,11 @@
     ],
     "rules": [
       {
+        "name": "La Regla del Tema",
+        "body": "El tema tiñe la consola, nunca la batalla. Torres, enemigos, proyectiles, rangos y tipos de daño conservan su color semántico en las cinco paletas; la rareza conserva su escala (acero → teal → amatista → oro del tema). Si un color de juego cambia con el tema, deja de ser información.",
+        "section": "colors"
+      },
+      {
         "name": "La Regla del Unicolor",
         "body": "El teal es \"vos\" (nivel, XP, controles); el blanco neutro es \"el mundo\" (progreso de la etapa). Nunca cruces los dos: si el progreso del stage se pinta de teal, el jugador deja de saber qué barra es suya.",
         "section": "colors"
@@ -448,6 +1816,11 @@
       {
         "name": "La Regla del Piso",
         "body": "Ningún texto visible baja de 15 px. Si una pantalla no entra, scrollea o reflowa; no se achica la letra.",
+        "section": "typography"
+      },
+      {
+        "name": "La Regla del Escalón",
+        "body": "El cuerpo usa la escala fija de 15/16/18/21/26/36 px y no inventa pasos intermedios. Los títulos display usan `clamp()` y crecen con el viewport; las cifras stat (24/38) son datos, no texto, y pueden salir de la escala fija.",
         "section": "typography"
       },
       {
