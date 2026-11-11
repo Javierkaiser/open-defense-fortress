@@ -1,0 +1,491 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-11T13:30:22.132Z",
+  "title": "Design System: Open Defense Fortress",
+  "extensions": {
+    "colorMeta": {
+      "hud-teal": {
+        "role": "primary",
+        "displayName": "Verde de Fragua",
+        "canonical": "#35E0C8",
+        "tonalRamp": [
+          "#000F0C",
+          "#002E28",
+          "#045147",
+          "#077769",
+          "#0B9F8D",
+          "#3DC6B2",
+          "#7EE7D4",
+          "#B9FFF1"
+        ]
+      },
+      "hud-teal-deep": {
+        "role": "primary",
+        "displayName": "Verde de Fragua Profundo",
+        "canonical": "#2AA898",
+        "tonalRamp": [
+          "#010F0C",
+          "#042E28",
+          "#015148",
+          "#19766A",
+          "#249D8E",
+          "#62C2B3",
+          "#94E3D5",
+          "#BDFEF2"
+        ]
+      },
+      "hud-teal-soft": {
+        "role": "primary",
+        "displayName": "Verde de Fragua Claro",
+        "canonical": "#5FF0D8",
+        "tonalRamp": [
+          "#010F0C",
+          "#042E27",
+          "#025147",
+          "#007768",
+          "#259E8C",
+          "#4BC5B1",
+          "#86E6D4",
+          "#BDFEF0"
+        ]
+      },
+      "crit-gold": {
+        "role": "secondary",
+        "displayName": "Latón de Recompensa",
+        "canonical": "#FFD24A",
+        "tonalRamp": [
+          "#100A00",
+          "#312500",
+          "#554304",
+          "#7D6305",
+          "#A78509",
+          "#CFA936",
+          "#EECE74",
+          "#FFEDBE"
+        ]
+      },
+      "rarity-rare": {
+        "role": "tertiary",
+        "displayName": "Amatista de Reliquia",
+        "canonical": "#B48CFF",
+        "tonalRamp": [
+          "#100126",
+          "#31075D",
+          "#52268D",
+          "#744AB6",
+          "#9670DB",
+          "#BA98FC",
+          "#D7C7FC",
+          "#F0EBFF"
+        ]
+      },
+      "boss-red": {
+        "role": "danger",
+        "displayName": "Rojo de Amenaza",
+        "canonical": "#FF5555",
+        "tonalRamp": [
+          "#1E0102",
+          "#4D050A",
+          "#850214",
+          "#C00021",
+          "#E94748",
+          "#FA8881",
+          "#FDBFBA",
+          "#FFE9E6"
+        ]
+      },
+      "boss-red-deep": {
+        "role": "danger",
+        "displayName": "Rojo de Amenaza Profundo",
+        "canonical": "#A3161F",
+        "tonalRamp": [
+          "#1F0001",
+          "#4D0609",
+          "#850413",
+          "#B42B2E",
+          "#DC5853",
+          "#FF847C",
+          "#FDBFB9",
+          "#FEE9E6"
+        ]
+      },
+      "space-deep": {
+        "role": "neutral",
+        "displayName": "Grafito de Yunque",
+        "canonical": "#14161C",
+        "tonalRamp": [
+          "#0A0B0F",
+          "#24262C",
+          "#42454C",
+          "#63666D",
+          "#868991",
+          "#ABAEB5",
+          "#CED1D7",
+          "#ECEEF4"
+        ]
+      },
+      "space-top": {
+        "role": "neutral",
+        "displayName": "Pizarra de Cubierta",
+        "canonical": "#1C1F26",
+        "tonalRamp": [
+          "#090B10",
+          "#24262D",
+          "#42454D",
+          "#62666E",
+          "#858992",
+          "#AAAEB6",
+          "#CED1D8",
+          "#ECEEF5"
+        ]
+      },
+      "platform": {
+        "role": "neutral",
+        "displayName": "Acero de Plataforma",
+        "canonical": "#2B2F36",
+        "tonalRamp": [
+          "#090B10",
+          "#23272D",
+          "#41454C",
+          "#62666E",
+          "#858991",
+          "#AAAEB6",
+          "#CDD1D8",
+          "#EBEFF4"
+        ]
+      },
+      "platform-light": {
+        "role": "neutral",
+        "displayName": "Acero Claro",
+        "canonical": "#9FB4C8",
+        "tonalRamp": [
+          "#030C16",
+          "#192836",
+          "#354758",
+          "#55687B",
+          "#788C9E",
+          "#9EB0C2",
+          "#C3D3E2",
+          "#E3F0FE"
+        ]
+      },
+      "card-bg": {
+        "role": "neutral",
+        "displayName": "Verde de Placa",
+        "canonical": "#2A4D44",
+        "tonalRamp": [
+          "#000F0B",
+          "#0E2D25",
+          "#2B4D44",
+          "#4B6F65",
+          "#6F9288",
+          "#96B6AD",
+          "#BCD8D0",
+          "#DDF5ED"
+        ]
+      },
+      "card-border": {
+        "role": "neutral",
+        "displayName": "Borde de Placa",
+        "canonical": "#7FE0C8",
+        "tonalRamp": [
+          "#000F0B",
+          "#022E25",
+          "#0A5144",
+          "#127764",
+          "#3C9C87",
+          "#6FC0AC",
+          "#9DE1CF",
+          "#C4FDED"
+        ]
+      },
+      "card-text": {
+        "role": "neutral",
+        "displayName": "Blanco de Carta",
+        "canonical": "#E8FFF6",
+        "tonalRamp": [
+          "#030E0A",
+          "#1B2A25",
+          "#374A43",
+          "#576B64",
+          "#7A8E87",
+          "#A0B3AC",
+          "#C5D5CF",
+          "#E4F2ED"
+        ]
+      },
+      "progress-neutral": {
+        "role": "neutral",
+        "displayName": "Blanco de Progreso",
+        "canonical": "#DCE6EE",
+        "tonalRamp": [
+          "#070C10",
+          "#21272D",
+          "#3E464C",
+          "#5F676E",
+          "#828A91",
+          "#A7AFB6",
+          "#CBD2D8",
+          "#E9EFF4"
+        ]
+      },
+      "score-white": {
+        "role": "neutral",
+        "displayName": "Blanco de Score",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "#0B0B0B",
+          "#262626",
+          "#454545",
+          "#666666",
+          "#898989",
+          "#AEAEAE",
+          "#D1D1D1",
+          "#EEEEEE"
+        ]
+      },
+      "hp-green": {
+        "role": "neutral",
+        "displayName": "Verde de Vida",
+        "canonical": "#35E08A",
+        "tonalRamp": [
+          "#000F05",
+          "#012F18",
+          "#09532F",
+          "#0F7A47",
+          "#17A361",
+          "#43CB81",
+          "#81EBAB",
+          "#C7FED9"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Títulos de pantalla y cabeceras de modal."
+      },
+      "cta": {
+        "displayName": "CTA",
+        "purpose": "Acción principal del menú y la pausa."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Nombre de stage, nombre de carta y rótulos de sección."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Botones, descripciones, filas y datos de apoyo."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Etiquetas de dato, chips y micro-rótulos en mono."
+      },
+      "numeric": {
+        "displayName": "Numeric",
+        "purpose": "Score, reloj y cifras del HUD."
+      }
+    },
+    "shadows": [
+      {
+        "name": "glow-teal",
+        "value": "0 0 8px rgba(53,224,200,.30)",
+        "purpose": "Estado interactivo, barras y focos."
+      },
+      {
+        "name": "glow-gold",
+        "value": "0 0 8px rgba(255,210,74,.35)",
+        "purpose": "Recompensa, crítico y legendarias."
+      },
+      {
+        "name": "panel-ambient",
+        "value": "0 0 22px rgba(53,224,200,.14), inset 0 0 18px rgba(15,42,40,.30)",
+        "purpose": "Paneles de overlay y modales."
+      },
+      {
+        "name": "key-bevel",
+        "value": "inset 0 1px 0 rgba(53,224,200,.45), inset 0 -10px 14px rgba(0,0,0,.38)",
+        "purpose": "Botones de consola: filo claro arriba, profundidad abajo."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-state",
+        "value": ".15s ease",
+        "purpose": "Hover y foco de botones."
+      },
+      {
+        "name": "ease-cta",
+        "value": ".18s ease",
+        "purpose": "Elevación del CTA de forja."
+      },
+      {
+        "name": "ease-screen",
+        "value": ".28s cubic-bezier(.2,.8,.3,1)",
+        "purpose": "Entrada de pantallas de overlay."
+      },
+      {
+        "name": "card-flip",
+        "value": ".42s cubic-bezier(.2,.85,.3,1.15)",
+        "purpose": "Revelado escalonado de cartas."
+      },
+      {
+        "name": "shine-sweep",
+        "value": ".55s cubic-bezier(.2,.8,.2,1)",
+        "purpose": "Barrido de brillo del CTA."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile-s",
+        "value": "360px"
+      },
+      {
+        "name": "mobile-m",
+        "value": "430px"
+      },
+      {
+        "name": "desktop-cards",
+        "value": "431px"
+      },
+      {
+        "name": "container-wide",
+        "value": "520px"
+      },
+      {
+        "name": "short-screen",
+        "value": "640px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Botón de consola",
+      "kind": "button",
+      "refersTo": "button-console",
+      "description": "Tecla física de la consola: gloss, chaflán y glow al hover.",
+      "html": "<button class=\"ds-btn-console\">CONTINUAR</button>",
+      "css": ".ds-btn-console {\n  font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 21px; letter-spacing: 1px;\n  color: #FFFFFF; padding: 10px 22px; cursor: pointer; user-select: none;\n  border: 1px solid rgba(53, 224, 200, .40);\n  background:\n    linear-gradient(rgba(9, 12, 14, .58), rgba(9, 12, 14, .58)),\n    linear-gradient(180deg, #2FC0AC 0%, #2FC0AC 3%, #8AEADC 8%, #8AEADC 44%, #35E0C8 52%, #35E0C8 92%, #8AEADC 96%, #2FC0AC 100%);\n  box-shadow: 0 0 8px rgba(53, 224, 200, .30), inset 0 1px 0 rgba(53, 224, 200, .45), inset 0 -10px 14px rgba(0, 0, 0, .38);\n  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px);\n  transition: box-shadow .15s ease, transform .12s ease;\n}\n.ds-btn-console:hover { box-shadow: 0 0 16px rgba(53, 224, 200, .65), inset 0 1px 0 rgba(53, 224, 200, .60), inset 0 -10px 14px rgba(0, 0, 0, .38); }\n.ds-btn-console:focus-visible { outline: 2px solid #35E0C8; outline-offset: 3px; }\n.ds-btn-console:active { transform: translateY(2px); }"
+    },
+    {
+      "name": "CTA de forja",
+      "kind": "button",
+      "refersTo": "cta-forge",
+      "description": "Acción principal del menú: latón, chaflán de 16 px y barrido de brillo.",
+      "html": "<button class=\"ds-cta-forge\"><span class=\"ds-cta-icon\">▶</span><span class=\"ds-cta-copy\"><b>JUGAR</b><small>STAGE 12 · VOLCÁNICO</small></span><span class=\"ds-cta-chevron\">›</span></button>",
+      "css": ".ds-cta-forge {\n  position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center;\n  gap: 13px; width: 100%; min-height: 76px; padding: 12px 16px; text-align: left;\n  color: #071012; cursor: pointer; overflow: hidden; border: 1px solid #FFE49A; border-radius: 0;\n  clip-path: polygon(16px 0, 100% 0, 100% calc(100% - 16px), calc(100% - 16px) 100%, 0 100%, 0 16px);\n  background: linear-gradient(135deg, rgba(255,255,255,.16), transparent 44%), linear-gradient(180deg, #FFE06B, #B98A1F);\n  box-shadow: 0 12px 30px rgba(255, 210, 74, .18), 0 0 0 1px rgba(0, 0, 0, .35);\n  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;\n}\n.ds-cta-forge::before { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.34) 50%, transparent 70%); transform: translateX(-130%); transition: transform .55s cubic-bezier(.2,.8,.2,1); pointer-events: none; }\n.ds-cta-forge:hover { transform: translateY(-2px); filter: brightness(1.04); box-shadow: 0 16px 36px rgba(255, 210, 74, .24), 0 0 0 1px rgba(0, 0, 0, .35); }\n.ds-cta-forge:hover::before { transform: translateX(130%); }\n.ds-cta-forge:active { transform: translateY(0); }\n.ds-cta-icon { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; border: 1px solid rgba(0,0,0,.25); background: rgba(0,0,0,.16); font-size: 18px; }\n.ds-cta-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }\n.ds-cta-copy b { font-family: 'Orbitron', sans-serif; font-size: 30px; font-weight: 700; line-height: 1; letter-spacing: .1em; }\n.ds-cta-copy small { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 15px; letter-spacing: .08em; text-transform: uppercase; opacity: .8; }\n.ds-cta-chevron { font-family: 'Orbitron', sans-serif; font-size: 28px; line-height: 1; opacity: .5; }"
+    },
+    {
+      "name": "Tile de comando",
+      "kind": "nav",
+      "refersTo": "tile-command",
+      "description": "Acceso secundario del menú: placa grafito con acento izquierdo teal.",
+      "html": "<button class=\"ds-tile-command\"><span class=\"ds-tile-icon\">✦</span><span class=\"ds-tile-copy\"><b>Torretas</b><small>Mejorá tu arsenal</small></span></button>",
+      "css": ".ds-tile-command {\n  display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 64px; padding: 9px 10px;\n  color: #FFFFFF; text-align: left; cursor: pointer; border: 1px solid rgba(53,224,200,.20); border-left: 2px solid rgba(53,224,200,.55);\n  border-radius: 0; clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 9px 100%, 0 calc(100% - 9px));\n  background: linear-gradient(180deg, rgba(18,28,32,.88), rgba(8,12,16,.94));\n  transition: transform .15s ease, border-color .15s ease, background .15s ease;\n}\n.ds-tile-command:hover { transform: translateY(-1px); border-color: rgba(53,224,200,.55); background: linear-gradient(180deg, rgba(24,38,42,.94), rgba(10,16,20,.98)); }\n.ds-tile-icon { flex: 0 0 auto; display: grid; place-items: center; width: 30px; height: 30px; color: #35E0C8; border: 1px solid rgba(53,224,200,.28); background: rgba(53,224,200,.07); }\n.ds-tile-copy { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }\n.ds-tile-copy b { font-family: 'Rajdhani', sans-serif; font-size: 18px; font-weight: 700; letter-spacing: .04em; line-height: 1.05; }\n.ds-tile-copy small { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 15px; line-height: 1.2; opacity: .72; }"
+    },
+    {
+      "name": "Carta de mejora",
+      "kind": "card",
+      "refersTo": "card-upgrade",
+      "description": "Carta del modal de level-up: placa verde, chip de unidad y rareza al pie.",
+      "html": "<button class=\"ds-card-upgrade\"><span class=\"ds-card-unit\">TORRE · MORTAR</span><span class=\"ds-card-title\">Ojiva Pesada</span><span class=\"ds-card-desc\">Mortar: ×1,6 de daño EXPLOSIÓN por impacto.</span><span class=\"ds-card-rarity\">POCO COMÚN</span></button>",
+      "css": ".ds-card-upgrade {\n  display: flex; flex-direction: column; gap: 8px; width: 170px; min-height: 210px; padding: 12px 10px;\n  color: #E8FFF6; text-align: center; cursor: pointer; font-family: 'Rajdhani', sans-serif;\n  border: 1.5px solid #7FE0C8; border-radius: 12px;\n  background: linear-gradient(180deg, #2A4D44, #16332C);\n  box-shadow: 0 0 16px rgba(53,224,200,.22), inset 0 0 12px rgba(15,42,40,.5);\n  transition: box-shadow .18s ease, border-color .18s ease, transform .12s ease;\n}\n.ds-card-upgrade:hover { border-color: #B7FFE9; box-shadow: 0 0 26px rgba(53,224,200,.65), 0 0 46px rgba(53,224,200,.30), inset 0 0 16px rgba(53,224,200,.25); }\n.ds-card-upgrade:active { transform: translateY(2px) scale(.98); }\n.ds-card-unit { align-self: center; max-width: 100%; padding: 1px 8px; border: 1px solid rgba(53,224,200,.45); border-radius: 999px; font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 15px; color: #35E0C8; white-space: nowrap; }\n.ds-card-title { font-family: 'Orbitron', sans-serif; font-size: 21px; font-weight: 700; line-height: 1.2; }\n.ds-card-desc { font-size: 16px; line-height: 1.35; color: rgba(232,255,246,.82); }\n.ds-card-rarity { margin-top: auto; font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 15px; letter-spacing: .1em; color: #35E0C8; }"
+    },
+    {
+      "name": "Chip de dato",
+      "kind": "chip",
+      "refersTo": "chip-data",
+      "description": "Píldora de telemetría: borde teal y mono de 15 px.",
+      "html": "<span class=\"ds-chip-data\">TORRE · MORTAR</span>",
+      "css": ".ds-chip-data {\n  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;\n  border: 1px solid rgba(53,224,200,.35); border-radius: 999px; background: rgba(15,42,40,.85);\n  color: #35E0C8; font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 15px; letter-spacing: .5px;\n  white-space: nowrap;\n}"
+    },
+    {
+      "name": "Panel de pantalla",
+      "kind": "custom",
+      "refersTo": "panel-screen",
+      "description": "Placa de overlay: grafito, radio de 12 px y glow ambiente.",
+      "html": "<div class=\"ds-panel-screen\"><h3>PAUSA</h3><p>El asedio espera.</p><button class=\"ds-btn-console\">CONTINUAR</button></div>",
+      "css": ".ds-panel-screen {\n  display: flex; flex-direction: column; align-items: center; gap: 12px; width: 320px; padding: 22px 20px;\n  color: #FFFFFF; text-align: center; font-family: 'Rajdhani', sans-serif;\n  border: 1px solid rgba(53,224,200,.28); border-radius: 12px;\n  background: linear-gradient(180deg, rgba(18,24,28,.94), rgba(10,13,16,.96));\n  box-shadow: 0 0 22px rgba(53,224,200,.14), inset 0 0 18px rgba(15,42,40,.30);\n}\n.ds-panel-screen h3 { font-family: 'Orbitron', sans-serif; font-size: 28px; letter-spacing: 3px; margin: 0; }\n.ds-panel-screen p { font-size: 16px; color: #9FB4C8; margin: 0; }"
+    },
+    {
+      "name": "Read-out de HUD",
+      "kind": "custom",
+      "refersTo": "chip-data",
+      "description": "Chip de dato del HUD: 48 px en PC, 32 px en móvil.",
+      "html": "<div class=\"ds-hud-readout\"><span class=\"ds-hud-label\">STAGE</span><b class=\"ds-hud-value\">12</b></div>",
+      "css": ".ds-hud-readout {\n  display: inline-flex; align-items: center; gap: 7px; min-height: 48px; padding: 6px 11px;\n  border: 1px solid rgba(159,180,200,.16); border-left-color: #35E0C8; border-right-color: #35E0C8;\n  background: rgba(15,42,40,.85); font-family: 'Rajdhani', sans-serif;\n}\n.ds-hud-label { font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 15px; letter-spacing: 1px; color: #9FB4C8; text-transform: uppercase; }\n.ds-hud-value { font-family: 'Exo2', ui-monospace, monospace; font-size: 21px; color: #FFFFFF; }"
+    },
+    {
+      "name": "Barra de progreso",
+      "kind": "custom",
+      "refersTo": "chip-data",
+      "description": "Track fino con relleno teal para XP; el progreso del mundo usa blanco neutro.",
+      "html": "<div class=\"ds-progress\"><span class=\"ds-progress-fill\" style=\"width:62%\"></span></div>",
+      "css": ".ds-progress { width: 220px; height: 8px; background: rgba(159,180,200,.16); overflow: hidden; }\n.ds-progress-fill { display: block; height: 100%; background: linear-gradient(90deg, #2AA898, #35E0C8); box-shadow: 0 0 8px rgba(53,224,200,.45); transition: width .25s ease; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "La Consola de Forja",
+    "overview": "La pantalla es la consola de una forja de asedio: el mundo arde afuera y la interfaz se mantiene fría, metálica y precisa. El grafito profundo es el chasis; el teal es la telemetría de lo que es tuyo (nivel, XP, controles); el latón marca la recompensa; la amatista, lo raro; el rojo, la amenaza. Nada brilla porque sí.\n\nLa épica no viene del ornamento sino del contraste: paneles planos con bordes de 1 px, esquinas biseladas como metal mecanizado y luz que aparece sólo cuando hay un estado que anunciar (hover, listo, jefe, legendaria). La pantalla se lee de un vistazo en medio de una oleada: cifras grandes, etiquetas mono en mayúsculas y jerarquía por tamaño y color, nunca por adornos.",
+    "keyCharacteristics": [
+      "Grafito y acero de fondo; teal, latón, amatista y rojo como luces con significado.",
+      "Biseles y chaflanes en lo interactivo; radios suaves en lo contenido.",
+      "Glow funcional en vez de sombras decorativas.",
+      "Orbitron para el grito, Rajdhani para el dato, ChakraPetch/Exo2 para la instrumentación.",
+      "Ningún texto visible por debajo de 15 px: si no entra, scrollea o reflowa."
+    ],
+    "rules": [
+      {
+        "name": "La Regla del Unicolor",
+        "body": "El teal es \"vos\" (nivel, XP, controles); el blanco neutro es \"el mundo\" (progreso de la etapa). Nunca cruces los dos: si el progreso del stage se pinta de teal, el jugador deja de saber qué barra es suya.",
+        "section": "colors"
+      },
+      {
+        "name": "La Regla del Rojo",
+        "body": "El rojo es amenaza (jefe, daño, peligro). No se usa como decoración ni como acento de marca.",
+        "section": "colors"
+      },
+      {
+        "name": "La Regla del Piso",
+        "body": "Ningún texto visible baja de 15 px. Si una pantalla no entra, scrollea o reflowa; no se achica la letra.",
+        "section": "typography"
+      },
+      {
+        "name": "La Regla del Grito",
+        "body": "Orbitron se reserva para títulos y CTA. Un párrafo en Orbitron deja de ser instrumento y se vuelve ruido.",
+        "section": "typography"
+      },
+      {
+        "name": "La Regla del Marco",
+        "body": "Nada vive fuera del marco: los overlays cubren el marco, no el monitor. La cámara y el HUD comparten la misma caja.",
+        "section": "layout"
+      },
+      {
+        "name": "La Regla del Glow con Causa",
+        "body": "Sin estado o energía, sin glow. Un brillo decorativo compite con la telemetría y vuelve ilegible el HUD.",
+        "section": "elevation"
+      },
+      {
+        "name": "La Regla del Chaflán",
+        "body": "Metal interactivo = chaflán; contenido = radio. Nunca mezcles los dos en el mismo elemento: un botón redondeado se lee como tarjeta y una tarjeta biselada se lee como botón.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do usar teal para \"vos\" (nivel, XP, controles) y blanco neutro para el progreso del mundo.",
+      "Do reservar el latón para recompensa, crítico, legendarias y el CTA.",
+      "Do mantener todo texto visible en 15 px o más y reflowar antes que achicar.",
+      "Do biselar lo interactivo y redondear lo contenido.",
+      "Do usar glow sólo cuando hay un estado o energía que anunciar.",
+      "Do escribir datos en mono mayúscula con tracking de 1–2 px."
+    ],
+    "donts": [
+      "Don't usar drop shadows decorativas: la profundidad es luz, no sombra.",
+      "Don't teñir torres, enemigos ni proyectiles con el tema de UI: sus colores son semánticos.",
+      "Don't usar rojo fuera de amenaza, daño o peligro.",
+      "Don't introducir serif, script ni pesos livianos.",
+      "Don't agregar un sexto acento a la UI: la paleta es teal, latón, amatista y rojo sobre neutros.",
+      "Don't mezclar chaflán y radio en el mismo elemento."
+    ]
+  }
+}
