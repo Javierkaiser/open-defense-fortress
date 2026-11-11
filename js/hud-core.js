@@ -38,6 +38,13 @@ import { loadSkin } from './tower-skins.js';
 import { QUALITY_LEVELS, loadQuality, saveQuality, applyQualityToContext, applyQualityToDom, particleCapFor } from './quality.js';
 import { resetProgress, loadProgress } from './progress.js';
 import { resetMeta } from './meta.js';
+// overdrive 1.17.11 — transiciones de pantalla. Módulo puro: recibe
+// document/window por parámetro y no toca nada al importarse en Node.
+import {
+  transitionKind, prefersReducedMotion, runViewTransition,
+  setViewTransitionName, clearViewTransitionNames,
+  applyRectVars, clearRectVars,
+} from './transitions.js';
 // dev-7 fase 64: el TOPE de nivel de una etapa (`MAX_LEVEL_PER_STAGE`, el
 // techo de cartas de score.js). Sin ciclo: score.js sólo importa stages.js
 // (la regla §1.1 sigue viva — hud.js nunca importa main.js/cards.js).
@@ -173,6 +180,10 @@ export class HUD {
     // cerrada: la tabla tapaba la nav inferior en móvil).
     this._legendOpen = false;
     this._lastScreen = null; // fase 75: detectar cambio real de pantalla
+    // overdrive 1.17.11 — botón que disparó el último cambio de pantalla:
+    // es el origen espacial de la transición "deploy" (la etapa elegida
+    // abre la batalla desde su propia fila).
+    this._lastActionEl = null;
     // dev-7 fase 43: la EXPLICACIÓN del banner "¿Cómo subo de nivel?" es
     // un toggle (arranca cerrada: la prosa se comía 130 px de 844 para
     // algo que se lee una vez).
@@ -564,10 +575,41 @@ export class HUD {
     }
   }
 
+  /**
+   * Cambia de pantalla. Si el par tiene una transición con intención, la
+   * orquesta; si no, aplica el cambio en el acto (mismo contrato de
+   * siempre para tests y para navegadores sin View Transitions).
+   */
   showScreen(name, data = null) {
     const el = this.overlayRoot;
     if (!el) return;
-    const changed = this._lastScreen !== name;
+    const from = this._lastScreen;
+    if (from === name) {
+      // Re-render de la MISMA pantalla (Protocolo ±, mejora en Torretas):
+      // sin transición, y sin mover el foco para no perder scroll.
+      this._applyScreen(name, data, false);
+      return;
+    }
+    const kind = transitionKind(from, name);
+    if (!kind) {
+      this._applyScreen(name, data, true);
+      return;
+    }
+    this._transitionScreen(kind, name, data);
+  }
+
+  /**
+   * Cuerpo histórico de showScreen(). Se separa para poder ejecutarlo
+   * dentro del callback de la View Transition, cuando el navegador ya
+   * tomó la foto del estado anterior.
+   *
+   * @param {string} name pantalla destino
+   * @param {object|null} data payload de la pantalla
+   * @param {boolean} focus mover el foco (solo en un cambio real)
+   */
+  _applyScreen(name, data, focus) {
+    const el = this.overlayRoot;
+    if (!el) return;
     this._lastScreen = name;
     this._resetTransientUi(name);
     // Sin jefe fuera del campo: tampoco puede quedar el aviso de JEFE.
@@ -671,7 +713,78 @@ export class HUD {
     // fase 75: al entrar a una pantalla nueva, el foco no puede quedar en
     // <body>. Se enfoca el título (tabindex -1) o el primer control; en
     // re-renders de la MISMA pantalla no se toca para no perder foco/scroll.
-    if (changed) this._focusScreen(el);
+    if (focus) this._focusScreen(el);
+  }
+
+  /**
+   * overdrive 1.17.11 — orquesta una transición entre pantallas.
+   *
+   * El origen espacial se lee ANTES de mutar el DOM: el botón que disparó
+   * el cambio define de dónde nace la pantalla nueva. Si el navegador no
+   * soporta View Transitions, runViewTransition() aplica el cambio en el
+   * acto: la experiencia sin la mejora sigue siendo la de siempre.
+   */
+  _transitionScreen(kind, name, data) {
+    const doc = typeof document !== 'undefined' ? document : null;
+    const win = typeof window !== 'undefined' ? window : null;
+    const root = doc?.documentElement ?? null;
+    if (!doc || !root) {
+      this._applyScreen(name, data, true);
+      return;
+    }
+    // Un nombre huérfano (transición salteada) aborta la nueva en silencio.
+    clearViewTransitionNames(doc);
+    if (kind === 'deploy' || kind === 'pause-in' || kind === 'pause-out') {
+      const origin = this._transitionOrigin(kind);
+      const rect = origin?.getBoundingClientRect?.();
+      if (rect) applyRectVars(root, rect, win?.innerWidth ?? 0, win?.innerHeight ?? 0);
+      else clearRectVars(root);
+    }
+    runViewTransition(doc, () => {
+      this._applyScreen(name, data, true);
+      // Solo si la transición realmente arrancó: sin soporte, las entradas
+      // CSS (screen-in, forge-rise) siguen siendo la única coreografía.
+      if (root.classList.contains('vt-active')) {
+        this.overlayRoot?.querySelector?.('.screen')?.classList?.add('is-vt');
+      }
+    }, {
+      kind,
+      win,
+      onCleanup: () => {
+        clearRectVars(root);
+        clearViewTransitionNames(doc);
+      },
+    });
+  }
+
+  /**
+   * Elemento del que nace la transición. `deploy` usa el último botón
+   * tocado; si el cambio vino por teclado, cae al CTA de la pantalla.
+   *
+   * @param {string} kind
+   * @returns {?Element}
+   */
+  _transitionOrigin(kind) {
+    const doc = typeof document !== 'undefined' ? document : null;
+    if (kind === 'pause-in') return doc?.getElementById?.('btn-pause') ?? null;
+    if (kind === 'pause-out') {
+      return this.overlayRoot?.querySelector?.('.pause-cta')
+        ?? doc?.getElementById?.('btn-pause') ?? null;
+    }
+    const last = this._lastActionEl;
+    if (last?.isConnected) return last;
+    const from = this._lastScreen;
+    const root = this.overlayRoot;
+    if (from === 'MENU') return root?.querySelector?.('.menu-cta') ?? null;
+    if (from === 'SELECT_STAGE') {
+      return root?.querySelector?.('.stage.is-next')
+        ?? root?.querySelector?.('.stage:not([disabled])') ?? null;
+    }
+    if (from === 'STAGE_CLEAR' || from === 'GAME_OVER') {
+      return root?.querySelector?.('.btn.big')
+        ?? root?.querySelector?.('.panel') ?? null;
+    }
+    return this.root ?? null;
   }
 
   /** Enfoca el encabezado o el primer control de una pantalla. */
@@ -1654,6 +1767,7 @@ export class HUD {
     this.overlayRoot.addEventListener('click', (ev) => {
       const btn = ev.target.closest('[data-action]');
       if (!btn || btn.disabled) return;
+      this._lastActionEl = btn; // overdrive: origen de la transición
       const fn = handlers[btn.dataset.action];
       if (fn) fn(btn); // el handler recibe el botón (data-stage, etc.)
     });
@@ -2068,49 +2182,85 @@ export class HUD {
       <p class="hint">${footHint}</p>`;
     this.cardModal.querySelector('[data-action-combo]')
       ?.addEventListener('click', () => this.engine.emit('ui:combo_list'));
-    this.cardModal.classList.remove('hidden');
-    this._modalKind = 'cards';
-    // adapt 1.17.4 — en pantallas bajas (≤700 px de alto) la columna de
-    // cartas no entra entera. El degradado inferior y el aviso de la pista
-    // hacen visible que hay más; se apagan al llegar al final.
-    const row = this.cardModal.querySelector('.cards-row');
-    if (row) {
-      const hintEl = this.cardModal.querySelector('.hint');
-      const baseHint = hintEl ? hintEl.textContent : '';
-      const updateMore = () => {
-        const { show } = cardsScrollState({
-          scrollHeight: row.scrollHeight,
-          clientHeight: row.clientHeight,
-          scrollTop: row.scrollTop,
-        });
-        row.classList.toggle('is-scrollable', show);
-        if (hintEl) {
-          hintEl.textContent = show
-            ? `${baseHint} · deslizá ↓`
-            : baseHint;
-        }
-      };
-      row.addEventListener('scroll', updateMore, { passive: true });
-      updateMore();
+
+    // overdrive 1.17.11 — el chip Lv del HUD se convierte en el encabezado
+    // "Fase Normal N · Nvl.X" del modal. Es el gesto que cuenta la
+    // historia: subiste de nivel y el dato vuela a la decisión.
+    const reveal = () => {
+      this.cardModal.classList.remove('hidden');
+      this._modalKind = 'cards';
+      // adapt 1.17.4 — en pantallas bajas (≤700 px de alto) la columna de
+      // cartas no entra entera. El degradado inferior y el aviso de la pista
+      // hacen visible que hay más; se apagan al llegar al final.
+      const row = this.cardModal.querySelector('.cards-row');
+      if (row) {
+        const hintEl = this.cardModal.querySelector('.hint');
+        const baseHint = hintEl ? hintEl.textContent : '';
+        const updateMore = () => {
+          const { show } = cardsScrollState({
+            scrollHeight: row.scrollHeight,
+            clientHeight: row.clientHeight,
+            scrollTop: row.scrollTop,
+          });
+          row.classList.toggle('is-scrollable', show);
+          if (hintEl) {
+            hintEl.textContent = show
+              ? `${baseHint} · deslizá ↓`
+              : baseHint;
+          }
+        };
+        row.addEventListener('scroll', updateMore, { passive: true });
+        updateMore();
+      }
+      // T7 — el rótulo accesible dice la cantidad REAL de cartas de la
+      // oferta (puede ser 1, no siempre 3) y el modal TOMA el foco (si no,
+      // el focus trap y el Esc no engages y el HUD queda tabulable detrás).
+      const n = offer.length;
+      this._setModalLabel(isLegendaryDraft
+        ? `Legendaria para ${meta?.unitName ?? meta?.unitType ?? 'la unidad'} — elegí 1 de ${n}`
+        : `Mejora de nivel — elegí 1 de ${n} ${n === 1 ? 'mejora' : 'mejoras'}`);
+      // 1.17.1 — guard de apertura: un click que ya venía en vuelo (el mismo
+      // gesto que disparó el level-up) no puede elegir por el jugador.
+      this._cardOpenedAt = Date.now();
+      this._pointerCard = null;
+      // 1.17.1 — el foco entra al DIÁLOGO, no a la primera carta: con el foco
+      // en un <button>, Espacio/Enter lo activaban (bug del level-up).
+      if (typeof this.cardModal.focus === 'function') {
+        try { this.cardModal.focus(); } catch (_err) { /* sin foco */ }
+      }
+      // SFX de revelado (D7).
+      try { this.audio.sfx('card'); } catch (_err) { /* sin ctx aún */ }
+    };
+
+    const doc = typeof document !== 'undefined' ? document : null;
+    const win = typeof window !== 'undefined' ? window : null;
+    // El origen es el RÓTULO "Lv.1" (no el contenedor con la barra XP): su
+    // caja es casi la del "Nvl.1" del modal, así el morph no estira texto.
+    const chip = this.el?.lv ?? null;
+    const head = this.cardModal.querySelector('.card-head span:last-child');
+    // El morph solo tiene sentido desde el combate: en TORRETAS el modal
+    // de perk no tiene un "Lv" de origen que contar.
+    const canMorph = !!doc && !!chip && !!head
+      && this._lastScreen === 'PLAYING'
+      && typeof doc.startViewTransition === 'function'
+      && !prefersReducedMotion(win);
+    if (!canMorph) {
+      reveal();
+      return;
     }
-    // T7 — el rótulo accesible dice la cantidad REAL de cartas de la
-    // oferta (puede ser 1, no siempre 3) y el modal TOMA el foco (si no,
-    // el focus trap y el Esc no engages y el HUD queda tabulable detrás).
-    const n = offer.length;
-    this._setModalLabel(isLegendaryDraft
-      ? `Legendaria para ${meta?.unitName ?? meta?.unitType ?? 'la unidad'} — elegí 1 de ${n}`
-      : `Mejora de nivel — elegí 1 de ${n} ${n === 1 ? 'mejora' : 'mejoras'}`);
-    // 1.17.1 — guard de apertura: un click que ya venía en vuelo (el mismo
-    // gesto que disparó el level-up) no puede elegir por el jugador.
-    this._cardOpenedAt = Date.now();
-    this._pointerCard = null;
-    // 1.17.1 — el foco entra al DIÁLOGO, no a la primera carta: con el foco
-    // en un <button>, Espacio/Enter lo activaban (bug del level-up).
-    if (typeof this.cardModal.focus === 'function') {
-      try { this.cardModal.focus(); } catch (_err) { /* sin foco */ }
-    }
-    // SFX de revelado (D7).
-    try { this.audio.sfx('card'); } catch (_err) { /* sin ctx aún */ }
+    clearViewTransitionNames(doc);
+    setViewTransitionName(chip, 'lv-hero');
+    runViewTransition(doc, () => {
+      // El chip sigue visible detrás del modal: se le quita el nombre para
+      // que no haya DOS `lv-hero` en el estado nuevo (eso aborta el morph).
+      setViewTransitionName(chip, '');
+      setViewTransitionName(head, 'lv-hero');
+      reveal();
+    }, {
+      kind: 'card',
+      win,
+      onCleanup: () => clearViewTransitionNames(doc),
+    });
   }
 
   /**

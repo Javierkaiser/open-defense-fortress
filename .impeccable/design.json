@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-11T16:39:50.449Z",
+  "generatedAt": "2026-11-11T19:25:14.711Z",
   "title": "Design System: Open Defense Fortress",
   "extensions": {
     "colorMeta": {
@@ -1685,12 +1685,42 @@
       {
         "name": "ease-screen",
         "value": ".28s cubic-bezier(.2,.8,.3,1)",
-        "purpose": "Entrada de pantallas de overlay."
+        "purpose": "Entrada CSS de pantallas cuando NO hay View Transitions."
       },
       {
         "name": "shine-sweep",
         "value": ".55s cubic-bezier(.2,.8,.2,1)",
         "purpose": "Barrido de brillo del CTA."
+      },
+      {
+        "name": "screen-deploy",
+        "value": "420ms cubic-bezier(.22,.75,.2,1)",
+        "purpose": "La etapa elegida abre la batalla con un clip desde su fila."
+      },
+      {
+        "name": "screen-pause",
+        "value": "340ms cubic-bezier(.22,.75,.2,1)",
+        "purpose": "El panel de pausa nace del bot?n y se encoge de vuelta."
+      },
+      {
+        "name": "screen-rise",
+        "value": "380ms cubic-bezier(.22,.75,.2,1)",
+        "purpose": "El parte de fin sube desde el borde inferior."
+      },
+      {
+        "name": "screen-push",
+        "value": "300ms cubic-bezier(.22,.75,.2,1)",
+        "purpose": "Men? ? hojas: empuje lateral de 26 px."
+      },
+      {
+        "name": "screen-card",
+        "value": "360ms cubic-bezier(.22,.75,.2,1)",
+        "purpose": "El r?tulo Lv del HUD vuela al encabezado del modal."
+      },
+      {
+        "name": "screen-fade",
+        "value": "200ms cubic-bezier(.22,.75,.2,1)",
+        "purpose": "Cambios sin origen espacial; 120 ms con movimiento reducido."
       }
     ],
     "breakpoints": [

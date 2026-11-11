@@ -234,6 +234,17 @@
      duraciones son momentos de una sola pieza y quedan literales. */
   --ease-state: .15s ease;
   --ease-quick: .18s ease;
+  /* ---------- overdrive 1.17.11: transiciones de pantalla ----------
+     Duraciones de la View Transition. Cada una se usa en el grupo, la
+     foto vieja y la nueva de su tipo (3 usos), por eso son tokens.
+     El movimiento es opacidad + clip-path + transform: nada de layout. */
+  --vt-dur-fade: 200ms;
+  --vt-dur-push: 300ms;
+  --vt-dur-deploy: 420ms;
+  --vt-dur-pause: 340ms;
+  --vt-dur-rise: 380ms;
+  --vt-dur-card: 360ms;
+  --vt-ease: cubic-bezier(.22, .75, .2, 1);
   /* Los dos glows que más se repiten: el teal de la UI y el dorado.
      Se escriben con los TRIPLETS, así que también cambian con el tema. */
   --shadow-1: 0 0 8px rgb(var(--hud-teal-rgb) / .3);
@@ -6782,5 +6793,189 @@ kbd {
     align-items: center;
     justify-content: center;
   }
+}
+
+/* ============================================================
+   overdrive 1.17.11 — TRANSICIONES DE PANTALLA
+   ------------------------------------------------------------
+   La pantalla nueva NACE de lo que la provocó:
+     · deploy    → la etapa se abre desde su fila (clip rectangular).
+     · pause-in  → el panel crece desde el botón de pausa (círculo).
+     · pause-out → el panel se encoge de vuelta al botón CONTINUAR.
+     · rise      → el parte de fin sube desde el borde inferior.
+     · push      → menú ↔ hojas, empuje lateral corto.
+     · card      → el chip Lv se convierte en el encabezado del modal.
+   Sin soporte de View Transitions el cambio es instantáneo: la
+   experiencia base no depende de esto. Todo el movimiento es
+   opacidad + clip-path + transform; nada re-layoutea.
+   ============================================================ */
+
+/* La entrada de CSS solo sirve como fallback: si la pantalla llega con
+   una View Transition, su movimiento ya está escrito y las entradas
+   (screen-in, forge-rise) se apagan. La clase `is-vt` queda en el nodo
+   para que la animación no arranque recién al terminar la transición. */
+#overlay-root .screen.is-vt,
+#overlay-root .screen.is-vt .menu-hero,
+#overlay-root .screen.is-vt .menu-command,
+#overlay-root .screen.is-vt .menu-settings,
+#overlay-root .screen.is-vt .menu-footer,
+#overlay-root .screen.is-vt .menu-tile-grid > * {
+  animation: none;
+}
+
+/* Duración activa por tipo (el grupo, la foto vieja y la nueva la leen
+   del mismo token; el override vive en la clase de la raíz). */
+html.vt-deploy { --vt-dur-active: var(--vt-dur-deploy); }
+html.vt-push-forward,
+html.vt-push-back { --vt-dur-active: var(--vt-dur-push); }
+html.vt-pause-in,
+html.vt-pause-out { --vt-dur-active: var(--vt-dur-pause); }
+html.vt-rise { --vt-dur-active: var(--vt-dur-rise); }
+html.vt-card { --vt-dur-active: var(--vt-dur-card); }
+html.vt-fade { --vt-dur-active: var(--vt-dur-fade); }
+html.vt-reduced { --vt-dur-active: 120ms; }
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  mix-blend-mode: normal;
+  animation-duration: var(--vt-dur-active, var(--vt-dur-fade));
+  animation-timing-function: var(--vt-ease);
+}
+html.vt-active::view-transition-group(root) {
+  animation-duration: var(--vt-dur-active, var(--vt-dur-fade));
+  animation-timing-function: var(--vt-ease);
+}
+
+/* ---------- push: menú ↔ hojas ---------- */
+html.vt-push-forward::view-transition-old(root) {
+  animation: vt-push-out var(--vt-dur-push) var(--vt-ease) both;
+}
+html.vt-push-forward::view-transition-new(root) {
+  animation: vt-push-in var(--vt-dur-push) var(--vt-ease) both;
+  z-index: 1;
+}
+html.vt-push-back::view-transition-old(root) {
+  animation: vt-push-back-out var(--vt-dur-push) var(--vt-ease) both;
+  z-index: 1;
+}
+html.vt-push-back::view-transition-new(root) {
+  animation: vt-push-back-in var(--vt-dur-push) var(--vt-ease) both;
+}
+@keyframes vt-push-in {
+  from { opacity: .6; transform: translate3d(26px, 0, 0); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes vt-push-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: .35; transform: translate3d(-22px, 0, 0); }
+}
+@keyframes vt-push-back-in {
+  from { opacity: .6; transform: translate3d(-26px, 0, 0); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes vt-push-back-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: .35; transform: translate3d(22px, 0, 0); }
+}
+
+/* ---------- deploy: la etapa abre la batalla ---------- */
+html.vt-deploy::view-transition-old(root) {
+  animation: vt-deploy-old var(--vt-dur-deploy) var(--vt-ease) both;
+}
+html.vt-deploy::view-transition-new(root) {
+  animation: vt-deploy-in var(--vt-dur-deploy) var(--vt-ease) both;
+  z-index: 1;
+}
+@keyframes vt-deploy-old {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: scale(1.012); }
+}
+@keyframes vt-deploy-in {
+  from {
+    clip-path: inset(
+      var(--vt-top, 38%) var(--vt-right, 38%)
+      var(--vt-bottom, 38%) var(--vt-left, 38%) round 14px
+    );
+  }
+  to { clip-path: inset(0 0 0 0 round 0); }
+}
+
+/* ---------- pausa: el panel nace del botón ---------- */
+html.vt-pause-in::view-transition-old(root) {
+  animation: vt-pause-old var(--vt-dur-pause) var(--vt-ease) both;
+}
+html.vt-pause-in::view-transition-new(root) {
+  animation: vt-pause-in var(--vt-dur-pause) var(--vt-ease) both;
+  z-index: 1;
+}
+html.vt-pause-out::view-transition-old(root) {
+  animation: vt-pause-out var(--vt-dur-pause) var(--vt-ease) both;
+  z-index: 1;
+}
+html.vt-pause-out::view-transition-new(root) {
+  animation: vt-fade-in var(--vt-dur-pause) var(--vt-ease) both;
+}
+@keyframes vt-pause-old {
+  from { opacity: 1; transform: none; }
+  to { opacity: .5; transform: scale(1.01); }
+}
+@keyframes vt-pause-in {
+  from { clip-path: circle(0 at var(--vt-cx, 50%) var(--vt-cy, 8%)); }
+  to { clip-path: circle(150% at var(--vt-cx, 50%) var(--vt-cy, 8%)); }
+}
+@keyframes vt-pause-out {
+  from { clip-path: circle(150% at var(--vt-cx, 50%) var(--vt-cy, 8%)); }
+  to { clip-path: circle(0 at var(--vt-cx, 50%) var(--vt-cy, 8%)); }
+}
+
+/* ---------- rise: el parte de fin sube desde abajo ---------- */
+html.vt-rise::view-transition-old(root) {
+  animation: vt-fade-out var(--vt-dur-rise) var(--vt-ease) both;
+}
+html.vt-rise::view-transition-new(root) {
+  animation: vt-rise-in var(--vt-dur-rise) var(--vt-ease) both;
+  z-index: 1;
+}
+@keyframes vt-rise-in {
+  from { clip-path: inset(100% 0 0 0 round 14px); }
+  to { clip-path: inset(0 0 0 0 round 0); }
+}
+
+/* ---------- card: el chip Lv se convierte en encabezado ---------- */
+html.vt-card::view-transition-old(root) {
+  animation: vt-fade-out var(--vt-dur-card) var(--vt-ease) both;
+}
+html.vt-card::view-transition-new(root) {
+  animation: vt-fade-in var(--vt-dur-card) var(--vt-ease) both;
+}
+html.vt-card::view-transition-group(lv-hero) {
+  animation-duration: var(--vt-dur-card);
+  animation-timing-function: var(--vt-ease);
+}
+html.vt-card::view-transition-old(lv-hero) {
+  animation: vt-hero-out var(--vt-dur-card) var(--vt-ease) both;
+}
+html.vt-card::view-transition-new(lv-hero) {
+  animation: vt-hero-in var(--vt-dur-card) var(--vt-ease) both;
+}
+@keyframes vt-hero-out {
+  from { opacity: 1; }
+  40% { opacity: .15; }
+  to { opacity: 0; }
+}
+@keyframes vt-hero-in {
+  from { opacity: 0; }
+  45% { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ---------- fades compartidos ---------- */
+@keyframes vt-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes vt-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 

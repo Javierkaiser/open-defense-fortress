@@ -474,6 +474,36 @@ mecanizado. La profundidad aparece como luz cuando hay un estado que anunciar
 **La Regla del Glow con Causa.** Sin estado o energía, sin glow. Un brillo
 decorativo compite con la telemetría y vuelve ilegible el HUD.
 
+## Motion
+
+El movimiento no decora: **la pantalla nueva nace del control que la
+provocó**. Los cambios entre pantallas usan la View Transitions API
+(same-document) con una sola idea espacial por par; sin soporte, el cambio
+es instantáneo. Las entradas CSS (`screen-in`, `forge-rise`) se apagan en la
+pantalla que entra con transición: la foto nueva no puede capturarse en el
+frame 0.
+
+| Momento | Duración | Qué se mueve |
+|---|---:|---|
+| **Deploy** | 420 ms | La etapa elegida abre la batalla con un clip rectangular que crece desde su fila. |
+| **Pausa** | 340 ms | El panel crece desde el botón de pausa y se encoge de vuelta al botón CONTINUAR. |
+| **Rise** | 380 ms | El parte de fin sube desde el borde inferior. |
+| **Push** | 300 ms | Menú ↔ hojas: 26 px de empuje y un fade corto. |
+| **Card** | 360 ms | El rótulo Lv del HUD vuela al encabezado del modal. |
+| **Fade** | 200 ms | El resto de los cambios; 120 ms con movimiento reducido. |
+
+La curva es `--vt-ease: cubic-bezier(.22, .75, .2, 1)`: arranca rápido y
+frena, sin rebote. Todo es opacidad, `clip-path` y `transform`; ninguna
+transición re-layoutea ni toca el canvas.
+
+**La Regla del Origen.** Una transición de pantalla empieza en el control
+que la disparó; si el cambio vino por teclado, empieza en el centro. Nada
+de cortinillas genéricas.
+
+**La Regla del Movimiento Reducido.** Con `prefers-reduced-motion: reduce`
+no hay desplazamiento ni clip: solo un fade de 120 ms. El feedback del
+combate (nivel, XP, racha, avisos) conserva su pulso de opacidad.
+
 ## Shapes
 
 La forma distingue dos materiales. Lo **interactivo** es metal biselado:

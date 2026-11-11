@@ -470,6 +470,14 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 - **Pulido 1.17.10**: el swatch de tema activo no escala (borde + halo
   alcanzan y la grilla queda alineada); el feedback de nivel/XP/racha/hint
   reinicia con doble `requestAnimationFrame` en vez de `void offsetWidth`.
+- **Transiciones de pantalla (1.17.11)**: View Transitions API
+  same-document con un origen por par: `deploy` (clip desde la fila de la
+  etapa), `pause` (círculo desde el botón y de vuelta), `rise` (el parte
+  sube desde abajo), `push` (menú ↔ hojas, 26 px) y `card` (el rótulo
+  `Lv.1` vuela al `Nvl.1` del modal). Sin soporte el cambio es
+  instantáneo; con `prefers-reduced-motion` solo hay un fade de 120 ms.
+  La pantalla que entra con VT recibe `is-vt` para que `screen-in` y
+  `forge-rise` no se capturen en el frame 0.
 - **Pulido 1.17.5**: la pantalla de carga tiene inset y una barra de tres
   celdas (sin marquee); la matriz de daño de la pausa oculta el glifo del
   encabezado a ≤520 px y pasa a fichas a ≤380 px; el flip muerto de las
@@ -565,7 +573,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1215 tests (1215 pass, 0 skip) en 42 archivos.
+- 1226 tests (1226 pass, 0 skip) en 43 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

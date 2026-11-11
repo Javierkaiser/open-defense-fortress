@@ -4,6 +4,35 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.17.11] — 2026-11-11
+
+### Overdrive: transiciones de pantalla
+
+- La **View Transitions API** (same-document) convierte cada cambio de
+  pantalla en un movimiento con origen: la etapa elegida abre la batalla con
+  un clip desde su fila (**deploy**, 420 ms), la pausa nace del botón y vuelve
+  a él (**pause**, 340 ms), el parte de fin sube desde abajo (**rise**,
+  380 ms), menú ↔ hojas se empujan 26 px (**push**, 300 ms) y el rótulo
+  `Lv.1` del HUD vuela hasta el `Nvl.1` del modal de cartas (**card**,
+  360 ms). El resto usa un fade de 200 ms.
+- `js/transitions.js` encapsula la clasificación pura, la geometría de los
+  `clip-path`, las guardas de soporte/movimiento reducido y el ciclo de
+  `startViewTransition` (incluida una transición que pisa a otra). Con
+  `prefers-reduced-motion` solo queda un fade de 120 ms.
+- **Sin soporte** (Firefox < 144, navegadores viejos) el cambio sigue siendo
+  instantáneo: la API es una mejora, no un requisito.
+- Las entradas CSS (`screen-in`, `forge-rise`) se apagan en la pantalla que
+  entra con VT (`is-vt`): la foto nueva no se captura en el frame 0. El menú
+  de arranque, que no usa VT, conserva su entrada escalonada.
+- Tokens `--vt-dur-*` y `--vt-ease`; el sidecar documenta el vocabulario
+  `screen-*`. Sin costo de LCP: la primera pantalla no transiciona y todo es
+  opacidad, `clip-path` y `transform`.
+
+### Tests / versión
+
+- **1226 tests, 0 skip** (43 archivos).
+- Versión **1.17.11** / Android `versionCode 48`.
+
 ## [1.17.10] — 2026-11-11
 
 ### Pulido final
