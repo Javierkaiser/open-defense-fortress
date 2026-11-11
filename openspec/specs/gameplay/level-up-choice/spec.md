@@ -12,30 +12,46 @@ los rótulos mínimos de cada carta (unidad y requisitos).
 
 ## Requirements
 
-### Requirement: Selección exclusiva por puntero
+### Requirement: Selección por puntero o teclado deliberado
 
-Una carta MUST elegirse únicamente con un gesto de puntero real: un
-`pointerdown` sobre la carta seguido de un `click` sobre la misma carta dentro
-de 1 s. Cualquier `click` sin `pointerdown` previo sobre esa carta —el que
-sintetiza el navegador al activar un `<button>` enfocado desde el teclado, o el
-que dispara código con `element.click()`— MUST NOT elegir la carta. Un
-`pointerdown` sobre una carta seguido de un `click` sobre otra MUST NOT elegir
-ninguna de las dos.
+Una carta MUST elegirse con un gesto de puntero real (un `pointerdown` sobre
+la carta seguido de un `click` sobre la misma carta dentro de 1 s) **o** con
+un `Enter` sobre la carta que tiene el foco. El foco inicial MUST estar en el
+diálogo, no en una carta, así que ninguna tarjeta se activa sola al abrirse.
+
+Un `click` sin `pointerdown` sobre una carta que **no** tiene el foco MUST NOT
+elegir. Un `pointerdown` sobre una carta seguido de un `click` sobre otra MUST
+NOT elegir ninguna de las dos. Espacio MUST NOT elegir una carta.
 
 #### Scenario: Un click de puntero elige la carta
 
 - **WHEN** el jugador apoya el puntero sobre una carta y suelta sobre la misma carta
 - **THEN** esa carta se aplica y el modal se cierra
 
-#### Scenario: Un click sin pointerdown no elige
+#### Scenario: Un click sin pointerdown y sin foco no elige
 
-- **WHEN** llega un `click` sobre una carta sin un `pointerdown` previo sobre ella
+- **WHEN** llega un `click` sobre una carta sin un `pointerdown` previo y esa carta no tiene el foco
 - **THEN** la carta no se aplica, el modal sigue abierto y la oferta no cambia
+
+#### Scenario: Enter sobre la carta enfocada elige
+
+- **WHEN** el jugador llega con Tab a una carta y pulsa Enter
+- **THEN** esa carta se aplica y el modal se cierra
+
+#### Scenario: Espacio nunca elige
+
+- **WHEN** una carta tiene el foco y el jugador pulsa Espacio
+- **THEN** esa carta no se elige y el modal sigue abierto
 
 #### Scenario: El puntero se va de la carta
 
 - **WHEN** el jugador hace `pointerdown` sobre una carta y suelta sobre otra carta
 - **THEN** ninguna de las dos se aplica
+
+#### Scenario: El gesto se interrumpe
+
+- **WHEN** el navegador cancela el puntero (`pointercancel`), el puntero sale del modal o se pierde el foco durante el gesto
+- **THEN** el gesto armado se limpia y el siguiente click no elige por arrastre
 
 #### Scenario: Dos toques rápidos no compran dos cartas
 
@@ -43,14 +59,14 @@ ninguna de las dos.
   anti-doble-toque (`canPickCard`)
 - **THEN** la segunda elección se descarta y sólo cuenta la primera
 
-### Requirement: Teclado inerte en el modal
+### Requirement: Teclado en el modal
 
-Con `#card-choice` abierto, Espacio MUST NOT disparar el ultimate ni activar el
-elemento enfocado, y Enter MUST NOT elegir la carta enfocada. El resto del
-teclado conserva su función: Tab y Shift+Tab ciclan el foco dentro del modal,
-Escape sólo cierra el modal de PERK (el de cartas no se puede cerrar sin
-elegir), y el botón "Lista de Combos" MUST seguir activándose con Enter y con
-click (Espacio queda inerte en todo el modal).
+Con `#card-choice` abierto, Espacio MUST NOT disparar el ultimate ni elegir la
+carta enfocada. Enter MUST elegir la carta que tiene el foco (camino de
+teclado/tecnología asistiva). Tab y Shift+Tab MUST ciclar el foco dentro del
+modal, Escape MUST cerrar sólo el modal de PERK (el de cartas no se puede
+cerrar sin elegir) y el botón "Lista de Combos" MUST seguir activándose con
+Enter y con click.
 
 #### Scenario: Espacio no dispara el ultimate
 
@@ -62,10 +78,10 @@ click (Espacio queda inerte en todo el modal).
 - **WHEN** una carta tiene el foco y el jugador pulsa Espacio
 - **THEN** esa carta no se elige y el modal sigue abierto
 
-#### Scenario: Enter sobre una carta no elige
+#### Scenario: Enter sobre una carta enfocada elige
 
 - **WHEN** una carta tiene el foco y el jugador pulsa Enter
-- **THEN** esa carta no se elige
+- **THEN** esa carta se elige
 
 #### Scenario: Lista de Combos conserva el teclado
 

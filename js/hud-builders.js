@@ -1982,7 +1982,7 @@ export function buildMenuScreen({
       <div class="menu-shell">
         <header class="menu-hero">
           <p class="menu-kicker"><span class="menu-rule"></span><span>FRENTE VOLCÁNICO · PUESTO DE MANDO</span><span class="menu-rule"></span></p>
-          <h1 class="game-title">OPEN DEFENSE<span class="subtitle">FORTRESS</span></h1>
+          <h1 class="game-title">OPEN DEFENSE <span class="subtitle">FORTRESS</span></h1>
           <p class="tagline">Defendé la base · torres fijas · <b>${STAGES.length} stages</b></p>
           ${ngBadge}
         </header>

@@ -1253,7 +1253,7 @@ test('T4: pasada la ventana de 350 ms la carta se puede volver a elegir', () => 
 // 1.17.1 — modal de level-up: selección sólo por puntero + chip de unidad
 // ============================================================
 
-test('1.17.1: un click sin gesto de puntero NO elige (teclado o programático)', () => {
+test('1.17.1: un click sin gesto de puntero y sin foco NO elige', () => {
   withFakeDocument(() => {
     const hud = fakeHudLive();
     hud.showCardChoice(OFFER);
@@ -1261,7 +1261,7 @@ test('1.17.1: un click sin gesto de puntero NO elige (teclado o programático)',
     const modal = hud.cardModal;
     const cards = modal.querySelectorAll('[data-card-id]');
     modal.dispatch('click', { target: cards[0] });
-    assert.equal(hud.emitted.length, 0, 'sin pointerdown no hay pick');
+    assert.equal(hud.emitted.length, 0, 'sin pointerdown ni foco no hay pick');
     // El gesto tiene que ser sobre ESA carta.
     modal.dispatch('pointerdown', { target: cards[0] });
     modal.dispatch('click', { target: cards[1] });
@@ -1271,12 +1271,13 @@ test('1.17.1: un click sin gesto de puntero NO elige (teclado o programático)',
   });
 });
 
-test('1.17.1: Espacio y Enter sobre una carta no la eligen', () => {
+test('1.17.1: Espacio sobre una carta enfocada no la elige', () => {
   withFakeDocument(() => {
     const hud = fakeHudLive();
     hud.showCardChoice(OFFER);
     const modal = hud.cardModal;
     const card = modal.querySelector('[data-card-id]');
+    card.focus(); // el usuario llegó con Tab
     let prevented = 0;
     const stopped = modal.dispatch('keydown', {
       key: ' ',
@@ -1286,9 +1287,37 @@ test('1.17.1: Espacio y Enter sobre una carta no la eligen', () => {
     assert.equal(stopped, true, 'el Espacio no debe llegar al window');
     assert.equal(prevented, 1, 'el Espacio debe cancelar el default del navegador');
     assert.equal(hud.emitted.length, 0, 'Espacio no elige la carta');
-    const stoppedEnter = modal.dispatch('keydown', { key: 'Enter', target: card });
-    assert.equal(stoppedEnter, true, 'Enter tampoco debe seguir');
-    assert.equal(hud.emitted.length, 0, 'Enter no elige la carta');
+  });
+});
+
+test('harden 1.17.2: Enter sobre una carta enfocada SÍ la elige (teclado/AT)', () => {
+  withFakeDocument(() => {
+    const hud = fakeHudLive();
+    hud.showCardChoice(OFFER);
+    hud._cardOpenedAt = 0;
+    const modal = hud.cardModal;
+    const card = modal.querySelector('[data-card-id]');
+    card.focus(); // Tab explícito: la carta es el elemento activo
+    const stopped = modal.dispatch('keydown', { key: 'Enter', target: card });
+    assert.equal(stopped, false, 'Enter no debe bloquearse');
+    // El navegador sintetiza el click del <button> enfocado.
+    modal.dispatch('click', { target: card });
+    assert.equal(hud.emitted.length, 1, 'Enter sobre la carta enfocada elige');
+    assert.equal(hud.emitted[0].data.cardId, 'a');
+  });
+});
+
+test('harden 1.17.2: pointercancel limpia el gesto armado', () => {
+  withFakeDocument(() => {
+    const hud = fakeHudLive();
+    hud.showCardChoice(OFFER);
+    hud._cardOpenedAt = 0;
+    const modal = hud.cardModal;
+    const card = modal.querySelector('[data-card-id]');
+    modal.dispatch('pointerdown', { target: card });
+    modal.dispatch('pointercancel', { target: card });
+    modal.dispatch('click', { target: card });
+    assert.equal(hud.emitted.length, 0, 'el gesto cancelado no elige');
   });
 });
 

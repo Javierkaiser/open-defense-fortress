@@ -4,6 +4,30 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.17.2] — 2026-11-11
+
+### Hardening de accesibilidad y bordes
+
+- **Contraste AA**: `RESET GLOBAL` pasa de **3,16:1 a 5,20:1** (alfa
+  `.65 → .9`) y el texto de versión de **3,03:1 a 6,24:1** (alfa `.5 → .8`).
+- **Camino de teclado en el level-up**: **Enter sobre la carta enfocada** la
+  elige (teclado/tecnología asistiva). El foco inicial sigue en el diálogo, así
+  que ninguna carta se activa sola, y **Espacio sigue inerte**. El puntero
+  conserva `pointerdown` + `click` y el guard de 180 ms.
+- **Gestos interrumpidos**: `pointercancel`, `pointerleave` y `dragstart`
+  limpian el gesto armado del modal; no queda un click "fantasma".
+- **320 px**: el menú pasa a **1 columna** y deja de recortar "TORRETAS" y
+  "PROTOCOLO"; los tiles miden 278×58 y no hay overflow horizontal.
+- **Semántica**: el `h1` se lee "OPEN DEFENSE FORTRESS" (espacio) y el canvas
+  tiene `role="img"` + `aria-label`.
+- Spec `level-up-choice` actualizada: selección por puntero **o** Enter
+  deliberado; Espacio inerte; gesto interrumpido.
+
+### Tests / versión
+
+- **1203 tests, 0 skip** (41 archivos).
+- Versión **1.17.2** / Android `versionCode 39`.
+
 ## [1.17.1] — 2026-11-06
 
 ### Modal de level-up: la carta se elige sólo con click

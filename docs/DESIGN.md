@@ -322,16 +322,17 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
   (2 rangos) y `bullets_5` sigue siendo el level-up del Guardian. El daño
   global da +10 % una vez y el daño por tipo +20 % una vez; los combos exigen
   sus dos piezas.
-- **Modal de level-up (1.17.1)**: la carta se elige **sólo con puntero**
-  (`pointerdown` + `click` sobre la misma carta dentro de 1 s); un `click`
-  sintetizado por teclado o por código (`detail === 0`, sin `pointerdown`) no
-  elige. Con el modal abierto **Espacio y Enter quedan inertes**: no disparan
-  el ultimate ni activan la carta enfocada, y sólo el botón "Lista de Combos"
-  conserva su activación por teclado. El foco inicial va al diálogo
-  (`#card-choice`, `tabindex="-1"`), no a la primera carta, y el trap sigue
-  ciclando con Tab. Un **guard de 180 ms** descarta cualquier pick del primer
-  instante. Cada carta muestra un **chip de unidad** (`TORRE · LÁSER`,
-  `DRON · …`, `NUEVA TORRE · …`, `COMBO · A + B`, `TIPO · …`,
+- **Modal de level-up (1.17.1, harden 1.17.2)**: la carta se elige con
+  **puntero** (`pointerdown` + `click` sobre la misma carta dentro de 1 s) o
+  con **Enter sobre la carta enfocada** (camino de teclado/AT). Un `click` sin
+  `pointerdown` sobre una carta que no tiene el foco no elige. Con el modal
+  abierto **Espacio queda inerte**: no dispara el ultimate ni activa la carta
+  enfocada; Enter sí elige la carta enfocada. El foco inicial va al diálogo
+  (`#card-choice`, `tabindex="-1"`), no a la primera carta, así que ninguna se
+  activa sola, y el trap sigue ciclando con Tab. Un **guard de 180 ms**
+  descarta cualquier pick del primer instante y `pointercancel`/`pointerleave`
+  limpian un gesto interrumpido. Cada carta muestra un **chip de unidad**
+  (`TORRE · LÁSER`, `DRON · …`, `NUEVA TORRE · …`, `COMBO · A + B`, `TIPO · …`,
   `GLOBAL · TODAS`) y una línea `Requiere: …` derivada de `requiresUnits` /
   `requiresTags` / `requiresBlackHole`. Lógica pura en `js/hud-builders.js`
   (`cardUnitLabel`, `cardRequiresText`, `canPickCard`) y wiring en
@@ -527,7 +528,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1201 tests (1201 pass, 0 skip) en 41 archivos.
+- 1203 tests (1203 pass, 0 skip) en 41 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

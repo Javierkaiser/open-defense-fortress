@@ -1703,25 +1703,41 @@ export class HUD {
     // ultimate). `tabindex="-1"` lo hace enfocable sin entrar al Tab.
     div.setAttribute('tabindex', '-1');
     host.appendChild(div);
-    // 1.17.1 — SELECCIÓN SÓLO POR PUNTERO. El `pointerdown` sobre una
-    // carta "arma" el gesto; el `click` sólo elige si hay un gesto armado
-    // sobre ESA carta y no pasó más de 1 s. Un click sintetizado por
-    // teclado (o por código) no tiene pointerdown y no elige nada.
+    // 1.17.1 — SELECCIÓN POR PUNTERO. El `pointerdown` sobre una carta
+    // "arma" el gesto; el `click` sólo elige si hay un gesto armado sobre
+    // ESA carta y no pasó más de 1 s.
+    // harden 1.17.2 — además se acepta el click de TECLADO/AT cuando la
+    // carta es el elemento ACTIVO (ver el handler de click).
     div.addEventListener('pointerdown', (ev) => {
       const card = ev.target?.closest?.('[data-card-id]') ?? null;
       this._pointerCard = card
         ? { id: card.dataset.cardId, at: Date.now() }
         : null;
     });
+    // harden 1.17.2 — gesto interrumpido: si el navegador cancela el
+    // pointer (scroll, segundo dedo, pérdida de foco) o el puntero sale del
+    // modal, el armado se limpia; no queda un click "fantasma" habilitado.
+    const clearArm = () => { this._pointerCard = null; };
+    div.addEventListener('pointercancel', clearArm);
+    div.addEventListener('pointerleave', clearArm);
+    div.addEventListener('dragstart', clearArm);
     // Tap con puntero → evento canónico 'card:pick' (main.js aplica y sigue)
     div.addEventListener('click', (ev) => {
       const card = ev.target.closest('[data-card-id]');
       if (!card) return;
-      // 1.17.1 — sin gesto de puntero no hay pick (teclado/programático).
       const gesto = this._pointerCard;
       this._pointerCard = null;
-      if (!gesto || gesto.id !== card.dataset.cardId
-        || Date.now() - gesto.at > 1000) return;
+      const pointerOk = !!gesto && gesto.id === card.dataset.cardId
+        && Date.now() - gesto.at <= 1000;
+      // harden 1.17.2 — camino de TECLADO/tecnología asistiva: Enter sobre
+      // una carta que el usuario enfocó (Tab) genera un click sin
+      // pointerdown. Se acepta sólo si esa carta es el elemento ACTIVO: al
+      // abrir el foco está en el diálogo, así que la primera carta no se
+      // activa sola (el bug de 1.17.1 no vuelve). Espacio sigue bloqueado:
+      // es la tecla del ultimate y la que causaba la elección accidental.
+      const keyboardOk = typeof document !== 'undefined'
+        && document.activeElement === card;
+      if (!pointerOk && !keyboardOk) return;
       // T4 — la carta ya se eligió: no se puede volver a tapar.
       if (card.classList.contains('dealt-out')) return;
       // T4 — anti-doble-toque: dos toques seguidos sobre la MISMA oferta
@@ -1746,8 +1762,11 @@ export class HUD {
     });
     // Teclado dentro del modal: Esc cierra SOLO el modal de perk (el de
     // cartas no se puede cerrar sin elegir, o la run queda trabada), Tab
-    // queda atrapado dentro del diálogo (focus trap) y Espacio/Enter
-    // sobre una CARTA no la eligen (1.17.1: click-only).
+    // queda atrapado dentro del diálogo (focus trap) y Espacio sobre una
+    // CARTA no la elige (es la tecla del ultimate y la causa del bug de
+    // 1.17.1). Enter SÍ activa la carta enfocada: harden 1.17.2 agrega ese
+    // camino de teclado/AT; el foco inicial está en el diálogo, así que la
+    // primera carta no se enfoca sola.
     div.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape') {
         if (this._modalKind !== 'perk') return;
@@ -1758,8 +1777,7 @@ export class HUD {
         this.hideCardChoice();
         return;
       }
-      if ((ev.key === ' ' || ev.key === 'Enter')
-        && ev.target?.closest?.('[data-card-id]')) {
+      if (ev.key === ' ' && ev.target?.closest?.('[data-card-id]')) {
         ev.preventDefault();
         ev.stopPropagation();
         return;
@@ -2080,6 +2098,8 @@ export class HUD {
     this._cardOfferId = null;
     this._cardPickedIds = [];
     this._lastCardPickAt = null;
+    // harden 1.17.2 — un gesto armado no sobrevive al cierre del modal.
+    this._pointerCard = null;
     this._restoreFocus();
   }
 
