@@ -18,6 +18,10 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
   `ci-checks` sigue prohibiendo dependencias de runtime.
 - El bundle y el CSS se validan antes de publicar: no vacíos, el JS parsea con
   `node --check`, el bundle pesa entre 100 y 900 KB y el CSS entre 50 y 300 KB.
+- **Medición de producción** (Fast 3G, CPU 4×): LCP **5,9–6,5 s → 2,9–3,3 s**
+  (−45–51 %); cadena crítica máxima **7.239 → 2.574 ms**; el bundle entra en
+  **154 KB br**. Queda un P2 de ~0,4 s para 2,5 s: el H1 todavía espera la
+  evaluación del bundle.
 - Docs: README/AGENTS/CONTRIBUTING/DESIGN y Dependabot actualizados; el árbol
   de módulos dice 57 (antes 24).
 

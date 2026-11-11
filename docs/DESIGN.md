@@ -549,6 +549,10 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
   vs 802 KB de TTF) y Orbitron/Rajdhani se precargan; el TTF queda como
   fallback. El host sirve brotli; el JS (1,48 MB sin minificar) sigue siendo
   la deuda de primera carga, no el frame.
+- **Carga (1.17.8)**: el deploy publica un solo `main.js` minificado
+  (500 KB raw / 154 KB br) y el CSS minificado (133 KB / 19 KB br). LCP en
+  Fast 3G: 5,9–6,5 s → **2,9–3,3 s**; el H1 todavía espera la evaluación del
+  bundle (~0,4 s sobre el target de 2,5 s).
 
 ## 15. Testing
 
