@@ -73,6 +73,9 @@ En Windows/PS 5.1 el glob `js/*.js` no se expande solo; usá
 - El arte de torres vive en `tower-art.js`; no mezclar con daño.
 - Los assets deben ser libres (CC0 / CC BY 3.0 / OFL 1.1) y estar documentados
   en `docs/ASSETS.md` y `docs/CREDITS.md`.
+- El registro visual para Impeccable vive en `docs/VISUALDESIGN.md`.
+  `DESIGN.md` (raíz) es su entrada para la herramienta: mantenelos idénticos
+  (`ci-checks` lo exige).
 
 ## Skills y comandos de agentes
 

@@ -132,6 +132,24 @@ if (!existsSync(cssPath)) {
   notes.push(`tipografía: piso 15 px (${small.length} violaciones)`);
 }
 
+// --- 7. Registro visual para Impeccable --------------------------------------
+// Impeccable resuelve `designPath` únicamente a `DESIGN.md` en la raíz, pero
+// el documento canónico vive en `docs/VISUALDESIGN.md`. En el checkout
+// original son el MISMO archivo (hard link); git no versiona hard links, así
+// que en un clone son dos archivos y este check impide que diverjan.
+const rootDesign = join(ROOT, "DESIGN.md");
+const visualDesign = join(ROOT, "docs/VISUALDESIGN.md");
+if (!existsSync(rootDesign) || !existsSync(visualDesign)) {
+  errors.push("faltan DESIGN.md (raíz) o docs/VISUALDESIGN.md (registro visual de Impeccable)");
+} else {
+  const normEol = (p) => readFileSync(p, "utf8").replace(/\r\n/g, "\n");
+  if (normEol(rootDesign) !== normEol(visualDesign)) {
+    errors.push("DESIGN.md y docs/VISUALDESIGN.md difieren: Impeccable lee la raíz y el documento canónico es docs/VISUALDESIGN.md; copiá el contenido");
+  } else {
+    notes.push("registro visual: DESIGN.md == docs/VISUALDESIGN.md");
+  }
+}
+
 // --- Resultado ---------------------------------------------------------------
 for (const n of notes) console.log(`ok   ${n}`);
 if (errors.length > 0) {
