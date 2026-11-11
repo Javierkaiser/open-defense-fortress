@@ -2941,6 +2941,13 @@ html, body {
   max-width: 100%;
   flex: 0 0 auto; /* no se aplasta: si no, el contenido de la carta desborda */
 }
+/* adapt 1.17.4 — affordance de scroll: cuando la columna de cartas no
+   entra entera (pantallas ≤700 px de alto), el borde inferior se difumina
+   y la pista dice "deslizá ↓". Al llegar al final, el degradado se apaga. */
+.cards-row.is-scrollable {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
+}
 .card-choice-card {
   --deal-delay: 0ms;
   /* fase 38 — el ancho de la carta es el del marco repartido entre las 3

@@ -111,6 +111,23 @@ elemento anterior al cerrarse. Ningún pick MUST aceptarse en los primeros
 - **WHEN** el modal se cierra por elección o por Escape
 - **THEN** el foco vuelve al elemento que lo tenía antes de abrirse
 
+### Requirement: Opciones alcanzables en pantallas bajas
+
+Si las tres cartas no entran en el alto disponible, la columna de cartas MUST
+scrollear y MUST mostrar una pista visible ("deslizá ↓") y un degradado
+inferior; ambos MUST apagarse al llegar al final. Ninguna opción MUST quedar
+inalcanzable. Si todo entra, MUST NOT mostrarse la pista ni el degradado.
+
+#### Scenario: Pantalla baja
+
+- **WHEN** el modal se abre en 360×640 y la columna no entra entera
+- **THEN** la columna scrollea, muestra "deslizá ↓" y la tercera carta se alcanza al deslizar
+
+#### Scenario: Todo entra
+
+- **WHEN** las cartas entran en el alto del modal
+- **THEN** no aparece el degradado ni la pista de scroll
+
 ### Requirement: Identificación de la unidad
 
 Cada carta MUST mostrar un chip de unidad con uno de estos formatos exactos:

@@ -12,7 +12,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CATALOG } from '../js/cards.js';
 import { LEGENDARY_CARDS } from '../js/cards-legendary.js';
-import { cardUnitLabel, cardRequiresText } from '../js/hud-builders.js';
+import { cardUnitLabel, cardRequiresText, cardsScrollState } from '../js/hud-builders.js';
 
 const TODAS = [...CATALOG, ...LEGENDARY_CARDS];
 
@@ -86,12 +86,29 @@ test('1.17.1: ninguna descripción usa jerga interna ni queda vacía', () => {
 });
 
 test('1.17.1: las cartas que declaran efecto traen al menos un número', () => {
-  // Las de puro flavor (desbloqueos con texto descriptivo) pueden no tener
-  // número; las de mejora sí. Se exceptúan las que delegan en una mecánica
-  // sin magnitud (p. ej. "rebota").
   const SIN_NUMERO_OK = new Set(['tech_bounce', 'black_hole']);
   const faltan = TODAS.filter((c) => !SIN_NUMERO_OK.has(c.id)
     && !/\d/.test(String(c.desc)));
   assert.deepEqual(faltan.map((c) => c.id), [],
     'estas cartas describen un efecto sin ningún número');
+});
+
+test('adapt 1.17.4: la pista de scroll solo aparece si hay más abajo', () => {
+  assert.deepEqual(
+    cardsScrollState({ scrollHeight: 657, clientHeight: 450, scrollTop: 0 }),
+    { more: true, atEnd: false, show: true },
+    'con contenido abajo y sin scrollear, se muestra la pista',
+  );
+  assert.deepEqual(
+    cardsScrollState({ scrollHeight: 657, clientHeight: 450, scrollTop: 207 }),
+    { more: true, atEnd: true, show: false },
+    'al llegar al final, la pista se apaga',
+  );
+  assert.deepEqual(
+    cardsScrollState({ scrollHeight: 450, clientHeight: 450, scrollTop: 0 }),
+    { more: false, atEnd: true, show: false },
+    'si todo entra, no hay pista',
+  );
+  assert.deepEqual(cardsScrollState(),
+    { more: false, atEnd: true, show: false });
 });

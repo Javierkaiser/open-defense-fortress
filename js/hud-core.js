@@ -109,6 +109,7 @@ import {
   CARD_OPEN_GUARD_MS,
   cardUnitLabel,
   cardRequiresText,
+  cardsScrollState,
   buildCreditsHtml,
   readMetaScroll,
   restoreMetaScroll,
@@ -2057,6 +2058,29 @@ export class HUD {
       ?.addEventListener('click', () => this.engine.emit('ui:combo_list'));
     this.cardModal.classList.remove('hidden');
     this._modalKind = 'cards';
+    // adapt 1.17.4 — en pantallas bajas (≤700 px de alto) la columna de
+    // cartas no entra entera. El degradado inferior y el aviso de la pista
+    // hacen visible que hay más; se apagan al llegar al final.
+    const row = this.cardModal.querySelector('.cards-row');
+    if (row) {
+      const hintEl = this.cardModal.querySelector('.hint');
+      const baseHint = hintEl ? hintEl.textContent : '';
+      const updateMore = () => {
+        const { show } = cardsScrollState({
+          scrollHeight: row.scrollHeight,
+          clientHeight: row.clientHeight,
+          scrollTop: row.scrollTop,
+        });
+        row.classList.toggle('is-scrollable', show);
+        if (hintEl) {
+          hintEl.textContent = show
+            ? `${baseHint} · deslizá ↓`
+            : baseHint;
+        }
+      };
+      row.addEventListener('scroll', updateMore, { passive: true });
+      updateMore();
+    }
     // T7 — el rótulo accesible dice la cantidad REAL de cartas de la
     // oferta (puede ser 1, no siempre 3) y el modal TOMA el foco (si no,
     // el focus trap y el Esc no engages y el HUD queda tabulable detrás).

@@ -422,8 +422,15 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
   texto del Protocolo corregido y overlay de cartas opaco en táctil.
 - **Legibilidad de cartas (1.12.7)**: descripciones a 14–15 px con interlineado
   1,5, títulos más grandes y cartas a todo el ancho en móvil (190 px máximo en
-  escritorio). En pantallas de 360×640 se compacta solo el aire vertical para
-  que las tres cartas entren sin scroll; la tipografía no se reduce.
+  escritorio). En pantallas de 360×640 se compacta el aire vertical; si las tres
+  cartas no entran, la columna scrollea con un degradado inferior y la pista
+  "deslizá ↓" (1.17.4), que se apagan al llegar al final. La tipografía no se
+  reduce.
+- **Adaptación de pantallas bajas (1.17.4)**: el modal de cartas mide el alto
+  real de su columna y activa `cards-row.is-scrollable` cuando el contenido no
+  entra; el menú pasa a 1 columna a 320 px (1.17.2) y las pantallas de
+  selector/torretas/protocolo/récords/créditos scrollean sin overflow
+  horizontal. En landscape móvil se muestra el aviso de rotar (portrait-first).
 - **Legibilidad global (1.13.0)**: escala 15/16/18/21/26/36 y **piso absoluto
   de 15 px** para cualquier texto visible. Se purgaron 76 tamaños crudos de
   8–11 px y se redujo el tracking de las mayúsculas. Menú, pausa, selector,
@@ -534,7 +541,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1204 tests (1204 pass, 0 skip) en 41 archivos.
+- 1205 tests (1205 pass, 0 skip) en 41 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 

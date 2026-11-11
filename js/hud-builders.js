@@ -1497,6 +1497,19 @@ export function restoreProtocolFocus(root, key) {
 }
 
 /**
+ * adapt 1.17.4 — ESTADO DE LA COLUMNA DE CARTAS. ¿Hay más abajo y no
+ * estamos al final? Puro para poder testearlo sin DOM.
+ *
+ * @param {{scrollHeight?:number, clientHeight?:number, scrollTop?:number}} [m]
+ * @returns {{more:boolean, atEnd:boolean, show:boolean}}
+ */
+export function cardsScrollState({ scrollHeight = 0, clientHeight = 0, scrollTop = 0 } = {}) {
+  const more = scrollHeight > clientHeight + 2;
+  const atEnd = scrollTop + clientHeight >= scrollHeight - 2;
+  return { more, atEnd, show: more && !atEnd };
+}
+
+/**
  * ¿Se acepta este toque en una carta? (bug del doble toque: el primer
  * toque aplicaba la carta y el modal se re-renderizaba con la oferta
  * SIGUIENTE bajo el dedo → el segundo toque aplicaba OTRA carta y el

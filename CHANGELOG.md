@@ -4,6 +4,24 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.17.4] — 2026-11-11
+
+### Adaptación de pantallas bajas
+
+- El modal de level-up **detecta si la columna de cartas no entra** y muestra
+  un degradado inferior + **"deslizá ↓"**; ambos se apagan al llegar al final.
+  A 360×640 y 320×568 la tercera carta es alcanzable por scroll.
+- `cardsScrollState()` puro en `hud-builders.js` y test de contrato.
+- Verificado a 320×568: menú, selector, torretas, Protocolo, récords y créditos
+  scrollean sin overflow horizontal ni texto recortado. Tablet 768×1024 sin
+  overflow; landscape móvil conserva el aviso de rotar (portrait-first).
+- El menú a 320 ya había pasado a 1 columna en 1.17.2.
+
+### Tests / versión
+
+- **1205 tests, 0 skip** (41 archivos).
+- Versión **1.17.4** / Android `versionCode 41`.
+
 ## [1.17.3] — 2026-11-11
 
 ### Movimiento reducido con intención
