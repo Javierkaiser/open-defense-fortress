@@ -62,7 +62,8 @@ En Windows/PS 5.1 el glob `js/*.js` no se expande solo; usá
 ## Reglas duras
 
 - **Sin dependencias npm en runtime.** El runtime no tiene build step: el
-  deploy bundlea/minifica `js/` con esbuild, la única devDependency.
+  deploy bundlea/minifica `js/` y `css/style.css` con esbuild, la única
+  devDependency.
 - Los módulos se evalúan en Node: nada de `new Image()`, `Audio`,
   `AudioContext`, `document` crudos al importar. Usá guards.
 - `Path2D` no existe en Node: `tower-art.js` usa un trazador fallback y los
@@ -107,8 +108,9 @@ Kilo, Hermes u otro agente, podés aprovecharlas; si no, ignoralas.
 Cada push a `main` corre `.github/workflows/deploy-herenow.yml`, que publica el
 sitio completo en here.now con el slug `faint-desert-zjv5` (ver
 `.github/scripts/deploy-herenow.sh`). El deploy bundlea `js/` en un solo
-`main.js` minificado con esbuild y lo publica como `js_v<sha>` para romper el
-cache; se suben `index.html`, `privacy.html`, `css/` y `assets/`. **Si cambiás la URL pública, barré el repo** con
+`main.js` y minifica `css/style.css` con esbuild; los publica como `js_v<sha>` y
+`style.css?v=<sha>` para romper el cache. Se suben `index.html`, `privacy.html`,
+`css/` y `assets/`. **Si cambiás la URL pública, barré el repo** con
 `grep -rn "here.now"` — el `homepage` de `package.json`, los README, `SECURITY.md`,
 este archivo y las plantillas de issues llevan URLs absolutas que ninguna suite
 de tests detecta.

@@ -7,7 +7,7 @@ mediciones, ver [BALANCE.md](BALANCE.md); para la suite, [TESTING.md](TESTING.md
 
 1. **100% estático y offline.** Sin servidor, sin llamadas de red y sin
    dependencias npm en runtime. El runtime no tiene build step; el deploy
-   bundlea/minifica con esbuild.
+   bundlea el JS y minifica el CSS con esbuild.
 2. **Una sola pantalla de juego.** Canvas 2D lógico 540×880; el jugador no
    mueve una nave ni apunta. Las torres disparan solas.
 3. **Portrait primero.** El HUD y los overlays se adaptan a marcos angostos y a

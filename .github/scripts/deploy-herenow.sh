@@ -83,6 +83,12 @@ trap 'rm -rf "$STAGING"' EXIT
 cp -r "$REPO/index.html" "$STAGING/"
 cp -r "$REPO/privacy.html" "$STAGING/"
 cp -r "$REPO/css" "$STAGING/"
+# CSS del deploy: minificado (el fuente conserva comentarios y orden).
+npx --no-install esbuild "$REPO/css/style.css" --minify --outfile="$STAGING/css/style.css"
+CSS_BYTES=$(wc -c < "$STAGING/css/style.css" | tr -d ' ')
+[[ "$CSS_BYTES" -gt 50000 && "$CSS_BYTES" -lt 300000 ]] \
+  || die "CSS minificado fuera de rango: ${CSS_BYTES} bytes"
+echo ">> css: style.css minificado (${CSS_BYTES} bytes)"
 cp -r "$REPO/assets" "$STAGING/"
 # js/ -> js_v<commit>/main.js (un solo bundle minificado; URLs nuevas por push)
 mkdir -p "$STAGING/$JS_DIR"

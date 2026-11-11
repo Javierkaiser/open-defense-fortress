@@ -50,7 +50,7 @@ node scripts/serve.mjs 8080
 
 Requisitos: **Node 22+** (solo para servir y para los tests; el juego no tiene
 dependencias de runtime ni build step para jugar o desarrollar; el deploy
-publica un bundle minificado con esbuild). Alternativas de servidor:
+publica un bundle de JS y CSS minificados con esbuild). Alternativas de servidor:
 
 ```bash
 python3 -m http.server 8080

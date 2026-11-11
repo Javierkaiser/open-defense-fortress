@@ -11,10 +11,13 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 - El deploy publica un **solo `main.js` minificado** con esbuild: los 57
   módulos (1,48 MB sin minificar) pasan a **500 KB raw / 129 KB brotli** y una
   sola request. El runtime y los tests siguen leyendo `js/` sin build.
+- El CSS del deploy también se minifica: `style.css` pasa de **231 KB a
+  133 KB raw** y de **45 KB a 19 KB brotli**; el fuente conserva comentarios y
+  orden para el desarrollo.
 - `esbuild 0.25.0` es la única devDependency; el job de deploy la instala y
   `ci-checks` sigue prohibiendo dependencias de runtime.
-- El bundle se valida antes de publicar: no vacío, parsea con `node --check`
-  y pesa entre 100 y 900 KB.
+- El bundle y el CSS se validan antes de publicar: no vacíos, el JS parsea con
+  `node --check`, el bundle pesa entre 100 y 900 KB y el CSS entre 50 y 300 KB.
 - Docs: README/AGENTS/CONTRIBUTING/DESIGN y Dependabot actualizados; el árbol
   de módulos dice 57 (antes 24).
 

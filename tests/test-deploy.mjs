@@ -17,7 +17,7 @@ const deploy = leer('.github/scripts/deploy-herenow.sh');
 const pkg = JSON.parse(leer('package.json'));
 const workflow = leer('.github/workflows/deploy-herenow.yml');
 
-test('deploy 1.17.8: bundlea js/main.js en un solo archivo minificado', () => {
+test('deploy 1.17.8: bundlea js/main.js y minifica el CSS', () => {
   assert.match(deploy, /npx --no-install esbuild "\$REPO\/js\/main\.js"/,
     'el deploy tiene que invocar esbuild sobre el entry');
   for (const flag of ['--bundle', '--minify', '--format=esm', '--target=es2020', '--charset=utf8']) {
@@ -27,6 +27,10 @@ test('deploy 1.17.8: bundlea js/main.js en un solo archivo minificado', () => {
     'el bundle se publica como js_v<sha>/main.js');
   assert.ok(!deploy.includes('cp -r "$REPO/js"'),
     'no se copian los 57 módulos sueltos al staging');
+  assert.match(deploy, /esbuild "\$REPO\/css\/style\.css" --minify/,
+    'el CSS del deploy también se minifica');
+  assert.ok(deploy.includes('$STAGING/css/style.css'),
+    'el CSS minificado se publica en css/style.css');
 });
 
 test('deploy 1.17.8: esbuild es la única devDependency y no hay deps de runtime', () => {

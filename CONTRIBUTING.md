@@ -2,8 +2,8 @@
 
 Gracias por el interés. El proyecto es un juego estático, offline y
 **zero-dependency** en runtime: se mantiene a propósito sin paquetes npm de
-runtime y sin build step para desarrollar. El deploy publica un bundle
-minificado con esbuild; no hay servidor.
+runtime y sin build step para desarrollar. El deploy publica un bundle de JS y
+CSS minificados con esbuild; no hay servidor.
 
 Se aceptan contribuciones, issues y reportes **en español o en inglés**. La
 documentación está en español; si escribís en inglés te respondemos igual.
