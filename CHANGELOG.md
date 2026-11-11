@@ -4,6 +4,23 @@ Todas las versiones notables de este proyecto se documentan acá. El formato sig
 [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y el versionado
 [SemVer](https://semver.org/lang/es/).
 
+## [1.17.9] — 2026-11-11
+
+### Tokens de movimiento y radio
+
+- `--ease-state` (.15s) y `--ease-quick` (.18s) reemplazan **41 y 8**
+  literales de transición; el vocabulario del sidecar queda alineado
+  (`ease-state` / `ease-quick`).
+- Las 4 píldoras con `border-radius: 999px` usan `var(--radius-l)`.
+- No se tokenizan los 12 one-off de peligro/calor (1–2 usos) ni los gaps o
+  paddings de componente: no tienen 3+ usos con el mismo intento.
+- Test que exige los tokens y prohíbe volver a los literales de transición.
+
+### Tests / versión
+
+- **1214 tests, 0 skip** (42 archivos).
+- Versión **1.17.9** / Android `versionCode 46`.
+
 ## [1.17.8] — 2026-11-11
 
 ### Bundle de deploy

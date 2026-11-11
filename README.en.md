@@ -25,7 +25,7 @@ and the upgrade cards offered on level-up. Every run is a roguelike.
 - Canvas 2D + DOM/CSS + ES modules; no runtime dependencies and no build step
   to play or develop; the deploy publishes a minified bundle. No server, no
   network calls.
-- 1213 Node tests.
+- 1214 Node tests.
 
 ## Run it
 
@@ -38,7 +38,7 @@ install needed, and it keeps working offline after the first load.
 node scripts/serve.mjs 8080
 # open http://localhost:8080
 
-# tests (1213) + static checks
+# tests (1214) + static checks
 node --test "tests/test-*.mjs"
 node .github/scripts/ci-checks.mjs
 ```

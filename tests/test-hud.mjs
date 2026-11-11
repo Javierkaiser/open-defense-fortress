@@ -4528,3 +4528,12 @@ test('extract 1.17.6: acero y panel se consumen por triplet y siguen al tema', (
     'la matriz de daño usa el acero del tema');
   assert.ok(css.includes('--overlay-veil-rgb: 6 8 12'), 'el velo también tiene triplet');
 });
+
+test('extract 1.17.9: los tiempos de hover/estado son tokens', () => {
+  assert.ok(css.includes('--ease-state: .15s ease'), 'falta el token de hover');
+  assert.ok(css.includes('--ease-quick: .18s ease'), 'falta el token rápido');
+  assert.ok(!/transition:[^;]*\.15s ease/.test(css), 'quedó un .15s literal en transiciones');
+  assert.ok(!/transition:[^;]*\.18s ease/.test(css), 'quedó un .18s literal en transiciones');
+  assert.ok(!css.includes('border-radius: 999px'), 'quedó un radio píldora literal');
+  assert.ok(css.includes('border-radius: var(--radius-l)'), 'las píldoras usan el token');
+});

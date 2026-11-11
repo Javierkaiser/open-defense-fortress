@@ -228,6 +228,12 @@
   --radius-s: 8px;   /* chip / botón pequeño */
   --radius-m: 12px;  /* card y panel */
   --radius-l: 999px; /* píldora (pestaña, badge, botón redondo) */
+  /* ---------- extract 1.17.9: MOVIMIENTO COMPARTIDO ----------
+     Los dos tiempos que se repiten en hover/estado (41 y 8 usos). El
+     sidecar los documenta como ease-state y ease-quick; el resto de
+     duraciones son momentos de una sola pieza y quedan literales. */
+  --ease-state: .15s ease;
+  --ease-quick: .18s ease;
   /* Los dos glows que más se repiten: el teal de la UI y el dorado.
      Se escriben con los TRIPLETS, así que también cambian con el tema. */
   --shadow-1: 0 0 8px rgb(var(--hud-teal-rgb) / .3);
@@ -710,7 +716,7 @@ html, body {
   cursor: pointer;
   pointer-events: auto;
   user-select: none;
-  transition: box-shadow .15s ease, color .15s ease;
+  transition: box-shadow var(--ease-state), color var(--ease-state);
 }
 .btn-round:hover { box-shadow: 0 0 14px rgb(var(--hud-teal-rgb) / .6); }
 .btn-round:active { transform: translateY(1px); }
@@ -1391,7 +1397,7 @@ html, body {
   background: linear-gradient(180deg, rgba(18, 34, 32, .92), rgba(10, 15, 18, .92));
   box-shadow: inset 0 1px 0 rgb(var(--hud-teal-rgb) / .25);
   cursor: pointer;
-  transition: border-color .15s ease, box-shadow .15s ease;
+  transition: border-color var(--ease-state), box-shadow var(--ease-state);
 }
 .stage-endless:hover {
   border-color: rgb(var(--hud-teal-rgb) / .85);
@@ -1567,7 +1573,7 @@ html, body {
   border-radius: var(--radius-s);
   background: rgba(12, 22, 26, .75);
   cursor: pointer;
-  transition: color .15s ease, border-color .15s ease, box-shadow .15s ease;
+  transition: color var(--ease-state), border-color var(--ease-state), box-shadow var(--ease-state);
 }
 .protocol-preset:hover {
   color: var(--score-white);
@@ -1666,7 +1672,7 @@ html, body {
   border-radius: var(--radius-s);
   background: rgba(18, 34, 32, .9);
   cursor: pointer;
-  transition: border-color .15s ease, box-shadow .15s ease, opacity .15s ease;
+  transition: border-color var(--ease-state), box-shadow var(--ease-state), opacity var(--ease-state);
 }
 .protocol-step:hover:not(:disabled) {
   border-color: rgb(var(--hud-teal-rgb) / .9);
@@ -1717,7 +1723,7 @@ html, body {
   background: linear-gradient(180deg, rgba(34, 18, 22, .92), rgba(12, 10, 14, .92));
   box-shadow: inset 0 1px 0 rgb(var(--boss-red-rgb) / .22);
   cursor: pointer;
-  transition: border-color .15s ease, box-shadow .15s ease;
+  transition: border-color var(--ease-state), box-shadow var(--ease-state);
 }
 .stage-survival:hover {
   border-color: rgb(var(--boss-red-rgb) / .8);
@@ -1976,7 +1982,7 @@ html, body {
   );
   padding: 10px 22px;
   cursor: pointer;
-  transition: box-shadow .15s ease;
+  transition: box-shadow var(--ease-state);
   user-select: none;
 }
 .btn:hover {
@@ -2086,7 +2092,7 @@ html, body {
   margin: 0;
   padding: 5px 12px;
   border: 1px solid rgb(var(--crit-gold-rgb) / .45);
-  border-radius: 999px;
+  border-radius: var(--radius-l);
   background: rgb(var(--crit-gold-rgb) / .10);
   color: var(--crit-gold);
   font-family: var(--font-mono);
@@ -2519,7 +2525,7 @@ html, body {
     0 0 0 1px rgba(0, 0, 0, .55),
     inset 0 0 10px rgba(0, 0, 0, .35),
     0 0 8px rgb(var(--hud-teal-rgb) / .18);
-  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+  transition: transform var(--ease-state), border-color var(--ease-state), box-shadow var(--ease-state);
 }
 /* La miniatura: 4 cuadrantes del tema (acento, dorado, fondo, rojo). */
 .theme-swatch-chip {
@@ -2583,7 +2589,7 @@ html, body {
   border: 1px solid rgb(var(--platform-light-rgb) / .35);
   border-radius: var(--radius-l);
   cursor: pointer;
-  transition: border-color .15s ease, color .15s ease, box-shadow .15s ease;
+  transition: border-color var(--ease-state), color var(--ease-state), box-shadow var(--ease-state);
 }
 .quality-btn:hover { border-color: rgba(255, 255, 255, .5); }
 .quality-btn.active {
@@ -2674,7 +2680,7 @@ html, body {
 .boot-loading-bar {
   width: 180px;
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-l);
   background: rgb(var(--hud-teal-rgb) / 0.15);
   overflow: hidden;
   display: flex;
@@ -2908,7 +2914,7 @@ html, body {
   cursor: pointer;
   pointer-events: auto;
   box-shadow: 0 0 12px rgb(var(--hp-green-rgb) / .45);
-  transition: box-shadow .15s ease, transform .1s ease;
+  transition: box-shadow var(--ease-state), transform .1s ease;
 }
 .combo-btn:hover { box-shadow: 0 0 18px rgb(var(--hp-green-rgb) / .75); }
 .combo-btn:active { transform: translateY(1px); }
@@ -3027,7 +3033,7 @@ html, body {
      dejó plana y el flip viejo quedó muerto (lo pisaba `animation: none`
      al final del archivo). Sin transform/opacity iniciales no hay salto
      si el navegador no corre la animación. */
-  transition: box-shadow .18s ease, transform .18s ease, border-color .18s ease;
+  transition: box-shadow var(--ease-quick), transform var(--ease-quick), border-color var(--ease-quick);
 }
 .card-choice-card:hover, .card-choice-card:focus-visible {
   border-color: #B7FFE9;
@@ -3047,7 +3053,7 @@ html, body {
   max-width: 100%;
   padding: 1px 8px;
   border: 1px solid rgb(var(--hud-teal-rgb) / .45);
-  border-radius: 999px;
+  border-radius: var(--radius-l);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   line-height: 1.35;
@@ -3499,7 +3505,7 @@ html, body {
   border-radius: 50%;
   cursor: pointer;
   box-shadow: 0 0 8px rgb(var(--hud-teal-rgb) / .25);
-  transition: transform .12s ease, box-shadow .15s ease, border-color .15s ease;
+  transition: transform .12s ease, box-shadow var(--ease-state), border-color var(--ease-state);
 }
 .meta-banner-toggle:hover {
   border-color: var(--hud-teal);
@@ -3932,7 +3938,7 @@ html, body {
   opacity: 0;
   pointer-events: none;
   transform: translateY(6px);
-  transition: opacity .18s ease, transform .18s ease;
+  transition: opacity var(--ease-quick), transform var(--ease-quick);
 }
 .meta-hint.show { opacity: 1; transform: none; }
 
@@ -3965,7 +3971,7 @@ html, body {
   font-weight: 600;
   font-size: var(--text-sm);
   letter-spacing: var(--tracking-narrow);
-  transition: background .15s ease, box-shadow .15s ease;
+  transition: background var(--ease-state), box-shadow var(--ease-state);
 }
 .meta-tab i {
   font-style: normal;
@@ -4402,7 +4408,7 @@ html, body {
   border-radius: var(--radius-s);
   padding: 6px 10px;
   cursor: pointer;
-  transition: background .15s ease, color .15s ease;
+  transition: background var(--ease-state), color var(--ease-state);
 }
 .meta-legend-toggle:hover { background: rgba(53, 224, 200, .18); }
 .meta-legend-toggle[aria-expanded="true"] {
@@ -4784,7 +4790,7 @@ html, body {
     0 0 0 1px rgba(0, 0, 0, .35);
   cursor: pointer;
   overflow: hidden;
-  transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+  transition: transform var(--ease-quick), box-shadow var(--ease-quick), filter var(--ease-quick);
 }
 .menu-cta::before,
 .pause-cta::before {
@@ -4901,7 +4907,7 @@ html, body {
   );
   background: linear-gradient(180deg, rgba(18, 28, 32, .88), rgb(var(--panel-deep-rgb) / .94));
   cursor: pointer;
-  transition: transform .15s ease, border-color .15s ease, background .15s ease;
+  transition: transform var(--ease-state), border-color var(--ease-state), background var(--ease-state);
 }
 .menu-tile:hover {
   transform: translateY(-1px);
@@ -5116,7 +5122,7 @@ kbd {
   font-weight: 700;
   letter-spacing: .1em;
   border: 1px solid rgb(var(--hud-teal-rgb) / .28);
-  border-radius: 999px;
+  border-radius: var(--radius-l);
   background: rgb(var(--hud-teal-rgb) / .06);
 }
 .pause-cta {
@@ -5191,7 +5197,7 @@ kbd {
   );
   background: linear-gradient(180deg, rgba(18, 28, 32, .82), rgb(var(--panel-deep-rgb) / .92));
   cursor: pointer;
-  transition: transform .15s ease, border-color .15s ease, background .15s ease;
+  transition: transform var(--ease-state), border-color var(--ease-state), background var(--ease-state);
 }
 .pause-tile:hover {
   transform: translateY(-1px);
@@ -5434,7 +5440,7 @@ kbd {
   font-size: var(--text-md);
   letter-spacing: .04em;
   text-shadow: none;
-  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease, transform .15s ease;
+  transition: border-color var(--ease-state), background var(--ease-state), box-shadow var(--ease-state), transform var(--ease-state);
 }
 .btn:hover {
   border-color: rgb(var(--hud-teal-rgb) / .68);
@@ -6598,8 +6604,8 @@ kbd {
   /* 2. Hover/press: color y glow sí, desplazamiento no. */
   .menu-cta, .pause-cta, .menu-tile, .pause-tile,
   .theme-swatch, .btn, .btn-round, .card-choice-card {
-    transition: color .15s ease, background-color .15s ease,
-      border-color .15s ease, box-shadow .15s ease, opacity .15s ease;
+    transition: color var(--ease-state), background-color var(--ease-state),
+      border-color var(--ease-state), box-shadow var(--ease-state), opacity var(--ease-state);
   }
   .menu-cta:hover, .pause-cta:hover,
   .menu-tile:hover, .pause-tile:hover,

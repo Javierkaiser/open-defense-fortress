@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-11T15:11:59.933Z",
+  "generatedAt": "2026-11-11T16:39:50.449Z",
   "title": "Design System: Open Defense Fortress",
   "extensions": {
     "colorMeta": {
@@ -1675,12 +1675,12 @@
       {
         "name": "ease-state",
         "value": ".15s ease",
-        "purpose": "Hover y foco de botones."
+        "purpose": "Hover, foco y estado de botones, chips y filas."
       },
       {
-        "name": "ease-cta",
+        "name": "ease-quick",
         "value": ".18s ease",
-        "purpose": "Elevación del CTA de forja."
+        "purpose": "Hover/estado r?pido de CTA, cartas y tiles."
       },
       {
         "name": "ease-screen",

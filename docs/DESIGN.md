@@ -463,6 +463,10 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
   opacidad o glow estático: nivel (`lv-fade`), XP (`xp-fade`), racha
   (`mult-fade`), ultimate listo (glow fijo) y avisos (fade). No hay kill
   global de 0,01 s.
+- **Movimiento compartido (1.17.9)**: `--ease-state` (.15s) y
+  `--ease-quick` (.18s) son los tiempos de hover/estado; reemplazan 41 y 8
+  literales. El resto de duraciones (feedback, entrada de pantalla, shine)
+  son momentos de una sola pieza y quedan literales.
 - **Pulido 1.17.5**: la pantalla de carga tiene inset y una barra de tres
   celdas (sin marquee); la matriz de daño de la pausa oculta el glifo del
   encabezado a ≤520 px y pasa a fichas a ≤380 px; el flip muerto de las
@@ -558,7 +562,7 @@ inmune a un tipo de daño: todo se puede matar, solo cambia el costo.
 
 - `node:test`, sin DOM/canvas/audio/jsdom.
 - Un archivo por módulo + `test-integration.mjs` (smoke del motor real).
-- 1213 tests (1213 pass, 0 skip) en 42 archivos.
+- 1214 tests (1214 pass, 0 skip) en 42 archivos.
 - Lo que no cubre la suite: rendering real, DOM, audio, WebView/Android.
   Ver [TESTING.md](TESTING.md).
 
